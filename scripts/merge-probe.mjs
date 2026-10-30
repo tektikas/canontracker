@@ -1,7 +1,8 @@
 // Merge identity probe against a running server: node scripts/merge-probe.mjs [baseUrl]
 // Loads the demo into a throwaway account, merges Lighthouse into Causeway and asserts that everything downstream follows:
-// pending change impact goes stale, conflicts whose premise vanished close, later candidates map to the kept page,
-// and the project medium only accepts real keys.
+// pending change impact goes stale (CSV export says so too), conflicts whose premise vanished close, model prompts get the
+// canonical names, later candidates map to the name fixed at merge time even after the kept page is renamed, and the
+// project medium only accepts real keys.
 import assert from 'node:assert/strict'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
@@ -65,6 +66,9 @@ check('merge audit records the mapping', mergeEvent.detail.names_mapped.includes
 // 1. Stale impact blocks accept until re-run.
 let stored = (await a('/api/changes')).data.find(c => c.id === change.id)
 check('proposal is marked stale by the merge', stored.impact_stale?.audit_id, mergeEvent.id)
+const csv = (await a(`/api/changes/${change.id}/export?format=csv`)).data.split('\n')
+check('CSV export has the stale column', csv[0].startsWith('impact_stale,'), true)
+check('every CSV row carries the stale warning', csv.slice(1).every(r => r.startsWith('"Out of date: a merge')), true)
 const blocked = await a(`/api/changes/${change.id}/decision`, { method: 'POST', body: { decision: 'accept', rationale: 'probe' } })
 check('accept on stale impact is refused', `${blocked.status} ${blocked.data.statusMessage}`, '409 IMPACT_STALE')
 const rerun = (await a(`/api/changes/${change.id}/analyze`, { method: 'POST' })).data
@@ -73,6 +77,7 @@ check('re-run picks up the merged facts', rerun.impact.length > storedBefore, tr
 stored = (await a('/api/changes')).data.find(c => c.id === change.id)
 check('re-run clears the stale flag', stored.impact_stale, null)
 check('stored impact equals the fresh one', stored.impact.length, rerun.impact.length)
+check('CSV after re-run has an empty stale column', (await a(`/api/changes/${change.id}/export?format=csv`)).data.split('\n')[1].startsWith('"",'), true)
 
 // 2. Conflicts whose premise vanished close, with a link to the merge; a rescan does not bring them back.
 const after = (await a('/api/conflicts')).data
@@ -85,6 +90,29 @@ await a('/api/conflicts/scan', { method: 'POST' })
 const reopened = (await a('/api/conflicts')).data.filter(c => c.status === 'open' && [c.left, c.right].some(x => names(x).includes('Lighthouse')))
 check('rescan raises nothing about Lighthouse', reopened.length, 0)
 
+// Model prompts (recorded in model_calls, mock mode too) carry the canonical subject/object and the merge, next to the
+// statement and quote as written.
+const lhFact = atLighthouse[0]
+await a('/api/qa', { method: 'POST', body: { question: 'Where is Arin at the lighthouse?' } })
+const answerCall = (await a('/api/model-calls')).data.find(c => c.purpose === 'answer')
+check('answer prompt version bumped', answerCall.prompt_version, 'answer-v2')
+check('answer prompt includes the re-pointed fact', answerCall.input_refs.includes(lhFact.id), true)
+const lhLines = answerCall.input.split('\n[')[answerCall.input.split('\n[').findIndex(l => l.includes(`${lhFact.id}]`))]
+check('answer prompt keeps the statement as written', lhLines.includes(lhFact.statement), true)
+check('answer prompt gives the canonical object', /object: Causeway\b/.test(lhLines), true)
+check('answer prompt explains the merge', answerCall.input.includes('"Lighthouse" is "Causeway"'), true)
+const seenCalls = new Set((await a('/api/model-calls')).data.map(c => c.id))
+await a('/api/conflicts/scan', { method: 'POST' })
+const ruleCalls = (await a('/api/model-calls')).data.filter(c => !seenCalls.has(c.id) && c.purpose === 'rule_check')
+check('rule-check prompt version bumped', ruleCalls.every(c => c.prompt_version === 'rule-check-v2'), true)
+check('rule-check prompts were recorded', ruleCalls.length > 0, true)
+const ruleWithLh = ruleCalls.filter(c => c.input.includes(`[${lhFact.id}]`))
+check('every rule-check prompt with the re-pointed fact explains the merge', ruleWithLh.every(c => c.input.includes('"Lighthouse" is "Causeway"') && !/(subject|object): Lighthouse\b/.test(c.input)), true)
+console.log(`    ${ruleWithLh.length} of ${ruleCalls.length} rule-check prompts include it`)
+
+// Renaming the kept page is editorial: it must not change the name analysis uses for later candidates.
+check('rename the Causeway page', (await a(`/api/entities/${causeway.id}`, { method: 'PATCH', body: { name: 'Old Causeway Road' } })).status, 200)
+
 // 3. Re-importing S06 brings "Lighthouse" back as a candidate; the reviewer sees the mapping, accept saves it as Causeway.
 const s06 = (await a('/api/documents')).data.find(d => d.filename === 'S06.md')
 const content = (await a(`/api/documents/${s06.id}`)).data.content
@@ -93,12 +121,12 @@ form.append('files', new Blob([`${content}\n\nRevised draft.\n`], { type: 'text/
 check('S06 re-import', (await a('/api/documents', { method: 'POST', form })).status, 200)
 const cand = (await a('/api/facts?status=pending')).data.find(f => names(f).includes('Lighthouse') && f.evidence.some(e => e.verified))
 assert.ok(cand, 'S06 v2 has a verified Lighthouse candidate')
-check('candidate shows the merge mapping', cand.identity.map(i => `${i.from}->${i.to} ${i.audit_id}`).join(), `Lighthouse->Causeway ${mergeEvent.id}`)
+check('candidate shows the merge mapping (name fixed at merge)', cand.identity.map(i => `${i.from}->${i.to} ${i.audit_id} ${i.entity_id}`).join(), `Lighthouse->Causeway ${mergeEvent.id} ${causeway.id}`)
 const conflictsBefore = (await a('/api/conflicts')).data.length
 check('accept the candidate', (await a(`/api/facts/${cand.id}/review`, { method: 'POST', body: { decision: 'accept' } })).status, 200)
 canon = (await a('/api/facts?status=canon')).data
 const saved = canon.find(f => f.id === cand.id)
-check('accepted fact names Causeway', names(saved).includes('Causeway') && !names(saved).includes('Lighthouse'), true)
+check('accepted fact names Causeway, not the renamed page', names(saved).includes('Causeway') && !names(saved).some(n => n === 'Lighthouse' || n === 'Old Causeway Road'), true)
 check('statement kept as written', saved.statement, cand.statement)
 const accAudit = (await a('/api/audit')).data.find(e => e.event_type === 'candidate.accepted' && e.target_id === cand.id)
 check('accept audit records the identity', accAudit.detail.identity?.[0]?.merge_audit_id, mergeEvent.id)

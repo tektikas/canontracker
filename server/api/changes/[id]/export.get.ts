@@ -13,8 +13,10 @@ export default defineEventHandler((event) => {
   if (format === 'csv') {
     setHeader(event, 'content-type', 'text/csv; charset=utf-8')
     const esc = (v: unknown) => `"${String(v ?? '').replaceAll('"', '""')}"`
-    return [['target_type', 'label', 'hop_count', 'dependency_type', 'via', 'confidence', 'rationale', 'path', 'evidence_ids'].join(','),
-      ...items.map(i => [i.target_type, i.label, i.hop_count, i.dependency_type, i.via, i.confidence, i.rationale, i.path.join(' > '), i.evidence_ids.join(' ')].map(esc).join(','))].join('\n')
+    // A stale manifest says so on every row, so a filtered or sorted sheet still carries the warning.
+    return [['impact_stale', 'target_type', 'label', 'hop_count', 'dependency_type', 'via', 'confidence', 'rationale', 'path', 'evidence_ids'].join(','),
+      ...(stale && !items.length ? [[stale].map(esc).join(',')] : []),
+      ...items.map(i => [stale ?? '', i.target_type, i.label, i.hop_count, i.dependency_type, i.via, i.confidence, i.rationale, i.path.join(' > '), i.evidence_ids.join(' ')].map(esc).join(','))].join('\n')
   }
   if (format === 'md') {
     setHeader(event, 'content-type', 'text/markdown; charset=utf-8')

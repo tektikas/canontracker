@@ -3,7 +3,7 @@ import { mkdirSync, rmSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-const SCHEMA_VERSION = 5
+const SCHEMA_VERSION = 6
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -71,20 +71,23 @@ create table if not exists entities (
   fields text not null default '{}', notes text not null default '', portrait_type text, portrait_at text, origin text not null,
   created_at text not null, created_by text, updated_at text not null, updated_by text, project_id text not null
 );
--- Identity decisions from merges: a name that was merged away maps to the page it was merged into. Applied when a later
--- candidate naming it is accepted. Only merges write here; hand-typed aliases never feed analysis.
+-- Identity decisions from merges: a name that was merged away maps to the canonical name analysis uses for the kept entity,
+-- fixed at merge time (renaming or deleting the page later doesn't change it). entity_id is the page it was merged into, kept
+-- so later merges of that page carry the mapping along. Applied when a later candidate naming it is accepted. Only merges
+-- write here; hand-typed aliases never feed analysis.
 create table if not exists entity_merges (
-  name_norm text not null, name text not null, entity_id text not null, audit_id text not null, merged_at text not null,
+  name_norm text not null, name text not null, canonical text not null, entity_id text not null, audit_id text not null, merged_at text not null,
   merged_by text not null, project_id text not null, primary key (project_id, name_norm)
 );
 create table if not exists audit_events (
   id text primary key, event_type text not null, target_type text not null, target_id text not null,
   actor text not null, detail text not null, created_at text not null, project_id text not null
 );
--- One row per model call: what was asked, with which sources, how it went. No prompts, keys or full documents.
+-- One row per model call: what was asked, with which sources, how it went. input is the fact list an answer or rule check
+-- was given (canon the project can already read), so the trace shows what the model saw. No system prompts, keys or full documents.
 create table if not exists model_calls (
   id text primary key, purpose text not null, model_id text not null, prompt_version text not null,
-  target_type text not null, target_id text not null, input_refs text not null, status text not null,
+  target_type text not null, target_id text not null, input_refs text not null, input text, status text not null,
   latency_ms integer not null, output_summary text, error text, created_at text not null, project_id text not null
 );
 create table if not exists eval_runs (
@@ -187,7 +190,7 @@ export interface ChangeRow {
 }
 export interface AuditRow { id: string, event_type: string, target_type: string, target_id: string, actor: string, detail: string, created_at: string, project_id: string }
 export interface ModelCallRow {
-  id: string, purpose: string, model_id: string, prompt_version: string, target_type: string, target_id: string, input_refs: string
+  id: string, purpose: string, model_id: string, prompt_version: string, target_type: string, target_id: string, input_refs: string, input: string | null
   status: string, latency_ms: number, output_summary: string | null, error: string | null, created_at: string
 }
 

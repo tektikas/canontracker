@@ -207,7 +207,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
       <p v-for="i in current.identity" :key="i.role" class="notice info identity">
         <UiIcon name="merge" :size="16" />
         <span>
-          <b>{{ i.from }} → <NuxtLink :to="`/entities/${i.entity_id}`">{{ i.to }}</NuxtLink></b>
+          <b>{{ i.from }} → <NuxtLink v-if="i.entity_id" :to="`/entities/${i.entity_id}`">{{ i.to }}</NuxtLink><template v-else>{{ i.to }}</template></b>
           (merged on {{ mergedOn(i.merged_at) }}<template v-if="i.merged_by_name"> by {{ i.merged_by_name }}</template>).
           Accepting saves the {{ i.role }} as {{ i.to }}; the statement and quote stay as written.
         </span>

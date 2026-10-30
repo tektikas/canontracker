@@ -42,10 +42,10 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'entity.created': return [`${who} created a page for ${d.name}`, `${KIND_LABEL[d.kind as EntityKind]?.one ?? d.kind}`]
     case 'entity.updated': return [`${who} edited ${d.name}’s page`, `Changed: ${(d.changed ?? []).join(', ')}. Editorial, not canon`]
     case 'entity.merged': return [`${who} merged ${d.from?.name} into ${d.into}`, [
-      d.facts?.length ? `${d.facts.length} fact${d.facts.length === 1 ? '' : 's'} now name ${d.into}` : 'No facts needed re-pointing',
+      d.facts?.length ? `${d.facts.length} fact${d.facts.length === 1 ? '' : 's'} now name ${d.canonical ?? d.into}` : 'No facts needed re-pointing',
       d.conflicts_resolved?.length ? `${d.conflicts_resolved.length} conflict${d.conflicts_resolved.length === 1 ? '' : 's'} resolved` : '',
       d.changes_stale?.length ? `${d.changes_stale.length} proposal${d.changes_stale.length === 1 ? ' needs' : 's need'} a fresh impact analysis` : '',
-      `later candidates naming ${(d.names_mapped ?? [d.from?.name]).join(', ')} are saved as ${d.into}`,
+      `later candidates naming ${(d.names_mapped ?? [d.from?.name]).join(', ')} are saved as ${d.canonical ?? d.into}`,
       `${d.from?.name}’s old page is kept in this event`,
     ].filter(Boolean).join('; ')]
     case 'conflict.resolved_by_merge': return [`A conflict closed: ${d.from} was merged into ${d.into}`, `${String(d.rule).replaceAll('_', ' ').toLowerCase()} no longer applies`]

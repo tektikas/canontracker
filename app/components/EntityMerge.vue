@@ -16,7 +16,7 @@ const loading = ref(false)
 const busy = ref(false)
 const error = ref('')
 const preview = (id: string) => $fetch(`/api/entities/${props.entity.id}/merge`, { method: 'POST', body: { into: id, preview: true } }) as Promise<{
-  facts: { id: string, statement: string, status: string }[], aliases_added: string[], fields_filled: string[], summary_taken: boolean, notes_added: boolean, portrait: string
+  facts: { id: string, statement: string, status: string }[], aliases_added: string[], fields_filled: string[], summary_taken: boolean, notes_added: boolean, portrait: string, canonical: string
   names_mapped: string[], conflicts_resolved: { id: string, rule: string, rationale: string }[], changes_stale: { id: string, proposed_statement: string }[]
 }>
 watch(into, async (id) => {
@@ -63,7 +63,7 @@ async function merge() {
         <ul>
           <li>
             <template v-if="plan.facts.length">
-              <b>{{ counted(plan.facts.length, 'fact') }}</b> (canon and candidates) will name <b>{{ target.name }}</b> instead of {{ entity.name }}. The statements and their sources don’t change.
+              <b>{{ counted(plan.facts.length, 'fact') }}</b> (canon and candidates) will name <b>{{ plan.canonical }}</b> instead of {{ entity.name }}. The statements and their sources don’t change.
             </template>
             <template v-else>No canon facts or candidates name {{ entity.name }}, so canon is untouched.</template>
           </li>
@@ -79,7 +79,7 @@ async function merge() {
           <li v-if="plan.changes_stale.length" class="warn-text">
             <b>{{ counted(plan.changes_stale.length, 'pending change proposal') }}</b> will need a fresh impact analysis before {{ plan.changes_stale.length === 1 ? 'it' : 'they' }} can be accepted.
           </li>
-          <li>Later candidates that name <b>{{ plan.names_mapped.join(', ') }}</b> are offered to reviewers as {{ target.name }}, and saved that way when accepted.</li>
+          <li>Later candidates that name <b>{{ plan.names_mapped.join(', ') }}</b> are offered to reviewers as {{ plan.canonical }}, and saved that way when accepted.</li>
           <li>The audit log keeps a full copy of {{ entity.name }}’s page and every fact’s previous wording, so the merge can be traced and undone by hand.</li>
         </ul>
         <details v-if="plan.facts.length" class="moved">
