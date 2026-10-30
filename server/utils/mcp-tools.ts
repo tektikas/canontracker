@@ -57,12 +57,16 @@ export function buildMcpServer(token: { id: string, name: string }) {
     inputSchema: { topic: z.string().min(1).describe('Entity name or topic, e.g. "Mara Venn" or "tide bell rules"'), limit: z.number().int().min(1).max(40).default(15).optional() },
     annotations: read,
   }, ({ topic, limit }) => {
-    const facts = searchCanon(topic, limit ?? 15)
+    // A topic that names an entity page reads canon by that page's identity: its analysis name plus names merged into it (never titles or hand aliases).
+    const page = listEntities().find(e => namesOf(e).some(n => normName(n) === normName(topic)))
+    const idn = page ? new Set([analysisName(page), ...mergedFrom(page)].map(normName)) : null
+    const byIdentity = idn ? listFacts('status = ?', 'canon').filter(f => idn.has(normName(f.subject)) || (f.object != null && idn.has(normName(f.object)))) : []
+    const facts = [...new Map([...byIdentity, ...searchCanon(topic, limit ?? 15)].map(f => [f.id, f])).values()].slice(0, limit ?? 15)
     if (!facts.length) return reply({ status: 'unknown', topic, message: UNKNOWN, facts: [] })
     const ids = new Set(facts.map(f => f.id))
     const conflicts = (useDb().prepare(`select id, rule, left_fact_id, right_fact_id, rationale from conflicts where project_id = ? and status = 'open'`).all(pid()) as
       { id: string, rule: string, left_fact_id: string, right_fact_id: string, rationale: string }[]).filter(c => ids.has(c.left_fact_id) || ids.has(c.right_fact_id))
-    return reply({ status: 'ok', topic, scope: 'accepted canon only', facts: facts.map(present), open_conflicts_touching_these: conflicts })
+    return reply({ status: 'ok', topic, ...(page && { entity: { id: page.id, name: page.name, analysis_name: analysisName(page), merged_names: mergedFrom(page) } }), scope: 'accepted canon only', facts: facts.map(present), open_conflicts_touching_these: conflicts })
   })
 
   server.registerTool('sb_search_facts', {

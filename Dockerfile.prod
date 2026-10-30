@@ -1,0 +1,32 @@
+# syntax=docker/dockerfile:1
+# Production image. Node 24 is required for the built-in node:sqlite (see mise.toml).
+
+# ---- build ----
+FROM node:24-alpine AS build
+WORKDIR /app
+ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# corepack reads the pnpm version from package.json "packageManager" (single pin)
+RUN corepack enable && corepack install
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm fetch
+COPY . .
+RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --offline
+RUN pnpm build
+
+# ---- runtime ----
+FROM node:24-alpine
+WORKDIR /app
+ENV NODE_ENV=production \
+    HOST=0.0.0.0 \
+    PORT=3000
+COPY --from=build --chown=node:node /app/.output ./.output
+COPY deployment/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+# The app writes .data/storybible.db relative to /app; a fresh named volume copies this ownership on first mount
+RUN chmod 0755 /usr/local/bin/docker-entrypoint.sh && mkdir -p /app/.data && chown node:node /app/.data
+USER node
+VOLUME /app/.data
+EXPOSE 3000
+HEALTHCHECK --interval=30s --timeout=10s --start-period=20s --retries=3 \
+  CMD wget -q --spider http://127.0.0.1:3000/api/health || exit 1
+ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]
+CMD ["node", ".output/server/index.mjs"]

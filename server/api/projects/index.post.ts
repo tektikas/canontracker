@@ -8,7 +8,7 @@ export default defineEventHandler(async (event) => {
   if (!studioId) throw createError({ statusCode: 400, statusMessage: 'NO_STUDIO', message: 'Choose a studio for the project.' })
   requireStudioRole(studioId, user.id, 'admin')
   const id = newId('prj')
-  useDb().prepare('insert into projects values (?, ?, ?, ?)').run(id, studioId, name, now())
+  useDb().prepare('insert into projects (id, studio_id, name, created_at) values (?, ?, ?, ?)').run(id, studioId, name, now())
   await switchProject(event, user.id, id)
   return { id, name, studio_id: studioId }
 })

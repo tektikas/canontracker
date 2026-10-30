@@ -19,6 +19,7 @@ const selectedId = ref(typeof route.query.fact === 'string' ? route.query.fact :
 const current = computed(() => queue.value.find(f => f.id === selectedId.value) ?? queue.value[0])
 const index = computed(() => (current.value ? queue.value.indexOf(current.value) : -1))
 const verified = (f: Record<string, any>) => f.evidence.some((e: any) => e.verified)
+const mergedOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 const lowConfidence = (f: Record<string, any>) => f.confidence != null && f.confidence < 0.7
 
 type Mode = 'idle' | 'edit' | 'reject'
@@ -115,6 +116,7 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
   refresh()
   refreshRejected()
   refreshNuxtData('stats')
+  if (decision !== 'reject') refreshEntities() // a new canon name gets its page; mentions link it
 }
 
 // Keyboard triage (desktop). Each key is one explicit decision; held keys don't repeat, and typing in a field never triggers one.
@@ -205,6 +207,15 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
       <p v-else class="small faint model">Proposed by {{ modelLabel(current.model_id) }}</p>
 
       <FactSummary v-if="mode !== 'edit'" :fact="current" />
+
+      <p v-for="i in current.identity" :key="i.role" class="notice info identity">
+        <UiIcon name="merge" :size="16" />
+        <span>
+          <b>{{ i.from }} → <NuxtLink v-if="i.entity_id" :to="`/entities/${i.entity_id}`">{{ i.to }}</NuxtLink><template v-else>{{ i.to }}</template></b>
+          (merged on {{ mergedOn(i.merged_at) }}<template v-if="i.merged_by_name"> by {{ i.merged_by_name }}</template>).
+          Accepting saves the {{ i.role }} as {{ i.to }}; the statement and quote stay as written.
+        </span>
+      </p>
 
       <div class="evidence">
         <SourceRef v-for="ev in current.evidence" :key="ev.id" :ev="ev" />

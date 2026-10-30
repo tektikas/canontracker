@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const { data: events } = await useFetch('/api/audit')
+const route = useRoute() // /audit#<event id> highlights that event (links from Conflicts and Changes)
 const filter = ref('')
 const shown = computed(() => (events.value ?? []).filter(e => !filter.value || e.event_type.startsWith(filter.value)))
 const types = computed(() => [...new Set((events.value ?? []).map(e => e.event_type.split('.')[0]!))])
@@ -10,6 +11,7 @@ const clip = (v: unknown, n = 90) => {
   return t.length > n ? `${t.slice(0, n - 1)}…` : t
 }
 const q = (v: unknown) => (v ? `“${clip(v)}”` : '')
+const identity = (d: Record<string, any>) => (d.identity ?? []).map((i: any) => `${i.from} saved as ${i.to} (merged page)`).join(', ')
 const because = (d: Record<string, any>) => (d.rationale ? `Reason: ${clip(d.rationale, 140)}` : '')
 
 // One plain sentence per event type; unknown types fall back to the raw event name.
@@ -23,15 +25,16 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'candidate.created':
       if (d.via === 'mcp') return [`Agent “${d.token_name}” proposed a candidate for ${who}`, 'Quote found in source · waiting for a human decision']
       return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
-    case 'candidate.accepted': return [`${who} accepted a candidate: ${q(d.after?.statement)}`, because(d)]
-    case 'candidate.corrected_and_accepted': return [`${who} corrected and accepted a candidate: ${q(d.after?.statement)}`, because(d)]
+    case 'candidate.accepted': return [`${who} accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
+    case 'candidate.corrected_and_accepted': return [`${who} corrected and accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
     case 'candidate.rejected': return [`${who} rejected a candidate: ${q(d.statement)}`, because(d)]
     case 'conflict.detected': return [`Scan found a possible conflict (${String(d.rule).replaceAll('_', ' ').toLowerCase()})`, 'Awaiting a human decision']
+    case 'conflict.scan': return [`${who} scanned canon for conflicts`, `${d.facts} canon facts checked, ${d.created} new ${d.created === 1 ? 'candidate' : 'candidates'}${d.model_error ? ' · world-rule check failed' : ''}`]
     case 'conflict.confirmed': return [`${who} confirmed a conflict`, because(d)]
     case 'conflict.false_positive': return [`${who} marked a conflict as a false alarm`, because(d)]
     case 'conflict.uncertain': return [`${who} marked a conflict as uncertain`, because(d)]
     case 'change.created': return [`${who} proposed a canon change: ${q(d.proposed)}`, d.before ? `Replaces ${q(d.before)}` : '']
-    case 'impact.completed': return [`Impact analysis found ${d.items} item(s) to review`, d.scenes?.length ? `Scenes: ${d.scenes.join(', ')}` : d.items ? 'Scenes: none within 2 hops' : 'No impact found within 2 hops']
+    case 'impact.completed': return [`${d.rerun ? `${who} re-ran impact analysis: ` : 'Impact analysis '}found ${d.items} item(s) to review`, d.scenes?.length ? `Scenes: ${d.scenes.join(', ')}` : d.items ? 'Scenes: none within 2 hops' : 'No impact found within 2 hops']
     case 'change.accepted': return [`${who} accepted a change proposal`, because(d)]
     case 'change.rejected': return [`${who} rejected a change proposal`, because(d)]
     case 'change.applied': return [`Canon updated: ${q(d.after)}`, d.before ? `Superseded ${q(d.before)}, kept in history` : '']
@@ -42,19 +45,37 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'agent.proposal_refused': return [`Agent “${d.token_name}” proposed a candidate and was refused for ${who}`, `${String(d.code).replaceAll('_', ' ').toLowerCase()}, nothing stored: ${q(d.statement)}`]
     case 'token.created': return [`${who} created the API token “${d.name}”`, 'Shown once, stored hashed']
     case 'token.revoked': return [`${who} revoked an API token`, '']
+    case 'entity.created': return [`${who} created a page for ${d.name}`, `${KIND_LABEL[d.kind as EntityKind]?.one ?? d.kind}`]
+    case 'entity.updated': return [`${who} edited ${d.name}’s page`, `Changed: ${(d.changed ?? []).join(', ')}. Editorial, not canon`]
+    case 'entity.merged': return [`${who} merged ${d.from?.name} into ${d.into}`, [
+      d.facts?.length ? `${d.facts.length} fact${d.facts.length === 1 ? '' : 's'} now name ${d.canonical ?? d.into}` : 'No facts needed re-pointing',
+      d.conflicts_resolved?.length ? `${d.conflicts_resolved.length} conflict${d.conflicts_resolved.length === 1 ? '' : 's'} resolved` : '',
+      d.changes_stale?.length ? `${d.changes_stale.length} proposal${d.changes_stale.length === 1 ? ' needs' : 's need'} a fresh impact analysis` : '',
+      `later candidates naming ${(d.names_mapped ?? [d.from?.name]).join(', ')} are saved as ${d.canonical ?? d.into}`,
+      `${d.from?.name}’s old page is kept in this event`,
+    ].filter(Boolean).join('; ')]
+    case 'conflict.resolved_by_merge': return [`A conflict closed: ${d.from} was merged into ${d.into}`, `${String(d.rule).replaceAll('_', ' ').toLowerCase()} no longer applies`]
+    case 'impact.stale': return [`A change proposal’s impact went out of date: ${d.from} was merged into ${d.into}`, 'Accept waits for a fresh analysis']
+    case 'entity.deleted': return [`${who} deleted ${d.name}’s page`, 'Canon unaffected; the page text is kept in this event']
+    case 'entity.portrait_set': return [`${who} ${d.replaced ? 'replaced' : 'added'} ${d.name}’s portrait`, '']
+    case 'entity.portrait_removed': return [`${who} removed ${d.name}’s portrait`, '']
+    case 'image.generated': return [`${who} generated ${d.images?.length ?? 0} image${d.images?.length === 1 ? '' : 's'} for ${d.name} with Muse Image`, `Editorial, not canon · prompt: ${q(d.prompt)}`]
+    case 'image.applied': return [`${who} set an image as ${d.name}’s ${d.as ?? 'image'}`, d.replaced ? 'Replaced the previous one' : '']
+    case 'image.discarded': return [`${who} deleted a generated image${d.name ? ` of ${d.name}` : ''}`, `Prompt was ${q(d.prompt)}`]
+    case 'image.cover_removed': return [`${who} removed ${d.name ? `${d.name}’s` : 'a document’s'} cover`, 'The image stays in its history']
     case 'job.failed': return [`Extraction failed for ${d.filename ?? 'a document'}`, clip(d.error, 140)]
     default: return [e.event_type, clip(d)]
   }
 }
 
 const TONE: Record<string, 'accent' | 'good' | 'bad' | 'warn' | 'pencil' | 'neutral'> = {
-  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad', agent: 'bad', token: 'neutral',
+  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad', entity: 'neutral', image: 'neutral', agent: 'bad', token: 'neutral',
 }
 
 // Short ID plus a link where a page exists; pages have no per-item anchors, so links go to the list.
 function target(e: { event_type: string, target_type: string, target_id: string }) {
   const t = e.target_type
-  const to = t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' ? '/conflicts' : t === 'change' ? '/changes'
+  const to = t === 'entity' ? (e.event_type === 'entity.deleted' ? '' : `/entities/${e.target_id}`) : t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' || e.event_type === 'conflict.scan' ? '/conflicts' : t === 'change' ? '/changes'
     : t === 'fact' ? (e.event_type.startsWith('candidate.') ? '/review' : '/canon') : ''
   // Ids already carry a type prefix ("fact_d0e…", "trc_e02c…"): drop it and label the thing in words.
   const short = e.target_id.replace(/^[a-z]+_/, '').slice(0, 6)
@@ -97,7 +118,7 @@ const groups = computed(() => {
     <section v-for="g in groups" :key="g.day" class="day">
       <h2>{{ g.day }}</h2>
       <ol class="events">
-        <li v-for="e in g.items" :key="e.id">
+        <li v-for="e in g.items" :id="e.id" :key="e.id" :class="{ hit: route.hash === `#${e.id}` }">
           <time class="mono small faint" :datetime="e.created_at">{{ hms(e.created_at) }}</time>
           <UiBadge :tone="TONE[e.event_type.split('.')[0]!] ?? 'neutral'" class="kind">{{ e.event_type.split('.')[0] }}</UiBadge>
           <div class="what">
@@ -125,6 +146,8 @@ const groups = computed(() => {
 .day h2 { font-size: var(--text-sm); color: var(--muted); font-weight: 600; margin: 0 0 var(--s-2); }
 .events { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--raised); }
 .events li { display: grid; grid-template-columns: 84px 92px 1fr; gap: var(--s-3); align-items: start; padding: var(--s-3) var(--s-4); }
+.events li { scroll-margin-top: 72px; } /* clears the sticky mobile top bar */
+.events li.hit { background: var(--accent-soft); box-shadow: inset 3px 0 0 var(--accent); }
 .events li + li { border-top: 1px solid var(--line); }
 .events time { white-space: nowrap; }
 .kind { justify-self: start; }

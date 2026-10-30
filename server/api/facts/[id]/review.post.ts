@@ -39,6 +39,9 @@ export default defineEventHandler(async (event) => {
     predicate: c.predicate?.trim() || fact.predicate,
     object: c.object === undefined ? fact.object : (c.object?.trim() || null),
   }
+  // A merge already decided these names are one page (the reviewer saw it on the candidate), so canon uses the kept name.
+  const identity = identityOf(after)
+  for (const i of identity) after[i.role] = i.to
   tx(() => {
     db.prepare(`update facts set status = 'canon', statement = ?, subject = ?, predicate = ?, object = ?, decided_at = ?, rationale = ?, decided_by = ? where id = ?`)
       .run(after.statement, after.subject, after.predicate, after.object, now(), rationale, access().user.id, id)
@@ -46,6 +49,7 @@ export default defineEventHandler(async (event) => {
       rationale,
       before: { statement: fact.statement, subject: fact.subject, predicate: fact.predicate, object: fact.object },
       after,
+      ...(identity.length && { identity: identity.map(i => ({ role: i.role, from: i.from, to: i.to, merge_audit_id: i.audit_id })) }),
     })
   })
   return { id, status: 'canon' }

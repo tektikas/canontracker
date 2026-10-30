@@ -93,6 +93,16 @@ ok('sb_get_fact / sb_get_impact', `${impact.data.items.length} impact items`)
 assert.ok(Array.isArray((await call(c, 'sb_list_conflicts', { status: 'all' })).data.conflicts))
 ok('sb_list_conflicts')
 
+// Identity: after a human merges Lighthouse into Causeway, the context pack for the kept page includes facts under the merged name.
+const ents = (await ada('/api/entities')).data
+const ent = (n) => (ents.entities ?? ents).find(e => e.name === n)
+const before = (await call(c, 'sb_get_context_pack', { topic: 'Causeway', limit: 40 })).data.facts.length
+assert.equal((await ada(`/api/entities/${ent('Lighthouse').id}/merge`, { method: 'POST', body: { into: ent('Causeway').id } })).status, 200)
+const merged = (await call(c, 'sb_get_context_pack', { topic: 'Causeway', limit: 40 })).data
+assert.ok(merged.entity.merged_names.includes('Lighthouse') && merged.facts.length > before, 'merged names feed the context pack')
+assert.ok(merged.facts.every(f => ![f.subject, f.object].includes('Lighthouse')), 'merge re-pointed facts to the kept name')
+ok('context pack follows entity identity (merged names)', `${before} -> ${merged.facts.length} facts`)
+
 // Propose: verbatim quote -> pending in review; fabricated -> refused, nothing stored.
 const docs = (await ada('/api/documents')).data
 const lore = docs.find(d => d.kind === 'lore')

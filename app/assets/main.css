@@ -357,3 +357,8 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   .passage { grid-template-columns: 44px 1fr; }
   .hide-sm { display: none; }
 }
+
+/* A summary that reads as expandable: a chevron that turns when open. Use on flex summaries (the default marker is hidden there). */
+summary.expand::before { content: ''; flex: none; width: 7px; height: 7px; margin: 0 3px 2px 1px; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(-45deg); transition: transform 0.15s; }
+details[open] > summary.expand::before { transform: rotate(45deg); }
+@media (prefers-reduced-motion: reduce) { summary.expand::before { transition: none; } }

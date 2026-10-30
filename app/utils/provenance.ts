@@ -2,8 +2,9 @@
 // A stored id is one model id, or several joined with ' + ' (evaluations over mixed data); '' means no model output.
 export const isRecordedModel = (id: string | null | undefined) => !!id?.startsWith('mock:')
 
+const MODEL_NAMES: Record<string, string> = { 'muse-spark-1.3': 'Muse Spark 1.3', 'muse-image-1.0': 'Muse Image 1.0' }
 export const modelLabel = (id: string | null | undefined) =>
-  !id ? 'No model output' : isRecordedModel(id) ? 'Recorded demo run' : `${id === 'muse-spark-1.3' ? 'Muse Spark 1.3' : id} via Meta Model API`
+  !id ? 'No model output' : isRecordedModel(id) ? 'Recorded demo run' : `${MODEL_NAMES[id] ?? id} via Meta Model API`
 
 export function provenance(id: string | null | undefined): { kind: 'recorded' | 'live' | 'mixed' | 'none', label: string } {
   const parts = (id ?? '').split(' + ').filter(Boolean)

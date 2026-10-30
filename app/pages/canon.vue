@@ -2,6 +2,7 @@
 const { data: canon } = await useFetch('/api/facts', { query: { status: 'canon' } })
 const { data: superseded } = await useFetch('/api/facts', { query: { status: 'superseded' } })
 const route = useRoute()
+const editor = computed(() => canEdit(useMe().value))
 const router = useRouter()
 
 type Tab = 'facts' | 'graph' | 'entities' | 'timeline' | 'superseded'
@@ -25,6 +26,9 @@ function showEntity(name: string) {
   tab.value = 'entities'
   router.replace({ query: { entity: name } })
 }
+// Every canon name has a wiki page (filed automatically); aliases resolve too.
+const lookup = useEntityLookup()
+const wiki = computed(() => (entity.value ? lookup.value.byName.get(normName(entity.value)) : undefined))
 const tabs = computed(() => [
   { value: 'facts' as Tab, label: 'Facts', count: canon.value?.length ?? 0 },
   { value: 'graph' as Tab, label: 'Graph' },
@@ -57,7 +61,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
       <div class="stack">
         <UiPanel v-for="f in g.facts" :key="f.id" class="stack">
           <FactSummary :fact="f" sources />
-          <div><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
+          <div v-if="editor"><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
         </UiPanel>
       </div>
     </section>
@@ -73,6 +77,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
         {{ name }} <span class="faint">{{ n }}</span>
       </button>
     </div>
+    <div v-if="entity && wiki" class="wiki-link"><UiButton size="sm" icon="entities" :to="`/entities/${wiki.id}`">Open {{ entity }}’s page</UiButton></div>
     <EntityCard v-if="entity" class="profile" :name="entity" :facts="canon!" @select="showEntity" />
   </UiPanel>
 
@@ -107,5 +112,6 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 .pick.on .faint { color: inherit; }
 .lineage { margin: 0; padding-left: var(--s-3); border-left: 3px solid var(--line-strong); }
 .story { font-family: var(--font-story); color: var(--ink); }
+.wiki-link { margin-bottom: var(--s-3); }
 .profile { border-top: 1px solid var(--line); padding-top: var(--s-5); }
 </style>
