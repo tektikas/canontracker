@@ -5,5 +5,5 @@ export default defineEventHandler((event) => {
   if (!doc) throw createError({ statusCode: 404, statusMessage: 'NOT_FOUND', message: 'Document not found.' })
   const passages = db.prepare('select * from passages where document_id = ? order by ordinal').all(id!) as unknown as PassageRow[]
   const facts = listFacts(`id in (select fact_id from evidence where document_id = ?) and status in ('canon', 'pending')`, id!)
-  return { ...doc, passages, facts }
+  return { ...doc, passages, facts, cover: appliedImage('document', doc.id) }
 })

@@ -3,7 +3,7 @@ import { mkdirSync, rmSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-export const SCHEMA_VERSION = 7
+export const SCHEMA_VERSION = 8
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -22,10 +22,10 @@ create table if not exists invites (
   created_by text not null, created_at text not null, expires_at text not null,
   accepted_by text, accepted_at text, revoked_at text
 );
--- medium: game | prose | screen (decides the entity wiki's extra fields)
+-- medium: game | prose | screen (decides the entity wiki's extra fields). art_style goes into every image prompt.
 create table if not exists projects (
   id text primary key, studio_id text not null references studios(id), name text not null, created_at text not null,
-  medium text not null default 'game'
+  medium text not null default 'game', art_style text not null default ''
 );
 
 -- Content. Every row belongs to one project; routes only ever read and write the caller's current project.
@@ -74,6 +74,13 @@ create table if not exists entities (
   fields text not null default '{}', notes text not null default '', portrait_type text, portrait_at text, origin text not null,
   created_at text not null, created_by text, updated_at text not null, updated_by text, project_id text not null
 );
+-- Generated images (Muse Image). Editorial, never canon. target_type: entity (portrait) | document (cover).
+-- applied_at is set on the one image currently used as the target's portrait or cover; the bytes live next to portraits.
+create table if not exists images (
+  id text primary key, target_type text not null, target_id text not null, prompt text not null, style text not null,
+  model_id text not null, mime text not null, bytes integer not null, created_at text not null, created_by text not null,
+  applied_at text, project_id text not null
+);
 -- Identity decisions from merges: a name that was merged away maps to the kept entity's analysis_name (renaming or deleting
 -- the page later doesn't change it; merging the kept entity on moves the row along). Applied when a later candidate naming it
 -- is accepted. Only merges write here; hand-typed aliases and titles never feed analysis.
@@ -99,6 +106,7 @@ create index if not exists facts_project on facts(project_id, status);
 create index if not exists evidence_fact on evidence(fact_id);
 create index if not exists passages_document on passages(document_id);
 create index if not exists entities_project on entities(project_id);
+create index if not exists images_target on images(project_id, target_type, target_id);
 create index if not exists audit_project on audit_events(project_id);
 create index if not exists memberships_user on memberships(user_id);
 `
@@ -160,7 +168,7 @@ export function audit(eventType: string, targetType: string, targetId: string, d
 // Empties the current project only. Other projects and studios are untouched.
 export function resetData() {
   tx(() => {
-    for (const t of ['model_calls', 'eval_runs', 'audit_events', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['images', 'model_calls', 'eval_runs', 'audit_events', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })

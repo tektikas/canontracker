@@ -205,6 +205,9 @@ export function mergeEntities(src: EntityRow, dst: EntityRow, plan: ReturnType<t
   d.prepare(`update entities set analysis_name = ?, aliases = ?, fields = ?, summary = ?, notes = ?, updated_at = ?, updated_by = ? where id = ?`)
     .run(plan.canonical, JSON.stringify(apply.aliases), JSON.stringify(apply.fields), apply.summary, apply.notes, at, by, dst.id)
   if (plan.portrait === 'move') d.prepare('update entities set portrait_type = ?, portrait_at = ? where id = ?').run(src.portrait_type, at, dst.id)
+  // Generated images follow the page; the source's portrait marker only survives if its portrait moves.
+  if (plan.portrait !== 'move') clearApplied('entity', src.id)
+  const images = d.prepare(`update images set target_id = ? where project_id = ? and target_type = 'entity' and target_id = ?`).run(dst.id, pid(), src.id).changes
   d.prepare('delete from entities where id = ?').run(src.id)
 
   const travelAfter = canon().filter(isTravel)
@@ -216,7 +219,7 @@ export function mergeEntities(src: EntityRow, dst: EntityRow, plan: ReturnType<t
   const auditId = audit('entity.merged', 'entity', dst.id, {
     from: snapshot(src), into: dst.name, canonical: plan.canonical, aliases_added: plan.aliases_added, fields_filled: plan.fields_filled, portrait: plan.portrait,
     facts: plan.facts.map(f => ({ id: f.id, subject: f.subject, object: f.object })),
-    names_mapped: [...mapped.values()], conflicts_resolved: resolved.map(c => c.id), changes_stale: stale.map(c => c.id),
+    names_mapped: [...mapped.values()], conflicts_resolved: resolved.map(c => c.id), changes_stale: stale.map(c => c.id), images_moved: images,
   })
 
   const why = `${src.name} was merged into ${dst.name}, so this is no longer a conflict.`
@@ -236,7 +239,7 @@ export function mergeEntities(src: EntityRow, dst: EntityRow, plan: ReturnType<t
   for (const [norm, name] of mapped) remember.run(norm, name, plan.canonical, auditId, at, by, pid())
 
   return {
-    audit_id: auditId, names_mapped: [...mapped.values()],
+    audit_id: auditId, names_mapped: [...mapped.values()], images_moved: images,
     conflicts_resolved: resolved.map(c => ({ id: c.id, rule: c.rule, rationale: c.rationale })),
     changes_stale: stale.map(c => ({ id: c.id, proposed_statement: c.proposed_statement })),
   }
