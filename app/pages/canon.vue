@@ -1,9 +1,13 @@
 <script setup lang="ts">
 const { data: canon } = await useFetch('/api/facts', { query: { status: 'canon' } })
 const { data: superseded } = await useFetch('/api/facts', { query: { status: 'superseded' } })
+const route = useRoute()
+const router = useRouter()
 
-const tab = ref<'facts' | 'graph' | 'entities' | 'timeline' | 'superseded'>('facts')
+type Tab = 'facts' | 'graph' | 'entities' | 'timeline' | 'superseded'
+const tab = ref<Tab>(route.query.entity ? 'entities' : 'facts')
 const filter = ref('')
+const entity = ref<string | null>(typeof route.query.entity === 'string' ? route.query.entity : null)
 const KINDS = ['rule', 'character', 'relationship', 'event', 'location', 'claim']
 
 const filtered = computed(() => {
@@ -17,80 +21,91 @@ const entities = computed(() => {
   return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
 })
 function showEntity(name: string) {
-  filter.value = name
-  tab.value = 'facts'
+  entity.value = name
+  tab.value = 'entities'
+  router.replace({ query: { entity: name } })
 }
-const timeline = computed(() => filtered.value.filter(f => f.t_from != null || f.t_to != null)
-  .sort((a, b) => (a.t_from ?? a.t_to ?? 0) - (b.t_from ?? b.t_to ?? 0)))
+const tabs = computed(() => [
+  { value: 'facts' as Tab, label: 'Facts', count: canon.value?.length ?? 0 },
+  { value: 'graph' as Tab, label: 'Graph' },
+  { value: 'entities' as Tab, label: 'Entities', count: entities.value.length },
+  { value: 'timeline' as Tab, label: 'Timeline' },
+  { value: 'superseded' as Tab, label: 'Superseded', count: superseded.value?.length ?? 0 },
+])
+// Lineage: the version that replaced each superseded fact (canon or a later superseded version).
+const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value ?? [])].find(f => f.supersedes_id === id)
 </script>
 
 <template>
-  <div class="page-head">
-    <h1>Canon</h1>
-    <p>Only facts a person accepted. Every fact links to the exact passage it came from.</p>
-  </div>
+  <UiPageHeader title="Canon" description="Only facts a person accepted. Every fact links to the exact passage it came from." />
 
-  <div class="tabs" role="tablist">
-    <button role="tab" :aria-selected="tab === 'facts'" @click="tab = 'facts'">Facts ({{ canon?.length ?? 0 }})</button>
-    <button role="tab" :aria-selected="tab === 'graph'" @click="tab = 'graph'">Graph</button>
-    <button role="tab" :aria-selected="tab === 'entities'" @click="tab = 'entities'">Entities ({{ entities.length }})</button>
-    <button role="tab" :aria-selected="tab === 'timeline'" @click="tab = 'timeline'">Timeline</button>
-    <button role="tab" :aria-selected="tab === 'superseded'" @click="tab = 'superseded'">Superseded ({{ superseded?.length ?? 0 }})</button>
-  </div>
+  <div class="tabwrap"><UiTabs v-model="tab" :items="tabs" /></div>
 
-  <div v-if="tab === 'facts' || tab === 'timeline'" class="row" style="margin-bottom: 14px; max-width: 420px; flex-wrap: nowrap">
+  <div v-if="tab === 'facts' || tab === 'timeline'" class="filter">
     <input v-model="filter" type="search" placeholder="Filter by character, place, word…" aria-label="Filter canon">
-    <button v-if="filter" class="btn" @click="filter = ''">Clear</button>
+    <UiButton v-if="filter" @click="filter = ''">Clear</UiButton>
   </div>
 
-  <div v-if="!canon?.length && tab !== 'superseded'" class="card empty">No canon yet. <NuxtLink to="/review">Review candidates →</NuxtLink></div>
+  <UiEmptyState v-if="!canon?.length && tab !== 'superseded'" title="No canon yet">
+    <template #actions><UiButton variant="primary" to="/review">Review candidates</UiButton></template>
+  </UiEmptyState>
 
-  <template v-if="tab === 'facts'">
-    <section v-for="g in groups" :key="g.kind" style="margin-bottom: 22px">
-      <h2 style="text-transform: capitalize">{{ g.kind }}s</h2>
+  <template v-else-if="tab === 'facts'">
+    <p v-if="!groups.length" class="muted">No canon fact matches “{{ filter }}”.</p>
+    <section v-for="g in groups" :key="g.kind" class="kind">
+      <h2>{{ g.kind }}s</h2>
       <div class="stack">
-        <div v-for="f in g.facts" :key="f.id" class="card stack">
+        <UiPanel v-for="f in g.facts" :key="f.id" class="stack">
           <FactSummary :fact="f" sources />
-          <div><NuxtLink class="btn" :to="{ path: '/changes', query: { target: f.id } }">Propose change…</NuxtLink></div>
-        </div>
+          <div><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
+        </UiPanel>
       </div>
     </section>
   </template>
 
-  <section v-else-if="tab === 'graph'" class="card">
-    <EntityGraph v-if="canon?.length" :facts="canon" @select="showEntity" />
-  </section>
+  <UiPanel v-else-if="tab === 'graph'">
+    <EntityGraph :facts="canon!" :selected="entity ?? undefined" @select="showEntity" />
+  </UiPanel>
 
-  <section v-else-if="tab === 'entities'" class="card">
-    <p class="small muted">Characters, places and objects named in canon. Pick one to see every fact about it with its sources.</p>
-    <div class="row">
-      <button v-for="[name, n] in entities" :key="name" class="btn" @click="showEntity(name)">{{ name }} <span class="chip">{{ n }}</span></button>
+  <UiPanel v-else-if="tab === 'entities'" description="Characters, places and objects named in canon. Pick one to see everything known about it.">
+    <div class="picker">
+      <button v-for="[name, n] in entities" :key="name" type="button" class="pick" :class="{ on: name === entity }" :aria-pressed="name === entity" @click="showEntity(name)">
+        {{ name }} <span class="faint">{{ n }}</span>
+      </button>
     </div>
-  </section>
+    <EntityCard v-if="entity" class="profile" :name="entity" :facts="canon!" @select="showEntity" />
+  </UiPanel>
 
-  <section v-else-if="tab === 'timeline'" class="card table-wrap">
-    <table>
-      <thead><tr><th>Story time</th><th>Fact</th><th>Source</th></tr></thead>
-      <tbody>
-        <tr v-for="f in timeline" :key="f.id">
-          <td class="mono" style="white-space: nowrap">
-            {{ f.time_label }}
-            <div v-if="f.precision === 'approximate'"><span class="chip warn">approximate</span></div>
-          </td>
-          <td><div class="statement">{{ f.statement }}</div><div class="triple">{{ f.subject }} → {{ f.predicate }} → {{ f.object }}</div></td>
-          <td class="small">
-            <NuxtLink v-for="ev in f.evidence" :key="ev.id" :to="`/documents/${ev.document_id}#${ev.passage_id}`">{{ ev.document_title }}</NuxtLink>
-          </td>
-        </tr>
-      </tbody>
-    </table>
-  </section>
+  <UiPanel v-else-if="tab === 'timeline'" title="Story timeline" description="By story time, one lane per character. Day 1 starts at 00:00.">
+    <StoryTimeline v-if="filtered.some(f => f.t_from != null || f.t_to != null)" :facts="filtered" />
+    <p v-else class="muted">No timed canon facts{{ filter ? ' match this filter' : '' }}.</p>
+  </UiPanel>
 
   <section v-else class="stack">
-    <div v-if="!superseded?.length" class="card empty">No superseded facts. Accepted change proposals keep the old version here.</div>
-    <div v-for="f in superseded" :key="f.id" class="card stack">
-      <span class="chip" style="width: fit-content">Superseded v{{ f.version }}</span>
+    <UiEmptyState v-if="!superseded?.length" title="No superseded facts">
+      Accepted change proposals keep the old version here.
+    </UiEmptyState>
+    <UiPanel v-for="f in superseded" :key="f.id" class="stack">
+      <UiBadge>Superseded v{{ f.version }}</UiBadge>
       <FactSummary :fact="f" sources />
-    </div>
+      <p v-if="successor(f.id)" class="small muted lineage">
+        Replaced by v{{ successor(f.id)!.version }} ({{ successor(f.id)!.status }}): <span class="story">{{ successor(f.id)!.statement }}</span>
+      </p>
+    </UiPanel>
   </section>
 </template>
+
+<style scoped>
+.tabwrap :deep(.tabs) { flex-wrap: wrap; overflow-x: visible; }
+.filter { display: flex; gap: var(--s-2); margin-bottom: var(--s-4); max-width: 420px; }
+.kind { margin-bottom: var(--s-5); }
+.kind h2 { text-transform: capitalize; }
+.picker { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-5); }
+.pick { min-height: 34px; padding: 0 var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--raised); color: var(--ink); font: inherit; font-weight: 500; cursor: pointer; }
+.pick:hover { background: var(--sunken); }
+.pick.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.pick.on .faint { color: inherit; }
+.lineage { margin: 0; padding-left: var(--s-3); border-left: 3px solid var(--line-strong); }
+.story { font-family: var(--font-story); color: var(--ink); }
+.profile { border-top: 1px solid var(--line); padding-top: var(--s-5); }
+</style>
