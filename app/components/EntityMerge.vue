@@ -61,7 +61,7 @@ async function merge() {
 </script>
 
 <template>
-  <UiPanel :title="`Merge ${entity.name} into another page`" :description="`Use this when two pages are the same ${kindLabel(entity.kind).one.toLowerCase()}. ${entity.name}’s page goes away; its facts, names and notes move to the page you keep.`" class="merge">
+  <UiPanel :title="`Merge ${entity.name} into another page`" :description="`Use this when two pages are the same ${kindLabel(entity.kind).one.toLowerCase()}. ${entity.name}’s page goes away; its facts, names, notes and generated images move to the page you keep.`" class="merge">
     <div class="stack">
       <UiField label="Keep this page">
         <select v-model="into">

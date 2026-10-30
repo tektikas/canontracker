@@ -72,24 +72,33 @@ async function setMedium(id: string, medium: string) {
 }
 // Art style is added to every image prompt in the project, so portraits and covers look like one game.
 const artDraft = reactive<Record<string, string>>({})
-const artBusy = ref('')
-const artSaved = ref('')
+const artState = ref<Record<string, 'saving' | 'saved'>>({})
 const artError = ref<{ id: string, message: string } | null>(null)
+const artTimers: Record<string, ReturnType<typeof setTimeout>> = {}
+// Saves itself shortly after typing stops; "Saved" shows once the server has it.
 async function saveArt(id: string) {
-  artBusy.value = id
+  clearTimeout(artTimers[id])
+  const value = artDraft[id]
+  if (value === undefined) return
+  artState.value[id] = 'saving'
   artError.value = null
-  artSaved.value = ''
   try {
-    await $fetch(`/api/projects/${id}`, { method: 'PATCH', body: { art_style: artDraft[id] } })
+    await $fetch(`/api/projects/${id}`, { method: 'PATCH', body: { art_style: value } })
     await refresh()
-    delete artDraft[id]
-    artSaved.value = id
+    if (artDraft[id] === value) delete artDraft[id] // keep typing that arrived while saving
+    artState.value[id] = 'saved'
   } catch (e) {
+    delete artState.value[id]
     artError.value = { id, message: errorMessage(e) }
-  } finally {
-    artBusy.value = ''
   }
 }
+function typeArt(id: string, value: string) {
+  artDraft[id] = value
+  delete artState.value[id]
+  clearTimeout(artTimers[id])
+  artTimers[id] = setTimeout(() => saveArt(id), 800)
+}
+onBeforeUnmount(() => Object.keys(artTimers).forEach(id => artDraft[id] !== undefined && saveArt(id)))
 async function open(id: string) {
   busy.value = id
   await openProject(id)
@@ -161,13 +170,11 @@ const ago = (iso: string | null) => {
             <template v-if="data.can_manage">
               <textarea
                 :id="`art-${p.id}`" rows="3" maxlength="500" placeholder="e.g. Muted coastal palette, weathered textures, hand-inked linework"
-                :value="artDraft[p.id] ?? p.art_style" @input="artDraft[p.id] = ($event.target as HTMLTextAreaElement).value; artSaved = ''"
+                :value="artDraft[p.id] ?? p.art_style" @input="typeArt(p.id, ($event.target as HTMLTextAreaElement).value)" @blur="saveArt(p.id)"
               />
-              <div v-if="artDraft[p.id] !== undefined && artDraft[p.id] !== p.art_style" class="row">
-                <UiButton size="sm" variant="primary" :loading="artBusy === p.id" @click="saveArt(p.id)">Save art style</UiButton>
-                <UiButton size="sm" variant="ghost" @click="delete artDraft[p.id]">Cancel</UiButton>
-              </div>
-              <span v-else-if="artSaved === p.id" class="small good-text" role="status"><UiIcon name="check" :size="14" /> Saved</span>
+              <span v-if="artState[p.id] === 'saving'" class="small faint" role="status">Saving…</span>
+              <span v-else-if="artState[p.id] === 'saved'" class="small good-text" role="status"><UiIcon name="check" :size="14" /> Saved</span>
+              <span v-else-if="artDraft[p.id] !== undefined" class="small faint">Saves when you stop typing</span>
               <span v-if="artError?.id === p.id" class="field-error" role="alert">{{ artError.message }}</span>
             </template>
             <p v-else :id="`art-${p.id}`" class="small" :class="{ faint: !p.art_style }">{{ p.art_style || 'Not set' }}</p>

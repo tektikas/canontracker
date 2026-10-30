@@ -5,8 +5,8 @@ import type { InternalApi } from 'nitropack/types'
 // a person picks one, and every image carries its prompt, author and date.
 type Data = InternalApi['/api/images']['get']
 type Img = Data['images'][number]
-const props = defineProps<{ type: ImageTarget, id: string, applyLabel: string }>()
-const emit = defineEmits<{ changed: [] }>()
+const props = defineProps<{ type: ImageTarget, id: string, canUpload?: boolean }>()
+const emit = defineEmits<{ changed: [], upload: [] }>()
 const me = useMe()
 
 const dlg = ref<HTMLDialogElement>()
@@ -18,7 +18,8 @@ const style = ref<ImageStyle>('concept')
 const count = ref(2)
 const generating = ref(false)
 const elapsed = ref(0)
-const genError = ref('')
+const genError = ref<{ summary: string, detail: string } | null>(null)
+const confirmId = ref('')
 const fresh = ref<string[]>([])
 const busy = ref('')
 const actionError = ref('')
@@ -27,7 +28,8 @@ async function open() {
   dlg.value?.showModal()
   loadError.value = ''
   actionError.value = ''
-  if (!generating.value) genError.value = ''
+  confirmId.value = ''
+  if (!generating.value) genError.value = null
   try {
     const d = await $fetch('/api/images', { query: { target_type: props.type, target_id: props.id } })
     data.value = d
@@ -45,16 +47,32 @@ defineExpose({ open })
 const close = () => dlg.value?.close()
 const backdrop = (ev: MouseEvent) => { if (ev.target === dlg.value) close() }
 
+// Characters get a portrait, documents a cover, every other page an image.
+const noun = computed(() => data.value?.target.noun ?? imageNoun(props.type))
+const applyLabel = computed(() => ({ portrait: 'Set as portrait', cover: 'Set as cover', image: 'Use as image' })[noun.value] ?? 'Use as image')
+const title = computed(() => !data.value ? 'Generate an image' : noun.value === 'image' ? `Generate an image of ${data.value.target.name}` : `Generate a ${noun.value} for ${data.value.target.name}`)
 const live = computed(() => !!data.value?.model.live)
 const sent = computed(() => composeImagePrompt(prompt.value, style.value, data.value?.art_style ?? ''))
+
+// The server's message is exact but technical; lead with a sentence a writer can act on and keep the rest under "Details".
+function plainError(raw: string) {
+  const sentence = /billing is not set up/.test(raw) ? 'Image generation isn’t available yet: billing for the Meta Model API isn’t set up.'
+    : /rejected the key|key is not set/.test(raw) ? 'Image generation isn’t available: the Meta Model API didn’t accept this workspace’s key.'
+    : /rate limited/.test(raw) ? 'The Meta Model API is busy right now. Wait a moment and try again.'
+    : /timed out/.test(raw) ? `Muse Image took longer than ${IMAGE_DEADLINE_MS / 1000} seconds, so Story Bible stopped waiting.`
+    : /could not reach/.test(raw) ? 'Story Bible couldn’t reach the Meta Model API.'
+    : /^(Image generation failed|Model call failed)/.test(raw) ? 'Muse Image didn’t return a usable image.'
+    : ''
+  return { summary: sentence || raw, detail: sentence ? raw : '' }
+}
 
 let timer: ReturnType<typeof setInterval> | undefined
 async function generate() {
   if (!prompt.value.trim()) {
-    genError.value = 'Describe what to draw.'
+    genError.value = { summary: 'Describe what to draw.', detail: '' }
     return
   }
-  genError.value = ''
+  genError.value = null
   generating.value = true
   elapsed.value = 0
   const started = Date.now()
@@ -64,8 +82,7 @@ async function generate() {
     fresh.value = made.map(i => i.id)
     if (data.value) data.value.images = [...made, ...data.value.images]
   } catch (e) {
-    genError.value = errorMessage(e)
-    nextTick(() => dlg.value?.querySelector('.gen-form [role=alert]')?.scrollIntoView({ block: 'nearest' }))
+    genError.value = plainError(errorMessage(e))
   } finally {
     clearInterval(timer)
     generating.value = false
@@ -87,6 +104,7 @@ async function apply(i: Img) {
   }
 }
 async function discard(i: Img) {
+  confirmId.value = ''
   busy.value = i.id
   actionError.value = ''
   try {
@@ -103,11 +121,11 @@ const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'nume
 </script>
 
 <template>
-  <dialog ref="dlg" class="gen" aria-labelledby="gen-title" @click="backdrop">
+  <dialog ref="dlg" class="gen" aria-labelledby="gen-title" @click="backdrop" @close="fresh = []">
     <div class="sheet">
       <header class="gen-head">
         <div class="gen-title">
-          <h2 id="gen-title">Generate {{ type === 'entity' ? 'a portrait' : 'a cover' }}<template v-if="data"> for {{ data.target.name }}</template></h2>
+          <h2 id="gen-title">{{ title }}</h2>
           <span v-if="data" class="small faint">
             <UiBadge v-if="live" tone="accent" dot>{{ data.model.label }}</UiBadge>
             <UiBadge v-else tone="warn">Image model offline</UiBadge>
@@ -122,13 +140,13 @@ const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'nume
         <form class="gen-form stack" novalidate @submit.prevent="generate">
           <p v-if="!live" class="notice warn" role="status">
             <UiIcon name="lock" :size="16" />
-            <span>Image generation needs the live Meta Model API. This workspace runs on recorded demo output, which has no image model, so nothing can be generated here. You can still upload a picture yourself.</span>
+            <span>Image generation needs the live Meta Model API. This workspace runs on recorded demo output, which has no image model, so nothing can be generated here.<template v-if="canUpload"> You can still upload a picture yourself.</template></span>
           </p>
           <fieldset :disabled="!live || generating" class="stack">
             <UiField label="Prompt" hint="Drafted from accepted canon and your page’s own fields. Edit it freely; canon doesn’t change.">
               <textarea v-model="prompt" rows="7" maxlength="2000" />
             </UiField>
-            <button v-if="prompt !== data.target.suggestion" type="button" class="linkish small" @click="prompt = data.target.suggestion">Start again from canon</button>
+            <button type="button" class="linkish small" :style="{ visibility: prompt !== data.target.suggestion ? 'visible' : 'hidden' }" :tabindex="prompt !== data.target.suggestion ? 0 : -1" @click="prompt = data.target.suggestion">Start again from canon</button>
 
             <div class="group" role="radiogroup" aria-label="Style preset">
               <span class="label">Style preset</span>
@@ -166,14 +184,20 @@ const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'nume
             </details>
           </fieldset>
 
-          <div v-if="genError" class="notice bad" role="alert">
-            <UiIcon name="conflicts" :size="16" />
-            <span>{{ genError }} <template v-if="type === 'entity'">The current portrait is unchanged.</template><template v-else>The current cover is unchanged.</template></span>
-          </div>
-          <div class="row">
-            <UiButton type="submit" variant="primary" icon="image" :loading="generating" :disabled="!live">
-              {{ generating ? `Generating… ${elapsed} s` : genError ? 'Try again' : `Generate ${counted(count, 'image')}` }}
-            </UiButton>
+          <div class="gen-actions">
+            <div v-if="genError" class="notice bad" role="alert">
+              <UiIcon name="conflicts" :size="16" />
+              <div class="stack tight">
+                <span>{{ genError.summary }}<template v-if="genError.detail"> No image was saved. The current {{ noun }} is unchanged.</template></span>
+                <details v-if="genError.detail" class="small"><summary>Details</summary><p>{{ genError.detail }}</p></details>
+              </div>
+            </div>
+            <div class="row">
+              <UiButton type="submit" variant="primary" icon="image" :loading="generating" :disabled="!live">
+                {{ generating ? `Generating… ${elapsed} s` : genError ? 'Try again' : `Generate ${counted(count, 'image')}` }}
+              </UiButton>
+              <UiButton v-if="canUpload" type="button" icon="upload" :disabled="generating" @click="close(); emit('upload')">Upload instead</UiButton>
+            </div>
             <span v-if="generating" class="small faint" role="status">Story Bible waits up to {{ IMAGE_DEADLINE_MS / 1000 }} seconds. You can close this; images land in the history.</span>
           </div>
         </form>
@@ -195,9 +219,16 @@ const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'nume
                 <span class="small gen-by"><UiIcon name="image" :size="14" />Generated with Muse Image</span>
                 <span class="small faint">{{ i.created_by_name ?? 'Unknown' }} · {{ when(i.created_at) }}</span>
                 <details class="small"><summary>Prompt</summary><p class="prompt">{{ i.prompt }}</p></details>
-                <div v-if="!i.applied && canEdit(me)" class="row">
+                <div v-if="confirmId === i.id" class="confirm small" role="alertdialog" :aria-label="`Delete this image`">
+                  <span>Delete this image made by {{ i.created_by_name ?? 'unknown' }} on {{ when(i.created_at) }}? The file and its prompt are removed for good.</span>
+                  <div class="row">
+                    <UiButton size="sm" variant="danger" :loading="busy === i.id" @click="discard(i)">Delete image</UiButton>
+                    <UiButton size="sm" variant="ghost" @click="confirmId = ''">Keep it</UiButton>
+                  </div>
+                </div>
+                <div v-else-if="!i.applied && canEdit(me)" class="row">
                   <UiButton size="sm" variant="primary" :loading="busy === i.id" @click="apply(i)">{{ applyLabel }}</UiButton>
-                  <UiButton size="sm" variant="ghost" icon="trash" :disabled="!!busy" @click="discard(i)">Discard</UiButton>
+                  <UiButton size="sm" variant="ghost" icon="trash" :disabled="!!busy" @click="confirmId = i.id">Discard</UiButton>
                 </div>
               </figcaption>
             </figure>
@@ -211,9 +242,9 @@ const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'nume
 </template>
 
 <style scoped>
-.gen { width: min(1040px, calc(100vw - 32px)); max-height: calc(100vh - 48px); padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--raised); color: var(--ink); box-shadow: var(--elev-overlay); }
+.gen { width: min(1040px, calc(100vw - 32px)); height: min(760px, calc(100vh - 48px)); padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--raised); color: var(--ink); box-shadow: var(--elev-overlay); }
 .gen::backdrop { background: rgb(8 12 18 / 0.45); }
-.sheet { display: flex; flex-direction: column; max-height: calc(100vh - 50px); }
+.sheet { display: flex; flex-direction: column; height: 100%; }
 .gen-head { display: flex; gap: var(--s-3); align-items: flex-start; justify-content: space-between; padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--line); }
 .gen-title { display: grid; gap: 6px; min-width: 0; }
 .gen-title h2 { margin: 0; font-size: var(--text-lg); overflow-wrap: anywhere; }
@@ -224,7 +255,12 @@ const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'nume
 .gen-form, .gen-results { overflow-y: auto; }
 .gen-form { padding: var(--s-5); border-right: 1px solid var(--line); gap: var(--s-4); align-content: start; }
 fieldset { border: 0; margin: 0; padding: 0; min-width: 0; gap: var(--s-4); }
-fieldset:disabled textarea { background: var(--sunken); color: var(--muted); }
+fieldset:disabled textarea { background: var(--surface); color: var(--muted); }
+.gen-actions { position: sticky; bottom: calc(-1 * var(--s-5)); z-index: 1; display: grid; gap: var(--s-2); margin: 0 calc(-1 * var(--s-5)) calc(-1 * var(--s-5)); padding: var(--s-3) var(--s-5) var(--s-4); background: var(--raised); border-top: 1px solid var(--line); }
+.tight { gap: var(--s-1); }
+.notice details p { margin: var(--s-1) 0 0; overflow-wrap: anywhere; }
+.notice details summary { cursor: pointer; }
+.confirm { display: grid; gap: var(--s-2); padding: var(--s-2) var(--s-3); border-radius: var(--r-md); background: var(--surface); border: 1px solid var(--line-strong); }
 .linkish { justify-self: start; margin-top: calc(-1 * var(--s-2)); background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; }
 .group { display: grid; gap: var(--s-2); }
 .label { font-weight: 500; font-size: var(--text-sm); }
@@ -262,6 +298,7 @@ fieldset:disabled .pick { cursor: not-allowed; color: var(--faint); }
   .gen-body { grid-template-columns: minmax(0, 1fr); overflow-y: auto; }
   .gen-form, .gen-results { overflow-y: visible; }
   .gen-form { padding: var(--s-4); border-right: 0; border-bottom: 1px solid var(--line); }
+  .gen-actions { bottom: 0; margin: 0 calc(-1 * var(--s-4)) calc(-1 * var(--s-4)); padding: var(--s-3) var(--s-4); }
   .gen-results { padding: var(--s-4); }
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-2); }
 }

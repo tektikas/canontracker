@@ -28,6 +28,7 @@ export function clearApplied(type: ImageTarget, id: string) {
   useDb().prepare('update images set applied_at = null where project_id = ? and target_type = ? and target_id = ?').run(pid(), type, id)
 }
 
+const LOGISTICS = /\b(takes?|minutes?|hours?|days?|travel|journey|walk(?:ing)?)\b/i
 const line = (s: string) => s.replace(/\s+/g, ' ').trim()
 
 // What the dialog proposes: the target's name and kind, its editorial description and what accepted canon says about it.
@@ -37,7 +38,8 @@ export function imageTarget(type: unknown, id: unknown) {
   if (type === 'entity') {
     const e = getEntity(String(id))
     const fields = fieldsOf(e)
-    const facts = factsAbout(e).filter(f => ['character', 'location', 'item', 'rule'].includes(f.kind) && f.t_from == null).slice(0, 6)
+    // Only what can be drawn: no rules, travel times or timings, which are logistics and not looks.
+    const facts = factsAbout(e).filter(f => ['character', 'location', 'item', 'claim'].includes(f.kind) && f.t_from == null && !LOGISTICS.test(f.statement)).slice(0, 6)
     const kind = KIND_LABEL[e.kind].one.toLowerCase()
     // Canon's name, names merged into the page and hand-typed aliases: editorial here, they only help the prompt.
     const aka = namesOf(e).filter(n => normName(n) !== normName(e.name))
@@ -48,11 +50,15 @@ export function imageTarget(type: unknown, id: unknown) {
       ...['look', 'casting', 'mood', 'item_type'].filter(k => fields[k]).map(k => `${FIELD_LABEL[k]!.label}: ${line(fields[k]!)}`),
       ...facts.map(f => line(f.statement)),
     ]
-    return { type: 'entity' as const, id: e.id, name: e.name, suggestion: lines.filter(Boolean).join('\n') }
+    return { type: 'entity' as const, noun: imageNoun('entity', e.kind), id: e.id, name: e.name, suggestion: lines.filter(Boolean).join('\n') }
   }
   const doc = useDb().prepare('select * from documents where id = ? and project_id = ?').get(String(id), pid()) as unknown as DocumentRow | undefined
   if (!doc) throw createError({ statusCode: 404, statusMessage: 'NOT_FOUND', message: 'Document not found.' })
-  const facts = listFacts(`status = 'canon' and id in (select fact_id from evidence where document_id = ?)`, doc.id).slice(0, 8)
-  const lines = [`A cover illustration for the ${doc.kind} “${doc.title}”.`, ...facts.map(f => line(f.statement))]
-  return { type: 'document' as const, id: doc.id, name: doc.title, suggestion: lines.join('\n') }
+  // A cover shows the scene, not its fact list: the title, where it is set and who is in it.
+  const facts = listFacts(`status = 'canon' and id in (select fact_id from evidence where document_id = ?)`, doc.id)
+  const named = new Set(facts.flatMap(f => [f.subject, f.object]).filter(Boolean).map(n => normName(n!)))
+  const present = (kind: string) => listEntities().filter(e => e.kind === kind && namesOf(e).some(n => named.has(normName(n)))).map(e => e.name)
+  const places = present('location'), people = present('character')
+  const lines = [`A cover illustration for the ${doc.kind} “${doc.title}”.`, places.length && `Setting: ${places.slice(0, 3).join(', ')}.`, people.length && `Characters: ${people.slice(0, 4).join(', ')}.`]
+  return { type: 'document' as const, noun: 'cover', id: doc.id, name: doc.title, suggestion: lines.filter(Boolean).join('\n') }
 }

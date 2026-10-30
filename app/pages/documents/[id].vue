@@ -10,14 +10,27 @@ const activeQuote = computed(() => doc.value?.facts.flatMap(f => f.evidence).fin
 
 // A generated cover is editorial: shown above the source, never written into it.
 const generator = ref<{ open: () => void }>()
+const undo = ref('')
+async function undoRemove() {
+  const id = undo.value
+  undo.value = ''
+  try {
+    await $fetch(`/api/images/${id}/apply`, { method: 'POST' })
+    await refresh()
+  } catch (e) {
+    coverError.value = errorMessage(e)
+  }
+}
 const coverBusy = ref(false)
 const coverError = ref('')
 async function removeCover() {
   coverBusy.value = true
   coverError.value = ''
   try {
-    await $fetch(`/api/images/${doc.value!.cover!.id}/apply`, { method: 'DELETE' })
+    const id = doc.value!.cover!.id
+    await $fetch(`/api/images/${id}/apply`, { method: 'DELETE' })
     await refresh()
+    undo.value = id
   } catch (e) {
     coverError.value = errorMessage(e)
   } finally {
@@ -49,13 +62,14 @@ const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day:
         <UiButton icon="image" @click="generator?.open()">Generate cover</UiButton>
       </template>
     </UiPageHeader>
-    <ImageGenerator v-if="canEdit(me)" :id="doc.id" ref="generator" type="document" apply-label="Set as cover" @changed="refresh" />
+    <ImageGenerator v-if="canEdit(me)" :id="doc.id" ref="generator" type="document" @changed="refresh" />
+    <UndoToast v-if="undo" message="Cover removed." @undo="undoRemove" @close="undo = ''" />
 
     <figure v-if="doc.cover" class="cover panel">
       <img :src="doc.cover.url" :alt="`Cover for ${doc.title}`">
       <figcaption>
         <details class="small">
-          <summary><UiBadge tone="pencil">Generated with Muse Image</UiBadge> Cover by {{ doc.cover.created_by_name ?? 'unknown' }}, {{ madeOn(doc.cover.created_at) }}</summary>
+          <summary class="expand"><UiBadge tone="pencil">Generated with Muse Image</UiBadge> Cover by {{ doc.cover.created_by_name ?? 'unknown' }}, {{ madeOn(doc.cover.created_at) }}</summary>
           <p class="prompt">{{ doc.cover.prompt }}</p>
         </details>
         <div v-if="canEdit(me)" class="row">

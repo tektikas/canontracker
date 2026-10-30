@@ -17,3 +17,6 @@ export const composeImagePrompt = (prompt: string, style: ImageStyle, artStyle: 
 
 // One deadline for the whole generation (API call, its body and every download); the dialog shows the same number.
 export const IMAGE_DEADLINE_MS = 150_000
+
+// What the picture is called on screen: characters get a portrait, documents a cover, every other page just an image.
+export const imageNoun = (type: ImageTarget, kind?: string) => (type === 'document' ? 'cover' : kind === 'character' ? 'portrait' : 'image')

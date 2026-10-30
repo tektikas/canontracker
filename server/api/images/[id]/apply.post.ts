@@ -16,7 +16,7 @@ export default defineEventHandler((event) => {
       useDb().prepare('update entities set portrait_type = ?, portrait_at = ?, updated_at = ?, updated_by = ? where id = ?').run(i.mime, at, at, access().user.id, i.target_id)
     clearApplied(i.target_type, i.target_id)
     useDb().prepare('update images set applied_at = ? where id = ?').run(at, i.id)
-    audit('image.applied', i.target_type, i.target_id, { name: target.name, image: i.id, as: i.target_type === 'entity' ? 'portrait' : 'cover', replaced })
+    audit('image.applied', i.target_type, i.target_id, { name: target.name, image: i.id, as: target.noun, replaced })
   })
   return { id: i.id, applied_at: at }
 })
