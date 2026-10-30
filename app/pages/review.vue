@@ -192,13 +192,17 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
       <header class="cand-head">
         <span class="cand-pos">Candidate {{ index + 1 }} <span class="faint">of {{ queue.length }}</span></span>
         <div class="row">
-          <UiBadge :tone="lowConfidence(current) ? 'warn' : 'neutral'" :title="lowConfidence(current) ? 'Low model confidence: read the source closely' : 'Model confidence'">
+          <UiBadge v-if="current.agent_name" tone="accent" :title="`Proposed over MCP with the API token “${current.agent_name}”. Not canon until you accept it.`">
+            Agent proposal
+          </UiBadge>
+          <UiBadge v-if="current.confidence != null" :tone="lowConfidence(current) ? 'warn' : 'neutral'" :title="lowConfidence(current) ? 'Low model confidence: read the source closely' : 'Model confidence'">
             {{ percent(current.confidence) }} confidence
           </UiBadge>
           <UiBadge v-if="isRecordedModel(current.model_id)" tone="warn" title="Replayed from a recorded extraction, not a live model call">Recorded demo run</UiBadge>
         </div>
       </header>
-      <p class="small faint model">Proposed by {{ modelLabel(current.model_id) }}</p>
+      <p v-if="current.agent_name" class="small faint model">Proposed by agent <strong>{{ current.agent_name }}</strong> for {{ current.proposed_by_name }}</p>
+      <p v-else class="small faint model">Proposed by {{ modelLabel(current.model_id) }}</p>
 
       <FactSummary v-if="mode !== 'edit'" :fact="current" />
 

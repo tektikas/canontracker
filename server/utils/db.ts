@@ -3,7 +3,7 @@ import { mkdirSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-const SCHEMA_VERSION = 3
+const SCHEMA_VERSION = 4
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -24,6 +24,12 @@ create table if not exists invites (
 );
 create table if not exists projects (id text primary key, studio_id text not null references studios(id), name text not null, created_at text not null);
 
+-- Per-user API tokens for the MCP endpoint. Only the sha256 of the secret is stored; one project each; role is the user's live role.
+create table if not exists api_tokens (
+  id text primary key, user_id text not null references users(id), project_id text not null references projects(id), name text not null,
+  token_hash text not null unique, prefix text not null, created_at text not null, last_used_at text, revoked_at text
+);
+
 -- Content. Every row belongs to one project; routes only ever read and write the caller's current project.
 create table if not exists documents (
   id text primary key, title text not null, filename text not null, kind text not null,
@@ -39,7 +45,8 @@ create table if not exists facts (
   id text primary key, kind text not null, subject text not null, predicate text not null, object text, value text,
   statement text not null, t_from integer, t_to integer, time_label text, precision text,
   status text not null, confidence real, origin text not null, model_id text, version integer not null default 1,
-  supersedes_id text, created_at text not null, decided_at text, rationale text, decided_by text, project_id text not null
+  supersedes_id text, created_at text not null, decided_at text, rationale text, decided_by text, project_id text not null,
+  proposed_by_token text, proposed_by_user text -- set when an agent proposed it over MCP
 );
 create table if not exists evidence (
   id text primary key, fact_id text not null references facts(id), document_id text not null,
@@ -166,8 +173,9 @@ export function getFact(id: string) {
 // latest_version > document_version means the citation points at an older version of the source (stale).
 export function listFacts(where = '1 = 1', ...params: (string | number)[]) {
   const d = useDb()
-  const facts = d.prepare(`select f.*, (select name from users u where u.id = f.decided_by) decided_by_name from facts f
-    where f.project_id = ? and (${where}) order by f.rowid`).all(pid(), ...params) as unknown as (Fact & { decided_by_name: string | null })[]
+  const facts = d.prepare(`select f.*, (select name from users u where u.id = f.decided_by) decided_by_name,
+      (select name from api_tokens t where t.id = f.proposed_by_token) agent_name, (select name from users u where u.id = f.proposed_by_user) proposed_by_name from facts f
+    where f.project_id = ? and (${where}) order by f.rowid`).all(pid(), ...params) as unknown as (Fact & { decided_by_name: string | null, agent_name: string | null, proposed_by_name: string | null })[]
   const ev = d.prepare(`
     select e.id, e.passage_id, e.quote, e.verified, e.support, e.document_id, doc.filename document_filename,
       doc.title document_title, doc.kind document_kind, doc.version document_version, p.start_line, p.end_line,
