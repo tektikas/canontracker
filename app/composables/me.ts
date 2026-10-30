@@ -46,14 +46,18 @@ export async function openProject(id: string, path = '/') {
   reloadNuxtApp({ path, force: true })
 }
 
-// Leaving a studio reloads the app; the name rides along in sessionStorage so the next page can say what happened.
+// Leaving a studio reloads the app; the name rides along in sessionStorage so the landing page can say what
+// happened. It expires instead of being removed on read, so a page that mounts and redirects first can't eat it.
 const LEFT_KEY = 'sb-left-studio'
-export const rememberLeft = (studio: string) => sessionStorage.setItem(LEFT_KEY, studio)
+export const rememberLeft = (studio: string) => sessionStorage.setItem(LEFT_KEY, JSON.stringify({ studio, expires: Date.now() + 15_000 }))
 export function useLeftNotice() {
   const left = ref('')
   onMounted(() => {
-    left.value = sessionStorage.getItem(LEFT_KEY) ?? ''
-    sessionStorage.removeItem(LEFT_KEY)
+    try {
+      const v = JSON.parse(sessionStorage.getItem(LEFT_KEY) ?? 'null')
+      if (v && v.expires > Date.now()) left.value = v.studio
+      else sessionStorage.removeItem(LEFT_KEY)
+    } catch { sessionStorage.removeItem(LEFT_KEY) }
   })
   return left
 }

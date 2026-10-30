@@ -116,7 +116,7 @@ const fullDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { 
       <p v-if="inviteError" class="notice bad" role="alert">{{ inviteError }}</p>
 
       <div v-if="created" class="created" role="status">
-        <div class="small"><b>Invite link for one {{ ROLE_LABEL[created.role].toLowerCase() }}</b> · expires {{ fullDate(created.expires_at) }}</div>
+        <div class="small"><b>Invite link for one {{ ROLE_LABEL[created.role].toLowerCase() }}</b> · expires <span class="nowrap">{{ fullDate(created.expires_at) }}</span></div>
         <div class="link-row">
           <input id="link-new" :value="created.url" type="text" readonly class="mono" aria-label="Invite link" @focus="($event.target as HTMLInputElement).select()">
           <UiButton :variant="copied === 'new' ? 'good' : 'primary'" :icon="copied === 'new' ? 'check' : 'copy'" @click="copy(created.url, 'new')">{{ copied === 'new' ? 'Copied' : 'Copy link' }}</UiButton>
@@ -196,6 +196,7 @@ const fullDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { 
 </template>
 
 <style scoped>
+.nowrap { white-space: nowrap; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .invite-form { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: var(--s-3); align-items: end; }
 .role-hint { margin: var(--s-2) 0 0; }

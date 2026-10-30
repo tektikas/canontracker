@@ -264,7 +264,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
       <header class="source-head">
         <div class="source-title">
           <UiIcon name="file" :size="16" />
-          <b>{{ source?.document_title }}</b>
+          <b :title="source?.document_title">{{ source?.document_title }}</b>
           <span class="faint small">{{ source?.verified ? `line ${source.start_line}${source.end_line !== source.start_line ? `–${source.end_line}` : ''}` : 'no matching line' }}</span>
         </div>
         <div class="row">
@@ -339,7 +339,7 @@ kbd {
 
 .source-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-2); flex-wrap: wrap; padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); background: var(--surface); }
 .source-title { display: flex; align-items: center; gap: var(--s-2); min-width: 0; font-size: var(--text-sm); }
-.source-title b { overflow-wrap: anywhere; }
+.source-title b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .source-title .faint { white-space: nowrap; }
 .source-body { flex: 1; min-height: 0; padding: var(--s-3); }
 .loading { margin: 0; }

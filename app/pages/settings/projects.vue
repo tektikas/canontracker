@@ -133,10 +133,11 @@ const ago = (iso: string | null) => {
 .projects { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--s-4); }
 .project { display: grid; gap: var(--s-4); align-content: start; }
 .project.current { border-color: color-mix(in srgb, var(--accent) 50%, var(--line)); }
-.project-head { display: flex; gap: var(--s-3); align-items: flex-start; }
+.project-head { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: flex-start; }
 .project-icon { display: grid; place-items: center; flex: none; width: 34px; height: 34px; border-radius: var(--r-md); background: var(--sunken); color: var(--muted); }
 .current .project-icon { background: var(--accent-soft); color: var(--accent); }
-.project-title { flex: 1; min-width: 0; }
+.project-title { flex: 1 1 9rem; min-width: min-content; }
+.project-title .small { white-space: nowrap; }
 .project-head .badge { flex: none; white-space: nowrap; }
 .project-title h2 { margin: 0; font-size: var(--text-md); overflow-wrap: anywhere; }
 .counts { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--s-2); margin: 0; padding: var(--s-3) 0; border-block: 1px solid var(--line); }
