@@ -48,7 +48,7 @@ const open = () => join() // already a member: accept only switches into the stu
     <div v-else class="stack">
       <span class="kicker">Invitation</span>
       <h1>Join {{ invite.studio_name }}</h1>
-      <p class="muted">{{ invite.created_by_name }} invited you to work on {{ invite.studio_name }}’s story canon in Story Bible.</p>
+      <p class="muted">{{ invite.created_by_name }} invited you to join {{ invite.studio_name }} on Story Bible, where the team keeps its story canon.</p>
 
       <div class="panel role-card">
         <div class="spread">

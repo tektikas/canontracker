@@ -1,5 +1,6 @@
 <script setup lang="ts">
 const me = useMe()
+const left = useLeftNotice()
 const editor = computed(() => canEdit(me.value))
 const admin = computed(() => canManage(me.value))
 const projectName = computed(() => me.value?.current?.project.name ?? 'this project')
@@ -82,6 +83,7 @@ const next = computed(() => {
 </script>
 
 <template>
+  <p v-if="left" class="notice info home-notice" role="status">You left {{ left }}. You’re now working in {{ me?.current?.studio.name ?? 'another studio' }}.</p>
   <UiPageHeader title="Overview">
     <template v-if="stats?.documents">
       {{ stats.documents }} {{ plural(stats.documents, 'source') }}, {{ stats.scenes }} of them {{ plural(stats.scenes, 'scene') }}.
@@ -92,7 +94,7 @@ const next = computed(() => {
     </template>
   </UiPageHeader>
 
-  <p v-if="stats?.model.mode === 'mock'" class="notice warn home-notice">
+  <p v-if="['recorded', 'mixed'].includes(provenance(stats?.data_model_id).kind)" class="notice warn home-notice">
     <span><b>Recorded run.</b> Candidates and model checks are replayed from a recorded extraction, not a live model call.</span>
   </p>
 
@@ -185,7 +187,7 @@ const next = computed(() => {
 
     <UiPanel v-if="editor" id="sources" title="Add sources" as="aside" class="sources">
       <div class="stack">
-        <div v-if="admin" class="source-option">
+        <div v-if="admin && nextKey !== 'import'" class="source-option">
           <h3>Broken Tide demo</h3>
           <p>An original island story: 2 lore documents and 11 scenes. Loading it replaces everything in {{ projectName }}; other projects are not touched.</p>
           <UiButton icon="demo" :loading="busy === 'demo'" :disabled="!!busy" @click="loadDemo">Load demo set</UiButton>

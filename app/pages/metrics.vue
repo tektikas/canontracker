@@ -31,7 +31,7 @@ const score = (results: { pass: boolean | null }[]) => ({
   info: results.filter(r => r.pass === null).length,
 })
 const s = computed(() => latest.value ? score(latest.value.results) : null)
-const isRecorded = (modelId: string) => modelId.startsWith('mock:')
+const tone = (id: string) => ({ recorded: 'warn', live: 'good', mixed: 'pencil', none: 'neutral' } as const)[provenance(id).kind]
 const fmt = (iso: string) => new Date(iso).toLocaleString()
 </script>
 
@@ -65,8 +65,8 @@ const fmt = (iso: string) => new Date(iso).toLocaleString()
       </div>
       <div class="score-meta small muted">
         {{ fmt(latest!.created_at) }} · dataset <span class="mono">{{ latest!.dataset }}</span> ·
-        <UiBadge :tone="isRecorded(latest!.model_id) ? 'warn' : 'good'" dot>{{ isRecorded(latest!.model_id) ? 'Recorded run' : 'Live model' }}</UiBadge>
-        <span class="mono">{{ latest!.model_id }}</span>
+        scored data: <UiBadge :tone="tone(latest!.model_id)" dot>{{ provenance(latest!.model_id).label }}</UiBadge>
+        <span class="faint">Scores the database as it is now. Ask checks use retrieval only; no model is called.</span>
       </div>
     </section>
 
@@ -91,13 +91,13 @@ const fmt = (iso: string) => new Date(iso).toLocaleString()
         <li v-for="r in runs.slice(1)" :key="r.id">
           <span>{{ fmt(r.created_at) }}</span>
           <b>{{ score(r.results).met }} met · {{ score(r.results).missed }} missed</b>
-          <UiBadge :tone="isRecorded(r.model_id) ? 'warn' : 'good'">{{ isRecorded(r.model_id) ? 'Recorded' : 'Live' }}</UiBadge>
+          <UiBadge :tone="tone(r.model_id)">{{ provenance(r.model_id).label }}</UiBadge>
         </li>
       </ul>
     </UiPanel>
   </template>
 
-  <UiPanel flush title="Model calls" description="Every model call: what it was for, which sources it saw, how long it took. Prompts, keys and full documents are not stored." class="gap">
+  <UiPanel flush title="Model calls" description="Every call to the model (Meta Model API, Muse Spark, or the recorded demo run): what it was for, which sources it saw, how long it took. Prompts, keys and full documents are not stored." class="gap">
     <p v-if="!calls?.length" class="empty-note muted">No model calls yet.</p>
     <div v-else class="table-wrap">
       <table>
@@ -107,7 +107,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString()
             <td class="mono small nowrap">{{ new Date(c.created_at).toLocaleTimeString() }}</td>
             <td><UiBadge tone="accent">{{ c.purpose.replace('_', ' ') }}</UiBadge></td>
             <td>
-              <UiBadge :tone="isRecorded(c.model_id) ? 'warn' : 'good'" dot>{{ isRecorded(c.model_id) ? 'Recorded' : 'Live' }}</UiBadge>
+              <UiBadge :tone="tone(c.model_id)" dot>{{ provenance(c.model_id).label }}</UiBadge>
               <div class="mono small muted">{{ c.model_id }} · {{ c.prompt_version }}</div>
             </td>
             <td class="small hide-sm">{{ c.input_refs.length }} {{ c.target_type === 'document' ? 'document' : 'facts' }}</td>

@@ -7,6 +7,8 @@ export default defineEventHandler(async (event) => {
   if (!path.startsWith('/api/') || path === '/api/me' || ACCOUNT.some(p => path.startsWith(p))) return
   const a = await resolveAccess(event)
   event.context.access = a
-  if (a.role === 'viewer' && event.method !== 'GET' && path !== '/api/qa')
+  // Anyone may leave a studio; memberChange still requires admin to touch anyone else.
+  const leaving = event.method === 'DELETE' && /^\/api\/team\/[^/]+$/.test(path)
+  if (a.role === 'viewer' && event.method !== 'GET' && path !== '/api/qa' && !leaving)
     throw createError({ statusCode: 403, statusMessage: 'FORBIDDEN', message: 'Viewers can read and ask questions. Ask a studio owner or admin for editor access.' })
 })

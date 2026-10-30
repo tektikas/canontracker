@@ -268,6 +268,11 @@ input[type=text], input[type=search], input[type=email], input[type=password], t
   transition: border-color var(--dur-1) var(--ease);
 }
 input::placeholder, textarea::placeholder { color: var(--faint); }
+select {
+  appearance: none; padding-right: 32px; cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%238a8a8a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+  background-repeat: no-repeat; background-position: right 10px center;
+}
 input:hover, textarea:hover, select:hover { border-color: var(--muted); }
 input:focus-visible, textarea:focus-visible, select:focus-visible { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
 textarea { resize: vertical; min-height: 64px; }

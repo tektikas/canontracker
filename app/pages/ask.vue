@@ -62,7 +62,8 @@ const status = computed(() => result.value ? STATUS[result.value.status as keyof
         <span class="small muted">{{ result.model.label }} · <span class="mono">{{ result.trace_id }}</span></span>
       </div>
       <p v-if="result.answer" class="statement answer">{{ result.answer }}</p>
-      <p v-else class="verdict-text">{{ status.text }}</p>
+      <p v-if="result.model_error" class="notice bad" role="alert">{{ result.model_error }} The related facts below were found by keyword match, not by the model.</p>
+      <p v-else-if="!result.answer" class="verdict-text">{{ status.text }}</p>
     </div>
 
     <template v-if="result.cited.length">

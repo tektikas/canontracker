@@ -84,7 +84,7 @@ async function decide(id: string, decision: string) {
         <header class="head">
           <div class="row">
             <UiBadge :tone="STATUS_TONE[c.status] as any" dot>{{ STATUS_LABEL[c.status] }}</UiBadge>
-            <UiBadge v-if="c.origin === 'model'" tone="pencil" :title="c.model_id ?? ''">Model-suggested</UiBadge>
+            <UiBadge v-if="c.origin === 'model'" tone="pencil" :title="c.model_id ?? ''">Model-suggested · {{ modelLabel(c.model_id) }}</UiBadge>
             <UiBadge v-else>Rule-based</UiBadge>
             <UiBadge v-if="c.left.status !== 'canon' || c.right.status !== 'canon'" tone="warn">Outdated: a fact here was superseded</UiBadge>
           </div>

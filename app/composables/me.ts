@@ -1,3 +1,4 @@
+import { appendResponseHeader } from 'h3'
 import type { InternalApi } from 'nitropack/types'
 
 export type Me = InternalApi['/api/me']['get']
@@ -8,7 +9,22 @@ export const useMe = () => useState<Me | null>('me', () => null)
 
 export async function loadMe() {
   const me = useMe()
-  me.value = await useRequestFetch()('/api/me')
+  // Read the request context before awaiting: it is gone afterwards.
+  const event = import.meta.server ? useRequestEvent()! : undefined
+  const res = await $fetch.raw('/api/me', { headers: useRequestHeaders(['cookie']) })
+  if (event) {
+    // /api/me may re-point the session at a fallback project. Pass its cookie on to the browser, and use it for
+    // the rest of this render so content requests don't still carry the stale project.
+    const set = res.headers.getSetCookie()
+    for (const c of set) appendResponseHeader(event, 'set-cookie', c)
+    if (set.length) {
+      const fresh = set.map(c => c.split(';')[0]!)
+      const names = new Set(fresh.map(c => c.split('=')[0]))
+      const old = (event.node.req.headers.cookie ?? '').split('; ').filter(c => c && !names.has(c.split('=')[0]))
+      event.node.req.headers.cookie = [...old, ...fresh].join('; ')
+    }
+  }
+  me.value = res._data as Me
   return me.value
 }
 
@@ -28,6 +44,22 @@ export const initials = (name: string) => name.split(/\s+/).filter(Boolean).slic
 export async function openProject(id: string, path = '/') {
   await $fetch(`/api/projects/${id}/switch`, { method: 'POST' })
   reloadNuxtApp({ path, force: true })
+}
+
+// Leaving a studio reloads the app; the name rides along in sessionStorage so the landing page can say what
+// happened. It expires instead of being removed on read, so a page that mounts and redirects first can't eat it.
+const LEFT_KEY = 'sb-left-studio'
+export const rememberLeft = (studio: string) => sessionStorage.setItem(LEFT_KEY, JSON.stringify({ studio, expires: Date.now() + 15_000 }))
+export function useLeftNotice() {
+  const left = ref('')
+  onMounted(() => {
+    try {
+      const v = JSON.parse(sessionStorage.getItem(LEFT_KEY) ?? 'null')
+      if (v && v.expires > Date.now()) left.value = v.studio
+      else sessionStorage.removeItem(LEFT_KEY)
+    } catch { sessionStorage.removeItem(LEFT_KEY) }
+  })
+  return left
 }
 
 export async function logOut() {

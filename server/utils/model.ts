@@ -1,5 +1,5 @@
 // All model calls go through here. MODEL_MODE=mock replays recorded fixture output;
-// MODEL_MODE=llama calls the Meta Llama API (OpenAI-compatible). The key never leaves the server.
+// MODEL_MODE=meta calls the Meta Model API (OpenAI-compatible). The key never leaves the server.
 // Every call, mock or live, is written to model_calls so the UI can show what the model was asked and with which sources.
 
 export interface CandidateDraft {
@@ -14,8 +14,8 @@ export const PROMPT_VERSIONS = { extract: 'extract-v1', answer: 'answer-v1', rul
 
 export function modelInfo() {
   const { modelMode, modelId } = useRuntimeConfig()
-  return modelMode === 'llama'
-    ? { mode: 'llama', id: modelId, label: `Meta Llama API · ${modelId}` }
+  return modelMode === 'meta'
+    ? { mode: 'meta', id: modelId, label: `${modelId === 'muse-spark-1.3' ? 'Muse Spark 1.3' : modelId} via Meta Model API` }
     : { mode: 'mock', id: 'mock:recorded-fixtures', label: 'Recorded demo run (model offline)' }
 }
 
@@ -39,18 +39,29 @@ async function traced<T>(
 }
 
 async function chatJson(system: string, user: string) {
-  const { llamaApiKey, llamaBaseUrl, modelId } = useRuntimeConfig()
-  if (!llamaApiKey || !modelId)
-    throw createError({ statusCode: 503, statusMessage: 'MODEL_NOT_CONFIGURED', message: 'Set NUXT_LLAMA_API_KEY and NUXT_MODEL_ID.' })
-  const res = await $fetch<{ choices: { message: { content: string } }[] }>(`${llamaBaseUrl}/chat/completions`, {
+  const { metaApiKey, metaBaseUrl, modelId } = useRuntimeConfig()
+  if (!metaApiKey)
+    throw createError({ statusCode: 503, statusMessage: 'MODEL_NOT_CONFIGURED', message: 'Meta Model API key is not set (NUXT_META_API_KEY).' })
+  const res = await $fetch<{ choices: { message: { content: string } }[] }>(`${metaBaseUrl}/chat/completions`, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${llamaApiKey}` },
+    timeout: 60_000,
+    headers: { Authorization: `Bearer ${metaApiKey}` },
     body: { model: modelId, temperature: 0, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] },
   }).catch((e) => {
-    throw createError({ statusCode: 503, statusMessage: 'MODEL_UNAVAILABLE', message: `Model call failed: ${e.statusCode ?? ''} ${e.data?.detail ?? e.message}` })
+    const code = e.data?.error?.code, detail = e.data?.error?.message ?? e.data?.detail
+    const why = e.statusCode === 402 ? 'billing is not set up for this Meta Model API key (402)'
+      : e.statusCode === 401 || e.statusCode === 403 ? `the Meta Model API rejected the key (${e.statusCode})`
+      : e.statusCode === 429 ? 'rate limited by the Meta Model API (429)'
+      : !e.statusCode ? (e.name === 'TimeoutError' || /timeout|aborted/i.test(e.message) ? 'the Meta Model API timed out' : `could not reach the Meta Model API (${e.cause?.code ?? e.message})`)
+      : `Meta Model API error ${e.statusCode}`
+    throw createError({ statusCode: 503, statusMessage: 'MODEL_UNAVAILABLE', message: `Model call failed: ${why}${code || detail ? ` — ${[code, detail].filter(Boolean).join(': ')}` : ''}. Nothing was replaced with recorded output.` })
   })
-  const text = res.choices[0]?.message.content ?? ''
-  return JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1))
+  const text = res.choices?.[0]?.message?.content ?? ''
+  try {
+    return JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1))
+  } catch {
+    throw createError({ statusCode: 502, statusMessage: 'MODEL_BAD_OUTPUT', message: 'Model call failed: the model did not return valid JSON.' })
+  }
 }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
