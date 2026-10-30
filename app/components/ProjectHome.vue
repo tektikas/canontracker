@@ -16,12 +16,13 @@ const liveHelp = ref(false)
 const draftTime = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 // No scan record in the API: a scan in this session (set on /conflicts) counts until new sources arrive.
 const scanned = useState('conflicts-scanned', () => false)
-const busy = ref<'' | 'demo' | 'import'>('')
+const busy = ref<'' | 'demo'>('')
 const error = ref('')
 const results = ref<Record<string, any>[]>([])
-const fileInput = ref<HTMLInputElement>()
+const uploader = ref<{ pick: () => void }>()
+const staleTotal = computed(() => docs.value?.reduce((n, d) => n + d.stale_facts, 0) ?? 0)
 
-async function run(kind: 'demo' | 'import', fn: () => Promise<{ results: Record<string, any>[] }>) {
+async function run(kind: 'demo', fn: () => Promise<{ results: Record<string, any>[] }>) {
   busy.value = kind
   error.value = ''
   try {
@@ -40,13 +41,10 @@ function loadDemo() {
   run('demo', () => $fetch('/api/demo/load', { method: 'POST' }))
 }
 
-function upload(e: Event) {
-  const input = e.target as HTMLInputElement
-  if (!input.files?.length) return
-  const form = new FormData()
-  for (const f of input.files) form.append('files', f)
-  run('import', () => $fetch('/api/documents', { method: 'POST', body: form }))
-  input.value = ''
+// Files dropped on Home or picked here go through the Library uploader (per-file progress and results).
+async function uploaded() {
+  scanned.value = false
+  await Promise.all([refreshDocs(), refreshConflicts(), refreshNuxtData('stats'), refreshEntities()])
 }
 
 const plural = (n: number, word: string) => `${word}${n === 1 ? '' : 's'}`
@@ -68,7 +66,7 @@ const steps = computed(() => {
   const found = conflicts.value?.length ?? 0
   const runs = evals.value?.length ?? 0
   return [
-    { key: 'import', label: 'Import', to: '#sources', value: s.documents, caption: plural(s.documents, 'source'), done: s.documents > 0 },
+    { key: 'import', label: 'Import', to: '/library', value: s.documents, caption: plural(s.documents, 'source'), done: s.documents > 0 },
     { key: 'review', label: 'Review', to: '/review', value: s.pending || null, caption: s.pending ? 'to review' : s.canon + s.rejected ? 'all reviewed' : s.documents ? 'none proposed' : 'nothing yet', done: s.documents > 0 && s.pending === 0 },
     { key: 'canon', label: 'Canon', to: '/canon', value: s.canon, caption: plural(s.canon, 'fact'), done: s.canon > 0 },
     { key: 'conflicts', label: 'Conflicts', to: '/conflicts', value: s.open_conflicts || null, caption: s.open_conflicts ? 'open' : found || scanned.value ? 'none open' : s.canon ? 'none open · scan to check' : 'nothing yet', done: s.canon > 0 && s.open_conflicts === 0 && (found > 0 || scanned.value), skip: s.canon > 0 && s.open_conflicts === 0 },
@@ -91,7 +89,7 @@ const next = computed(() => {
     case 'canon': return s?.rejected
       ? { title: 'Nothing is canon yet', text: 'Every candidate was rejected. Add facts by hand from your sources, or check the rejected list.', to: '/review', action: 'Open review' }
       : !editor.value
-        ? { title: 'Nothing is canon yet', text: 'No facts have been added from these sources yet. An editor on your team adds them; you’ll see them here as soon as they do.', to: '#sources', action: 'See sources' }
+        ? { title: 'Nothing is canon yet', text: 'No facts have been added from these sources yet. An editor on your team adds them; you’ll see them here as soon as they do.', to: '/library', action: 'Open the library' }
         : recordedMode.value
           ? { title: 'Add facts by hand', text: 'No model proposed facts from your sources: the recorded run only covers the Broken Tide demo files. Open a source, select the words that say something, and add them as a fact. Or use the live model to propose facts for you.', manual: true }
           : { title: 'Add facts by hand', text: 'The model found no facts it could quote from your sources. Open a source, select the words that say something, and add them as a fact.', manual: true }
@@ -151,7 +149,7 @@ const next = computed(() => {
       <div class="row">
         <template v-if="nextKey === 'import'">
           <UiButton v-if="admin" variant="primary" icon="demo" :loading="busy === 'demo'" :disabled="!!busy" @click="loadDemo">Load demo set</UiButton>
-          <UiButton v-if="editor" :variant="admin ? 'secondary' : 'primary'" icon="upload" :loading="busy === 'import'" :disabled="!!busy" @click="fileInput?.click()">Import files</UiButton>
+          <UiButton v-if="editor" :variant="admin ? 'secondary' : 'primary'" icon="upload" :disabled="!!busy" @click="uploader?.pick()">Import files</UiButton>
           <UiButton v-if="editor" icon="review" to="/write">Write a document</UiButton>
         </template>
         <template v-else-if="'manual' in next">
@@ -167,11 +165,12 @@ const next = computed(() => {
     </div>
   </section>
 
-  <p v-if="busy" class="notice info" role="status">{{ busy === 'demo' ? 'Loading the demo set and extracting candidates…' : 'Importing and extracting candidates…' }}</p>
+  <p v-if="busy" class="notice info" role="status">Loading the demo set and extracting candidates…</p>
   <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
 
   <div class="home-grid" :class="{ solo: !editor }">
     <div class="stack" style="gap: var(--s-5)">
+      <LibraryUpload v-if="editor" ref="uploader" @uploaded="uploaded" />
       <UiPanel v-if="results.length" title="Import results" flush>
         <template #actions><UiButton size="sm" to="/review">Review candidates</UiButton></template>
         <div class="table-wrap">
@@ -209,26 +208,12 @@ const next = computed(() => {
         </ul>
       </UiPanel>
 
-      <UiPanel title="Sources" :description="docs?.length ? (editor ? 'Read-only. Open one to see its passages, add facts and notes, and see the canon cited from it.' : 'Read-only. Open one to see its passages, its notes and the canon cited from it.') : undefined" flush>
-        <template v-if="editor && docs?.length" #actions><UiButton size="sm" icon="plus" to="/write">New document</UiButton></template>
-        <UiEmptyState v-if="!docs?.length" icon="file" title="No sources yet">
-          {{ editor ? 'Start from the next step above.' : 'Nothing has been added to this project yet.' }}
+      <UiPanel title="Library" :description="docs?.length ? `${counted(docs.length, 'source')}, read-only. Folders, tags, version history and what changed between versions.` : undefined">
+        <template v-if="docs?.length" #actions><UiButton size="sm" icon="library" to="/library">Open the library</UiButton></template>
+        <UiEmptyState v-if="!docs?.length" icon="library" title="No sources yet">
+          {{ editor ? 'Start from the next step above, or drop files anywhere on this page.' : 'Nothing has been added to this project yet.' }}
         </UiEmptyState>
-        <div v-else class="table-wrap">
-          <table>
-            <thead><tr><th>Title</th><th>Type</th><th class="num">Version</th><th class="num hide-sm">Passages</th><th class="num">Canon</th><th class="hide-sm">SHA-256</th></tr></thead>
-            <tbody>
-              <tr v-for="d in docs" :key="String(d.id)">
-                <td><NuxtLink :to="`/documents/${d.id}`" class="doc-link">{{ d.title }}</NuxtLink></td>
-                <td><UiBadge>{{ d.kind }}</UiBadge><span v-if="d.origin === 'written'" class="small faint written hide-sm" title="Written in Story Bible">written here</span></td>
-                <td class="num">v{{ d.version }}</td>
-                <td class="num hide-sm">{{ d.passages }}</td>
-                <td class="num">{{ d.canon_facts }}</td>
-                <td class="mono faint hide-sm">{{ String(d.sha256).slice(0, 10) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
+        <p v-else-if="staleTotal" class="small library-stale"><UiIcon name="history" :size="14" /><NuxtLink to="/library?stale=1">{{ counted(staleTotal, 'canon citation') }} to re-check</NuxtLink> after a source changed.</p>
       </UiPanel>
     </div>
 
@@ -247,8 +232,8 @@ const next = computed(() => {
         <div class="source-option">
           <h3>Your files</h3>
           <p>Markdown or plain text, up to 1 MB each. Re-importing an unchanged file is detected; a changed one becomes a new version.</p>
-          <UiButton icon="upload" :loading="busy === 'import'" :disabled="!!busy" @click="fileInput?.click()">Import files</UiButton>
-          <input ref="fileInput" type="file" accept=".md,.markdown,.txt" multiple hidden @change="upload">
+          <UiButton icon="upload" :disabled="!!busy" @click="uploader?.pick()">Import files</UiButton>
+          <p class="small faint">Or drop files anywhere on this page.</p>
         </div>
       </div>
     </UiPanel>
@@ -301,7 +286,9 @@ const next = computed(() => {
 .drafts { list-style: none; margin: 0; padding: 0; }
 .drafts li { display: flex; flex-wrap: wrap; gap: 2px var(--s-3); align-items: baseline; justify-content: space-between; padding: 10px var(--s-5); border-top: 1px solid var(--line); }
 .drafts li:first-child { border-top: 0; }
-.written { margin-left: 6px; white-space: nowrap; }
+.library-stale { margin: 0; color: var(--warn); }
+.library-stale svg { vertical-align: -2px; margin-right: 6px; }
+.library-stale a { color: var(--warn); }
 
 @media (max-width: 1100px) {
   .home-grid { grid-template-columns: minmax(0, 1fr); }

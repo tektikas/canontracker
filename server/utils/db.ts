@@ -3,7 +3,7 @@ import { mkdirSync, rmSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-export const SCHEMA_VERSION = 10
+export const SCHEMA_VERSION = 11
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -39,8 +39,19 @@ create table if not exists api_tokens (
 create table if not exists documents (
   id text primary key, title text not null, filename text not null, kind text not null,
   sha256 text not null, version integer not null, content text not null, imported_at text not null,
-  project_id text not null references projects(id), origin text not null default 'import', created_by text, unique (project_id, sha256)
+  project_id text not null references projects(id), origin text not null default 'import', created_by text, folder_id text,
+  unique (project_id, sha256)
 );
+-- Library organisation. Editorial labels on a document (by filename, so every version shares them); never part of its text
+-- or hash. title, kind and folder_id live on every version row of a filename and change together; a new version inherits them.
+-- Folders nest at most two levels (a folder's parent has no parent). color: a design-token name (accent | good | warn | bad | pencil).
+create table if not exists folders (
+  id text primary key, name text not null, parent_id text, created_by text not null, created_at text not null, project_id text not null
+);
+create table if not exists tags (
+  id text primary key, name text not null, color text not null, created_by text not null, created_at text not null, project_id text not null
+);
+create table if not exists document_tags (project_id text not null, filename text not null, tag_id text not null, primary key (project_id, filename, tag_id));
 -- Unsaved writing, private to its author. filename: the written document it edits (null for a new one). Saving turns it into
 -- a document version and deletes the draft.
 create table if not exists drafts (
@@ -190,7 +201,7 @@ export function audit(eventType: string, targetType: string, targetId: string, d
 // Empties the current project only. Other projects and studios are untouched.
 export function resetData() {
   tx(() => {
-    for (const t of ['notes', 'drafts', 'images', 'model_calls', 'eval_runs', 'audit_events', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['document_tags', 'tags', 'folders', 'notes', 'drafts', 'images', 'model_calls', 'eval_runs', 'audit_events', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })
@@ -206,7 +217,7 @@ export interface Fact {
 
 export interface DocumentRow {
   id: string, title: string, filename: string, kind: string, sha256: string, version: number, content: string, imported_at: string
-  origin: string, created_by: string | null
+  origin: string, created_by: string | null, folder_id: string | null
 }
 export interface PassageRow { id: string, document_id: string, ordinal: number, start_line: number, end_line: number, text: string }
 export interface EvidenceRow {

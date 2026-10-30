@@ -106,6 +106,11 @@ function identityNotes(facts: PromptFact[]) {
 
 const recorded = <T>(key: string) => useStorage('assets:server').getItem<T>(`broken-tide:${key}`)
 
+// Recorded mode only has extraction output for the Broken Tide demo files, keyed by filename.
+export async function hasRecordedExtraction(filename: string) {
+  return !!(await recorded<Record<string, CandidateDraft[]>>('candidates.json'))?.[filename]
+}
+
 export function extractCandidates(doc: { id: string, filename: string, title: string, text: string }) {
   return traced('extract', { type: 'document', id: doc.id }, [doc.id], null, async (): Promise<CandidateDraft[]> => {
     if (modelInfo().mode === 'mock') return (await recorded<Record<string, CandidateDraft[]>>('candidates.json'))?.[doc.filename] ?? []
