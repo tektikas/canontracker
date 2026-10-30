@@ -104,7 +104,7 @@ const tryDemo = () => run('demo', async () => {
         <button type="button" class="option" :disabled="!!busy" @click="tryDemo">
           <span class="option-icon"><UiIcon name="demo" :size="20" /></span>
           <span class="option-title">Try the Broken Tide demo</span>
-          <span class="option-text">An original island story, 2 lore documents and 11 scenes, with planted contradictions, plus a three-page sample to switch to. Both open in their own projects; {{ me?.current?.project.name }} stays empty.</span>
+          <span class="option-text">An original island story, 2 lore documents and 11 scenes, with planted contradictions. It also adds Lantern Row, a three-page sample that comes with five preloaded canon facts, so you can switch projects. Both open in their own projects; {{ me?.current?.project.name }} stays empty.</span>
           <span class="option-cta">
             <template v-if="busy === 'demo'"><span class="spinner" aria-hidden="true" />Loading 16 sources…</template>
             <template v-else>Load demo and take the tour<UiIcon name="arrow" :size="16" /></template>

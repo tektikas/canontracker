@@ -3,17 +3,21 @@
 // impact. It never clicks for the user or changes data; it opens the right page, outlines one element and explains it.
 // Pages mark their targets with data-tour="…". When a step's target isn't there (already decided, not scanned yet), the card
 // says what to do instead of pointing at nothing.
-const { step, set, resume, stop } = useTour()
+const { step, set, saved, resume, stop } = useTour()
 const route = useRoute()
 
 interface Ids { sister?: string, made?: string, rule?: string }
 const ids = ref<Ids>({})
+// What the stored candidates and checks came from (their model ids), so the intro only claims a recorded run when it is one.
+const prov = ref<ReturnType<typeof provenance>['kind']>('none')
 async function loadIds() {
   try {
-    const [pending, canon] = await Promise.all([
+    const [pending, canon, stats] = await Promise.all([
       $fetch('/api/facts', { query: { status: 'pending' } }),
       $fetch('/api/facts', { query: { status: 'canon' } }),
+      $fetch('/api/stats'),
     ])
+    prov.value = provenance(stats.data_model_id).kind
     ids.value = {
       sister: pending.find(f => /\bsisters\b/i.test(f.statement))?.id,
       made: pending.find(f => !f.evidence.some((e: { verified: number | boolean }) => e.verified))?.id,
@@ -29,7 +33,12 @@ interface Step { title: string, page?: string, to?: string, targets?: Target[], 
 const STEPS = computed<Step[]>(() => [
   {
     title: 'Broken Tide in five steps',
-    intro: 'A short tour of the demo story. Its candidates and model checks replay a recorded run, labeled “Recorded demo run” wherever they show. You do every click yourself; the tour only points.',
+    intro: `A short tour of the demo story. ${{
+      recorded: 'Its candidates and model checks replay a recorded run, labeled “Recorded demo run” wherever they show. ',
+      live: 'Its candidates and model checks come from a live model, labeled with the model wherever they show. ',
+      mixed: 'Some candidates replay a recorded run and some come from a live model; each is labeled where it shows. ',
+      none: '',
+    }[prov.value]}You do every click yourself; the tour only points.`,
   },
   {
     title: 'The model proposes. You decide.',
@@ -101,8 +110,8 @@ async function go(navigate: boolean) {
   const s = current.value
   if (!s) return
   scrolledFor = ''
+  await loadIds()
   if (s.page) {
-    await loadIds()
     const to = current.value?.to ?? s.page
     if (navigate && route.fullPath !== to) await navigateTo(to)
   }
@@ -122,22 +131,26 @@ function kick(n: number | null, navigate = true) {
   timer = setInterval(measure, 250)
 }
 watch(step, n => kick(n))
-onMounted(() => {
+// The tour fits the Broken Tide demo only: it never starts or resumes in a project without it.
+const fitsDemo = () => $fetch('/api/documents').then(d => d.some(x => x.filename === 'lore-chord-stone.md'), () => false)
+onMounted(async () => {
+  window.addEventListener('scroll', measure, { passive: true, capture: true })
+  window.addEventListener('resize', measure)
   // Home renders its own layout, so moving between Home and other pages mounts the tour afresh mid-step.
-  if (route.query.tour === '1' && step.value == null) set(0)
-  else {
+  if (route.query.tour === '1' && step.value == null) {
+    if (await fitsDemo()) set(0)
+  } else if (step.value != null || saved() != null) {
+    if (!(await fitsDemo())) return stop()
     resume()
     kick(step.value, false)
   }
-  window.addEventListener('scroll', measure, { passive: true, capture: true })
-  window.addEventListener('resize', measure)
 })
 onBeforeUnmount(() => {
   clearInterval(timer)
   window.removeEventListener('scroll', measure, { capture: true })
   window.removeEventListener('resize', measure)
 })
-watch(() => route.query.tour, (v) => { if (v === '1') set(0) })
+watch(() => route.query.tour, async (v) => { if (v === '1' && await fitsDemo()) set(0) })
 
 // The card sits beside the outlined element on wide screens, and docks at the bottom on phones (DESIGN.md: 720px).
 const PAD = 6

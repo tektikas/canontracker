@@ -130,11 +130,11 @@ const ago = (iso: string | null) => {
         <UiField label="Game or project name" :error="createError">
           <input ref="createInput" v-model="newName" type="text" maxlength="80" placeholder="e.g. Saltmarsh Chronicles" @keydown.esc="creating = false">
         </UiField>
-        <UiField label="Start with" :hint="startWith === 'broken-tide' ? 'An island story in 13 sources with planted contradictions. In recorded mode its candidates replay a recorded run.' : startWith === 'lantern-row' ? 'Three short sources and five facts with quotes, added in your name. No recorded model run.' : 'Add your own sources from Home.'">
+        <UiField label="Start with" :hint="startWith === 'broken-tide' ? 'An island story in 13 sources with planted contradictions. In recorded mode its candidates replay a recorded run.' : startWith === 'lantern-row' ? 'Three short sources that come with five preloaded canon facts, each quoted from its source. Sample canon: no one reviewed it and no model proposed it.' : 'Add your own sources from Home.'">
           <select v-model="startWith">
             <option value="empty">An empty project</option>
             <option value="broken-tide">The Broken Tide demo</option>
-            <option value="lantern-row">The Lantern Row sample</option>
+            <option value="lantern-row">The Lantern Row sample (preloaded canon)</option>
           </select>
         </UiField>
         <div class="row">

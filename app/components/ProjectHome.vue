@@ -38,7 +38,7 @@ async function run(kind: 'demo' | 'import', fn: () => Promise<{ results: Record<
 }
 
 function loadDemo() {
-  if (stats.value?.documents && !confirm(`Replace everything in ${projectName.value} with the Broken Tide demo set? Other projects are not touched.`)) return
+  if (stats.value?.documents && !confirm(`Replace everything in ${projectName.value} with the Broken Tide demo set? The audit trail keeps its history; other projects are not touched.`)) return
   run('demo', () => $fetch('/api/demo/load', { method: 'POST' }))
 }
 
@@ -243,7 +243,7 @@ const next = computed(() => {
       <div class="stack">
         <div v-if="admin" class="source-option">
           <h3>Broken Tide demo</h3>
-          <p>An original island story: 2 lore documents and 11 scenes. Loading it replaces everything in {{ projectName }}; other projects are not touched.</p>
+          <p>An original island story: 2 lore documents and 11 scenes. Loading it replaces everything in {{ projectName }} except the audit trail; other projects are not touched.</p>
           <UiButton icon="demo" :loading="busy === 'demo'" :disabled="!!busy" @click="loadDemo">Load demo set</UiButton>
         </div>
         <div class="source-option">

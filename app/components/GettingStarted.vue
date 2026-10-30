@@ -21,8 +21,9 @@ const items = computed(() => {
   return [
     { key: 'sources', label: admin.value ? 'Load the demo or add a document' : 'Add a document', to: s.documents ? '#sources' : '#workflow', done: s.documents > 0,
       hint: s.documents ? `${counted(s.documents, 'source')} in this project` : 'Import files, write one here, or try the demo story' },
-    { key: 'review', label: 'Review a candidate', to: '/review', done: reviewed > 0 || nothingToReview,
-      hint: nothingToReview ? 'Nothing was proposed from these sources' : reviewed ? `${counted(reviewed, 'candidate')} decided` : s.pending ? `${counted(s.pending, 'candidate')} waiting` : 'The model proposes facts with a quote; you decide' },
+    // Nothing proposed is not a review done: the step reads as not applicable and leaves the count.
+    { key: 'review', label: nothingToReview ? 'Nothing to review in this project' : 'Review a candidate', to: '/review', done: reviewed > 0, na: nothingToReview,
+      hint: nothingToReview ? 'No candidates were proposed from these sources' : reviewed ? `${counted(reviewed, 'candidate')} decided` : s.pending ? `${counted(s.pending, 'candidate')} waiting` : 'The model proposes facts with a quote; you decide' },
     { key: 'canon', label: 'See your canon', to: '/canon', done: s.canon > 0,
       hint: s.canon ? `${counted(s.canon, 'fact')}, each tied to its passage` : 'Accepted facts land here' },
     { key: 'scan', label: 'Run a conflict scan', to: '/conflicts', done: !!s.last_scan,
@@ -35,10 +36,10 @@ const items = computed(() => {
       hint: s.agent_tokens ? 'An API token is active' : 'Read canon from your AI tools over MCP' },
   ]
 })
-const required = computed(() => items.value.filter(i => !('optional' in i)))
+const required = computed(() => items.value.filter(i => !('optional' in i) && !('na' in i && i.na)))
 const doneCount = computed(() => required.value.filter(i => i.done).length)
 const complete = computed(() => required.value.length > 0 && doneCount.value === required.value.length)
-const nextKey = computed(() => items.value.find(i => !i.done)?.key)
+const nextKey = computed(() => items.value.find(i => !i.done && !('na' in i && i.na))?.key)
 </script>
 
 <template>
@@ -55,11 +56,11 @@ const nextKey = computed(() => items.value.find(i => !i.done)?.key)
       </div>
     </header>
     <ol class="guide-list">
-      <li v-for="i in items" :key="i.key" :class="{ done: i.done, next: i.key === nextKey }">
+      <li v-for="i in items" :key="i.key" :class="{ done: i.done, na: 'na' in i && i.na, next: i.key === nextKey }">
         <NuxtLink :to="i.to" class="guide-item">
-          <span class="mark" aria-hidden="true"><UiIcon v-if="i.done" name="check" :size="12" /></span>
+          <span class="mark" aria-hidden="true"><UiIcon v-if="i.done" name="check" :size="12" /><template v-else-if="'na' in i && i.na">–</template></span>
           <span class="guide-text">
-            <span class="guide-label">{{ i.label }}<span v-if="'optional' in i" class="faint"> · optional</span><span class="sr-only">{{ i.done ? ' (done)' : '' }}</span></span>
+            <span class="guide-label">{{ i.label }}<span v-if="'optional' in i" class="faint"> · optional</span><span class="sr-only">{{ i.done ? ' (done)' : 'na' in i && i.na ? ' (not applicable)' : '' }}</span></span>
             <span class="small faint">{{ i.hint }}</span>
           </span>
           <UiIcon name="arrow" :size="14" class="go" />
@@ -91,6 +92,8 @@ const nextKey = computed(() => items.value.find(i => !i.done)?.key)
 .next .mark { border: 2px solid var(--accent); }
 .guide-text { display: grid; gap: 1px; min-width: 0; }
 .guide-label { font-weight: 600; }
+.na .mark { border: 1.5px solid var(--line-strong); color: var(--faint); font-size: 12px; line-height: 1; }
+.na .guide-label { color: var(--muted); font-weight: 500; font-style: italic; }
 .done .guide-label { color: var(--muted); font-weight: 500; text-decoration: line-through; text-decoration-color: var(--line-strong); }
 .go { margin-top: 3px; color: var(--faint); opacity: 0; transition: opacity var(--dur-1) var(--ease); }
 .guide-item:hover .go, .next .go { opacity: 1; }
