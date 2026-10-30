@@ -27,6 +27,10 @@ const error = ref('')
 const busy = ref(false)
 const evIndex = ref(0)
 const BLOCKED = 'Accept is blocked: this quote is not in the source word for word. Reject it, or leave it pending.'
+// An Enter that confirms an IME composition (Japanese, Chinese, Korean…) is not a decision.
+const composing = (e: KeyboardEvent) => e.isComposing || e.keyCode === 229
+// Same breakpoint as the CSS that hides the key hints: touch or narrow screens get buttons only.
+const NO_KEYS = '(hover: none), (max-width: 900px)'
 
 // Every move to another candidate starts clean: no half-typed reason carries over.
 watch(() => current.value?.id, () => {
@@ -55,6 +59,14 @@ function cancel() {
   error.value = ''
   panel.value?.focus({ preventScroll: true })
 }
+// Esc cancels; Enter in the statement box saves instead of adding a line break. Keys that belong to an IME composition do neither.
+function formKey(e: KeyboardEvent) {
+  if (composing(e)) return
+  if (e.key === 'Escape') cancel()
+  else if (e.key === 'Enter' && e.target instanceof HTMLTextAreaElement && !(e.shiftKey || e.ctrlKey || e.metaKey || e.altKey)) e.target.form?.requestSubmit()
+  else return
+  e.preventDefault()
+}
 
 function move(step: number) {
   const next = queue.value[index.value + step]
@@ -72,6 +84,7 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
     error.value = 'Say why it is rejected.'
     return
   }
+  const i = queue.value.indexOf(f)
   busy.value = true
   error.value = ''
   try {
@@ -89,10 +102,12 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
   } finally {
     busy.value = false
   }
-  const next = queue.value[index.value + 1] ?? queue.value[index.value - 1]
+  // If the user moved to another candidate while the request ran, keep their choice; otherwise advance from the decided one.
+  const stayed = current.value?.id === f.id
+  const next = queue.value[i + 1] ?? queue.value[i - 1]
   decided[f.id] = decision === 'reject' ? 'rejected' : 'accepted'
   last.value = { decision: decided[f.id]!, statement: decision === 'correct_and_accept' ? form.statement : f.statement }
-  selectedId.value = next?.id
+  if (stayed) selectedId.value = next?.id
   mode.value = 'idle'
   panel.value?.focus({ preventScroll: true })
   // Not awaited: a newer refresh cancels an older one, and a cancelled refresh never settles.
@@ -103,7 +118,7 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
 
 // Keyboard triage (desktop). Each key is one explicit decision; held keys don't repeat, and typing in a field never triggers one.
 function onKey(e: KeyboardEvent) {
-  if (e.ctrlKey || e.metaKey || e.altKey || mode.value !== 'idle') return
+  if (e.ctrlKey || e.metaKey || e.altKey || composing(e) || mode.value !== 'idle' || matchMedia(NO_KEYS).matches) return
   if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], .sidebar, .topbar')) return
   const key = e.key.toLowerCase()
   if (key === 'j') move(1)
@@ -193,9 +208,9 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
         <span><b v-if="error === BLOCKED" role="alert">Accept refused. </b>The model's quote doesn't appear in the source, so this can't become canon. Reject it, or leave it pending until the source says it.</span>
       </p>
 
-      <form v-if="mode === 'edit'" class="stack decision" @submit.prevent="decide('correct_and_accept')" @keydown.esc.prevent="cancel">
+      <form v-if="mode === 'edit'" class="stack decision" @submit.prevent="decide('correct_and_accept')" @keydown="formKey">
         <UiField label="Statement">
-          <textarea ref="firstField" v-model="form.statement" rows="2" required @keydown.enter.exact.prevent="($event.target as HTMLTextAreaElement).form?.requestSubmit()" />
+          <textarea ref="firstField" v-model="form.statement" rows="2" required />
         </UiField>
         <div class="triple-fields">
           <UiField label="Subject"><input v-model="form.subject" type="text" required></UiField>
@@ -211,7 +226,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
         </div>
       </form>
 
-      <form v-else-if="mode === 'reject'" class="stack decision" @submit.prevent="decide('reject')" @keydown.esc.prevent="cancel">
+      <form v-else-if="mode === 'reject'" class="stack decision" @submit.prevent="decide('reject')" @keydown="formKey">
         <UiField label="Why reject it?" hint="Required. Saved to the audit log; the candidate is kept but never becomes canon.">
           <input ref="firstField" v-model="form.rationale" type="text" list="reject-reasons" required placeholder="e.g. Figurative, not a literal relationship">
         </UiField>
@@ -313,7 +328,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 .keys { margin: 0; }
 kbd {
   font: 600 11px/1 var(--font-code); padding: 2px 5px; border-radius: var(--r-sm);
-  border: 1px solid var(--line-strong); border-bottom-width: 2px; color: inherit; opacity: 0.8;
+  border: 1px solid var(--line-strong); border-bottom-width: 2px; color: inherit;
 }
 .btn kbd { margin-left: 4px; }
 

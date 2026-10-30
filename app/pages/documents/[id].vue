@@ -58,7 +58,7 @@ const activeQuote = computed(() => doc.value?.facts.flatMap(f => f.evidence).fin
 .crumbs a { color: var(--muted); }
 .meta { display: inline-flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
 .layout { display: grid; gap: var(--s-4); grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
-.doc { padding: var(--s-5) var(--s-4); }
+.doc { padding: var(--s-5) var(--s-4); align-self: stretch; }
 .facts { position: sticky; top: var(--s-5); max-height: calc(100vh - 2 * var(--s-5)); overflow-y: auto; }
 .none { margin: 0; }
 .fact-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
