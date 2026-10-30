@@ -21,12 +21,21 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
   switch (e.event_type) {
     case 'document.imported': return [`${who} imported ${d.filename}`, `${d.passages} passages, read-only`]
     case 'document.version_added': return [`${who} imported version ${d.version} of ${d.filename}`, `${d.passages} passages`]
+    case 'document.written': return [`${who} wrote ${d.title ?? d.filename} in Story Bible`, `${d.passages} passages, read-only once saved`]
+    case 'document.version_written': return [`${who} saved version ${d.version} of ${d.title ?? d.filename}`, `${d.passages} passages · earlier versions are kept`]
     case 'citation.stale': return [`${d.filename} v${d.version} makes ${d.fact_ids?.length ?? 0} citation(s) stale`, 'Re-check the facts that cite it']
     case 'candidate.created':
       if (d.via === 'mcp') return [`Agent “${d.token_name}” proposed a candidate for ${who}`, 'Quote found in source · waiting for a human decision']
       return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
     case 'candidate.accepted': return [`${who} accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
     case 'candidate.corrected_and_accepted': return [`${who} corrected and accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
+    case 'candidate.accept_refused': return [`${who} tried to accept a candidate; it was refused`, 'Quote not found verbatim in the source']
+    case 'fact.authored': return [d.to === 'canon' ? `${who} added a fact to canon: ${q(d.statement)}` : `${who} sent a fact to review: ${q(d.statement)}`,
+      [`From the source: ${q(d.quote)}`, d.to === 'canon' ? 'Added by hand, a person’s decision' : 'Waiting for a human decision', identity(d)].filter(Boolean).join(' · ')]
+    case 'note.created': return [`${who} added a note: ${q(d.body)}`, d.quote ? `On ${q(d.quote)} · editorial, not canon` : 'Editorial, not canon']
+    case 'note.updated': return [d.status ? `${who} marked a note ${d.status.to}` : `${who} edited a note`, [
+      d.status ? `Was ${d.status.from}` : '', d.body ? `Now reads ${q(d.body.to)}` : '',
+    ].filter(Boolean).join(' · ')]
     case 'candidate.rejected': return [`${who} rejected a candidate: ${q(d.statement)}`, because(d)]
     case 'conflict.detected': return [`Scan found a possible conflict (${String(d.rule).replaceAll('_', ' ').toLowerCase()})`, 'Awaiting a human decision']
     case 'conflict.scan': return [`${who} scanned canon for conflicts`, `${d.facts} canon facts checked, ${d.created} new ${d.created === 1 ? 'candidate' : 'candidates'}${d.model_error ? ' · world-rule check failed' : ''}`]
@@ -69,14 +78,14 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
 }
 
 const TONE: Record<string, 'accent' | 'good' | 'bad' | 'warn' | 'pencil' | 'neutral'> = {
-  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad', entity: 'neutral', image: 'neutral', agent: 'bad', token: 'neutral',
+  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad', entity: 'neutral', image: 'neutral', agent: 'bad', token: 'neutral', fact: 'accent', note: 'pencil',
 }
 
 // Short ID plus a link where a page exists; pages have no per-item anchors, so links go to the list.
 function target(e: { event_type: string, target_type: string, target_id: string }) {
   const t = e.target_type
   const to = t === 'entity' ? (e.event_type === 'entity.deleted' ? '' : `/entities/${e.target_id}`) : t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' || e.event_type === 'conflict.scan' ? '/conflicts' : t === 'change' ? '/changes'
-    : t === 'fact' ? (e.event_type.startsWith('candidate.') ? '/review' : '/canon') : ''
+    : t === 'fact' ? (e.event_type.startsWith('candidate.') ? '/review' : '/canon') : t === 'note' ? '/notes' : ''
   // Ids already carry a type prefix ("fact_d0e…", "trc_e02c…"): drop it and label the thing in words.
   const short = e.target_id.replace(/^[a-z]+_/, '').slice(0, 6)
   const noun = e.target_id.startsWith('trc_') ? 'Model call' : t.charAt(0).toUpperCase() + t.slice(1)

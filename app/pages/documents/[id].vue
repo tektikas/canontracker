@@ -81,7 +81,7 @@ const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day:
   </UiPanel>
   <template v-else-if="doc">
     <nav class="crumbs small" aria-label="Breadcrumb">
-      <NuxtLink to="/#sources">Sources</NuxtLink><span aria-hidden="true">/</span><span class="mono">{{ doc.filename }}</span>
+      <NuxtLink to="/#sources">Sources</NuxtLink><span aria-hidden="true">/</span><span :title="doc.filename">{{ doc.title }}</span>
     </nav>
     <UiPageHeader :title="doc.title">
       <span class="meta">

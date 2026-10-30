@@ -11,7 +11,7 @@ const decided = reactive<Record<string, 'accepted' | 'rejected'>>({})
 const last = ref<{ decision: 'accepted' | 'rejected' | 'added', statement: string }>()
 const queue = computed(() => (pending.value ?? []).filter(f => !decided[f.id]))
 // Every candidate ends up pending, canon or rejected; applying a change swaps one canon fact for another, so this sum stays the candidate count.
-const total = computed(() => (stats.value ? stats.value.canon + stats.value.rejected + stats.value.pending : queue.value.length))
+const total = computed(() => (stats.value ? stats.value.canon - stats.value.authored_canon + stats.value.rejected + stats.value.pending : queue.value.length))
 const reviewed = computed(() => Math.max(0, total.value - queue.value.length))
 const decidedNow = computed(() => Object.values(decided))
 

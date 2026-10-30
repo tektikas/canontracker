@@ -114,8 +114,11 @@ const next = computed(() => {
       {{ sourceLine }}.
       Canon holds only facts a person accepted, each tied to its exact passage.
     </template>
-    <template v-else>
+    <template v-else-if="editor">
       Import or write lore and scenes. The model proposes facts with a quote, or you add them from the text yourself; only facts a person accepts become canon.
+    </template>
+    <template v-else>
+      Your team’s lore and scenes show up here. Canon holds only facts a person accepted, each tied to its exact passage.
     </template>
   </UiPageHeader>
 
@@ -206,11 +209,10 @@ const next = computed(() => {
         </ul>
       </UiPanel>
 
-      <UiPanel title="Sources" :description="docs?.length ? 'Read-only. Open one to see its passages, add facts and notes, and see the canon cited from it.' : undefined" flush>
+      <UiPanel title="Sources" :description="docs?.length ? (editor ? 'Read-only. Open one to see its passages, add facts and notes, and see the canon cited from it.' : 'Read-only. Open one to see its passages, its notes and the canon cited from it.') : undefined" flush>
         <template v-if="editor && docs?.length" #actions><UiButton size="sm" icon="plus" to="/write">New document</UiButton></template>
         <UiEmptyState v-if="!docs?.length" icon="file" title="No sources yet">
-          {{ admin ? 'Load the demo set, import your own lore and scene files, or write one here.' : editor ? 'Import your own lore and scene files, or write one here.' : 'Nothing has been imported into this project yet.' }}
-          <template v-if="editor" #actions><UiButton icon="plus" to="/write">New document</UiButton></template>
+          {{ editor ? 'Start from the next step above.' : 'Nothing has been added to this project yet.' }}
         </UiEmptyState>
         <div v-else class="table-wrap">
           <table>
@@ -237,7 +239,7 @@ const next = computed(() => {
           <p>An original island story: 2 lore documents and 11 scenes. Loading it replaces everything in {{ projectName }}; other projects are not touched.</p>
           <UiButton icon="demo" :loading="busy === 'demo'" :disabled="!!busy" @click="loadDemo">Load demo set</UiButton>
         </div>
-        <div class="source-option">
+        <div v-if="nextKey !== 'import'" class="source-option">
           <h3>Write it here</h3>
           <p>Write or paste a scene. Drafts save as you type; each save to the story is a new read-only version.</p>
           <UiButton icon="review" to="/write">New document</UiButton>

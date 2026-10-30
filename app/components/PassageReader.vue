@@ -20,7 +20,18 @@ function parts(p: Record<string, any>) {
   const i = p.text.indexOf(props.quote)
   return i < 0 ? null : [p.text.slice(0, i), props.quote, p.text.slice(i + props.quote.length)]
 }
-const notesAt = (id: string) => props.notes?.filter(n => n.anchor === id && n.status !== 'done') ?? []
+const notesAt = (id: string) => props.notes?.filter(n => n.anchor === id) ?? []
+// One margin mark per passage, shaped by its most pressing note: open (note), ready (check), only done ones (filled check).
+const MARK = {
+  open: { icon: 'note', label: 'open' }, ready: { icon: 'check', label: 'ready' }, done: { icon: 'checked', label: 'done' },
+} as const
+const markOf = (id: string) => {
+  const ns = notesAt(id)
+  if (!ns.length) return null
+  const status = (['open', 'ready', 'done'] as const).find(s => ns.some(n => n.status === s))!
+  const n = ns.filter(x => x.status === status).length
+  return { status, n, ...MARK[status], aria: `${n} ${MARK[status].label} ${n === 1 ? 'note' : 'notes'} on this passage${ns.length > n ? `, ${ns.length} in all` : ''}` }
+}
 
 const root = ref<HTMLElement>()
 watch(() => [props.active, props.doc] as const, async () => {
@@ -97,8 +108,8 @@ onBeforeUnmount(() => {
     >
       <span class="ln">
         {{ p.start_line }}<template v-if="p.end_line !== p.start_line">–{{ p.end_line }}</template>
-        <button v-if="notesAt(p.id).length" type="button" class="note-mark" :aria-label="`${notesAt(p.id).length} open ${notesAt(p.id).length === 1 ? 'note' : 'notes'} on this passage`" @click="emit('notes', p.id)">
-          <UiIcon name="note" :size="14" /><span v-if="notesAt(p.id).length > 1">{{ notesAt(p.id).length }}</span>
+        <button v-if="markOf(p.id)" type="button" class="note-mark" :class="markOf(p.id)!.status" :aria-label="markOf(p.id)!.aria" :title="markOf(p.id)!.aria" @click="emit('notes', p.id)">
+          <UiIcon :name="markOf(p.id)!.icon" :size="14" /><span v-if="markOf(p.id)!.n > 1">{{ markOf(p.id)!.n }}</span>
         </button>
       </span>
       <span class="text">
@@ -134,7 +145,9 @@ mark { background: color-mix(in srgb, var(--accent) 22%, transparent); color: in
   border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); border-radius: var(--r-sm); background: var(--warn-soft); color: var(--warn);
   font: 600 11px/1 var(--font-ui); cursor: pointer;
 }
-.note-mark:hover { border-color: var(--warn); }
+.note-mark:hover { border-color: currentColor; }
+.note-mark.ready { border-color: color-mix(in srgb, var(--accent) 40%, transparent); background: var(--accent-soft); color: var(--accent); }
+.note-mark.done { border-color: var(--line); background: none; color: var(--faint); }
 .sel-bar {
   position: fixed; z-index: 60; transform: translateX(-50%); display: flex; gap: 2px; padding: 3px;
   background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-md); box-shadow: var(--elev-overlay);

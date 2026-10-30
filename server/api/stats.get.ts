@@ -15,6 +15,9 @@ export default defineEventHandler(() => {
       and version = (select max(version) from documents d2 where d2.project_id = d.project_id and d2.filename = d.filename)`),
     pending: count(`select count(*) n from facts where project_id = ? and status = 'pending'`),
     canon: count(`select count(*) n from facts where project_id = ? and status = 'canon'`),
+    // Facts a person added straight to canon never passed through review; Review's progress leaves them out.
+    authored_canon: count(`select count(*) n from facts f where f.project_id = ? and f.status = 'canon' and exists (select 1 from audit_events a
+      where a.project_id = f.project_id and a.target_id = f.id and a.event_type = 'fact.authored' and json_extract(a.detail, '$.to') = 'canon')`),
     rejected: count(`select count(*) n from facts where project_id = ? and status = 'rejected'`),
     open_conflicts: count(`select count(*) n from conflicts where project_id = ? and status = 'open'`),
     changes: count('select count(*) n from changes where project_id = ?'),

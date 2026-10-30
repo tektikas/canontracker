@@ -111,24 +111,23 @@ const canSave = computed(() => (props.mode === 'note' ? !!f.body.trim()
       </template>
 
       <template v-else>
+        <!-- Fields first, then their link states, so Tab goes Subject → Predicate → Object; the grid puts each state under its field. -->
         <div class="triple-fields">
-          <UiField label="Subject">
-            <input v-model="f.subject" type="text" list="sel-entities" required maxlength="80" autofocus placeholder="Who or what">
-            <span v-if="link.subject" class="link-state"><UiIcon name="link" :size="14" />Linked to {{ link.subject.name }}
-              <button type="button" class="linkish" @click="link.subject = null">Unlink</button></span>
-            <span v-else-if="suggestion('subject')" class="link-state">Did you mean {{ suggestion('subject')!.name }}?
-              <button type="button" class="linkish" @click="pick('subject', suggestion('subject')!)">Select it to link</button></span>
+          <UiField label="Subject" class="tf-s">
+            <input v-model="f.subject" type="text" list="sel-entities" required maxlength="80" autofocus spellcheck="false" autocomplete="off" placeholder="Who or what">
           </UiField>
-          <UiField label="Predicate" :hint="hint">
-            <input v-model="f.predicate" type="text" list="sel-predicates" required maxlength="60" placeholder="e.g. located_at">
+          <UiField label="Predicate" :hint="hint" class="tf-p">
+            <input v-model="f.predicate" type="text" list="sel-predicates" required maxlength="60" spellcheck="false" autocomplete="off" placeholder="e.g. located_at">
           </UiField>
-          <UiField :label="objectLabel">
-            <input v-model="f.object" type="text" list="sel-entities" maxlength="80" :placeholder="pred === 'located_at' ? 'Where' : 'Optional'">
-            <span v-if="link.object" class="link-state"><UiIcon name="link" :size="14" />Linked to {{ link.object.name }}
-              <button type="button" class="linkish" @click="link.object = null">Unlink</button></span>
-            <span v-else-if="suggestion('object')" class="link-state">Did you mean {{ suggestion('object')!.name }}?
-              <button type="button" class="linkish" @click="pick('object', suggestion('object')!)">Select it to link</button></span>
+          <UiField :label="objectLabel" class="tf-o">
+            <input v-model="f.object" type="text" list="sel-entities" maxlength="80" spellcheck="false" autocomplete="off" :placeholder="pred === 'located_at' ? 'Where' : 'Optional'">
           </UiField>
+          <template v-for="role in ROLES" :key="role">
+            <span v-if="link[role]" class="link-state" :class="`tf-${role[0]}l`"><UiIcon name="link" :size="14" />Linked to {{ link[role]!.name }}
+              <button type="button" class="linkish" :aria-label="`Unlink ${role} from ${link[role]!.name}`" @click="link[role] = null">Unlink</button></span>
+            <span v-else-if="suggestion(role)" class="link-state" :class="`tf-${role[0]}l`">Did you mean {{ suggestion(role)!.name }}?
+              <button type="button" class="linkish" @click="pick(role, suggestion(role)!)">Select it to link</button></span>
+          </template>
         </div>
         <datalist id="sel-entities"><option v-for="e in entities" :key="e.id" :value="e.name" /></datalist>
         <datalist id="sel-predicates"><option v-for="p in PREDICATES" :key="p.value" :value="p.value">{{ p.hint }}</option></datalist>
@@ -187,7 +186,8 @@ const canSave = computed(() => (props.mode === 'note' ? !!f.body.trim()
 .sel-quote { margin: 0; display: grid; gap: 6px; }
 .sel-quote .quote { max-height: 9.6em; overflow-y: auto; white-space: pre-wrap; }
 .sel-quote figcaption { display: flex; align-items: center; gap: 6px; }
-.triple-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); align-items: start; }
+.triple-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "s p o" "sl . ol"; gap: 4px var(--s-3); align-items: start; }
+.tf-s { grid-area: s; } .tf-p { grid-area: p; } .tf-o { grid-area: o; } .tf-sl { grid-area: sl; } .tf-ol { grid-area: ol; }
 .pred-hint { margin: calc(-1 * var(--s-2)) 0 0; }
 .when { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: var(--s-3); align-items: end; }
 .check { display: flex; flex-direction: row; align-items: center; gap: 6px; min-height: 36px; font-weight: 400; }
@@ -199,7 +199,7 @@ const canSave = computed(() => (props.mode === 'note' ? !!f.body.trim()
 .linkish { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; }
 @media (max-width: 720px) {
   .sel-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); padding: var(--s-4); }
-  .triple-fields { grid-template-columns: 1fr; }
+  .triple-fields { grid-template-columns: 1fr; grid-template-areas: "s" "sl" "p" "o" "ol"; }
   .when { grid-template-columns: 1fr 1fr; }
   .sel-actions .btn { flex: 1 1 auto; }
 }

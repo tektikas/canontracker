@@ -273,7 +273,7 @@ const ago = (iso: string) => {
       <form class="stack" novalidate @submit.prevent="saveDetails">
         <div class="details-row">
           <UiField label="Name" hint="If canon uses the old name, it stays as an alias so facts keep linking here.">
-            <input v-model="draft.name" type="text" maxlength="80" required @keydown.esc="editing = ''">
+            <input v-model="draft.name" type="text" maxlength="80" required spellcheck="false" @keydown.esc="editing = ''">
           </UiField>
           <UiField label="Kind">
             <select v-model="draft.kind">
@@ -290,7 +290,7 @@ const ago = (iso: string) => {
             </li>
           </ul>
           <div class="row">
-            <input v-model="draft.alias" type="text" maxlength="80" placeholder="Add a nickname, title or full name" aria-label="New alias" class="alias-input" @keydown="aliasKey">
+            <input v-model="draft.alias" type="text" maxlength="80" spellcheck="false" placeholder="Add a nickname, title or full name" aria-label="New alias" class="alias-input" @keydown="aliasKey">
             <UiButton size="sm" :disabled="!draft.alias.trim()" @click="addAlias">Add</UiButton>
           </div>
           <span class="field-hint">Other names canon or your scripts use. Mentions of them link here.</span>

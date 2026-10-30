@@ -69,6 +69,7 @@ const fact = (over) => ({ to: 'canon', document_id: doc.id, kind: 'event', subje
 // 2. Facts from selected text. The quote has to be in the passage word for word.
 check('blank quote is refused', (await a('/api/facts', { method: 'POST', body: fact({ passage_id: harbor.id, quote: '   ', object: 'Harbor', statement: 'Arin is at the Harbor.' }) })).status, 422)
 check('non-verbatim quote is refused', (await a('/api/facts', { method: 'POST', body: fact({ passage_id: harbor.id, quote: 'Arin waits on the harbour wall', object: 'Harbor', statement: 'Arin is at the Harbor.' }) })).status, 422)
+check('a quote under 8 characters is refused (the shared findQuotePassage rule)', (await a('/api/facts', { method: 'POST', body: fact({ passage_id: harbor.id, quote: 'Arin', object: 'Harbor', statement: 'Arin is at the Harbor.' }) })).status, 422)
 check('quote from another passage’s words is refused', (await a('/api/facts', { method: 'POST', body: fact({ passage_id: harbor.id, quote: 'Arin waits on the Harbor wall, counting the boats. Half', object: 'Harbor', statement: 'x' }) })).status, 422)
 check('missing subject is refused', (await a('/api/facts', { method: 'POST', body: fact({ passage_id: harbor.id, quote: 'Arin waits on the Harbor wall', subject: '', object: 'Harbor', statement: 'x' }) })).status, 400)
 check('bad story time is refused', (await a('/api/facts', { method: 'POST', body: fact({ passage_id: harbor.id, quote: 'Arin waits on the Harbor wall', object: 'Harbor', statement: 'x', time_from: 'ten am' }) })).status, 400)
@@ -79,6 +80,8 @@ check('fact with a verbatim quote goes to canon', atHarbor.data.status, 'canon')
 const atLighthouse = (await a('/api/facts', { method: 'POST', body: fact({ passage_id: lighthouse.id, quote: 'Arin is at the Lighthouse, trimming the lamp', object: 'Lighthouse', statement: 'Arin is at the Lighthouse at D1 10:30.', time_from: 'D1 10:30' }) })).data
 const walkFact = (await a('/api/facts', { method: 'POST', body: fact({ to: 'review', passage_id: walk.id, quote: 'The walk from the Lighthouse to the Harbor takes forty minutes.', kind: 'rule', subject: 'Lighthouse', predicate: 'travel_time', object: 'Harbor', value: '40', statement: 'The way from Lighthouse to Harbor takes 40 minutes.' }) })).data
 check('send to review makes a pending candidate', walkFact.status, 'pending')
+const st = (await a('/api/stats')).data
+check('Review progress leaves out facts added straight to canon', `${st.canon - st.authored_canon} reviewed of ${st.canon - st.authored_canon + st.rejected + st.pending}`, '0 reviewed of 1')
 
 const canon = (await a('/api/facts?status=canon')).data
 const mine = canon.find(f => f.id === atHarbor.data.id)
@@ -208,7 +211,7 @@ check('audit records the page it linked', `${linkedAudit?.from} → ${linkedAudi
 // 8b. An editorial alias must not re-route identity (lead repro): pending "Wren" is accepted after another page takes the
 // alias "Wren"; another typed "Wren" fact still meets it in conflicts.
 const quay = await writeDoc('Quay', ['Wren waits at the Quay.', '', 'Wren stands at the Ropewalk.'].join('\n'))
-const wren = (p, obj, over) => a('/api/facts', { method: 'POST', body: fact({ document_id: quay.id, passage_id: quay.passages[p].id, subject: 'Wren', quote: 'Wren', object: obj, statement: `Wren is at the ${obj}.`, time_from: 'D5 10:00', ...over }) })
+const wren = (p, obj, over) => a('/api/facts', { method: 'POST', body: fact({ document_id: quay.id, passage_id: quay.passages[p].id, subject: 'Wren', quote: quay.passages[p].text, object: obj, statement: `Wren is at the ${obj}.`, time_from: 'D5 10:00', ...over }) })
 const wrenPending = (await wren(0, 'Quay', { to: 'review' })).data
 const zeta = (await a('/api/entities', { method: 'POST', body: { name: 'Zeta', kind: 'character' } })).data
 check('another page takes the alias Wren', (await a(`/api/entities/${zeta.id}`, { method: 'PATCH', body: { aliases: ['Wren'] } })).status, 200)

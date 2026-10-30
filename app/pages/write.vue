@@ -75,6 +75,8 @@ function persist(): Promise<void> {
           dirty = true
           status.value = 'error'
           saveError.value = errorMessage(e)
+          // Try again on its own a little later; typing, Ctrl+S or Save retries at once (persist() clears this timer).
+          timer = setTimeout(persistQuietly, 5000)
           throw e
         }
       }
@@ -115,6 +117,8 @@ onMounted(() => window.addEventListener('beforeunload', unload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', unload))
 const saving = ref(false)
 const error = ref('')
+// A failed "Save to story" stays next to the button until a draft save goes through again (or fails: the status line says so).
+watch(status, (s) => { if (s === 'saved' || s === 'error') error.value = '' }) // an autosave failure shows in the status line instead
 const canSave = computed(() => !!f.title.trim() && !!f.content.trim())
 async function saveToStory() {
   if (!canSave.value || saving.value) return
@@ -131,7 +135,8 @@ async function saveToStory() {
     // Replace: Back from the saved document shouldn't land on a draft that no longer exists.
     await navigateTo(`/documents/${r.document_id}`, { replace: true })
   } catch (e) {
-    error.value = errorMessage(e)
+    // A failed draft save already shows in the status line beside the button; this is for the save to the story itself.
+    if (status.value !== 'error') error.value = `Couldn’t save to the story. ${errorMessage(e)} Your text is kept here; try again in a moment.`
   } finally {
     saving.value = false
   }
@@ -308,8 +313,8 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: 
         <span v-else>Not saved yet</span>
       </span>
       <span class="row">
-        <button type="button" class="btn ghost sm" :aria-pressed="typewriter" title="Keep the line you’re typing near the middle" @click="typewriter = !typewriter">
-          <UiIcon :name="typewriter ? 'checked' : 'square'" :size="14" />Typewriter
+        <button type="button" role="switch" class="btn ghost sm tw" :aria-checked="typewriter" title="Keep the line you’re typing near the middle" @click="typewriter = !typewriter">
+          <span class="switch" aria-hidden="true" />Typewriter<span class="tw-state hide-sm" aria-hidden="true">{{ typewriter ? 'On' : 'Off' }}</span>
         </button>
         <button type="button" class="btn ghost sm" title="Exit focus mode (Esc)" @click="exitFocus">
           <UiIcon name="close" :size="14" />Exit<kbd class="hide-sm">Esc</kbd>
@@ -349,14 +354,13 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: 
     </UiPanel>
     <p class="small faint syntax">A blank line starts a new passage; facts and notes are pinned to passages by line. Start a line with # for a heading.</p>
 
-    <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
-
     <footer class="bar">
+      <p v-if="error" class="notice bad save-error" role="alert">{{ error }}</p>
       <span class="small muted bar-status" role="status">
         <b>{{ words.toLocaleString('en') }}</b> {{ words === 1 ? 'word' : 'words' }}
         <span aria-hidden="true">·</span>
         <template v-if="status === 'saving'">Saving draft…</template>
-        <span v-else-if="status === 'error'" class="bad">Draft not saved: {{ saveError }}</span>
+        <span v-else-if="status === 'error'" class="bad">Couldn’t save the draft. {{ saveError }} Your text is kept here; we’ll retry.</span>
         <template v-else-if="status === 'saved'">Draft saved {{ time(savedAt) }}</template>
         <template v-else>Drafts save as you type. Only you see them.</template>
       </span>
@@ -396,6 +400,7 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: 
   position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; justify-content: space-between;
   padding: var(--s-3) 0; background: var(--canvas); border-top: 1px solid var(--line);
 }
+.save-error { flex: 1 1 100%; margin: 0; }
 .bar-status { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; }
 .bar-status b { color: var(--ink); font-variant-numeric: tabular-nums; }
 .bar-status .bad { color: var(--bad); }
@@ -417,19 +422,28 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: 
   transition: opacity 600ms var(--ease);
 }
 .write.focusing:fullscreen .focus-bar { top: 0; }
+/* Text scrolling up fades out under the bar instead of being cut mid-line. */
+.focus-bar::after { content: ''; position: absolute; top: 100%; left: 0; right: 0; height: var(--s-5); background: linear-gradient(var(--canvas), transparent); pointer-events: none; }
 .focus-bar .row { flex-wrap: nowrap; gap: var(--s-1); }
 .focus-status { display: flex; flex-wrap: wrap; gap: 6px; align-items: baseline; font-variant-numeric: tabular-nums; }
 .focus-status b { color: var(--ink); }
 .focus-status .bad { color: var(--bad); }
-.focus-bar .btn[aria-pressed="true"] { color: var(--accent); }
+.switch { position: relative; flex: none; width: 26px; height: 16px; border-radius: 8px; background: var(--line-strong); transition: background var(--dur-2) var(--ease); }
+.switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 12px; height: 12px; border-radius: 50%; background: var(--raised); transition: transform var(--dur-2) var(--ease); }
+.tw[aria-checked="true"] { color: var(--accent); }
+.tw[aria-checked="true"] .switch { background: var(--accent); }
+.tw[aria-checked="true"] .switch::after { transform: translateX(10px); }
+.tw-state { min-width: 2.2em; text-align: left; font-variant-numeric: tabular-nums; color: var(--faint); }
+.tw[aria-checked="true"] .tw-state { color: var(--accent); }
 .focus-bar kbd { margin-left: 4px; padding: 0 4px; border: 1px solid var(--line); border-radius: var(--r-sm); font: inherit; font-size: var(--text-xs); color: var(--faint); }
 .typing .focus-bar:not(:focus-within) { opacity: 0; }
 .typing { cursor: none; }
-@media (prefers-reduced-motion: reduce) { .focus-bar { transition: none; } }
+@media (prefers-reduced-motion: reduce) { .focus-bar, .switch, .switch::after { transition: none; } }
 @media (max-width: 720px) {
   .write.focusing { padding: 64px var(--s-4) 0; }
   .focusing .body-input.body-input { font-size: var(--text-md); }
-  .focus-bar { padding: var(--s-1) var(--s-2) var(--s-1) var(--s-4); }
+  .focus-bar { padding: var(--s-1) var(--s-2) var(--s-1) var(--s-4); background: var(--raised); border-bottom: 1px solid var(--line); }
+  .focus-bar::after { background: linear-gradient(var(--canvas), transparent); }
 
   .sheet { padding: var(--s-4); }
   .title-input.title-input { font-size: var(--text-xl); }

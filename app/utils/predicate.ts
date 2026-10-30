@@ -38,11 +38,22 @@ export function kindForPredicate(p: string) {
 }
 
 // "Arin" + located_at + "Harbor" + "D2 14:00" -> "Arin is at Harbor at D2 14:00." A draft the person edits.
+// "Lighthouse" -> "the Lighthouse", "Old Docks" -> "the Old Docks": a place named by a common noun gets an article.
+// Names ("Saltmarsh", "Lantern Coast") stay as typed. A short list on purpose; the statement is editable anyway.
+const PLACE_NOUNS = new Set(('lighthouse harbor harbour docks dock pier port market square tavern inn temple shrine chapel church castle keep tower '
+  + 'palace hall gate bridge mill village town city forest woods cave cliffs beach shore coast island ship boat library archive vault cellar '
+  + 'kitchen garden courtyard station camp barracks prison mine quarry well').split(' '))
+export function placePhrase(name: string) {
+  const n = name.trim()
+  if (!n || /^(the|a|an)\s/i.test(n)) return n
+  return PLACE_NOUNS.has(n.split(/\s+/).at(-1)!.toLowerCase()) ? `the ${n}` : n
+}
+
 export function draftStatement(f: { subject: string, predicate: string, object?: string, value?: string, time_from?: string, time_to?: string }) {
   if (!f.subject.trim() || !f.predicate.trim()) return ''
   const p = f.predicate.trim().toLowerCase().replace(/\s+/g, '_')
-  const what = p === 'located_at' ? `is at ${f.object || '…'}`
-    : p === 'travel_time' ? `to ${f.object || '…'} takes ${f.value || '…'} minutes`
+  const what = p === 'located_at' ? `is at ${placePhrase(f.object ?? '') || '…'}`
+    : p === 'travel_time' ? `to ${placePhrase(f.object ?? '') || '…'} takes ${f.value || '…'} minutes`
     : p === 'is' ? `is ${f.object || '…'}`
     : factPhrase({ predicate: p, object: f.object || null })
   const when = f.time_from && f.time_to ? ` from ${f.time_from} to ${f.time_to}` : f.time_from ? ` at ${f.time_from}` : f.time_to ? ` until ${f.time_to}` : ''

@@ -109,16 +109,16 @@ const tryDemo = () => run('demo', async () => {
         </button>
         <NuxtLink to="/" class="option" :class="{ disabled: !!busy }">
           <span class="option-icon"><UiIcon name="upload" :size="20" /></span>
-          <span class="option-title">Import your own files</span>
-          <span class="option-text">Markdown or plain text lore docs and scene scripts, up to 1 MB each. Your files are stored read-only and never changed.</span>
+          <span class="option-title">Bring your own story</span>
+          <span class="option-text">Import Markdown or plain text lore docs and scene scripts (up to 1 MB each), or write and paste scenes in the app. Saved sources are read-only and never changed.</span>
           <span class="option-cta">Go to {{ me?.current?.project.name }}<UiIcon name="arrow" :size="16" /></span>
         </NuxtLink>
       </div>
       <p v-if="me?.model.mode === 'mock'" class="notice warn">
-        <span><b>Recorded run.</b> The model is offline in this instance, so extraction replays a recorded run of the demo story. Your own files import fine, but get no candidates until a live model is connected.</span>
+        <span><b>Recorded run.</b> The model is offline in this instance, so extraction replays a recorded run of the demo story. Your own files import fine but get no candidates until a live model is connected; you can add facts from their text by hand.</span>
       </p>
       <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
-      <p class="small muted center"><NuxtLink to="/">Skip for now</NuxtLink> · you can load the demo or import files any time from Home.</p>
+      <p class="small muted center"><NuxtLink to="/">Skip for now</NuxtLink> · you can load the demo, import files or write a document any time from Home.</p>
     </div>
 
     <div v-else class="stack">
