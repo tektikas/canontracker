@@ -4,7 +4,7 @@ const terms = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu)?.filter(t 
 const isTimeToken = (t: string) => t === 'day' || /^\d+$/.test(t)
 
 // Accepted canon only. No supporting facts -> unknown. Model offline -> sources only, never an invented answer.
-export async function askCanon(question: string, opts: { audit: boolean } = { audit: true }) {
+export async function askCanon(question: string, opts: { audit: boolean, retrievalOnly?: boolean } = { audit: true }) {
   const qTerms = [...new Set(terms(question))]
   const qWords = qTerms.filter(t => !isTimeToken(t))
   // ponytail: keyword overlap over canon facts; swap for FTS5 when canon grows past a few thousand facts
@@ -24,6 +24,8 @@ export async function askCanon(question: string, opts: { audit: boolean } = { au
   let result: { status: 'supported' | 'source_only' | 'unknown', answer: string | null, cited: typeof scored[number]['fact'][] }
   if (!scored.length) {
     result = { status: 'unknown', answer: null, cited: [] }
+  } else if (opts.retrievalOnly) {
+    result = { status: 'source_only', answer: null, cited: scored.map(s => s.fact) }
   } else {
     try {
       const { answer, factIds } = await answerFromCanon(question, traceId, scored.map(s => s.fact))

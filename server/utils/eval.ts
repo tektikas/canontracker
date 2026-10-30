@@ -20,7 +20,7 @@ const ratio = (key: string, label: string, target: string, num: number, den: num
 const samePair = (a: string[], b: string[]) => a.length === b.length && a.every(s => b.includes(s))
 
 // An eval scores what is in the database; it runs no inference. Provenance is the model ids stored on that data.
-function dataModelIds() {
+export function dataModelIds() {
   const rows = useDb().prepare(`select model_id from facts where project_id = ? and model_id is not null
     union select model_id from conflicts where project_id = ? and model_id is not null order by 1`).all(pid(), pid()) as { model_id: string }[]
   return rows.map(r => r.model_id).join(' + ')
@@ -71,7 +71,7 @@ export async function runEval() {
   let unknown = 0
   let fabricated = 0
   for (const q of gold.unknown_questions) {
-    const r = await askCanon(q, { audit: false })
+    const r = await askCanon(q, { audit: false, retrievalOnly: true })
     if (r.status === 'unknown' && !r.cited.length) unknown++
     fabricated += r.cited.filter(f => !statementOf.has(f.id)).length
   }

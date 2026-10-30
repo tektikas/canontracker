@@ -4,6 +4,7 @@ export default defineEventHandler(() => {
   const count = (sql: string) => (db.prepare(sql).get(pid()) as { n: number }).n
   return {
     model: modelInfo(),
+    data_model_id: dataModelIds(),
     documents: count('select count(*) n from documents where project_id = ?'),
     scenes: count(`select count(*) n from documents where project_id = ? and kind = 'scene'`),
     pending: count(`select count(*) n from facts where project_id = ? and status = 'pending'`),

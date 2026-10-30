@@ -66,7 +66,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString()
       <div class="score-meta small muted">
         {{ fmt(latest!.created_at) }} · dataset <span class="mono">{{ latest!.dataset }}</span> ·
         scored data: <UiBadge :tone="tone(latest!.model_id)" dot>{{ provenance(latest!.model_id).label }}</UiBadge>
-        <span class="faint">Scores the database as it is now; runs no model.</span>
+        <span class="faint">Scores the database as it is now. Ask checks use retrieval only; no model is called.</span>
       </div>
     </section>
 
