@@ -24,9 +24,12 @@ export default defineEventHandler(async (event) => {
 
   if (body.decision !== 'accept' && body.decision !== 'correct_and_accept')
     throw createError({ statusCode: 400, statusMessage: 'BAD_DECISION', message: 'decision must be accept, correct_and_accept or reject.' })
-  const verified = db.prepare('select count(*) n from evidence where fact_id = ? and verified = 1').get(id) as { n: number }
-  if (!verified.n)
+  const quotes = db.prepare('select quote from evidence where fact_id = ? and verified = 1').all(id) as { quote: string }[]
+  // Same rule as import/MCP: a blank or trivially short quote is not evidence, even if stored as verified.
+  if (!quotes.some(e => findQuotePassage([{ text: e.quote }], e.quote))) {
+    audit('candidate.accept_refused', 'fact', id, { reason: 'no_valid_evidence' })
     throw createError({ statusCode: 422, statusMessage: 'UNVERIFIED_EVIDENCE', message: 'The quote was not found verbatim in the source, so this cannot become canon.' })
+  }
 
   const c = body.decision === 'correct_and_accept' ? body.corrected ?? {} : {}
   const after = {

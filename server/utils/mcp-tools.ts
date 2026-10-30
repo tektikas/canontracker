@@ -76,12 +76,13 @@ export function buildMcpServer(token: { id: string, name: string }) {
   })
 
   server.registerTool('sb_get_fact', {
-    description: 'One fact by id with status and all its evidence (verbatim quote, document id, file, line range). Works for canon, pending, rejected and superseded facts; check "status".',
+    description: 'One fact by id with status and all its evidence (verbatim quote, document id, file, line range). Accepted canon only; pending, rejected and superseded facts are refused (NOT_CANON).',
     inputSchema: { fact_id: z.string() },
     annotations: read,
   }, ({ fact_id }) => {
     const [f] = listFacts('id = ?', fact_id)
     if (!f) return refuse('NOT_FOUND', `No fact ${fact_id} in this project.`)
+    if (f.status !== 'canon') return refuse('NOT_CANON', `Fact ${fact_id} is ${f.status}, not accepted canon. Only accepted canon is readable.`)
     return reply({ ...present(f), status: f.status, origin: f.origin, supersedes_id: f.supersedes_id,
       ...(f.agent_name ? { proposed_by_agent: f.agent_name, proposed_for: f.proposed_by_name } : {}) })
   })
@@ -148,8 +149,8 @@ export function buildMcpServer(token: { id: string, name: string }) {
       ?? db.prepare('select id, filename from documents where project_id = ? and filename = ? order by version desc').get(pid(), p.document)) as { id: string, filename: string } | undefined
     if (!doc) return refuse('DOCUMENT_NOT_FOUND', `No imported document "${p.document}" in this project. Candidates must cite an imported document.`)
     const quote = p.quote.trim()
-    const passage = (db.prepare('select id, text from passages where document_id = ? order by ordinal').all(doc.id) as { id: string, text: string }[]).find(x => x.text.includes(quote))
-    if (!passage) return denied('QUOTE_NOT_VERBATIM', `The quote was not found verbatim in ${doc.filename}. Copy the exact text; nothing was stored.`)
+    const passage = findQuotePassage(db.prepare('select id, text from passages where document_id = ? order by ordinal').all(doc.id) as { id: string, text: string }[], quote)
+    if (!passage) return denied('QUOTE_NOT_VERBATIM', `The quote was blank, too short (min ${MIN_QUOTE_CHARS} characters) or not found verbatim in ${doc.filename}. Copy the exact text; nothing was stored.`)
     const tFrom = p.time_from ? parseStoryTime(p.time_from) : null
     const tTo = p.time_to ? parseStoryTime(p.time_to) : null
     if ((p.time_from && tFrom == null) || (p.time_to && tTo == null)) return refuse('BAD_TIME', 'Story time must look like "D2 14:30".')

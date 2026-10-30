@@ -112,6 +112,15 @@ const fake = await call(c, 'sb_propose_candidate', { document: lore.filename, qu
 assert.ok(fake.isError && fake.data.error.code === 'QUOTE_NOT_VERBATIM')
 assert.equal((await ada('/api/facts?status=pending')).data.length, pendingBefore + 1)
 ok('fabricated quote refused, nothing stored')
+for (const q of [' \n\t ', 'a', quote.slice(0, 5)]) {
+  const blank = await call(c, 'sb_propose_candidate', { document: lore.filename, quote: q, statement: `Blank ${run} ${q.length}`, kind: 'claim', subject: 'Blank', predicate: 'x' })
+  assert.ok(blank.isError && blank.data.error.code === 'QUOTE_NOT_VERBATIM', JSON.stringify(blank.data))
+}
+assert.equal((await ada('/api/facts?status=pending')).data.length, pendingBefore + 1)
+ok('blank / too-short quotes refused, nothing stored')
+const pend = await call(c, 'sb_get_fact', { fact_id: made.id })
+assert.ok(pend.isError && pend.data.error.code === 'NOT_CANON')
+ok('sb_get_fact refuses pending fact')
 await c.close()
 
 // Viewer token: reads fine, cannot propose.

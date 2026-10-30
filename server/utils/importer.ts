@@ -59,7 +59,7 @@ export async function importDocument(filename: string, content: string) {
     const model = modelInfo()
     tx(() => {
       for (const c of drafts) {
-        const passage = passages.find(p => c.quote && p.text.includes(c.quote))
+        const passage = findQuotePassage(passages, c.quote)
         const tFrom = parseStoryTime(c.time?.from)
         const tTo = parseStoryTime(c.time?.to)
         const precision = c.time ? (c.time.precision ?? 'exact') : null

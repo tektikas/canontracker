@@ -171,6 +171,14 @@ export function getFact(id: string) {
 
 // Facts with their evidence resolved to document + line range, for the UI.
 // latest_version > document_version means the citation points at an older version of the source (stale).
+export const MIN_QUOTE_CHARS = 8
+/** The one quote check: non-blank (>= MIN_QUOTE_CHARS non-space chars) and verbatim in a passage. */
+export function findQuotePassage<T extends { text: string }>(passages: T[], quote: string | null | undefined): T | undefined {
+  const q = quote?.trim()
+  if (!q || q.replace(/\s/g, '').length < MIN_QUOTE_CHARS) return undefined
+  return passages.find(p => p.text.includes(q))
+}
+
 export function listFacts(where = '1 = 1', ...params: (string | number)[]) {
   const d = useDb()
   const facts = d.prepare(`select f.*, (select name from users u where u.id = f.decided_by) decided_by_name,
