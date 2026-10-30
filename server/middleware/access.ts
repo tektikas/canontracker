@@ -4,7 +4,7 @@ const ACCOUNT = ['/api/auth/', '/api/_auth/', '/api/invites', '/api/studios', '/
 
 export default defineEventHandler(async (event) => {
   const path = event.path.split('?')[0]!
-  if (!path.startsWith('/api/') || path === '/api/me' || ACCOUNT.some(p => path.startsWith(p))) return
+  if (!path.startsWith('/api/') || path === '/api/me' || path === '/api/health' || ACCOUNT.some(p => path.startsWith(p))) return
   const a = await resolveAccess(event)
   event.context.access = a
   // Anyone may leave a studio; memberChange still requires admin to touch anyone else.
