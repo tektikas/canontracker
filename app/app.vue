@@ -12,6 +12,14 @@ watch(navOpen, async (open) => {
   await nextTick()
   ;(open ? navClose : navTrigger).value?.focus()
 })
+// The drawer only exists below the desktop breakpoint (main.css); entering desktop closes it so inert never outlives it.
+let desktopMq: MediaQueryList | undefined
+const closeOnDesktop = () => { if (desktopMq?.matches) navOpen.value = false }
+onMounted(() => {
+  desktopMq = matchMedia('(min-width: 901px)')
+  desktopMq.addEventListener('change', closeOnDesktop)
+})
+onBeforeUnmount(() => desktopMq?.removeEventListener('change', closeOnDesktop))
 
 interface NavLink { to: string, label: string, icon: IconName, count?: number, tone?: 'accent' | 'bad' }
 const groups = computed<{ label?: string, links: NavLink[] }[]>(() => [
