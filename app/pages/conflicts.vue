@@ -2,6 +2,8 @@
 // Viewers read only; the server refuses their writes too (server/middleware/access.ts).
 const editor = computed(() => canEdit(useMe().value))
 const { data: conflicts, refresh } = await useFetch('/api/conflicts')
+const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
+const since = (iso: string) => new Date(iso).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' })
 const scanning = ref(false)
 const scanMsg = ref('')
 const scanError = ref('')
@@ -21,8 +23,8 @@ const DECISIONS = [
   { value: 'false_positive', label: 'False alarm', cls: 'good' },
   { value: 'uncertain', label: 'Uncertain', cls: '' },
 ]
-const STATUS_TONE: Record<string, string> = { open: 'warn', confirmed: 'bad', false_positive: 'good', uncertain: 'neutral' }
-const STATUS_LABEL: Record<string, string> = { open: 'Open', confirmed: 'Confirmed conflict', false_positive: 'False alarm', uncertain: 'Uncertain' }
+const STATUS_TONE: Record<string, string> = { open: 'warn', confirmed: 'bad', false_positive: 'good', uncertain: 'neutral', resolved_by_merge: 'good' }
+const STATUS_LABEL: Record<string, string> = { open: 'Open', confirmed: 'Confirmed conflict', false_positive: 'False alarm', uncertain: 'Uncertain', resolved_by_merge: 'Resolved by merge' }
 const view = ref('open')
 const tabs = computed(() => [
   { value: 'open', label: 'To judge', count: (conflicts.value ?? []).filter(c => c.status === 'open').length },
@@ -70,8 +72,17 @@ async function decide(id: string, decision: string) {
   <p v-if="scanMsg" class="notice info" role="status">{{ scanMsg }}</p>
   <p v-if="scanError" class="notice warn" role="alert">{{ scanError }}</p>
 
-  <UiEmptyState v-if="!conflicts?.length" title="No conflict candidates yet" icon="conflicts">
-    Accept some canon, then scan.
+  <UiEmptyState v-if="!conflicts?.length && !stats?.canon" title="No canon to check yet" icon="conflicts">
+    Conflicts are found in accepted canon. Accept candidates in Review, then scan.
+    <template #actions><UiButton variant="primary" to="/review">Review candidates</UiButton></template>
+  </UiEmptyState>
+  <UiEmptyState v-else-if="!conflicts?.length && stats?.last_scan" title="No conflicts found" icon="check">
+    The last scan checked {{ counted(stats.last_scan.facts, 'canon fact') }} on {{ since(stats.last_scan.at) }}.
+    <template v-if="stats.canon !== stats.last_scan.facts">Canon has {{ stats.canon }} facts now; scan again to check them.</template>
+    <template v-if="editor" #actions><UiButton :loading="scanning" @click="scan">Scan again</UiButton></template>
+  </UiEmptyState>
+  <UiEmptyState v-else-if="!conflicts?.length" title="Not scanned yet" icon="conflicts">
+    Scan {{ counted(stats?.canon ?? 0, 'canon fact') }} for timing, travel and relationship conflicts.
     <template v-if="editor" #actions><UiButton variant="primary" :loading="scanning" @click="scan">Scan canon</UiButton></template>
   </UiEmptyState>
 
@@ -108,6 +119,10 @@ async function decide(id: string, decision: string) {
           <div class="row">
             <UiButton v-for="d in DECISIONS" :key="d.value" :variant="(d.cls || 'secondary') as any" :disabled="state(c.id).busy || !state(c.id).rationale.trim()" @click="decide(c.id, d.value)">{{ d.label }}</UiButton>
           </div>
+        </footer>
+        <footer v-else-if="c.status === 'resolved_by_merge'" class="decide small muted">
+          <span>{{ c.decided_by_name ? `Closed by ${c.decided_by_name}’s merge` : 'Closed by a merge' }}: {{ c.decision_rationale }}</span>
+          <NuxtLink v-if="c.merge_audit_id" :to="`/audit#${c.merge_audit_id}`">See the merge in the audit trail</NuxtLink>
         </footer>
         <footer v-else class="decide small muted"><template v-if="c.decided_by_name">Decided by {{ c.decided_by_name }} · </template>{{ c.decision_rationale }}</footer>
       </article>

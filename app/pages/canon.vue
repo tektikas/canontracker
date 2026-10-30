@@ -2,6 +2,7 @@
 const { data: canon } = await useFetch('/api/facts', { query: { status: 'canon' } })
 const { data: superseded } = await useFetch('/api/facts', { query: { status: 'superseded' } })
 const route = useRoute()
+const editor = computed(() => canEdit(useMe().value))
 const router = useRouter()
 
 type Tab = 'facts' | 'graph' | 'entities' | 'timeline' | 'superseded'
@@ -60,7 +61,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
       <div class="stack">
         <UiPanel v-for="f in g.facts" :key="f.id" class="stack">
           <FactSummary :fact="f" sources />
-          <div><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
+          <div v-if="editor"><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
         </UiPanel>
       </div>
     </section>

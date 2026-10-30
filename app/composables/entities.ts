@@ -19,8 +19,8 @@ export function useEntityLookup() {
     let l = lookups.get(list)
     if (!l) {
       const byName = new Map<string, EntityListItem>()
-      for (const e of list) for (const n of [e.name, ...e.aliases]) byName.set(normName(n), e)
-      l = { byName, pattern: mentionPattern(list.flatMap(e => [e.name, ...e.aliases])) }
+      for (const e of list) for (const n of e.names) byName.set(normName(n), e)
+      l = { byName, pattern: mentionPattern(list.flatMap(e => e.names)) }
       lookups.set(list, l)
     }
     return l

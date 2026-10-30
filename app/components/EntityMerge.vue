@@ -16,8 +16,22 @@ const loading = ref(false)
 const busy = ref(false)
 const error = ref('')
 const preview = (id: string) => $fetch(`/api/entities/${props.entity.id}/merge`, { method: 'POST', body: { into: id, preview: true } }) as Promise<{
-  facts: { id: string, statement: string, status: string }[], aliases_added: string[], fields_filled: string[], summary_taken: boolean, notes_added: boolean, portrait: string
+  source: { kind: string }, target: { kind: string }, source_canon: number, target_canon: number
+  facts: { id: string, statement: string, status: string }[], aliases_added: string[], fields_filled: string[], summary_taken: boolean, notes_added: boolean, portrait: string, canonical: string
+  names_mapped: string[], conflicts_resolved: { id: string, rule: string, rationale: string }[], changes_stale: { id: string, proposed_statement: string }[], images_moved: number
 }>
+// A merge says two pages are one thing. Different kinds, or canon on both sides, suggest they may not be.
+const doubt = computed(() => {
+  const p = plan.value
+  if (!p || !target.value) return ''
+  const kind = (k: string) => (k === 'other' ? 'thing' : kindLabel(k).one.toLowerCase())
+  const a = kind(p.source.kind)
+  const b = kind(p.target.kind)
+  const an = (w: string) => `${/^[aeiou]/.test(w) ? 'an' : 'a'} ${w}`
+  if (a !== b) return `${props.entity.name} is ${an(a)} and ${target.value.name} is ${an(b)}. Merge only if they are the same thing.`
+  if (p.source_canon && p.target_canon) return `Both pages have their own canon (${counted(p.source_canon, 'fact')} and ${counted(p.target_canon, 'fact')}). These look like two different ${a}s — merge only if they are the same ${a}.`
+  return ''
+})
 watch(into, async (id) => {
   plan.value = null
   error.value = ''
@@ -58,20 +72,30 @@ async function merge() {
 
       <p v-if="loading" class="small muted row"><span class="spinner" aria-hidden="true" />Checking what moves…</p>
       <div v-if="plan && target" class="plan" aria-live="polite">
+        <p v-if="doubt" class="notice warn doubt" role="alert"><UiIcon name="conflicts" :size="16" /><span>{{ doubt }}</span></p>
         <h3>What happens</h3>
         <ul>
           <li>
             <template v-if="plan.facts.length">
-              <b>{{ counted(plan.facts.length, 'fact') }}</b> (canon and candidates) will name <b>{{ target.name }}</b> instead of {{ entity.name }}. The statements and their sources don’t change.
+              <b>{{ counted(plan.facts.length, 'fact') }}</b> (canon and candidates) will name <b>{{ plan.canonical }}</b> instead of {{ entity.name }}. The statements and their sources don’t change.
             </template>
             <template v-else>No canon facts or candidates name {{ entity.name }}, so canon is untouched.</template>
           </li>
-          <li v-if="plan.aliases_added.length"><b>{{ plan.aliases_added.join(', ') }}</b> become{{ plan.aliases_added.length === 1 ? 's an alias' : ' aliases' }} of {{ target.name }}, so mentions keep linking.</li>
+          <li><b>{{ plan.names_mapped.join(', ') }}</b> {{ plan.names_mapped.length === 1 ? 'is' : 'are' }} listed on {{ target.name }} as merged from, and mentions keep linking.</li>
+          <li v-if="plan.aliases_added.length"><b>{{ plan.aliases_added.join(', ') }}</b> become{{ plan.aliases_added.length === 1 ? 's an alias' : ' aliases' }} of {{ target.name }}.</li>
           <li v-if="plan.summary_taken">{{ target.name }} has no summary yet, so it takes {{ entity.name }}’s.</li>
           <li v-if="plan.fields_filled.length">Empty fields filled in: {{ plan.fields_filled.map(k => FIELD_LABEL[k]?.label ?? k).join(', ') }}.</li>
           <li v-if="plan.notes_added">{{ entity.name }}’s {{ plan.summary_taken ? 'notes are' : 'summary and notes are' }} added to the end of {{ target.name }}’s notes.</li>
           <li v-if="plan.portrait === 'move'">{{ entity.name }}’s portrait moves over.</li>
           <li v-if="plan.portrait === 'discard'" class="warn-text">{{ target.name }} keeps its own portrait; {{ entity.name }}’s portrait is discarded.</li>
+          <li v-if="plan.images_moved"><b>{{ counted(plan.images_moved, 'generated image') }}</b> move{{ plan.images_moved === 1 ? 's' : '' }} to {{ target.name }}’s image history.</li>
+          <li v-if="plan.conflicts_resolved.length">
+            <b>{{ counted(plan.conflicts_resolved.length, 'open conflict') }}</b> only exist{{ plan.conflicts_resolved.length === 1 ? 's' : '' }} because these were two pages, so {{ plan.conflicts_resolved.length === 1 ? 'it closes' : 'they close' }} as “resolved by merge”. The decision history stays.
+          </li>
+          <li v-if="plan.changes_stale.length" class="warn-text">
+            <b>{{ counted(plan.changes_stale.length, 'pending change proposal') }}</b> will need a fresh impact analysis before {{ plan.changes_stale.length === 1 ? 'it' : 'they' }} can be accepted.
+          </li>
+          <li>Later candidates that name <b>{{ plan.names_mapped.join(', ') }}</b> are offered to reviewers as {{ plan.canonical }}, and saved that way when accepted.</li>
           <li>The audit log keeps a full copy of {{ entity.name }}’s page and every fact’s previous wording, so the merge can be traced and undone by hand.</li>
         </ul>
         <details v-if="plan.facts.length" class="moved">
@@ -100,6 +124,8 @@ async function merge() {
 .plan h3 { margin: 0; font-size: var(--text-sm); }
 .plan > ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; font-size: var(--text-sm); }
 .warn-text { color: var(--warn); }
+.doubt { margin: 0; }
+.doubt svg { flex: none; margin-top: 2px; }
 .moved summary { cursor: pointer; color: var(--muted); font-weight: 500; }
 .moved ul { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: grid; gap: var(--s-2); }
 .moved li { display: flex; gap: var(--s-2); align-items: baseline; }

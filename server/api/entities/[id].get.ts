@@ -8,7 +8,8 @@ export default defineEventHandler((event) => {
   const cited = new Set(facts.flatMap(f => f.evidence.map(ev => ev.passage_id)).filter(Boolean))
 
   // Appearances are read-time text matches on the latest version of each source; nothing is stored or inferred.
-  const re = mentionPattern(namesOf(e))
+  const names = namesOf(e)
+  const re = mentionPattern(names)
   const passages = d.prepare(`select p.id, p.document_id, p.start_line, p.end_line, p.text, doc.title, doc.filename, doc.kind, doc.version
     from passages p join documents doc on doc.id = p.document_id
     where p.project_id = ? and doc.version = (select max(version) from documents d2 where d2.filename = doc.filename and d2.project_id = doc.project_id)
@@ -23,6 +24,7 @@ export default defineEventHandler((event) => {
   const project = d.prepare('select medium from projects where id = ?').get(pid()) as { medium: string }
   return {
     id: e.id, name: e.name, kind: e.kind, summary: e.summary, aliases: aliasesOf(e), fields: fieldsOf(e), notes: e.notes,
+    analysis_name: analysisName(e), merged_from: mergedFrom(e), names,
     portrait: portraitUrl(e), portrait_image: e.portrait_type ? appliedImage('entity', e.id) : null, origin: e.origin, created_at: e.created_at, created_by: who(e.created_by), updated_at: e.updated_at, updated_by: who(e.updated_by),
     medium: mediumOf(project.medium), facts, pending, appearances: [...docs.values()],
   }

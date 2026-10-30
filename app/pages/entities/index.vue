@@ -9,7 +9,7 @@ const q = ref('')
 const kind = ref<EntityKind | ''>('')
 const matches = (e: EntityListItem) => {
   const s = q.value.trim().toLowerCase()
-  return !s || [e.name, ...e.aliases, e.summary].some(t => t.toLowerCase().includes(s))
+  return !s || [...e.names, e.summary].some(t => t.toLowerCase().includes(s))
 }
 const searched = computed(() => list.value.filter(matches))
 const count = (k: EntityKind) => searched.value.filter(e => e.kind === k).length

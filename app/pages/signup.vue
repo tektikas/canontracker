@@ -50,7 +50,8 @@ async function submit() {
         <input v-model="form.password" type="password" autocomplete="new-password" required minlength="8">
       </UiField>
       <p v-if="errors.form" class="notice bad" role="alert">
-        <span>{{ errors.form }}<template v-if="errors.form.includes('Log in')"> <NuxtLink :to="{ path: '/login', query: invite ? { redirect: `/invite/${invite}` } : {} }">Go to log in</NuxtLink></template></span>
+        <span v-if="errors.form.includes('already exists')">An account with this email already exists. <NuxtLink :to="{ path: '/login', query: invite ? { redirect: `/invite/${invite}` } : {} }">Log in instead</NuxtLink>.</span>
+        <span v-else>{{ errors.form }}</span>
       </p>
       <UiButton type="submit" variant="primary" size="lg" :loading="busy">Create account</UiButton>
     </form>

@@ -12,7 +12,7 @@ const run = Date.now().toString(36)
 
 function client() {
   let cookie = ''
-  return async (path, { method = 'GET', body, form } = {}) => {
+  const call = async (path, { method = 'GET', body, form } = {}) => {
     const headers = form ? { cookie } : { 'content-type': 'application/json', cookie }
     const res = await fetch(base + path, { method, headers, body: form ?? (body && JSON.stringify(body)) })
     const set = res.headers.getSetCookie().map(c => c.split(';')[0]).filter(c => c.includes('='))
@@ -22,6 +22,9 @@ function client() {
     try { data = JSON.parse(text) } catch { data = text }
     return { status: res.status, data }
   }
+  call.cookie = () => cookie
+  call.absorb = (headers) => { const set = headers.map(c => c.split(';')[0]); if (set.length) cookie = set.join('; ') }
+  return call
 }
 async function account(name) {
   const c = client()
@@ -129,6 +132,7 @@ if (imgA) {
   check('Viewer can see a generated image', (await v(`/api/images/${imgA.id}`)).status, 200)
   check('Viewer gets 403 applying an image', (await v(`/api/images/${imgA.id}/apply`, { method: 'POST' })).status, 403)
 }
+check('Viewer gets 403 on impact re-run', (await v('/api/changes/chg_x/analyze', { method: 'POST' })).status, 403)
 check('Used invite link is refused', (await b(`/api/invites/${viewerLink.token}/accept`, { method: 'POST' })).status, 410)
 
 const editorLink = (await a('/api/team/invites', { method: 'POST', body: { role: 'editor', days: 1 } })).data
@@ -136,7 +140,19 @@ const e = await account('Eli')
 await e(`/api/invites/${editorLink.token}/accept`, { method: 'POST' })
 const verified = (await e('/api/facts?status=pending')).data.find(f => f.evidence.some(x => x.verified))
 check('Editor can accept a candidate', (await e(`/api/facts/${verified.id}/review`, { method: 'POST', body: { decision: 'accept' } })).status, 200)
+// Generated images follow a merged page; the preview (a rolled-back merge) moves nothing.
+const dupImg = imgA && (await a('/api/images', { method: 'POST', body: { target_type: 'entity', target_id: entA2.id, prompt: 'Probe dup', style: 'none', n: 1 } })).data[0]
+if (dupImg) {
+  await a(`/api/images/${dupImg.id}/apply`, { method: 'POST' })
+  check('Merge preview counts the images that move', (await e(`/api/entities/${entA2.id}/merge`, { method: 'POST', body: { into: entA.id, preview: true } })).data.images_moved, 1)
+  check('Merge preview leaves the images where they are', (await a(`/api/images?target_type=entity&target_id=${entA2.id}`)).data.images.length, 1)
+}
 check('Editor merges a duplicate entity', (await e(`/api/entities/${entA2.id}/merge`, { method: 'POST', body: { into: entA.id } })).status, 200)
+if (dupImg) {
+  const kept = (await a(`/api/images?target_type=entity&target_id=${entA.id}`)).data.images
+  check('Merged page’s image moved to the kept page', kept.some(i => i.id === dupImg.id), true)
+  check('Kept page still has exactly one applied portrait', kept.filter(i => i.applied).map(i => i.id).join(), imgA.id)
+}
 const audit = (await a('/api/audit')).data
 check('Audit names the editor on entity.merged', audit.find(x => x.event_type === 'entity.merged')?.actor_name, 'Eli')
 check('Audit names the editor', audit.find(x => x.event_type === 'candidate.accepted')?.actor_name, 'Eli')
@@ -144,4 +160,31 @@ check('Editor gets 403 inviting', (await e('/api/team/invites', { method: 'POST'
 
 const me = (await a('/api/me')).data.user.id
 check('Last owner cannot step down', (await a(`/api/team/${me}`, { method: 'PATCH', body: { role: 'admin' } })).status, 409)
+
+// Removed member with another studio to fall back to: the SSR page load re-points the session and forwards the
+// cookie, so the next content request lands on a valid project (no 409).
+const eStudio = (await e('/api/studios', { method: 'POST', body: { name: 'Eli Games' } })).data
+await e('/api/projects', { method: 'POST', body: { name: 'Eli Game', studio_id: eStudio.id } })
+await e(`/api/projects/${projA}/switch`, { method: 'POST' })
+check('Editor works in A’s project', (await e('/api/facts?status=pending')).status, 200)
+check('Admin removes editor', (await a(`/api/team/${(await e('/api/me')).data.user.id}`, { method: 'DELETE' })).status, 200)
+check('Stale cookie gets 409 on content', (await e('/api/facts?status=pending')).status, 409)
+const page = await fetch(base + '/', { headers: { cookie: e.cookie() } })
+check('SSR page for removed member is 200', page.status, 200)
+const set = page.headers.getSetCookie()
+check('SSR forwards the fallback session cookie', set.some(c => c.startsWith('nuxt-session=')), true)
+e.absorb(set)
+check('Removed member’s next request lands on a valid project', (await e('/api/facts?status=pending')).status, 200)
+
+// A viewer can leave on their own.
+check('Viewer leaves the studio', (await v(`/api/team/${(await v('/api/me')).data.user.id}`, { method: 'DELETE' })).status, 200)
+check('Outsider can’t remove an owner', (await b(`/api/team/${me}`, { method: 'DELETE' })).status, 404)
+
+// One invite link, two people accepting at once: exactly one membership.
+const raceLink = (await a('/api/team/invites', { method: 'POST', body: { role: 'editor', days: 1 } })).data
+const [r1, r2] = [await account('Rae'), await account('Rob')]
+const res = await Promise.all([r1, r2].map(c => c(`/api/invites/${raceLink.token}/accept`, { method: 'POST' })))
+check('Double accept: exactly one 200', res.filter(r => r.status === 200).length, 1)
+const members = (await a('/api/team')).data.members
+check('Double accept: one new membership', members.filter(m => /^Ra[e]|^Ro[b]/.test(m.name)).length, 1)
 console.log('all checks passed')

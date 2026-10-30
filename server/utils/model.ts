@@ -10,7 +10,7 @@ export interface CandidateDraft {
 
 export interface RuleViolation { fact_id: string, rationale: string, confidence: number }
 
-export const PROMPT_VERSIONS = { extract: 'extract-v1', answer: 'answer-v1', rule_check: 'rule-check-v1', image: 'image-v1' } as const
+export const PROMPT_VERSIONS = { extract: 'extract-v1', answer: 'answer-v2', rule_check: 'rule-check-v2', image: 'image-v1' } as const
 
 export function modelInfo() {
   const { modelMode, modelId } = useRuntimeConfig()
@@ -26,13 +26,14 @@ export function imageModelInfo() {
 }
 
 async function traced<T>(
-  purpose: keyof typeof PROMPT_VERSIONS, target: { type: string, id: string }, inputRefs: string[],
+  purpose: keyof typeof PROMPT_VERSIONS, target: { type: string, id: string }, inputRefs: string[], input: string | null,
   fn: () => Promise<T>, summarize: (r: T) => string, modelId = modelInfo().id,
 ): Promise<T> {
   const started = Date.now()
   const record = (status: string, summary: string | null, error: string | null) =>
-    useDb().prepare('insert into model_calls values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-      .run(newId('mc'), purpose, modelId, PROMPT_VERSIONS[purpose], target.type, target.id, JSON.stringify(inputRefs),
+    useDb().prepare(`insert into model_calls (id, purpose, model_id, prompt_version, target_type, target_id, input_refs, input, status,
+      latency_ms, output_summary, error, created_at, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(newId('mc'), purpose, modelId, PROMPT_VERSIONS[purpose], target.type, target.id, JSON.stringify(inputRefs), input,
         status, Date.now() - started, summary, error, now(), pid())
   try {
     const result = await fn()
@@ -83,10 +84,30 @@ async function chatJson(system: string, user: string) {
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 
+interface PromptFact { id: string, statement: string, subject: string, predicate: string, object: string | null }
+
+// Facts as the model sees them: statement and quote as written, plus the structured subject/object analysis uses. After a
+// merge those carry the kept name while the wording may not, so the identity notes say which names a person decided are one entity.
+function factLines(facts: PromptFact[]) {
+  const quote = useDb().prepare('select quote from evidence where fact_id = ? and verified = 1 order by rowid limit 1')
+  return facts.map((f) => {
+    const q = quote.get(f.id) as { quote: string } | undefined
+    return `[${f.id}] ${f.statement}\n  subject: ${f.subject}; predicate: ${f.predicate}; object: ${f.object ?? '-'}${q ? `\n  quote: "${q.quote}"` : ''}`
+  }).join('\n')
+}
+function identityNotes(facts: PromptFact[]) {
+  const used = new Set(facts.flatMap(f => [normName(f.subject), normName(f.object)]))
+  const merges = (useDb().prepare('select name, canonical, merged_at from entity_merges where project_id = ? order by rowid').all(pid()) as { name: string, canonical: string, merged_at: string }[])
+    .filter(m => used.has(normName(m.canonical)) && normName(m.canonical) !== normName(m.name))
+  return merges.length
+    ? `\n\nSame entity (a person merged these names; statements and quotes may still use the old one):\n${merges.map(m => `- "${m.name}" is "${m.canonical}" (merged ${m.merged_at.slice(0, 10)})`).join('\n')}`
+    : ''
+}
+
 const recorded = <T>(key: string) => useStorage('assets:server').getItem<T>(`broken-tide:${key}`)
 
 export function extractCandidates(doc: { id: string, filename: string, title: string, text: string }) {
-  return traced('extract', { type: 'document', id: doc.id }, [doc.id], async (): Promise<CandidateDraft[]> => {
+  return traced('extract', { type: 'document', id: doc.id }, [doc.id], null, async (): Promise<CandidateDraft[]> => {
     if (modelInfo().mode === 'mock') return (await recorded<Record<string, CandidateDraft[]>>('candidates.json'))?.[doc.filename] ?? []
     const out = await chatJson(
       `You extract narrative canon candidates from game lore documents. Return JSON {"candidates":[...]}.
@@ -100,21 +121,24 @@ Figurative language ("my sister in all but blood") is NOT a literal relationship
 }
 
 // Returns a null answer when the model is offline; the caller then shows related sources only.
-export function answerFromCanon(question: string, traceId: string, facts: { id: string, statement: string }[]) {
-  return traced('answer', { type: 'question', id: traceId }, facts.map(f => f.id), async () => {
+export function answerFromCanon(question: string, traceId: string, facts: PromptFact[]) {
+  const input = `Facts:\n${factLines(facts)}${identityNotes(facts)}`
+  return traced('answer', { type: 'question', id: traceId }, facts.map(f => f.id), input, async () => {
     if (modelInfo().mode === 'mock') return { answer: null as string | null, factIds: [] as string[] }
     const out = await chatJson(
       `Answer questions about a story using ONLY the numbered canon facts given. Return JSON {"answer": string or null, "fact_ids": [ids used]}.
+Each fact's subject and object are the canonical entity names; names listed under "Same entity" refer to one entity.
 If the facts do not fully support an answer, return {"answer": null, "fact_ids": []}. Never use outside knowledge.`,
-      `Facts:\n${facts.map(f => `[${f.id}] ${f.statement}`).join('\n')}\n\nQuestion: ${question}`,
+      `${input}\n\nQuestion: ${question}`,
     )
     return { answer: typeof out.answer === 'string' ? out.answer : null, factIds: Array.isArray(out.fact_ids) ? out.fact_ids as string[] : [] }
   }, r => (r.answer ? `answer citing ${plural(r.factIds.length, 'fact')}` : 'no answer'))
 }
 
 // Semantic check: which accepted facts break a world rule? Model-suggested; a person decides.
-export function checkRule(rule: { id: string, statement: string }, facts: { id: string, statement: string }[]) {
-  return traced('rule_check', { type: 'fact', id: rule.id }, facts.map(f => f.id), async (): Promise<RuleViolation[]> => {
+export function checkRule(rule: PromptFact, facts: PromptFact[]) {
+  const input = `Rule:\n${factLines([rule])}\n\nFacts:\n${factLines(facts)}${identityNotes([rule, ...facts])}`
+  return traced('rule_check', { type: 'fact', id: rule.id }, facts.map(f => f.id), input, async (): Promise<RuleViolation[]> => {
     if (modelInfo().mode === 'mock') {
       const runs = await recorded<{ rule_contains: string, violations: { statement: string, rationale: string, confidence: number }[] }[]>('rule-checks.json')
       const run = runs?.find(r => rule.statement.includes(r.rule_contains))
@@ -125,8 +149,9 @@ export function checkRule(rule: { id: string, statement: string }, facts: { id: 
     }
     const out = await chatJson(
       `You check a story's world rule against its accepted facts. Return JSON {"violations":[{"fact_id":"...","rationale":"one sentence","confidence":0-1}]}.
+Each fact's subject and object are the canonical entity names; names listed under "Same entity" refer to one entity.
 Only list facts that cannot be true if the rule holds as written. Being related to the rule is not enough. Return {"violations":[]} if none.`,
-      `Rule: ${rule.statement}\n\nFacts:\n${facts.map(f => `[${f.id}] ${f.statement}`).join('\n')}`,
+      input,
     )
     const ids = new Set(facts.map(f => f.id))
     return (Array.isArray(out.violations) ? out.violations as RuleViolation[] : []).filter(v => ids.has(v.fact_id))
@@ -142,7 +167,7 @@ const MAX_API_BYTES = 4 * (MAX_B64_CHARS + 1024) + 65_536
 export function generateImages(prompt: string, n: number, target: { type: string, id: string }) {
   const { metaBaseUrl, imageModelId } = useRuntimeConfig()
   const bad = (why: string) => createError({ statusCode: 502, statusMessage: 'MODEL_BAD_OUTPUT', message: `Image generation failed: ${why}. No image was saved.` })
-  return traced('image', target, [target.id], async () => {
+  return traced('image', target, [target.id], prompt, async () => {
     const deadline = new AbortController()
     const timer = setTimeout(() => deadline.abort(new DOMException('Image generation timed out', 'TimeoutError')), IMAGE_DEADLINE_MS)
     const timedOut = () => deadline.signal.aborted

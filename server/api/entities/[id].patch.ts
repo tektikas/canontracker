@@ -15,12 +15,14 @@ export default defineEventHandler(async (event) => {
     after.aliases = cleanAliases(renamed ? [...(list as unknown[]), before.name] : list, after.name)
   }
   assertNamesFree([after.name, ...after.aliases], e.id)
+  // A title is editorial: once analysis depends on the current name, a rename pins it as the analysis name for good.
+  const pin = e.analysis_name === null && normName(after.name) !== normName(before.name) && identityInUse(e) ? before.name : e.analysis_name
 
   const changed = (Object.keys(after) as (keyof typeof after)[]).filter(k => JSON.stringify(after[k]) !== JSON.stringify(before[k]))
   if (!changed.length) return { id: e.id, changed }
   tx(() => {
-    useDb().prepare(`update entities set name = ?, kind = ?, summary = ?, aliases = ?, fields = ?, notes = ?, updated_at = ?, updated_by = ? where id = ?`)
-      .run(after.name, after.kind, after.summary, JSON.stringify(after.aliases), JSON.stringify(after.fields), after.notes, now(), access().user.id, e.id)
+    useDb().prepare(`update entities set name = ?, analysis_name = ?, kind = ?, summary = ?, aliases = ?, fields = ?, notes = ?, updated_at = ?, updated_by = ? where id = ?`)
+      .run(after.name, pin, after.kind, after.summary, JSON.stringify(after.aliases), JSON.stringify(after.fields), after.notes, now(), access().user.id, e.id)
     audit('entity.updated', 'entity', e.id, {
       name: after.name, changed,
       before: Object.fromEntries(changed.map(k => [k, before[k]])), after: Object.fromEntries(changed.map(k => [k, after[k]])),

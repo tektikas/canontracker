@@ -19,6 +19,7 @@ const selectedId = ref(typeof route.query.fact === 'string' ? route.query.fact :
 const current = computed(() => queue.value.find(f => f.id === selectedId.value) ?? queue.value[0])
 const index = computed(() => (current.value ? queue.value.indexOf(current.value) : -1))
 const verified = (f: Record<string, any>) => f.evidence.some((e: any) => e.verified)
+const mergedOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 const lowConfidence = (f: Record<string, any>) => f.confidence != null && f.confidence < 0.7
 
 type Mode = 'idle' | 'edit' | 'reject'
@@ -115,6 +116,7 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
   refresh()
   refreshRejected()
   refreshNuxtData('stats')
+  if (decision !== 'reject') refreshEntities() // a new canon name gets its page; mentions link it
 }
 
 // Keyboard triage (desktop). Each key is one explicit decision; held keys don't repeat, and typing in a field never triggers one.
@@ -148,7 +150,9 @@ watch(() => current.value?.id, async () => {
 // Source passage for the split view.
 const source = computed(() => current.value?.evidence[evIndex.value] ?? current.value?.evidence[0])
 const docId = computed(() => source.value?.document_id as string | undefined)
-const { data: doc } = await useAsyncData('review-source', () => (docId.value ? $fetch(`/api/documents/${docId.value}`) : Promise.resolve(null)), { watch: [docId] })
+// useRequestFetch forwards the session cookie during SSR; a bare $fetch there is signed out and the panel would hydrate empty.
+const reqFetch = useRequestFetch()
+const { data: doc } = await useAsyncData('review-source', () => (docId.value ? reqFetch(`/api/documents/${docId.value}`) : Promise.resolve(null)), { watch: [docId] })
 const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.value : null)
 </script>
 
@@ -199,6 +203,15 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
       <p class="small faint model">Proposed by {{ modelLabel(current.model_id) }}</p>
 
       <FactSummary v-if="mode !== 'edit'" :fact="current" />
+
+      <p v-for="i in current.identity" :key="i.role" class="notice info identity">
+        <UiIcon name="merge" :size="16" />
+        <span>
+          <b>{{ i.from }} → <NuxtLink v-if="i.entity_id" :to="`/entities/${i.entity_id}`">{{ i.to }}</NuxtLink><template v-else>{{ i.to }}</template></b>
+          (merged on {{ mergedOn(i.merged_at) }}<template v-if="i.merged_by_name"> by {{ i.merged_by_name }}</template>).
+          Accepting saves the {{ i.role }} as {{ i.to }}; the statement and quote stay as written.
+        </span>
+      </p>
 
       <div class="evidence">
         <SourceRef v-for="ev in current.evidence" :key="ev.id" :ev="ev" />
@@ -261,7 +274,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
       <header class="source-head">
         <div class="source-title">
           <UiIcon name="file" :size="16" />
-          <b>{{ source?.document_title }}</b>
+          <b :title="source?.document_title">{{ source?.document_title }}</b>
           <span class="faint small">{{ source?.verified ? `line ${source.start_line}${source.end_line !== source.start_line ? `–${source.end_line}` : ''}` : 'no matching line' }}</span>
         </div>
         <div class="row">
@@ -336,7 +349,8 @@ kbd {
 
 .source-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-2); flex-wrap: wrap; padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); background: var(--surface); }
 .source-title { display: flex; align-items: center; gap: var(--s-2); min-width: 0; font-size: var(--text-sm); }
-.source-title b { overflow-wrap: anywhere; }
+.source-title b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-title .faint { white-space: nowrap; }
 .source-body { flex: 1; min-height: 0; padding: var(--s-3); }
 .loading { margin: 0; }
 
@@ -364,6 +378,9 @@ kbd {
   .source-body { max-height: 45vh; }
 }
 @media (max-width: 720px) {
+  .source-head { flex-wrap: nowrap; }
+  .source-title { flex: 1; }
+  .source-head .row { flex: none; }
   .triple-fields { grid-template-columns: 1fr; }
   .queue-item { padding: 8px var(--s-4); min-height: 42px; }
   .progress { min-width: 0; width: 100%; }
