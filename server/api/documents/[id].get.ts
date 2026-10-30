@@ -10,10 +10,11 @@ export default defineEventHandler((event) => {
   const latest = latestDocument(doc.filename)!
   const author = doc.created_by ? (db.prepare('select name from users where id = ?').get(doc.created_by) as { name: string } | undefined)?.name ?? null : null
   // Notes from every version of this document. A note made on another version is shown where its words still appear
-  // (matched at read time, nothing is moved); `anchor` is null when the text it was pinned to is gone.
-  const notes = listNotes('d.filename = ?', doc.filename).map((n) => {
-    const anchor = n.document_id === doc.id ? n.passage_id : findQuotePassage(passages, n.quote || n.passage_text)?.id ?? null
-    return { ...n, anchor }
-  })
+  // (matched at read time, nothing is moved); `anchor` is null when the text is gone or found in more than one place.
+  const versions = new Map<string, PassageRow[]>()
+  const passagesOf = (id: string) => versions.get(id) ?? versions.set(id, db.prepare('select * from passages where document_id = ? order by ordinal').all(id) as unknown as PassageRow[]).get(id)!
+  const notes = listNotes('d.filename = ?', doc.filename).map(n => ({
+    ...n, ...(n.document_id === doc.id ? { anchor: n.passage_id, anchor_issue: null } : reanchorNote(n, passages, passagesOf(n.document_id))),
+  }))
   return { ...doc, created_by_name: author, latest: { id: latest.id, version: latest.version }, passages, facts, notes }
 })

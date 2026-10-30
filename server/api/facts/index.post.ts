@@ -44,6 +44,14 @@ export default defineEventHandler(async (event) => {
   if (tFrom != null && tTo != null && tTo < tFrom) throw fail(400, 'BAD_TIME', 'To must be after From.')
   const precision = tFrom == null && tTo == null ? null : b.precision === 'approximate' ? 'approximate' : 'exact'
 
+  // A name that links to a wiki page (title, alias, merged name) is stored as the name analysis knows that page by, so a
+  // renamed page ("Arin" titled "Captain Arin") still meets its other facts in conflicts and impact. New names stay as typed.
+  const pages = new Map(listEntities().flatMap(e => namesOf(e).map(n => [normName(n), e] as const)))
+  const linked = (['subject', 'object'] as const).flatMap((role) => {
+    const e = names[role] ? pages.get(normName(names[role])) : undefined
+    return e && analysisName(e) !== names[role] ? [{ role, from: names[role]!, to: analysisName(e), entity_id: e.id }] : []
+  })
+  for (const l of linked) names[l.role] = l.to
   // Canon uses the name a merge already decided on, the same as accepting a candidate does.
   const identity = to === 'canon' ? identityOf(names) : []
   for (const i of identity) names[i.role] = i.to
@@ -58,6 +66,7 @@ export default defineEventHandler(async (event) => {
       .run(newId('ev'), id, doc.id, passage.id, quote, pid())
     audit('fact.authored', 'fact', id, {
       to, statement, subject: names.subject, predicate, object: names.object, document_id: doc.id, passage_id: passage.id, quote,
+      ...(linked.length && { linked }),
       ...(identity.length && { identity: identity.map(i => ({ role: i.role, from: i.from, to: i.to, merge_audit_id: i.audit_id })) }),
     })
   })

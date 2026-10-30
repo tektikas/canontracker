@@ -87,9 +87,20 @@ watch(f, () => {
   clearTimeout(timer)
   timer = setTimeout(persist, 700)
 })
-onBeforeRouteLeave(async () => { if (dirty) await persist() })
+// Leaving waits for the save; if the text still isn't stored, stay unless the writer chooses to lose it.
+let leaving = false
+onBeforeRouteLeave(async () => {
+  if (leaving || (!dirty && !running)) return
+  await persist()
+  if (!dirty) return
+  return confirm('Your latest changes couldn’t be saved, so they’re only on this screen. Leave anyway and lose them?')
+})
 onBeforeUnmount(() => clearTimeout(timer))
-function unload(e: BeforeUnloadEvent) { if (dirty || running) e.preventDefault() }
+function unload(e: BeforeUnloadEvent) {
+  if (!dirty && !running) return
+  e.preventDefault()
+  e.returnValue = ''
+}
 onMounted(() => window.addEventListener('beforeunload', unload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', unload))
 
@@ -120,6 +131,7 @@ async function discard() {
   if (!confirm(editing.value ? 'Discard your changes? The saved document stays as it is.' : 'Discard this draft? It can’t be recovered.')) return
   clearTimeout(timer)
   dirty = false
+  leaving = true
   if (draftId.value) await $fetch(`/api/drafts/${draftId.value}`, { method: 'DELETE' }).catch(() => {})
   await navigateTo(editing.value ? `/documents/${editing.value.id}` : '/#sources', { replace: true })
 }
@@ -153,6 +165,8 @@ async function enterFocus() {
 function exitFocus() {
   if (!focus.value) return
   focus.value = false
+  // Leaving focus is a natural pause: store the text now rather than after the autosave delay.
+  if (dirty) persist()
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
   nextTick(() => {
     grow()
@@ -269,7 +283,7 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: 
     </UiEmptyState>
   </UiPanel>
   <div
-    v-else ref="root" class="write" :class="{ focusing: focus, typing: focus && typing }"
+    v-else ref="root" class="write" :class="{ focusing: focus, typing: focus && typing && status !== 'error' }"
     :role="focus ? 'dialog' : undefined" :aria-modal="focus || undefined" :aria-label="focus ? 'Focus mode' : undefined"
     @keydown="keys" @mousemove="onPointer"
   >
@@ -279,7 +293,7 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: 
         <span aria-hidden="true">·</span>
         <span title="Words added since you entered focus mode">{{ sessionWords < 0 ? '−' : '+' }}{{ Math.abs(sessionWords).toLocaleString('en') }}<span class="hide-sm"> this session</span></span>
         <span aria-hidden="true">·</span>
-        <span v-if="status === 'error'" class="bad">Not saved</span>
+        <span v-if="status === 'error'" class="bad" :title="saveError">Not saved<span class="hide-sm">; your text is kept here</span></span>
         <span v-else-if="status === 'saving'">Saving…</span>
         <span v-else-if="status === 'saved'">Saved</span>
         <span v-else>Not saved yet</span>

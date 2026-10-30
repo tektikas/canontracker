@@ -37,7 +37,8 @@ const line = computed(() => `line ${props.note.start_line}${props.note.end_line 
     <NuxtLink v-if="source" :to="`/documents/${note.document_id}#${note.passage_id}`" class="small note-src">
       <UiIcon name="file" :size="14" />{{ note.document_title }} <span class="faint">v{{ note.document_version }}, {{ line }}</span>
     </NuxtLink>
-    <p v-if="note.anchor === null" class="small faint">Pinned to v{{ note.document_version }}; the words it was pinned to are no longer in this version.</p>
+    <p v-if="note.anchor_issue === 'ambiguous'" class="small warn-text">Needs re-anchoring: pinned to v{{ note.document_version }}, {{ line }}, and those words now appear in more than one place.</p>
+    <p v-else-if="note.anchor === null" class="small faint">Pinned to v{{ note.document_version }}; the words it was pinned to are no longer in this version.</p>
     <div v-if="editor" class="row note-actions">
       <UiButton size="sm" :variant="note.status === 'done' ? 'ghost' : 'primary'" :loading="busy" @click="move(NEXT[note.status]!.to)">{{ NEXT[note.status]!.label }}</UiButton>
       <UiButton v-if="note.status === 'ready'" size="sm" variant="ghost" :disabled="busy" @click="move('open')">Reopen</UiButton>
@@ -59,4 +60,5 @@ const line = computed(() => `line ${props.note.start_line}${props.note.end_line 
 .note-src { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); text-decoration: none; }
 .note-src:hover { color: var(--accent); }
 .note-actions { margin-top: 2px; }
+.warn-text { margin: 0; color: var(--warn); }
 </style>
