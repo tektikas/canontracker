@@ -24,11 +24,12 @@ export function splitPassages(content: string) {
 
 export async function importDocument(filename: string, content: string) {
   const db = useDb()
+  const projectId = pid()
   const sha256 = createHash('sha256').update(content).digest('hex')
-  const dup = db.prepare('select id from documents where sha256 = ?').get(sha256) as { id: string } | undefined
+  const dup = db.prepare('select id from documents where project_id = ? and sha256 = ?').get(projectId, sha256) as { id: string } | undefined
   if (dup) return { filename, status: 'duplicate' as const, document_id: dup.id }
 
-  const prev = db.prepare('select max(version) v from documents where filename = ?').get(filename) as { v: number | null }
+  const prev = db.prepare('select max(version) v from documents where project_id = ? and filename = ?').get(projectId, filename) as { v: number | null }
   const version = (prev.v ?? 0) + 1
   const title = content.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? filename
   const kind = /^S\d+/i.test(filename) ? 'scene' : 'lore'
@@ -37,14 +38,14 @@ export async function importDocument(filename: string, content: string) {
   if (!passages.length) throw createError({ statusCode: 422, statusMessage: 'EMPTY_DOCUMENT', message: `${filename} has no text.` })
 
   tx(() => {
-    db.prepare('insert into documents values (?, ?, ?, ?, ?, ?, ?, ?)').run(documentId, title, filename, kind, sha256, version, content, now())
-    const ins = db.prepare('insert into passages values (?, ?, ?, ?, ?, ?)')
-    for (const p of passages) ins.run(p.id, documentId, p.ordinal, p.start_line, p.end_line, p.text)
+    db.prepare('insert into documents values (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(documentId, title, filename, kind, sha256, version, content, now(), projectId)
+    const ins = db.prepare('insert into passages values (?, ?, ?, ?, ?, ?, ?)')
+    for (const p of passages) ins.run(p.id, documentId, p.ordinal, p.start_line, p.end_line, p.text, projectId)
     audit(version > 1 ? 'document.version_added' : 'document.imported', 'document', documentId, { filename, version, sha256, passages: passages.length })
     // Old citations are not silently moved to the new version; they are flagged stale until someone reviews them.
     if (version > 1) {
       const stale = db.prepare(`select distinct f.id from facts f join evidence e on e.fact_id = f.id join documents d on d.id = e.document_id
-        where f.status = 'canon' and d.filename = ? and d.version < ?`).all(filename, version) as { id: string }[]
+        where f.project_id = ? and f.status = 'canon' and d.filename = ? and d.version < ?`).all(projectId, filename, version) as { id: string }[]
       if (stale.length) audit('citation.stale', 'document', documentId, { filename, version, fact_ids: stale.map(s => s.id) })
     }
   })
@@ -64,11 +65,11 @@ export async function importDocument(filename: string, content: string) {
         const precision = c.time ? (c.time.precision ?? 'exact') : null
         const factId = newId('fact')
         db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision,
-          status, confidence, origin, model_id, created_at) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?)`)
+          status, confidence, origin, model_id, created_at, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`)
           .run(factId, c.kind, c.subject, c.predicate, c.object ?? null, c.value == null ? null : String(c.value), c.statement, tFrom, tTo,
-            timeLabel(tFrom, tTo, precision), precision, c.confidence ?? null, `model:${PROMPT_VERSIONS.extract}`, model.id, now())
-        db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified) values (?, ?, ?, ?, ?, ?)')
-          .run(newId('ev'), factId, documentId, passage?.id ?? null, c.quote ?? '', passage ? 1 : 0)
+            timeLabel(tFrom, tTo, precision), precision, c.confidence ?? null, `model:${PROMPT_VERSIONS.extract}`, model.id, now(), projectId)
+        db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, ?, ?)')
+          .run(newId('ev'), factId, documentId, passage?.id ?? null, c.quote ?? '', passage ? 1 : 0, projectId)
         audit('candidate.created', 'fact', factId, { document_id: documentId, quote_verified: !!passage, model_id: model.id })
         candidates++
         if (!passage) unverified++

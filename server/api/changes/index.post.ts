@@ -9,8 +9,8 @@ export default defineEventHandler(async (event) => {
 
   const db = useDb()
   const id = newId('chg')
-  db.prepare(`insert into changes (id, target_fact_id, before_statement, proposed_statement, rationale, status, created_at) values (?, ?, ?, ?, ?, 'analyzing', ?)`)
-    .run(id, target.id, target.statement, proposed, rationale.trim(), now())
+  db.prepare(`insert into changes (id, target_fact_id, before_statement, proposed_statement, rationale, status, created_at, project_id) values (?, ?, ?, ?, ?, 'analyzing', ?, ?)`)
+    .run(id, target.id, target.statement, proposed, rationale.trim(), now(), pid())
   audit('change.created', 'change', id, { target_fact_id: target.id, before: target.statement, proposed })
 
   const impact = analyzeImpact(target.id)

@@ -2,7 +2,7 @@
 export default defineEventHandler((event) => {
   const id = getRouterParam(event, 'id')!
   const format = String(getQuery(event).format ?? 'json')
-  const change = useDb().prepare('select * from changes where id = ?').get(id) as unknown as ChangeRow | undefined
+  const change = useDb().prepare('select * from changes where id = ? and project_id = ?').get(id, pid()) as unknown as ChangeRow | undefined
   if (!change) throw createError({ statusCode: 404, statusMessage: 'NOT_FOUND', message: 'Change not found.' })
   const items = JSON.parse(change.impact ?? '[]') as ImpactItem[]
   audit('export.created', 'change', id, { format, items: items.length })

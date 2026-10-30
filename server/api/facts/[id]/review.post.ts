@@ -16,7 +16,7 @@ export default defineEventHandler(async (event) => {
   if (body.decision === 'reject') {
     if (!rationale) throw createError({ statusCode: 400, statusMessage: 'RATIONALE_REQUIRED', message: 'Say why the candidate is rejected.' })
     tx(() => {
-      db.prepare(`update facts set status = 'rejected', decided_at = ?, rationale = ? where id = ?`).run(now(), rationale, id)
+      db.prepare(`update facts set status = 'rejected', decided_at = ?, rationale = ?, decided_by = ? where id = ?`).run(now(), rationale, access().user.id, id)
       audit('candidate.rejected', 'fact', id, { rationale, statement: fact.statement })
     })
     return { id, status: 'rejected' }
@@ -36,8 +36,8 @@ export default defineEventHandler(async (event) => {
     object: c.object === undefined ? fact.object : (c.object?.trim() || null),
   }
   tx(() => {
-    db.prepare(`update facts set status = 'canon', statement = ?, subject = ?, predicate = ?, object = ?, decided_at = ?, rationale = ? where id = ?`)
-      .run(after.statement, after.subject, after.predicate, after.object, now(), rationale, id)
+    db.prepare(`update facts set status = 'canon', statement = ?, subject = ?, predicate = ?, object = ?, decided_at = ?, rationale = ?, decided_by = ? where id = ?`)
+      .run(after.statement, after.subject, after.predicate, after.object, now(), rationale, access().user.id, id)
     audit(body.decision === 'accept' ? 'candidate.accepted' : 'candidate.corrected_and_accepted', 'fact', id, {
       rationale,
       before: { statement: fact.statement, subject: fact.subject, predicate: fact.predicate, object: fact.object },
