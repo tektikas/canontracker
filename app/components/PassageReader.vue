@@ -32,8 +32,8 @@ watch(() => [props.active, props.doc] as const, async () => {
     >
       <span class="ln">{{ p.start_line }}<template v-if="p.end_line !== p.start_line">–{{ p.end_line }}</template></span>
       <span class="text">
-        <template v-if="parts(p)">{{ parts(p)![0] }}<mark>{{ parts(p)![1] }}</mark>{{ parts(p)![2] }}</template>
-        <template v-else>{{ p.text }}</template>
+        <template v-if="parts(p)"><MentionText :text="parts(p)![0]" /><mark><MentionText :text="parts(p)![1]" /></mark><MentionText :text="parts(p)![2]" /></template>
+        <MentionText v-else :text="p.text" />
       </span>
     </div>
   </div>

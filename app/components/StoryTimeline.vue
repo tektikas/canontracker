@@ -3,6 +3,7 @@
 // Exact times are solid ink marks; approximate ones are hatched ochre bands with faded edges.
 type Fact = Record<string, any>
 const props = defineProps<{ facts: Fact[] }>()
+const editor = computed(() => canEdit(useMe().value))
 
 const PX_H = 11 // pixels per story hour
 const PX = PX_H / 60
@@ -104,7 +105,7 @@ const dayTicks = computed(() => Array.from({ length: days.value }, (_, i) => i +
     <div v-if="selected" ref="detailEl" class="detail">
       <FactSummary :fact="selected" sources />
       <div class="row">
-        <UiButton size="sm" :to="`/changes?target=${selected.id}`">Propose change…</UiButton>
+        <UiButton v-if="editor" size="sm" :to="`/changes?target=${selected.id}`">Propose change…</UiButton>
         <UiButton size="sm" variant="ghost" @click="selectedId = null">Close</UiButton>
       </div>
     </div>

@@ -3,6 +3,48 @@ import { createHash } from 'node:crypto'
 const end = (f: Fact) => f.t_to ?? f.t_from!
 const overlaps = (a: Fact, b: Fact) => a.t_from! <= end(b) && b.t_from! <= end(a)
 const isRule = (f: Fact) => f.kind === 'rule' && f.predicate === 'rule'
+export const isTravel = (f: Fact) => f.predicate === 'travel_time' && !!f.value && Number.isFinite(Number(f.value))
+
+// The deterministic rules for one pair of facts. `travel` is the canon travel_time facts. Also used after a merge to see
+// which open conflicts still hold.
+export function ruleHits(a: Fact, b: Fact, travel: Fact[]) {
+  const hits: { a: Fact, b: Fact, rule: string, rationale: string, confidence: number }[] = []
+  if (normEntity(a.subject) !== normEntity(b.subject)) return hits
+  const travelMinutes = (x: string | null, y: string | null) => travel.find(t =>
+    (normEntity(t.subject) === normEntity(x) && normEntity(t.object) === normEntity(y))
+    || (normEntity(t.subject) === normEntity(y) && normEntity(t.object) === normEntity(x)))
+
+  if (a.predicate === 'located_at' && b.predicate === 'located_at' && a.t_from != null && b.t_from != null
+    && normEntity(a.object) !== normEntity(b.object)) {
+    const exact = a.precision === 'exact' && b.precision === 'exact'
+    if (overlaps(a, b)) {
+      hits.push({ a, b, rule: exact ? 'EXACT_TIME_LOCATION_OVERLAP' : 'APPROX_TIME_LOCATION_OVERLAP',
+        rationale: exact
+          ? `${a.subject} is placed at ${a.object} (${a.time_label}) and ${b.object} (${b.time_label}); both times are exact and overlap.`
+          : `${a.subject} may be at ${a.object} (${a.time_label}) and ${b.object} (${b.time_label}) at once, but at least one time is approximate.`,
+        confidence: exact ? 0.9 : 0.35 })
+    } else {
+      const route = travelMinutes(a.object, b.object)
+      const [first, second] = a.t_from <= b.t_from ? [a, b] : [b, a]
+      const gap = second.t_from! - end(first)
+      if (route && gap < Number(route.value))
+        hits.push({ a: first, b: second, rule: 'TRAVEL_TIME_TOO_SHORT',
+          rationale: `${a.subject} has ${gap} min to get from ${first.object} to ${second.object}, but canon says the trip takes ${route.value} min ("${route.statement}").`,
+          confidence: exact ? 0.8 : 0.4 })
+    }
+  }
+
+  if (a.kind === 'relationship' && b.kind === 'relationship' && a.predicate === b.predicate
+    && normEntity(a.object) === normEntity(b.object)) {
+    const [ended, later] = a.t_to != null && b.t_from != null && b.t_from > a.t_to ? [a, b]
+      : b.t_to != null && a.t_from != null && a.t_from > b.t_to ? [b, a] : []
+    if (ended && later)
+      hits.push({ a: ended, b: later, rule: 'RELATIONSHIP_AFTER_END',
+        rationale: `"${ended.predicate}" between ${ended.subject} and ${ended.object} ended at ${formatStoryTime(ended.t_to!)}, but is used as active at ${later.time_label}.`,
+        confidence: 0.85 })
+  }
+  return hits
+}
 
 // Narrow conflict checks over accepted canon. Every hit is a candidate for a human, never a verdict.
 // Deterministic rules run in code; the world-rule check is model-suggested and labeled as such.
@@ -21,45 +63,10 @@ export async function scanConflicts() {
     }
   }
 
-  const travel = facts.filter(f => f.predicate === 'travel_time' && f.value && Number.isFinite(Number(f.value)))
-  const travelMinutes = (x: string | null, y: string | null) => travel.find(t =>
-    (normEntity(t.subject) === normEntity(x) && normEntity(t.object) === normEntity(y))
-    || (normEntity(t.subject) === normEntity(y) && normEntity(t.object) === normEntity(x)))
-
+  const travel = facts.filter(isTravel)
   tx(() => {
     for (const [i, a] of facts.entries()) {
-      for (const b of facts.slice(i + 1)) {
-        if (normEntity(a.subject) !== normEntity(b.subject)) continue
-
-        if (a.predicate === 'located_at' && b.predicate === 'located_at' && a.t_from != null && b.t_from != null
-          && normEntity(a.object) !== normEntity(b.object)) {
-          const exact = a.precision === 'exact' && b.precision === 'exact'
-          if (overlaps(a, b)) {
-            add(a, b, exact ? 'EXACT_TIME_LOCATION_OVERLAP' : 'APPROX_TIME_LOCATION_OVERLAP',
-              exact
-                ? `${a.subject} is placed at ${a.object} (${a.time_label}) and ${b.object} (${b.time_label}); both times are exact and overlap.`
-                : `${a.subject} may be at ${a.object} (${a.time_label}) and ${b.object} (${b.time_label}) at once, but at least one time is approximate.`,
-              exact ? 0.9 : 0.35)
-          } else {
-            const route = travelMinutes(a.object, b.object)
-            const [first, second] = a.t_from <= b.t_from ? [a, b] : [b, a]
-            const gap = second.t_from! - end(first)
-            if (route && gap < Number(route.value))
-              add(first, second, 'TRAVEL_TIME_TOO_SHORT',
-                `${a.subject} has ${gap} min to get from ${first.object} to ${second.object}, but canon says the trip takes ${route.value} min ("${route.statement}").`,
-                exact ? 0.8 : 0.4)
-          }
-        }
-
-        if (a.kind === 'relationship' && b.kind === 'relationship' && a.predicate === b.predicate
-          && normEntity(a.object) === normEntity(b.object)) {
-          const [ended, later] = a.t_to != null && b.t_from != null && b.t_from > a.t_to ? [a, b]
-            : b.t_to != null && a.t_from != null && a.t_from > b.t_to ? [b, a] : []
-          if (ended && later)
-            add(ended, later, 'RELATIONSHIP_AFTER_END',
-              `"${ended.predicate}" between ${ended.subject} and ${ended.object} ended at ${formatStoryTime(ended.t_to!)}, but is used as active at ${later.time_label}.`, 0.85)
-        }
-      }
+      for (const b of facts.slice(i + 1)) for (const h of ruleHits(a, b, travel)) add(h.a, h.b, h.rule, h.rationale, h.confidence)
     }
   })
 
@@ -80,6 +87,8 @@ export async function scanConflicts() {
       modelError = (e as Error).message
     }
   }
+  // A scan that finds nothing is still a result: Conflicts says when canon was last checked and how much of it.
+  audit('conflict.scan', 'project', pid(), { facts: facts.length, created, model_error: modelError })
   return { created, model_error: modelError }
 }
 

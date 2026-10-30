@@ -18,6 +18,8 @@ export default defineEventHandler(async (event) => {
     return { id, status: 'rejected' }
   }
 
+  if (change.impact_stale)
+    throw createError({ statusCode: 409, statusMessage: 'IMPACT_STALE', message: 'A merge changed what this proposal may touch. Re-run the impact analysis and review it before accepting.' })
   const old = getFact(change.target_fact_id)
   if (old.status !== 'canon') throw createError({ statusCode: 409, statusMessage: 'STALE_TARGET', message: 'The target fact is no longer active canon.' })
   const newFactId = newId('fact')

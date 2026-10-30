@@ -3,6 +3,7 @@
 type Fact = Record<string, any>
 const props = defineProps<{ name: string, facts: Fact[] }>()
 const emit = defineEmits<{ select: [entity: string] }>()
+const editor = computed(() => canEdit(useMe().value))
 
 const KINDS = ['character', 'location', 'rule', 'claim', 'event']
 const mine = computed(() => props.facts.filter(f => f.subject === props.name || f.object === props.name))
@@ -45,7 +46,7 @@ const appearances = computed(() => {
             </template>
           </div>
           <FactSummary :fact="f" sources />
-          <div><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
+          <div v-if="editor"><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
         </div>
       </div>
     </section>
@@ -55,7 +56,7 @@ const appearances = computed(() => {
       <div class="facts">
         <div v-for="f in g.facts" :key="f.id" class="item">
           <FactSummary :fact="f" sources />
-          <div><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
+          <div v-if="editor"><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
         </div>
       </div>
     </section>

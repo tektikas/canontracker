@@ -19,6 +19,6 @@ export default defineEventHandler(async (event) => {
     model,
     studios,
     projects: projects.map(p => ({ id: p.id, name: p.name, studio_id: p.studio_id, studio_name: p.studio_name })),
-    current: current ? { project: { id: current.id, name: current.name }, studio: { id: current.studio_id, name: current.studio_name }, role: current.role } : null,
+    current: current ? { project: { id: current.id, name: current.name, medium: mediumOf(current.medium) }, studio: { id: current.studio_id, name: current.studio_name }, role: current.role } : null,
   }
 })
