@@ -128,4 +128,28 @@ async function type(text) {
   check('focus exit drain stores the latest text', await stored(), h.f.content)
   check('…and nothing is left unsaved', h.dirty, false)
 }
+// 4. Recovery: a persist() with nothing unsaved (a clean draft, a "Save as v2" that failed elsewhere) must not leave a finished
+// drain behind; the next typing still saves, and leaving afterwards does not lose text.
+{
+  await h.persist() // nothing dirty: resolves at once
+  check('no drain is retained after a no-op persist', h.drain, null)
+  const before = puts
+  await type('Typed after a no-op persist.')
+  await h.persist()
+  check('typing after a no-op persist issues a PUT', puts, before + 1)
+  check('…and stores the text', await stored(), h.f.content)
+  const fail = gate()
+  await type('Typed, then the save fails.')
+  const p = h.persist().catch(() => 'failed')
+  await fail.started.promise
+  fail.release.reject(new Error('503'))
+  check('a failed save rejects', await p, 'failed')
+  check('…and no drain is retained', h.drain, null)
+  await type('Typed after recovery.')
+  const n = puts
+  await h.persist()
+  check('the save after a failure issues a PUT', puts, n + 1)
+  check('…and stores the text', await stored(), h.f.content)
+  check('…leaving is silent with nothing lost', await guard(), undefined)
+}
 console.log(`all checks passed (${puts} PUTs; write.vue logic in a VM seam, real draft API, no browser)`)

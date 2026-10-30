@@ -60,7 +60,10 @@ async function saveOnce() {
 }
 function persist(): Promise<void> {
   clearTimeout(timer)
-  drain ??= (async () => {
+  if (drain) return drain
+  if (!dirty) { status.value = 'saved'; saveError.value = ''; return Promise.resolve() } // nothing to drain: never store a finished promise
+  let p!: Promise<void>
+  p = drain = (async () => {
     try {
       while (dirty) {
         dirty = false
@@ -78,10 +81,10 @@ function persist(): Promise<void> {
       status.value = 'saved'
       saveError.value = ''
     } finally {
-      drain = null
+      if (drain === p) drain = null
     }
   })()
-  return drain
+  return p
 }
 // Background saves (timer, Ctrl+S, leaving focus) show a failure in the status line instead of throwing.
 const persistQuietly = () => persist().catch(() => {})
