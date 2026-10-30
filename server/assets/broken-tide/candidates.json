@@ -1,0 +1,315 @@
+{
+  "lore-chord-stone.md": [
+    {
+      "kind": "rule",
+      "subject": "Chord Stone",
+      "predicate": "rule",
+      "statement": "The chord stone erases the last hour from the memory of whoever carries it.",
+      "quote": "The chord stone erases the last hour from the memory of whoever carries it.",
+      "confidence": 0.95
+    },
+    {
+      "kind": "claim",
+      "subject": "Chord Stone",
+      "predicate": "kept_in",
+      "object": "Old Archive",
+      "statement": "The chord stone is kept in a lead-lined box in the Old Archive.",
+      "quote": "They keep it in a lead-lined box in the Old Archive.",
+      "confidence": 0.86
+    },
+    {
+      "kind": "rule",
+      "subject": "Lighthouse",
+      "predicate": "travel_time",
+      "object": "Harbor",
+      "statement": "Walking from the Lighthouse to the Harbor takes about forty minutes.",
+      "quote": "The walk from the Lighthouse to the Harbor takes about forty minutes along the causeway.",
+      "confidence": 0.9,
+      "value": "40"
+    }
+  ],
+  "characters.md": [
+    {
+      "kind": "character",
+      "subject": "Leya",
+      "predicate": "is",
+      "statement": "Leya Venn is a cartographer's apprentice.",
+      "quote": "Leya Venn is a cartographer's apprentice who maps the shifting sandbanks around Solen.",
+      "confidence": 0.93
+    },
+    {
+      "kind": "character",
+      "subject": "Arin",
+      "predicate": "is",
+      "statement": "Arin Venn is the keeper of the Solen Lighthouse.",
+      "quote": "Arin Venn is the keeper of the Solen Lighthouse.",
+      "confidence": 0.94
+    },
+    {
+      "kind": "relationship",
+      "subject": "Leya",
+      "predicate": "sibling_of",
+      "object": "Arin",
+      "statement": "Leya and Arin are biological siblings; Arin is four years older.",
+      "quote": "Leya and Arin are siblings, born to the same mother, and Arin is four years older.",
+      "confidence": 0.96
+    },
+    {
+      "kind": "relationship",
+      "subject": "Mara",
+      "predicate": "engaged_to",
+      "object": "Arin",
+      "statement": "Mara and Arin were engaged until Arin broke it off at 19:00 on Day 1.",
+      "quote": "Mara and Arin were engaged until the storm on the evening of Day 1, when Arin broke off the engagement at 19:00.",
+      "time": {
+        "to": "D1 19:00",
+        "precision": "exact"
+      },
+      "confidence": 0.9
+    },
+    {
+      "kind": "character",
+      "subject": "Mara",
+      "predicate": "is",
+      "statement": "Mara Holt is a boat runner who trades at the Salt Market.",
+      "quote": "Mara Holt runs boats out of the Harbor and trades at the Salt Market.",
+      "confidence": 0.9
+    },
+    {
+      "kind": "character",
+      "subject": "Teodor",
+      "predicate": "is",
+      "statement": "Teodor Brask is the last archivist of the Old Archive.",
+      "quote": "Teodor Brask is the last archivist of the Old Archive.",
+      "confidence": 0.93
+    }
+  ],
+  "S01.md": [
+    {
+      "kind": "event",
+      "subject": "Leya",
+      "predicate": "located_at",
+      "object": "Harbor",
+      "statement": "Leya is at the Harbor at 08:00 on Day 1.",
+      "quote": "At 08:00 on Day 1, Leya walks down to the Harbor with her sounding line and a fresh sheet of vellum.",
+      "time": {
+        "from": "D1 08:00",
+        "precision": "exact"
+      },
+      "confidence": 0.92
+    }
+  ],
+  "S02.md": [
+    {
+      "kind": "relationship",
+      "subject": "Mara",
+      "predicate": "sibling_of",
+      "object": "Leya",
+      "statement": "Mara and Leya are sisters.",
+      "quote": "\"You're my sister in all but blood,\" Mara says, and Leya laughs.",
+      "confidence": 0.62
+    }
+  ],
+  "S03.md": [
+    {
+      "kind": "event",
+      "subject": "Mara",
+      "predicate": "located_at",
+      "object": "Harbor",
+      "statement": "Mara is at the Harbor at 12:30 on Day 2.",
+      "quote": "At 12:30 on Day 2, Mara is at the Harbor, unloading crates that do not appear on any manifest.",
+      "time": {
+        "from": "D2 12:30",
+        "precision": "exact"
+      },
+      "confidence": 0.91
+    }
+  ],
+  "S04.md": [
+    {
+      "kind": "event",
+      "subject": "Leya",
+      "predicate": "located_at",
+      "object": "Old Archive",
+      "statement": "Leya is in the Old Archive from 13:00 to 14:00 on Day 1.",
+      "quote": "At 13:00 on Day 1, Leya enters the Old Archive looking for an older chart of the sandbanks.",
+      "time": {
+        "from": "D1 13:00",
+        "to": "D1 14:00",
+        "precision": "exact"
+      },
+      "confidence": 0.88
+    },
+    {
+      "kind": "event",
+      "subject": "Leya",
+      "predicate": "handles_bare_handed",
+      "object": "Chord Stone",
+      "statement": "Leya holds the chord stone with her bare hands for about an hour on Day 1.",
+      "quote": "Leya picks up the chord stone with her bare hands and turns it toward the window.",
+      "time": {
+        "from": "D1 13:00",
+        "to": "D1 14:00",
+        "precision": "approximate"
+      },
+      "confidence": 0.87
+    }
+  ],
+  "S05.md": [
+    {
+      "kind": "event",
+      "subject": "Arin",
+      "predicate": "located_at",
+      "object": "Causeway",
+      "statement": "Arin is crossing the causeway at 22:00 on Day 1.",
+      "quote": "At 22:00 on Day 1, Arin is crossing the causeway on foot, lantern shuttered against the wind.",
+      "time": {
+        "from": "D1 22:00",
+        "precision": "exact"
+      },
+      "confidence": 0.93
+    }
+  ],
+  "S06.md": [
+    {
+      "kind": "event",
+      "subject": "Arin",
+      "predicate": "located_at",
+      "object": "Lighthouse",
+      "statement": "Arin stays in the Lighthouse gallery from 21:30 to 22:30 on Day 1.",
+      "quote": "From 21:30 to 22:30 on Day 1, Arin keeps the lamp lit at the Lighthouse and never leaves the gallery.",
+      "time": {
+        "from": "D1 21:30",
+        "to": "D1 22:30",
+        "precision": "exact"
+      },
+      "confidence": 0.94
+    },
+    {
+      "kind": "event",
+      "subject": "Arin",
+      "predicate": "signals",
+      "object": "Mara",
+      "statement": "Arin signals Mara's boat three times with the lamp.",
+      "quote": "Arin flashes the lamp three times for Mara's boat.",
+      "confidence": 0.55
+    }
+  ],
+  "S07.md": [
+    {
+      "kind": "event",
+      "subject": "Arin",
+      "predicate": "carries",
+      "object": "Chord Stone",
+      "statement": "Arin carries the chord stone in a leather pouch overnight on Day 2.",
+      "quote": "On the night of Day 2, Arin carries the chord stone in a leather pouch from the Old Archive to the Lighthouse.",
+      "time": {
+        "from": "D2 20:00",
+        "to": "D3 06:00",
+        "precision": "approximate"
+      },
+      "confidence": 0.9
+    },
+    {
+      "kind": "claim",
+      "subject": "Arin",
+      "predicate": "remembers",
+      "object": "Night walk",
+      "statement": "Arin still remembers the whole night walk at dawn on Day 3.",
+      "quote": "At dawn on Day 3 he still remembers every step of the walk, and that frightens him more than forgetting would.",
+      "time": {
+        "from": "D3 06:00",
+        "precision": "approximate"
+      },
+      "confidence": 0.84
+    }
+  ],
+  "S08.md": [
+    {
+      "kind": "event",
+      "subject": "Mara",
+      "predicate": "located_at",
+      "object": "Salt Market",
+      "statement": "Mara is at the Salt Market around midday on Day 2.",
+      "quote": "Around midday on Day 2, Mara is at the Salt Market, haggling over the price of a broken compass.",
+      "time": {
+        "from": "D2 11:00",
+        "to": "D2 13:00",
+        "precision": "approximate"
+      },
+      "confidence": 0.85
+    }
+  ],
+  "S09.md": [
+    {
+      "kind": "claim",
+      "subject": "Leya",
+      "predicate": "memory_lost_due_to",
+      "object": "Chord Stone",
+      "statement": "Leya has no memory of 13:00–14:00 on Day 1, attributed to the chord stone.",
+      "quote": "Leya cannot remember anything between 13:00 and 14:00 on Day 1. Arin tells her it was the chord stone.",
+      "time": {
+        "from": "D1 13:00",
+        "to": "D1 14:00",
+        "precision": "exact"
+      },
+      "confidence": 0.9
+    }
+  ],
+  "S10.md": [
+    {
+      "kind": "relationship",
+      "subject": "Mara",
+      "predicate": "engaged_to",
+      "object": "Arin",
+      "statement": "Arin is Mara's fiancé at 10:00 on Day 3.",
+      "quote": "Mara's fiancé, Arin, opens the door at 10:00 on Day 3 and hands over the leather pouch.",
+      "time": {
+        "from": "D3 10:00",
+        "precision": "exact"
+      },
+      "confidence": 0.8
+    },
+    {
+      "kind": "event",
+      "subject": "Arin",
+      "predicate": "located_at",
+      "object": "Lighthouse",
+      "statement": "Arin is at the Lighthouse at 10:00 on Day 3.",
+      "quote": "Mara's fiancé, Arin, opens the door at 10:00 on Day 3 and hands over the leather pouch.",
+      "time": {
+        "from": "D3 10:00",
+        "precision": "exact"
+      },
+      "confidence": 0.86
+    },
+    {
+      "kind": "event",
+      "subject": "Teodor",
+      "predicate": "uses_on_arin",
+      "object": "Chord Stone",
+      "statement": "Teodor briefly presses the chord stone to Arin's hand so he forgets the night.",
+      "quote": "Teodor presses the chord stone briefly to the back of Arin's hand, so that he will forget the night.",
+      "time": {
+        "from": "D3 10:00",
+        "precision": "approximate"
+      },
+      "confidence": 0.88
+    }
+  ],
+  "S11.md": [
+    {
+      "kind": "event",
+      "subject": "Arin",
+      "predicate": "located_at",
+      "object": "Harbor",
+      "statement": "Arin rings the harbor bell at the Harbor at 10:15 on Day 3.",
+      "quote": "At 10:15 on Day 3, Arin rings the harbor bell at the Harbor to call the boats in.",
+      "time": {
+        "from": "D3 10:15",
+        "precision": "exact"
+      },
+      "confidence": 0.9
+    }
+  ]
+}

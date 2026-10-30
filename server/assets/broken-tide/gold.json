@@ -1,0 +1,187 @@
+{
+  "dataset": "broken-tide@2",
+  "conflicts": [
+    {
+      "id": "C1",
+      "rule": "EXACT_TIME_LOCATION_OVERLAP",
+      "statements": [
+        "Arin is crossing the causeway at 22:00 on Day 1.",
+        "Arin stays in the Lighthouse gallery from 21:30 to 22:30 on Day 1."
+      ]
+    },
+    {
+      "id": "C2",
+      "rule": "RELATIONSHIP_AFTER_END",
+      "statements": [
+        "Mara and Arin were engaged until Arin broke it off at 19:00 on Day 1.",
+        "Arin is Mara's fiancé at 10:00 on Day 3."
+      ]
+    },
+    {
+      "id": "C3",
+      "rule": "TRAVEL_TIME_TOO_SHORT",
+      "statements": [
+        "Arin is at the Lighthouse at 10:00 on Day 3.",
+        "Arin rings the harbor bell at the Harbor at 10:15 on Day 3."
+      ]
+    },
+    {
+      "id": "C4",
+      "rule": "WORLD_RULE_VIOLATION",
+      "statements": [
+        "The chord stone erases the last hour from the memory of whoever carries it.",
+        "Arin still remembers the whole night walk at dawn on Day 3."
+      ]
+    }
+  ],
+  "false_alarms": [
+    {
+      "id": "A1",
+      "statements": [
+        "Mara is at the Harbor at 12:30 on Day 2.",
+        "Mara is at the Salt Market around midday on Day 2."
+      ]
+    }
+  ],
+  "figurative": [
+    "Mara and Leya are sisters."
+  ],
+  "hallucinated": [
+    "Arin signals Mara's boat three times with the lamp."
+  ],
+  "unknown_questions": [
+    "What did the harbor master eat on Day 3?",
+    "Where exactly was Arin at 23:00 on Day 2?"
+  ],
+  "impact": {
+    "id": "D1",
+    "rule_contains": "whoever carries it",
+    "expected_scenes": [
+      "S04.md",
+      "S07.md",
+      "S09.md",
+      "S10.md"
+    ],
+    "excluded_scenes": [
+      "S01.md",
+      "S03.md"
+    ]
+  },
+  "passages": [
+    {
+      "statement": "The chord stone erases the last hour from the memory of whoever carries it.",
+      "file": "lore-chord-stone.md",
+      "line": 5
+    },
+    {
+      "statement": "The chord stone is kept in a lead-lined box in the Old Archive.",
+      "file": "lore-chord-stone.md",
+      "line": 7
+    },
+    {
+      "statement": "Walking from the Lighthouse to the Harbor takes about forty minutes.",
+      "file": "lore-chord-stone.md",
+      "line": 9
+    },
+    {
+      "statement": "Leya Venn is a cartographer's apprentice.",
+      "file": "characters.md",
+      "line": 3
+    },
+    {
+      "statement": "Arin Venn is the keeper of the Solen Lighthouse.",
+      "file": "characters.md",
+      "line": 5
+    },
+    {
+      "statement": "Leya and Arin are biological siblings; Arin is four years older.",
+      "file": "characters.md",
+      "line": 5
+    },
+    {
+      "statement": "Mara and Arin were engaged until Arin broke it off at 19:00 on Day 1.",
+      "file": "characters.md",
+      "line": 7
+    },
+    {
+      "statement": "Mara Holt is a boat runner who trades at the Salt Market.",
+      "file": "characters.md",
+      "line": 7
+    },
+    {
+      "statement": "Teodor Brask is the last archivist of the Old Archive.",
+      "file": "characters.md",
+      "line": 9
+    },
+    {
+      "statement": "Leya is at the Harbor at 08:00 on Day 1.",
+      "file": "S01.md",
+      "line": 3
+    },
+    {
+      "statement": "Mara is at the Harbor at 12:30 on Day 2.",
+      "file": "S03.md",
+      "line": 3
+    },
+    {
+      "statement": "Leya is in the Old Archive from 13:00 to 14:00 on Day 1.",
+      "file": "S04.md",
+      "line": 3
+    },
+    {
+      "statement": "Leya holds the chord stone with her bare hands for about an hour on Day 1.",
+      "file": "S04.md",
+      "line": 7
+    },
+    {
+      "statement": "Arin is crossing the causeway at 22:00 on Day 1.",
+      "file": "S05.md",
+      "line": 3
+    },
+    {
+      "statement": "Arin stays in the Lighthouse gallery from 21:30 to 22:30 on Day 1.",
+      "file": "S06.md",
+      "line": 3
+    },
+    {
+      "statement": "Arin carries the chord stone in a leather pouch overnight on Day 2.",
+      "file": "S07.md",
+      "line": 3
+    },
+    {
+      "statement": "Arin still remembers the whole night walk at dawn on Day 3.",
+      "file": "S07.md",
+      "line": 5
+    },
+    {
+      "statement": "Mara is at the Salt Market around midday on Day 2.",
+      "file": "S08.md",
+      "line": 3
+    },
+    {
+      "statement": "Leya has no memory of 13:00–14:00 on Day 1, attributed to the chord stone.",
+      "file": "S09.md",
+      "line": 5
+    },
+    {
+      "statement": "Arin is Mara's fiancé at 10:00 on Day 3.",
+      "file": "S10.md",
+      "line": 5
+    },
+    {
+      "statement": "Arin is at the Lighthouse at 10:00 on Day 3.",
+      "file": "S10.md",
+      "line": 5
+    },
+    {
+      "statement": "Teodor briefly presses the chord stone to Arin's hand so he forgets the night.",
+      "file": "S10.md",
+      "line": 7
+    },
+    {
+      "statement": "Arin rings the harbor bell at the Harbor at 10:15 on Day 3.",
+      "file": "S11.md",
+      "line": 3
+    }
+  ]
+}

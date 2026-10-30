@@ -1,0 +1,14 @@
+[
+  {
+    "rule_contains": "whoever carries it",
+    "violations": [
+      { "statement": "Arin still remembers the whole night walk at dawn on Day 3.", "rationale": "Arin carried the chord stone all night (S07) yet remembers the whole walk; under this rule he should have lost his last hour.", "confidence": 0.72 }
+    ]
+  },
+  {
+    "rule_contains": "more than ten minutes",
+    "violations": [
+      { "statement": "Teodor briefly presses the chord stone to Arin's hand so he forgets the night.", "rationale": "A brief touch is under ten minutes, so under this rule it would not erase Arin's memory as S10 intends.", "confidence": 0.78 }
+    ]
+  }
+]
