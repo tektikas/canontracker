@@ -6,7 +6,7 @@ useHead({ title: 'Write · Story Bible' })
 const route = useRoute()
 const router = useRouter()
 const editor = computed(() => canEdit(useMe().value))
-const KINDS = [['scene', 'Scene'], ['lore', 'Lore'], ['character', 'Character'], ['other', 'Other']] as const
+const KINDS = [['scene', 'Scene'], ['lore', 'Lore'], ['character', 'Character'], ['location', 'Location'], ['quest', 'Quest'], ['dialogue', 'Dialogue'], ['other', 'Other']] as const
 
 const f = reactive({ title: '', kind: 'scene', content: '' })
 const draftId = ref<string | null>(null)
@@ -147,7 +147,7 @@ async function discard() {
   dirty = false
   leaving = true
   if (draftId.value) await $fetch(`/api/drafts/${draftId.value}`, { method: 'DELETE' }).catch(() => {})
-  await navigateTo(editing.value ? `/documents/${editing.value.id}` : '/#sources', { replace: true })
+  await navigateTo(editing.value ? `/documents/${editing.value.id}` : '/library', { replace: true })
 }
 function keys(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
@@ -287,7 +287,7 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: 
   <UiPanel v-if="!editor">
     <UiEmptyState title="View only" icon="lock">
       Editors, admins and owners write documents. Ask a studio owner or admin for editor access.
-      <template #actions><UiButton to="/#sources">Back to sources</UiButton></template>
+      <template #actions><UiButton to="/library">Back to the library</UiButton></template>
     </UiEmptyState>
   </UiPanel>
   <UiPanel v-else-if="loadError">
@@ -323,7 +323,7 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: 
     </div>
 
     <nav class="crumbs small" aria-label="Breadcrumb">
-      <NuxtLink to="/#sources">Sources</NuxtLink><span aria-hidden="true">/</span>
+      <NuxtLink to="/library">Library</NuxtLink><span aria-hidden="true">/</span>
       <template v-if="editing"><NuxtLink :to="`/documents/${editing.id}`">{{ editing.title }}</NuxtLink><span aria-hidden="true">/</span><span>Edit</span></template>
       <span v-else>New document</span>
     </nav>

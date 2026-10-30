@@ -46,7 +46,7 @@ async function changed() {
   <UiPanel v-if="!notes.length">
     <UiEmptyState title="No notes yet" icon="note">
       Open a source, select the words a note is about and choose Add note.
-      <template #actions><UiButton to="/#sources" icon="file">Open sources</UiButton></template>
+      <template #actions><UiButton to="/library" icon="library">Open the library</UiButton></template>
     </UiEmptyState>
   </UiPanel>
 

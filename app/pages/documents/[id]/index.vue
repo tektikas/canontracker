@@ -7,7 +7,7 @@ const { data: doc, error, refresh } = await useFetch(() => `/api/documents/${rou
 const active = computed(() => route.hash.slice(1))
 const lineOf = (ev: Record<string, any>) => `Line ${ev.start_line}${ev.end_line !== ev.start_line ? `–${ev.end_line}` : ''}`
 // Evidence from this document, any version. One that cites another version is shown as such, never as this text.
-const here = (f: Record<string, any>) => f.evidence.filter((ev: any) => ev.document_filename === doc.value?.filename)
+const here = (f: Record<string, any>) => f.evidence.filter((ev: any) => ev.document_key === doc.value?.filename)
 const activeQuote = computed(() => doc.value?.facts.flatMap(f => f.evidence).find(ev => ev.verified && ev.passage_id === active.value)?.quote)
 const latest = computed(() => !doc.value || doc.value.latest.id === doc.value.id)
 // Facts and notes are only added to the latest version: an older one is already superseded.
@@ -69,31 +69,68 @@ async function removeCover() {
     coverBusy.value = false
   }
 }
+// Re-extract: runs extraction again on the latest version. It only ever adds pending candidates.
+const { data: stats } = useNuxtData<{ model: { mode: string } }>('stats')
+const reextracting = ref(false)
+const reextracted = ref<{ tone: 'info' | 'warn' | 'bad', text: string, review?: boolean }>()
+async function reextract() {
+  reextracting.value = true
+  reextracted.value = undefined
+  try {
+    const r = await $fetch(`/api/documents/${doc.value!.id}/extract`, { method: 'POST' })
+    const skipped = Object.entries(r.skipped_by_status).map(([s, n]) => `${n} ${s === 'canon' ? 'in canon' : s}`).join(', ')
+    const skipLine = r.skipped ? ` ${counted(r.skipped, 'reading')} already in the project ${r.skipped === 1 ? 'was' : 'were'} skipped (${skipped}).` : ''
+    if (r.mode === 'mock' && !r.recorded_covers)
+      reextracted.value = { tone: 'warn', text: 'Recorded demo run: only the Broken Tide demo files have recorded model output, so nothing was proposed for this document. Select words in the text to add facts by hand, or turn on the live model.' }
+    else if (r.created)
+      reextracted.value = { tone: 'info', text: `${r.mode === 'mock' ? 'Recorded demo run' : r.model_label}: ${counted(r.created, 'new candidate')} sent to review from v${r.version}${r.unverified ? `, ${r.unverified} with a quote not found in the text` : ''}.${skipLine}`, review: true }
+    else
+      reextracted.value = { tone: 'info', text: `${r.mode === 'mock' ? 'Recorded demo run' : r.model_label}: nothing new in v${r.version}.${skipLine || ' The model proposed nothing.'}` }
+    await Promise.all([refresh(), refreshNuxtData('stats')])
+  } catch (e) {
+    reextracted.value = { tone: 'bad', text: errorMessage(e) }
+  } finally {
+    reextracting.value = false
+  }
+}
+const recordedNoOutput = computed(() => stats.value?.model.mode === 'mock')
+const readerBox = ref<HTMLElement>()
+const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
 const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 </script>
 
 <template>
   <UiPanel v-if="error">
     <UiEmptyState title="Document not found" icon="file">
-      It may have been replaced by a newer import.
-      <template #actions><UiButton to="/#sources">Back to sources</UiButton></template>
+      It may have been removed, or it belongs to another project.
+      <template #actions><UiButton to="/library">Back to the library</UiButton></template>
     </UiEmptyState>
   </UiPanel>
   <template v-else-if="doc">
     <nav class="crumbs small" aria-label="Breadcrumb">
-      <NuxtLink to="/#sources">Sources</NuxtLink><span aria-hidden="true">/</span><span :title="doc.filename">{{ doc.title }}</span>
+      <NuxtLink to="/library">Library</NuxtLink><span aria-hidden="true">/</span>
+      <template v-if="doc.folder"><NuxtLink :to="`/library?folder=${doc.folder.id}`">{{ doc.folder.path }}</NuxtLink><span aria-hidden="true">/</span></template>
+      <span :title="doc.name">{{ doc.title }}</span>
     </nav>
     <UiPageHeader :title="doc.title">
       <span class="meta">
-        <UiBadge>{{ doc.kind }}</UiBadge>
-        <UiBadge>v{{ doc.version }}</UiBadge>
+        <UiBadge><UiIcon :name="docKind(doc.kind).icon" :size="12" />{{ docKind(doc.kind).label }}</UiBadge>
+        <select v-if="doc.versions.length > 1" class="version-pick" aria-label="Version" :value="doc.id" @change="pickVersion(($event.target as HTMLSelectElement).value)">
+          <option v-for="v in doc.versions" :key="v.id" :value="v.id">v{{ v.version }}{{ v.id === doc.latest.id ? ' · latest' : '' }} · {{ shortDate(v.imported_at) }}</option>
+        </select>
+        <UiBadge v-else>v{{ doc.version }}</UiBadge>
+        <UiBadge v-for="t in doc.tags" :key="t.id" :tone="(t.color as TagTone)">{{ t.name }}</UiBadge>
         <UiBadge tone="good" :title="doc.origin === 'written' ? 'Each save is a new version; saved versions never change' : 'Story Bible never edits imported sources'">Read-only source</UiBadge>
         <span v-if="doc.origin === 'written'" class="small muted">Written in Story Bible<template v-if="doc.created_by_name"> by {{ doc.created_by_name }}</template>, {{ savedAt(doc.imported_at) }}</span>
         <span class="mono faint" :title="`sha256 ${doc.sha256}`">sha256 {{ String(doc.sha256).slice(0, 12) }}…</span>
       </span>
-      <template v-if="editor" #actions>
-        <UiButton v-if="doc.origin === 'written'" icon="review" :to="`/write?doc=${doc.latest.id}`">Edit</UiButton>
-        <UiButton v-if="!doc.cover" icon="image" @click="generator?.open()">Generate cover</UiButton>
+      <template #actions>
+        <UiButton icon="history" :to="`/documents/${doc.id}/history`">History<template v-if="doc.versions.length > 1"> · {{ doc.versions.length }}</template></UiButton>
+        <template v-if="editor">
+          <UiButton v-if="latest" icon="refresh" :loading="reextracting" :title="recordedNoOutput ? 'Recorded demo run: only the demo files have recorded output' : 'Run extraction again; new candidates go to review'" @click="reextract">Re-extract</UiButton>
+          <UiButton v-if="doc.origin === 'written'" icon="review" :to="`/write?doc=${doc.latest.id}`">Edit</UiButton>
+          <UiButton v-if="!doc.cover" icon="image" @click="generator?.open()">Generate cover</UiButton>
+        </template>
       </template>
     </UiPageHeader>
     <ImageGenerator v-if="canEdit(me)" :id="doc.id" ref="generator" type="document" @changed="refresh" />
@@ -118,6 +155,10 @@ const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day:
       <UiIcon name="file" :size="16" />
       <span>You’re reading v{{ doc.version }}. The latest is v{{ doc.latest.version }}; new facts and notes go there. <NuxtLink :to="`/documents/${doc.latest.id}`">Open v{{ doc.latest.version }}</NuxtLink></span>
     </p>
+    <p v-if="reextracted" class="notice gap" :class="reextracted.tone" :role="reextracted.tone === 'bad' ? 'alert' : 'status'">
+      <UiIcon :name="reextracted.tone === 'bad' ? 'conflicts' : 'refresh'" :size="16" />
+      <span>{{ reextracted.text }} <NuxtLink v-if="reextracted.review" to="/review">Open review</NuxtLink></span>
+    </p>
     <p v-if="added" class="notice info gap" role="status">
       <UiIcon name="check" :size="16" />
       <span>
@@ -130,8 +171,11 @@ const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day:
 
     <div class="layout">
       <UiPanel class="doc">
+        <ReaderTools :content="doc.content" :passages="doc.passages" :target="readerBox" />
         <p v-if="annotate" class="small faint hint"><UiIcon name="canon" :size="14" />Select words to add a fact or a note. <span class="hide-sm">Then press <kbd>F</kbd> or <kbd>N</kbd>.</span></p>
-        <PassageReader :doc="doc" :active="active" :quote="activeQuote" :annotate="annotate" :notes="doc.notes" @saved="onSaved" @notes="showNotes" />
+        <div ref="readerBox">
+          <PassageReader :doc="doc" :active="active" :quote="activeQuote" :annotate="annotate" :notes="doc.notes" @saved="onSaved" @notes="showNotes" />
+        </div>
       </UiPanel>
 
       <UiPanel as="aside" class="side">
@@ -174,6 +218,7 @@ const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day:
 <style scoped>
 .crumbs { display: flex; gap: var(--s-2); align-items: center; color: var(--muted); margin-bottom: var(--s-2); }
 .crumbs a { color: var(--muted); }
+.version-pick { width: auto; min-height: 26px; padding: 1px 28px 1px 8px; font-size: var(--text-xs); font-weight: 600; background-position: right 8px center; }
 .meta { display: inline-flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
 .gap { margin-bottom: var(--s-4); }
 .gap svg { flex: none; margin-top: 2px; }

@@ -3,7 +3,7 @@ import { mkdirSync, rmSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-export const SCHEMA_VERSION = 10
+export const SCHEMA_VERSION = 12
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -36,11 +36,24 @@ create table if not exists api_tokens (
 
 -- Content. Every row belongs to one project; routes only ever read and write the caller's current project.
 -- origin: import (an uploaded file) | written (written in the app; each save is a new read-only version). created_by: who saved it.
+-- One row per version. filename: the document's key, shared by its versions and unique per document in the project. name: the
+-- file's own name; an upload is the next version of the document with that name in the folder it lands in (see importer.ts).
 create table if not exists documents (
-  id text primary key, title text not null, filename text not null, kind text not null,
+  id text primary key, title text not null, filename text not null, name text not null, kind text not null,
   sha256 text not null, version integer not null, content text not null, imported_at text not null,
-  project_id text not null references projects(id), origin text not null default 'import', created_by text, unique (project_id, sha256)
+  project_id text not null references projects(id), origin text not null default 'import', created_by text, folder_id text,
+  unique (project_id, sha256)
 );
+-- Library organisation. Editorial labels on a document (by filename, so every version shares them); never part of its text
+-- or hash. title, kind and folder_id live on every version row of a filename and change together; a new version inherits them.
+-- Folders nest at most two levels (a folder's parent has no parent). color: a design-token name (accent | good | warn | bad | pencil).
+create table if not exists folders (
+  id text primary key, name text not null, parent_id text, created_by text not null, created_at text not null, project_id text not null
+);
+create table if not exists tags (
+  id text primary key, name text not null, color text not null, created_by text not null, created_at text not null, project_id text not null
+);
+create table if not exists document_tags (project_id text not null, filename text not null, tag_id text not null, primary key (project_id, filename, tag_id));
 -- Unsaved writing, private to its author. filename: the written document it edits (null for a new one). Saving turns it into
 -- a document version and deletes the draft.
 create table if not exists drafts (
@@ -191,7 +204,7 @@ export function audit(eventType: string, targetType: string, targetId: string, d
 // the caller appends a project.reset event, and events before it whose target was cleared read as removed (listAudit).
 export function resetData() {
   tx(() => {
-    for (const t of ['notes', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['document_tags', 'tags', 'folders', 'notes', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })
@@ -218,13 +231,15 @@ export interface Fact {
 }
 
 export interface DocumentRow {
-  id: string, title: string, filename: string, kind: string, sha256: string, version: number, content: string, imported_at: string
-  origin: string, created_by: string | null
+  id: string, title: string, filename: string, name: string, kind: string, sha256: string, version: number, content: string, imported_at: string
+  origin: string, created_by: string | null, folder_id: string | null
 }
 export interface PassageRow { id: string, document_id: string, ordinal: number, start_line: number, end_line: number, text: string }
 export interface EvidenceRow {
+  // document_filename: the file's own name; document_folder: the folder it is in now (null: the Library root). document_key: the
+  // document's identity (documents.filename), for matching only; never shown, since it can carry an older folder.
   id: string, passage_id: string | null, quote: string, verified: number, support: string, document_id: string, document_filename: string
-  document_title: string, document_kind: string, document_version: number, latest_version: number, start_line: number | null, end_line: number | null
+  document_key: string, document_folder: string | null, document_title: string, document_kind: string, document_version: number, latest_version: number, start_line: number | null, end_line: number | null
 }
 export interface ConflictRow {
   id: string, left_fact_id: string, right_fact_id: string, rule: string, origin: string, model_id: string | null, rationale: string
@@ -271,12 +286,19 @@ export function listFacts(where = '1 = 1', ...params: (string | number)[]) {
       (select name from api_tokens t where t.id = f.proposed_by_token) agent_name, (select name from users u where u.id = f.proposed_by_user) proposed_by_name from facts f
     where f.project_id = ? and (${where}) order by f.rowid`).all(pid(), ...params) as unknown as (Fact & { decided_by_name: string | null, created_by_name: string | null, agent_name: string | null, proposed_by_name: string | null })[]
   const ev = d.prepare(`
-    select e.id, e.passage_id, e.quote, e.verified, e.support, e.document_id, doc.filename document_filename,
+    select e.id, e.passage_id, e.quote, e.verified, e.support, e.document_id, doc.name document_filename, doc.filename document_key, doc.folder_id,
       doc.title document_title, doc.kind document_kind, doc.version document_version, p.start_line, p.end_line,
       (select max(d2.version) from documents d2 where d2.filename = doc.filename and d2.project_id = doc.project_id) latest_version
     from evidence e join documents doc on doc.id = e.document_id left join passages p on p.id = e.passage_id
     where e.fact_id = ? order by e.rowid`)
-  return facts.map(f => ({ ...f, evidence: ev.all(f.id) as unknown as EvidenceRow[] }))
+  const folders = new Map<string, string | null>()
+  const folderOf = (id: string | null) => {
+    if (!id) return null
+    if (!folders.has(id)) folders.set(id, folderPath(id))
+    return folders.get(id)!
+  }
+  return facts.map(f => ({ ...f, evidence: (ev.all(f.id) as unknown as (EvidenceRow & { folder_id: string | null })[])
+    .map(({ folder_id, ...e }) => ({ ...e, document_folder: folderOf(folder_id) }) as EvidenceRow) }))
 }
 
 export const normEntity = (s: string | null | undefined) => s?.trim().toLowerCase() || null

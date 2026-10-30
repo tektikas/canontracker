@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
   if (!filename) {
     // No extension, so a written document never shares a name (and a version line) with an uploaded .md/.txt file.
     const slug = title.toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'document'
-    const taken = new Set((db.prepare('select distinct filename from documents where project_id = ?').all(pid()) as { filename: string }[]).map(r => r.filename))
+    const taken = new Set((db.prepare('select filename n from documents where project_id = ? union select name from documents where project_id = ?').all(pid(), pid()) as { n: string }[]).map(r => r.n))
     filename = slug
     for (let n = 2; taken.has(filename); n++) filename = `${slug}-${n}`
   }

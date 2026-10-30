@@ -25,7 +25,7 @@ onBeforeUnmount(() => desktopMq?.removeEventListener('change', closeOnDesktop))
 
 interface NavLink { to: string, label: string, icon: IconName, count?: number, tone?: 'accent' | 'bad' }
 const groups = computed<{ label?: string, links: NavLink[] }[]>(() => [
-  { links: [{ to: '/', label: 'Home', icon: 'home' }] },
+  { links: [{ to: '/', label: 'Home', icon: 'home' }, { to: '/library', label: 'Library', icon: 'library', count: stats.value?.documents || undefined }] },
   {
     label: 'Workflow',
     links: [

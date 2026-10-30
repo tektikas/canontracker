@@ -13,6 +13,8 @@ const clip = (v: unknown, n = 90) => {
 const q = (v: unknown) => (v ? `“${clip(v)}”` : '')
 const identity = (d: Record<string, any>) => (d.identity ?? []).map((i: any) => `${i.from} saved as ${i.to} (merged page)`).join(', ')
 const SAMPLE_NAME: Record<string, string> = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample' }
+// Audit details carry the file's own name and the folder it was in then (null: the Library root), never the internal key.
+const inFolder = (d: Record<string, any>) => (d.folder ? ` in ${d.folder}` : '')
 const because = (d: Record<string, any>) => (d.rationale ? `Reason: ${clip(d.rationale, 140)}` : '')
 
 // One plain sentence per event type; unknown types fall back to the raw event name.
@@ -20,16 +22,18 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
   const d = e.detail
   const who = e.actor_name
   switch (e.event_type) {
-    case 'document.imported': return [`${who} imported ${d.filename}`, `${d.passages} passages, read-only`]
-    case 'document.version_added': return [`${who} imported version ${d.version} of ${d.filename}`, `${d.passages} passages`]
+    case 'document.imported': return [`${who} imported ${d.filename}${inFolder(d)}`, `${d.passages} passages, read-only`]
+    case 'document.version_added': return [`${who} imported version ${d.version} of ${d.filename}${inFolder(d)}`, `${d.passages} passages`]
     case 'document.written': return [`${who} wrote ${d.title ?? d.filename} in Story Bible`, `${d.passages} passages, read-only once saved`]
     case 'document.version_written': return [`${who} saved version ${d.version} of ${d.title ?? d.filename}`, `${d.passages} passages · earlier versions are kept`]
-    case 'citation.stale': return [`${d.filename} v${d.version} makes ${d.fact_ids?.length ?? 0} citation(s) stale`, 'Re-check the facts that cite it']
+    case 'citation.stale': return [`${d.filename}${inFolder(d)} v${d.version} makes ${d.fact_ids?.length ?? 0} citation(s) stale`, 'Re-check the facts that cite it']
     case 'candidate.created':
       if (d.via === 'mcp') return [`Agent “${d.token_name}” proposed a candidate for ${who}`, 'Quote found in source · waiting for a human decision']
       return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
     case 'candidate.accepted': return [`${who} accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
     case 'candidate.corrected_and_accepted': return [`${who} corrected and accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
+    case 'candidate.evidence_moved': return [`A pending candidate now cites ${d.filename}${inFolder(d)} v${d.to?.version}${d.to?.line ? `, line ${d.to.line}` : ''}`,
+      `Its quote appears exactly once in the new version (was v${d.from?.version}${d.from?.line ? `, line ${d.from.line}` : ''}): ${q(d.quote)} · still waiting for a human decision`]
     case 'candidate.accept_refused': return [`${who} tried to accept a candidate; it was refused`, 'Quote not found verbatim in the source']
     case 'fact.authored': return [d.to === 'canon' ? `${who} added a fact to canon: ${q(d.statement)}` : `${who} sent a fact to review: ${q(d.statement)}`,
       [`From the source: ${q(d.quote)}`, d.to === 'canon' ? 'Added by hand, a person’s decision' : 'Waiting for a human decision', identity(d)].filter(Boolean).join(' · ')]
@@ -76,13 +80,37 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'image.applied': return [`${who} set an image as ${d.name}’s ${d.as ?? 'image'}`, d.replaced ? 'Replaced the previous one' : '']
     case 'image.discarded': return [`${who} deleted a generated image${d.name ? ` of ${d.name}` : ''}`, `Prompt was ${q(d.prompt)}`]
     case 'image.cover_removed': return [`${who} removed ${d.name ? `${d.name}’s` : 'a document’s'} cover`, 'The image stays in its history']
-    case 'job.failed': return [`Extraction failed for ${d.filename ?? 'a document'}`, clip(d.error, 140)]
+    case 'folder.created': return [`${who} created the folder ${d.parent ? `${d.parent} / ` : ''}${d.name}`, 'Library label · sources unchanged']
+    case 'folder.renamed': return [`${who} renamed the folder ${d.from} to ${d.to}`, 'Library label · sources unchanged']
+    case 'folder.deleted': return [`${who} deleted the folder ${d.name}`, `${d.documents ? `${d.documents} document${d.documents === 1 ? '' : 's'} moved to ${d.to ?? 'the Library root'}` : 'It was empty'}${d.subfolders ? ` · ${d.subfolders} subfolder${d.subfolders === 1 ? '' : 's'} moved up` : ''} · nothing deleted`]
+    case 'tag.created': return [`${who} created the tag “${d.name}”`, 'Library label · sources unchanged']
+    case 'tag.updated': return [d.from?.name !== d.to?.name ? `${who} renamed the tag “${d.from?.name}” to “${d.to?.name}”` : `${who} recoloured the tag “${d.to?.name}”`, 'Library label · sources unchanged']
+    case 'tag.deleted': return [`${who} deleted the tag “${d.name}”`, d.documents ? `Removed from ${d.documents} document${d.documents === 1 ? '' : 's'} · nothing deleted` : 'It was on no documents']
+    case 'document.organised': {
+      const docs: { title: string }[] = d.documents ?? []
+      const what = docs.length === 1 ? docs[0]!.title : `${docs.length} documents`
+      const did = [
+        d.title ? `renamed ${q(d.title.from)} to ${q(d.title.to)}` : '',
+        d.folder ? (d.folder.to ? `moved ${what} to ${d.folder.to}` : `took ${what} out of ${d.folder.from?.filter(Boolean).join(', ') || 'their folder'}`) : '',
+        d.kind ? `set ${what} to ${d.kind.to}` : '',
+        d.tags_added?.length ? `tagged ${what} ${d.tags_added.map((t: string) => `“${t}”`).join(', ')}` : '',
+        d.tags_removed?.length ? `removed ${d.tags_removed.map((t: string) => `“${t}”`).join(', ')} from ${what}` : '',
+      ].filter(Boolean).join('; ')
+      return [`${who} ${did}`, `${docs.length > 1 ? `${clip(docs.map(x => x.title).join(', '), 120)} · ` : ''}Labels only: text and hash unchanged`]
+    }
+    case 'document.reextracted': return [`${who} re-extracted ${d.title ?? d.filename} v${d.version}`, [
+      `${d.created} new candidate${d.created === 1 ? '' : 's'} sent to review`,
+      Object.values(d.skipped ?? {}).length ? `${Object.values(d.skipped as Record<string, number>).reduce((a, b) => a + b, 0)} already in the project, skipped` : '',
+      isRecordedModel(d.model_id) ? 'Recorded demo run' : modelLabel(d.model_id),
+      'canon unchanged',
+    ].filter(Boolean).join(' · ')]
+    case 'job.failed': return [`${d.step === 're-extraction' ? 'Re-extraction' : 'Extraction'} failed for ${d.filename ?? 'a document'}`, clip(d.error, 140)]
     default: return [e.event_type, clip(d)]
   }
 }
 
 const TONE: Record<string, 'accent' | 'good' | 'bad' | 'warn' | 'pencil' | 'neutral'> = {
-  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad', entity: 'neutral', image: 'neutral', agent: 'bad', token: 'neutral', fact: 'accent', note: 'pencil',
+  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad', entity: 'neutral', image: 'neutral', agent: 'bad', token: 'neutral', fact: 'accent', note: 'pencil', folder: 'neutral', tag: 'neutral', library: 'neutral',
 }
 
 // Short ID plus a link where a page exists; pages have no per-item anchors, so links go to the list.
@@ -91,7 +119,7 @@ function target(e: { event_type: string, target_type: string, target_id: string,
   const short = e.target_id.replace(/^[a-z]+_/, '').slice(0, 6)
   if (e.target_removed) return { to: '', label: `${t.charAt(0).toUpperCase() + t.slice(1)} · ${short}… (removed by reset)` }
   const to = t === 'entity' ? (e.event_type === 'entity.deleted' ? '' : `/entities/${e.target_id}`) : t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' || e.event_type === 'conflict.scan' ? '/conflicts' : t === 'change' ? '/changes'
-    : t === 'fact' ? (e.event_type.startsWith('candidate.') ? '/review' : '/canon') : t === 'note' ? '/notes' : ''
+    : t === 'fact' ? (e.event_type.startsWith('candidate.') ? '/review' : '/canon') : t === 'note' ? '/notes' : ['folder', 'tag', 'library'].includes(t) ? '/library' : ''
   // Ids already carry a type prefix ("fact_d0e…", "trc_e02c…"): drop it and label the thing in words.
   const noun = e.target_id.startsWith('trc_') ? 'Model call' : t.charAt(0).toUpperCase() + t.slice(1)
   return { to: e.target_id.startsWith('trc_') ? '/metrics' : to, label: `${noun} · ${short}…` }
