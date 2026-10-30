@@ -8,6 +8,12 @@ const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
 const { data: docs, refresh: refreshDocs } = await useFetch('/api/documents')
 const { data: conflicts, refresh: refreshConflicts } = await useFetch('/api/conflicts')
 const { data: evals, refresh: refreshEvals } = await useFetch('/api/eval')
+const { data: drafts } = await useFetch('/api/drafts', { default: () => [] })
+const recordedMode = computed(() => stats.value?.model.mode === 'mock')
+// The first source (the list holds latest versions only): where adding facts by hand starts.
+const firstSource = computed(() => docs.value?.[0])
+const liveHelp = ref(false)
+const draftTime = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 // No scan record in the API: a scan in this session (set on /conflicts) counts until new sources arrive.
 const scanned = useState('conflicts-scanned', () => false)
 const busy = ref<'' | 'demo' | 'import'>('')
@@ -53,7 +59,7 @@ const steps = computed(() => {
   const runs = evals.value?.length ?? 0
   return [
     { key: 'import', label: 'Import', to: '#sources', value: s.documents, caption: plural(s.documents, 'source'), done: s.documents > 0 },
-    { key: 'review', label: 'Review', to: '/review', value: s.pending || null, caption: s.pending ? 'to review' : s.documents ? 'all reviewed' : 'nothing yet', done: s.documents > 0 && s.pending === 0 },
+    { key: 'review', label: 'Review', to: '/review', value: s.pending || null, caption: s.pending ? 'to review' : s.canon + s.rejected ? 'all reviewed' : s.documents ? 'none proposed' : 'nothing yet', done: s.documents > 0 && s.pending === 0 },
     { key: 'canon', label: 'Canon', to: '/canon', value: s.canon, caption: plural(s.canon, 'fact'), done: s.canon > 0 },
     { key: 'conflicts', label: 'Conflicts', to: '/conflicts', value: s.open_conflicts || null, caption: s.open_conflicts ? 'open' : found || scanned.value ? 'none open' : s.canon ? 'none open · scan to check' : 'nothing yet', done: s.canon > 0 && s.open_conflicts === 0 && (found > 0 || scanned.value), skip: s.canon > 0 && s.open_conflicts === 0 },
     { key: 'changes', label: 'Changes', to: '/changes', value: s.changes, caption: plural(s.changes, 'proposal'), done: s.changes > 0 },
@@ -67,14 +73,18 @@ const next = computed(() => {
   const s = stats.value
   switch (nextKey.value) {
     case 'import': return editor.value
-      ? { title: 'Add your lore and scenes', text: admin.value ? 'Load the demo set or import Markdown and text files. Sources are stored read-only.' : 'Import Markdown and text files. Sources are stored read-only.' }
+      ? { title: 'Add your lore and scenes', text: admin.value ? 'Load the demo set, import Markdown and text files, or write a document here. Sources are stored read-only.' : 'Import Markdown and text files, or write a document here. Sources are stored read-only.' }
       : { title: 'No sources yet', text: 'An editor on your team imports lore and scenes. You will see them here as soon as they do.' }
     case 'review': return editor.value
       ? { title: `Review ${s?.pending} ${plural(s?.pending ?? 0, 'candidate')}`, text: 'The model proposed these facts with a quote. Nothing becomes canon until you accept it.', to: '/review', action: 'Start review' }
       : { title: `${s?.pending} ${plural(s?.pending ?? 0, 'candidate')} waiting for review`, text: 'The model proposed these facts with a quote. An editor on your team decides which become canon.', to: '/review', action: 'See candidates' }
     case 'canon': return s?.rejected
-      ? { title: 'Nothing is canon yet', text: 'Every candidate was rejected. Import more sources or check the rejected list.', to: '/review', action: 'Open review' }
-      : { title: 'Nothing is canon yet', text: 'No candidates were extracted. Check the import results, or import more sources.', to: '#sources', action: 'Add sources' }
+      ? { title: 'Nothing is canon yet', text: 'Every candidate was rejected. Add facts by hand from your sources, or check the rejected list.', to: '/review', action: 'Open review' }
+      : !editor.value
+        ? { title: 'Nothing is canon yet', text: 'No facts have been added from these sources yet. An editor on your team adds them; you’ll see them here as soon as they do.', to: '#sources', action: 'See sources' }
+        : recordedMode.value
+          ? { title: 'Add facts by hand', text: 'No model proposed facts from your sources: the recorded run only covers the Broken Tide demo files. Open a source, select the words that say something, and add them as a fact. Or use the live model to propose facts for you.', manual: true }
+          : { title: 'Add facts by hand', text: 'The model found no facts it could quote from your sources. Open a source, select the words that say something, and add them as a fact.', manual: true }
     // only reachable with open conflicts: zero open is `done` or `skip`
     case 'conflicts': return editor.value
       ? { title: `Decide on ${s?.open_conflicts} possible ${plural(s?.open_conflicts ?? 0, 'conflict')}`, text: 'Each one is a candidate for you to confirm or dismiss. Deciding never edits canon.', to: '/conflicts', action: 'Resolve conflicts' }
@@ -95,7 +105,7 @@ const next = computed(() => {
       Canon holds only facts a person accepted, each tied to its exact passage.
     </template>
     <template v-else>
-      Import lore and scenes. The model proposes facts with a quote; only the facts you accept become canon.
+      Import or write lore and scenes. The model proposes facts with a quote, or you add them from the text yourself; only facts a person accepts become canon.
     </template>
   </UiPageHeader>
 
@@ -129,9 +139,18 @@ const next = computed(() => {
         <template v-if="nextKey === 'import'">
           <UiButton v-if="admin" variant="primary" icon="demo" :loading="busy === 'demo'" :disabled="!!busy" @click="loadDemo">Load demo set</UiButton>
           <UiButton v-if="editor" :variant="admin ? 'secondary' : 'primary'" icon="upload" :loading="busy === 'import'" :disabled="!!busy" @click="fileInput?.click()">Import files</UiButton>
+          <UiButton v-if="editor" icon="review" to="/write">Write a document</UiButton>
+        </template>
+        <template v-else-if="'manual' in next">
+          <UiButton v-if="firstSource" variant="primary" icon="canon" :to="`/documents/${firstSource.id}`">Add facts by hand</UiButton>
+          <UiButton v-if="recordedMode" :aria-expanded="liveHelp" @click="liveHelp = !liveHelp">Use the live model</UiButton>
         </template>
         <UiButton v-else variant="primary" :to="next.to">{{ next.action }}<UiIcon name="arrow" :size="16" /></UiButton>
       </div>
+      <p v-if="liveHelp && 'manual' in next" class="live-help small">
+        The live model (Muse Spark via the Meta Model API) reads your own files and proposes facts, each with a quote, for you to review.
+        It is turned on where Story Bible is hosted, with the studio’s Meta Model API key. Once it’s on, import a file or save a document again and its candidates show up in Review.
+      </p>
     </div>
   </section>
 
@@ -154,8 +173,8 @@ const next = computed(() => {
                   <UiBadge v-else tone="bad">{{ r.error }}</UiBadge>
                   <div v-if="r.extraction_error" class="field-error">Extraction failed: {{ r.extraction_error }}</div>
                   <div v-else-if="r.status === 'imported' && r.candidates === 0" class="small muted">{{ stats?.model.mode === 'mock'
-                    ? 'No candidates: the recorded run only covers the Broken Tide demo files. Switch to a live model to extract from your own files.'
-                    : 'No candidates: the model found no facts it could quote from this file.' }}</div>
+                    ? 'No candidates: the recorded run only covers the Broken Tide demo files. Open the file to add facts by hand, or use the live model.'
+                    : 'No candidates: the model found no facts it could quote from this file. Open it to add facts by hand.' }}</div>
                 </td>
                 <td class="num">{{ r.passages ?? '—' }}</td>
                 <td class="num">
@@ -168,9 +187,20 @@ const next = computed(() => {
         </div>
       </UiPanel>
 
-      <UiPanel title="Sources" :description="docs?.length ? 'Read-only. Open one to see its passages and the canon cited from it.' : undefined" flush>
+      <UiPanel v-if="drafts.length" title="Your drafts" description="Not part of the story until you save them. Only you see these." flush>
+        <ul class="drafts">
+          <li v-for="d in drafts" :key="d.id">
+            <NuxtLink :to="`/write?draft=${d.id}`" class="doc-link">{{ d.title || 'Untitled' }}</NuxtLink>
+            <span class="small faint">{{ d.document_id ? 'Edits a saved document' : 'New document' }} · {{ draftTime(d.updated_at) }}</span>
+          </li>
+        </ul>
+      </UiPanel>
+
+      <UiPanel title="Sources" :description="docs?.length ? 'Read-only. Open one to see its passages, add facts and notes, and see the canon cited from it.' : undefined" flush>
+        <template v-if="editor && docs?.length" #actions><UiButton size="sm" icon="plus" to="/write">New document</UiButton></template>
         <UiEmptyState v-if="!docs?.length" icon="file" title="No sources yet">
-          {{ admin ? 'Load the demo set or import your own lore and scene files.' : editor ? 'Import your own lore and scene files.' : 'Nothing has been imported into this project yet.' }}
+          {{ admin ? 'Load the demo set, import your own lore and scene files, or write one here.' : editor ? 'Import your own lore and scene files, or write one here.' : 'Nothing has been imported into this project yet.' }}
+          <template v-if="editor" #actions><UiButton icon="plus" to="/write">New document</UiButton></template>
         </UiEmptyState>
         <div v-else class="table-wrap">
           <table>
@@ -178,7 +208,7 @@ const next = computed(() => {
             <tbody>
               <tr v-for="d in docs" :key="String(d.id)">
                 <td><NuxtLink :to="`/documents/${d.id}`" class="doc-link">{{ d.title }}</NuxtLink></td>
-                <td><UiBadge>{{ d.kind }}</UiBadge></td>
+                <td><UiBadge>{{ d.kind }}</UiBadge><span v-if="d.origin === 'written'" class="small faint written hide-sm" title="Written in Story Bible">written here</span></td>
                 <td class="num">v{{ d.version }}</td>
                 <td class="num hide-sm">{{ d.passages }}</td>
                 <td class="num">{{ d.canon_facts }}</td>
@@ -196,6 +226,11 @@ const next = computed(() => {
           <h3>Broken Tide demo</h3>
           <p>An original island story: 2 lore documents and 11 scenes. Loading it replaces everything in {{ projectName }}; other projects are not touched.</p>
           <UiButton icon="demo" :loading="busy === 'demo'" :disabled="!!busy" @click="loadDemo">Load demo set</UiButton>
+        </div>
+        <div class="source-option">
+          <h3>Write it here</h3>
+          <p>Write or paste a scene. Drafts save as you type; each save to the story is a new read-only version.</p>
+          <UiButton icon="review" to="/write">New document</UiButton>
         </div>
         <div class="source-option">
           <h3>Your files</h3>
@@ -250,6 +285,11 @@ const next = computed(() => {
 .source-option h3 { margin: 0; font-size: var(--text-base); }
 .source-option p { margin: 0; font-size: var(--text-sm); color: var(--muted); }
 .notice + .home-grid, .workflow + .notice { margin-top: var(--s-4); }
+.live-help { flex: 1 1 100%; margin: 0; padding: var(--s-3); border: 1px dashed var(--line-strong); border-radius: var(--r-md); color: var(--muted); max-width: 72ch; }
+.drafts { list-style: none; margin: 0; padding: 0; }
+.drafts li { display: flex; flex-wrap: wrap; gap: 2px var(--s-3); align-items: baseline; justify-content: space-between; padding: 10px var(--s-5); border-top: 1px solid var(--line); }
+.drafts li:first-child { border-top: 0; }
+.written { margin-left: 6px; white-space: nowrap; }
 
 @media (max-width: 1100px) {
   .home-grid { grid-template-columns: minmax(0, 1fr); }

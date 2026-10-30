@@ -44,6 +44,12 @@ const portraitForm = () => { const f = new FormData(); f.append('file', new Blob
 check('A uploads a portrait', (await a(`/api/entities/${entA.id}/portrait`, { method: 'POST', form: portraitForm() })).status, 200)
 check('A reads own portrait', (await a(`/api/entities/${entA.id}/portrait`)).status, 200)
 const entA2 = (await a('/api/entities', { method: 'POST', body: { name: 'Probe Keeper Dup', kind: 'character' } })).data
+// Authoring: A has a private draft and a note pinned to a passage.
+const draftA = (await a('/api/drafts', { method: 'POST', body: { title: 'A draft', content: 'Private words.' } })).data
+const docAFull = (await a(`/api/documents/${docA.id}`)).data
+const psgA = docAFull.passages.at(-1)
+const noteA = (await a('/api/notes', { method: 'POST', body: { document_id: docA.id, passage_id: psgA.id, quote: psgA.text.slice(0, 20), body: 'Probe note' } })).data
+assert.ok(draftA.id && noteA.id, 'A has a draft and a note')
 
 const b = await account('Bo')
 check('B with no project is refused content', (await b('/api/facts?status=pending')).status, 409)
@@ -57,6 +63,16 @@ check('B gets 404 on A’s portrait', (await b(`/api/entities/${entA.id}/portrai
 check('B gets 404 editing A’s entity', (await b(`/api/entities/${entA.id}`, { method: 'PATCH', body: { summary: 'x' } })).status, 404)
 check('B gets 404 merging into A’s entity', (await b(`/api/entities/${entA2.id}/merge`, { method: 'POST', body: { into: entA.id } })).status, 404)
 check('B sees none of A’s entities', (await b('/api/entities')).data.length, 0)
+check('B gets 404 reading A’s draft', (await b(`/api/drafts/${draftA.id}`)).status, 404)
+check('B gets 404 autosaving A’s draft', (await b(`/api/drafts/${draftA.id}`, { method: 'PUT', body: { content: 'x' } })).status, 404)
+check('B gets 404 saving A’s draft', (await b(`/api/drafts/${draftA.id}/save`, { method: 'POST' })).status, 404)
+check('B gets 404 deleting A’s draft', (await b(`/api/drafts/${draftA.id}`, { method: 'DELETE' })).status, 404)
+check('B gets 404 editing A’s document', (await b('/api/drafts', { method: 'POST', body: { document_id: docA.id } })).status, 404)
+check('B sees none of A’s drafts', (await b('/api/drafts')).data.length, 0)
+check('B gets 404 updating A’s note', (await b(`/api/notes/${noteA.id}`, { method: 'PATCH', body: { status: 'done' } })).status, 404)
+check('B gets 404 noting A’s document', (await b('/api/notes', { method: 'POST', body: { document_id: docA.id, passage_id: psgA.id, body: 'x' } })).status, 404)
+check('B gets 404 adding a fact from A’s document', (await b('/api/facts', { method: 'POST', body: { to: 'canon', document_id: docA.id, passage_id: psgA.id, quote: psgA.text.slice(0, 20), subject: 'X', predicate: 'is', statement: 'X.' } })).status, 404)
+check('B sees none of A’s notes', (await b('/api/notes')).data.length, 0)
 const projA = (await a('/api/me')).data.current.project.id
 check('B gets 404 switching into A’s project', (await b(`/api/projects/${projA}/switch`, { method: 'POST' })).status, 404)
 check('Signed-out caller gets 401', (await client()('/api/stats')).status, 401)
@@ -73,6 +89,13 @@ check('Viewer gets 403 on entity create', (await v('/api/entities', { method: 'P
 check('Viewer gets 403 on entity merge', (await v(`/api/entities/${entA2.id}/merge`, { method: 'POST', body: { into: entA.id } })).status, 403)
 check('Viewer gets 403 on portrait upload', (await v(`/api/entities/${entA.id}/portrait`, { method: 'POST', form: portraitForm() })).status, 403)
 check('Viewer gets 403 on entity delete', (await v(`/api/entities/${entA2.id}`, { method: 'DELETE' })).status, 403)
+check('Viewer can read notes', (await v('/api/notes')).status, 200)
+check('Viewer gets 403 writing a document', (await v('/api/drafts', { method: 'POST', body: { title: 'Nope', content: 'x' } })).status, 403)
+check('Viewer gets 403 on someone’s draft', (await v(`/api/drafts/${draftA.id}/save`, { method: 'POST' })).status, 403)
+check('Viewer gets 403 adding a fact', (await v('/api/facts', { method: 'POST', body: { to: 'canon', document_id: docA.id, passage_id: psgA.id, quote: psgA.text.slice(0, 20), subject: 'X', predicate: 'is', statement: 'X.' } })).status, 403)
+check('Viewer gets 403 sending a fact to review', (await v('/api/facts', { method: 'POST', body: { to: 'review', document_id: docA.id, passage_id: psgA.id, quote: psgA.text.slice(0, 20), subject: 'X', predicate: 'is', statement: 'X.' } })).status, 403)
+check('Viewer gets 403 adding a note', (await v('/api/notes', { method: 'POST', body: { document_id: docA.id, passage_id: psgA.id, body: 'x' } })).status, 403)
+check('Viewer gets 403 marking a note ready', (await v(`/api/notes/${noteA.id}`, { method: 'PATCH', body: { status: 'ready' } })).status, 403)
 check('Viewer gets 403 on impact re-run', (await v('/api/changes/chg_x/analyze', { method: 'POST' })).status, 403)
 check('Used invite link is refused', (await b(`/api/invites/${viewerLink.token}/accept`, { method: 'POST' })).status, 410)
 

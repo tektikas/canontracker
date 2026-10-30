@@ -14,3 +14,38 @@ export function factPhrase(f: Record<string, any>, entities: Iterable<string> = 
   }
   return [words.join(' '), f.object].filter(Boolean).join(' ')
 }
+
+// Predicates offered when a person adds a fact by hand. The first four are the ones conflict checks read.
+export const PREDICATES: { value: string, hint: string }[] = [
+  { value: 'located_at', hint: 'Where someone is at a story time. Checked for being in two places at once.' },
+  { value: 'travel_time', hint: 'Minutes to get from one place to another. Checked against movements.' },
+  { value: 'sibling_of', hint: 'A family tie.' },
+  { value: 'engaged_to', hint: 'A relationship that can end. Checked for use after it ended.' },
+  { value: 'rule', hint: 'A rule of the world. Checked against what characters do.' },
+  { value: 'is', hint: 'Who or what someone is.' },
+  { value: 'member_of', hint: 'Belongs to a group or faction.' },
+  { value: 'owns', hint: 'Has or carries something.' },
+  { value: 'kept_in', hint: 'Where an item is kept.' },
+]
+
+// A first guess at the fact's kind from its predicate; the person can change it.
+export function kindForPredicate(p: string) {
+  if (p === 'located_at') return 'event'
+  if (p === 'travel_time' || p === 'rule') return 'rule'
+  if (p === 'is') return 'character'
+  if (/_(of|to|with)$/.test(p)) return 'relationship'
+  return 'claim'
+}
+
+// "Arin" + located_at + "Harbor" + "D2 14:00" -> "Arin is at Harbor at D2 14:00." A draft the person edits.
+export function draftStatement(f: { subject: string, predicate: string, object?: string, value?: string, time_from?: string, time_to?: string }) {
+  if (!f.subject.trim() || !f.predicate.trim()) return ''
+  const p = f.predicate.trim().toLowerCase().replace(/\s+/g, '_')
+  const what = p === 'located_at' ? `is at ${f.object || '…'}`
+    : p === 'travel_time' ? `to ${f.object || '…'} takes ${f.value || '…'} minutes`
+    : p === 'is' ? `is ${f.object || '…'}`
+    : factPhrase({ predicate: p, object: f.object || null })
+  const when = f.time_from && f.time_to ? ` from ${f.time_from} to ${f.time_to}` : f.time_from ? ` at ${f.time_from}` : f.time_to ? ` until ${f.time_to}` : ''
+  const s = `${p === 'travel_time' ? 'The way from ' : ''}${f.subject.trim()} ${what}${when}`
+  return `${s[0]!.toUpperCase()}${s.slice(1)}.`
+}

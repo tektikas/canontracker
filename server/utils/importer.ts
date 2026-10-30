@@ -22,7 +22,18 @@ export function splitPassages(content: string) {
   return out.map((p, i) => ({ ordinal: i + 1, start_line: p.start, end_line: p.end, text: p.lines.join('\n') }))
 }
 
-export async function importDocument(filename: string, content: string) {
+// The one quote check: a quote is verified only if it appears verbatim in a passage. Blank never matches.
+// `prefer`: the passage the quote was selected in, checked first so a phrase that repeats is cited where it was picked.
+export function findQuotePassage<P extends { id: string, text: string }>(passages: P[], quote: string | null | undefined, prefer?: string | null) {
+  if (!quote?.trim()) return undefined
+  return [...passages.filter(p => p.id === prefer), ...passages].find(p => p.text.includes(quote))
+}
+
+export const DOCUMENT_KINDS = ['scene', 'lore', 'character', 'other'] as const
+
+// Uploads and documents written in the app take the same path: hash, version, passages, stale citations, extraction.
+// `written` carries what the writer chose; the audit says the text was written here, not imported.
+export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }) {
   const db = useDb()
   const projectId = pid()
   const sha256 = createHash('sha256').update(content).digest('hex')
@@ -31,17 +42,19 @@ export async function importDocument(filename: string, content: string) {
 
   const prev = db.prepare('select max(version) v from documents where project_id = ? and filename = ?').get(projectId, filename) as { v: number | null }
   const version = (prev.v ?? 0) + 1
-  const title = content.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? filename
-  const kind = /^S\d+/i.test(filename) ? 'scene' : 'lore'
+  const title = written?.title ?? content.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? filename
+  const kind = written?.kind ?? (/^S\d+/i.test(filename) ? 'scene' : 'lore')
   const documentId = newId('doc')
   const passages = splitPassages(content).map(p => ({ ...p, id: newId('psg') }))
   if (!passages.length) throw createError({ statusCode: 422, statusMessage: 'EMPTY_DOCUMENT', message: `${filename} has no text.` })
 
   tx(() => {
-    db.prepare('insert into documents values (?, ?, ?, ?, ?, ?, ?, ?, ?)').run(documentId, title, filename, kind, sha256, version, content, now(), projectId)
+    db.prepare(`insert into documents (id, title, filename, kind, sha256, version, content, imported_at, project_id, origin, created_by)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, title, filename, kind, sha256, version, content, now(), projectId, written ? 'written' : 'import', access().user.id)
     const ins = db.prepare('insert into passages values (?, ?, ?, ?, ?, ?, ?)')
     for (const p of passages) ins.run(p.id, documentId, p.ordinal, p.start_line, p.end_line, p.text, projectId)
-    audit(version > 1 ? 'document.version_added' : 'document.imported', 'document', documentId, { filename, version, sha256, passages: passages.length })
+    const event = written ? (version > 1 ? 'document.version_written' : 'document.written') : (version > 1 ? 'document.version_added' : 'document.imported')
+    audit(event, 'document', documentId, { filename, title, kind, version, sha256, passages: passages.length })
     // Old citations are not silently moved to the new version; they are flagged stale until someone reviews them.
     if (version > 1) {
       const stale = db.prepare(`select distinct f.id from facts f join evidence e on e.fact_id = f.id join documents d on d.id = e.document_id
@@ -59,7 +72,7 @@ export async function importDocument(filename: string, content: string) {
     const model = modelInfo()
     tx(() => {
       for (const c of drafts) {
-        const passage = passages.find(p => c.quote && p.text.includes(c.quote))
+        const passage = findQuotePassage(passages, c.quote)
         const tFrom = parseStoryTime(c.time?.from)
         const tTo = parseStoryTime(c.time?.to)
         const precision = c.time ? (c.time.precision ?? 'exact') : null

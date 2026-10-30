@@ -20,12 +20,14 @@ export default defineEventHandler((event) => {
     if (!docs.has(p.document_id)) docs.set(p.document_id, { id: p.document_id, title: p.title, filename: p.filename, kind: p.kind, version: p.version, passages: [] })
     docs.get(p.document_id)!.passages.push({ id: p.id, start_line: p.start_line, end_line: p.end_line, text: p.text, cited: cited.has(p.id) })
   }
+  // Notes pinned to text that mentions this entity, matched by name at read time like appearances.
+  const notes = re ? listNotes().filter(n => (re.lastIndex = 0, re.test(n.passage_text))) : []
   const who = (id: string | null) => (id ? (d.prepare('select name from users where id = ?').get(id) as { name: string } | undefined)?.name ?? null : null)
   const project = d.prepare('select medium from projects where id = ?').get(pid()) as { medium: string }
   return {
     id: e.id, name: e.name, kind: e.kind, summary: e.summary, aliases: aliasesOf(e), fields: fieldsOf(e), notes: e.notes,
     analysis_name: analysisName(e), merged_from: mergedFrom(e), names,
     portrait: portraitUrl(e), origin: e.origin, created_at: e.created_at, created_by: who(e.created_by), updated_at: e.updated_at, updated_by: who(e.updated_by),
-    medium: mediumOf(project.medium), facts, pending, appearances: [...docs.values()],
+    medium: mediumOf(project.medium), facts, pending, appearances: [...docs.values()], text_notes: notes,
   }
 })

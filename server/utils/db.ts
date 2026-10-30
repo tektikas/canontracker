@@ -3,7 +3,7 @@ import { mkdirSync, rmSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-const SCHEMA_VERSION = 7
+const SCHEMA_VERSION = 8
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -29,21 +29,34 @@ create table if not exists projects (
 );
 
 -- Content. Every row belongs to one project; routes only ever read and write the caller's current project.
+-- origin: import (an uploaded file) | written (written in the app; each save is a new read-only version). created_by: who saved it.
 create table if not exists documents (
   id text primary key, title text not null, filename text not null, kind text not null,
   sha256 text not null, version integer not null, content text not null, imported_at text not null,
-  project_id text not null references projects(id), unique (project_id, sha256)
+  project_id text not null references projects(id), origin text not null default 'import', created_by text, unique (project_id, sha256)
+);
+-- Unsaved writing, private to its author. filename: the written document it edits (null for a new one). Saving turns it into
+-- a document version and deletes the draft.
+create table if not exists drafts (
+  id text primary key, filename text, title text not null default '', kind text not null default 'scene', content text not null default '',
+  user_id text not null, created_at text not null, updated_at text not null, project_id text not null
+);
+-- Editorial notes pinned to a passage. Never canon, never used by conflicts or impact. status: open | ready | done.
+create table if not exists notes (
+  id text primary key, document_id text not null, passage_id text not null, quote text not null, body text not null, status text not null,
+  created_by text not null, created_at text not null, updated_by text, updated_at text not null, project_id text not null
 );
 create table if not exists passages (
   id text primary key, document_id text not null references documents(id), ordinal integer not null,
   start_line integer not null, end_line integer not null, text text not null, project_id text not null
 );
 -- candidates and canon share this table; status: pending | canon | rejected | superseded
+-- origin: model:<prompt> (extracted) | human (a person added it from a passage they selected; created_by) | change:<id>
 create table if not exists facts (
   id text primary key, kind text not null, subject text not null, predicate text not null, object text, value text,
   statement text not null, t_from integer, t_to integer, time_label text, precision text,
   status text not null, confidence real, origin text not null, model_id text, version integer not null default 1,
-  supersedes_id text, created_at text not null, decided_at text, rationale text, decided_by text, project_id text not null
+  supersedes_id text, created_at text not null, decided_at text, rationale text, decided_by text, project_id text not null, created_by text
 );
 create table if not exists evidence (
   id text primary key, fact_id text not null references facts(id), document_id text not null,
@@ -101,6 +114,7 @@ create index if not exists passages_document on passages(document_id);
 create index if not exists entities_project on entities(project_id);
 create index if not exists audit_project on audit_events(project_id);
 create index if not exists memberships_user on memberships(user_id);
+create index if not exists notes_project on notes(project_id, status);
 `
 
 let db: DatabaseSync | undefined
@@ -160,7 +174,7 @@ export function audit(eventType: string, targetType: string, targetId: string, d
 // Empties the current project only. Other projects and studios are untouched.
 export function resetData() {
   tx(() => {
-    for (const t of ['model_calls', 'eval_runs', 'audit_events', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['notes', 'drafts', 'model_calls', 'eval_runs', 'audit_events', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })
@@ -171,9 +185,13 @@ export interface Fact {
   t_from: number | null, t_to: number | null, time_label: string | null, precision: string | null
   status: string, confidence: number | null, origin: string, model_id: string | null, version: number
   supersedes_id: string | null, created_at: string, decided_at: string | null, rationale: string | null, decided_by: string | null, project_id: string
+  created_by: string | null
 }
 
-export interface DocumentRow { id: string, title: string, filename: string, kind: string, sha256: string, version: number, content: string, imported_at: string }
+export interface DocumentRow {
+  id: string, title: string, filename: string, kind: string, sha256: string, version: number, content: string, imported_at: string
+  origin: string, created_by: string | null
+}
 export interface PassageRow { id: string, document_id: string, ordinal: number, start_line: number, end_line: number, text: string }
 export interface EvidenceRow {
   id: string, passage_id: string | null, quote: string, verified: number, support: string, document_id: string, document_filename: string
@@ -206,8 +224,9 @@ export function getFact(id: string) {
 // latest_version > document_version means the citation points at an older version of the source (stale).
 export function listFacts(where = '1 = 1', ...params: (string | number)[]) {
   const d = useDb()
-  const facts = d.prepare(`select f.*, (select name from users u where u.id = f.decided_by) decided_by_name from facts f
-    where f.project_id = ? and (${where}) order by f.rowid`).all(pid(), ...params) as unknown as (Fact & { decided_by_name: string | null })[]
+  const facts = d.prepare(`select f.*, (select name from users u where u.id = f.decided_by) decided_by_name,
+    (select name from users u where u.id = f.created_by) created_by_name from facts f
+    where f.project_id = ? and (${where}) order by f.rowid`).all(pid(), ...params) as unknown as (Fact & { decided_by_name: string | null, created_by_name: string | null })[]
   const ev = d.prepare(`
     select e.id, e.passage_id, e.quote, e.verified, e.support, e.document_id, doc.filename document_filename,
       doc.title document_title, doc.kind document_kind, doc.version document_version, p.start_line, p.end_line,

@@ -1,0 +1,65 @@
+// A person adds a fact from text they selected in a source. The quote must appear verbatim in that passage (the same check
+// extraction uses). to = canon: the person creating and confirming it is the human decision (audited as fact.authored);
+// to = review: it waits in the review queue like any candidate.
+const KINDS = ['character', 'location', 'relationship', 'event', 'rule', 'claim']
+const fail = (statusCode: number, statusMessage: string, message: string) => createError({ statusCode, statusMessage, message })
+
+export default defineEventHandler(async (event) => {
+  const b = (await readBody<Record<string, unknown>>(event)) ?? {}
+  const str = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '')
+  const to = b.to === 'review' ? 'review' : b.to === 'canon' ? 'canon' : null
+  if (!to) throw fail(400, 'BAD_TARGET', 'to must be canon or review.')
+  const db = useDb()
+
+  const doc = db.prepare('select * from documents where id = ? and project_id = ?').get(String(b.document_id ?? ''), pid()) as unknown as DocumentRow | undefined
+  if (!doc) throw fail(404, 'NOT_FOUND', 'Document not found.')
+  const latest = latestDocument(doc.filename)!
+  if (latest.id !== doc.id) throw fail(409, 'OLD_VERSION', `This is v${doc.version}; cite the latest version (v${latest.version}) instead.`)
+  const quote = typeof b.quote === 'string' ? b.quote.trim() : ''
+  if (!quote) throw fail(422, 'QUOTE_REQUIRED', 'Select the words in the source that say this.')
+  const passages = db.prepare('select * from passages where document_id = ? order by ordinal').all(doc.id) as unknown as PassageRow[]
+  const passage = findQuotePassage(passages, quote, typeof b.passage_id === 'string' ? b.passage_id : null)
+  if (!passage) throw fail(422, 'UNVERIFIED_EVIDENCE', 'The quote was not found verbatim in the source, so it can’t back a fact.')
+
+  const kind = str(b.kind) || 'claim'
+  if (!KINDS.includes(kind)) throw fail(400, 'BAD_KIND', `kind must be one of ${KINDS.join(', ')}.`)
+  const names = { subject: str(b.subject).slice(0, 80), object: str(b.object).slice(0, 80) || null }
+  const predicate = str(b.predicate).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60)
+  const statement = str(b.statement).slice(0, 500)
+  if (!names.subject) throw fail(400, 'SUBJECT_REQUIRED', 'Say who or what the fact is about.')
+  if (!predicate) throw fail(400, 'PREDICATE_REQUIRED', 'Say how they relate, for example located_at.')
+  if (!statement) throw fail(400, 'STATEMENT_REQUIRED', 'Write the fact as one sentence.')
+  const value = str(b.value) || null
+  if (predicate === 'travel_time' && (!value || !Number.isFinite(Number(value)))) throw fail(400, 'VALUE_REQUIRED', 'Travel time needs the minutes as a number.')
+
+  const time = (v: unknown, which: string) => {
+    const s = str(v)
+    if (!s) return null
+    const t = parseStoryTime(s)
+    if (t == null) throw fail(400, 'BAD_TIME', `${which} must be story time like D2 14:30.`)
+    return t
+  }
+  const tFrom = time(b.time_from, 'From')
+  const tTo = time(b.time_to, 'To')
+  if (tFrom != null && tTo != null && tTo < tFrom) throw fail(400, 'BAD_TIME', 'To must be after From.')
+  const precision = tFrom == null && tTo == null ? null : b.precision === 'approximate' ? 'approximate' : 'exact'
+
+  // Canon uses the name a merge already decided on, the same as accepting a candidate does.
+  const identity = to === 'canon' ? identityOf(names) : []
+  for (const i of identity) names[i.role] = i.to
+  const user = access().user.id
+  const id = newId('fact')
+  tx(() => {
+    db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision, status, confidence,
+      origin, model_id, created_at, decided_at, decided_by, created_by, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, 'human', null, ?, ?, ?, ?, ?)`)
+      .run(id, kind, names.subject, predicate, names.object, value, statement, tFrom, tTo, timeLabel(tFrom, tTo, precision), precision,
+        to === 'canon' ? 'canon' : 'pending', now(), to === 'canon' ? now() : null, to === 'canon' ? user : null, user, pid())
+    db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, 1, ?)')
+      .run(newId('ev'), id, doc.id, passage.id, quote, pid())
+    audit('fact.authored', 'fact', id, {
+      to, statement, subject: names.subject, predicate, object: names.object, document_id: doc.id, passage_id: passage.id, quote,
+      ...(identity.length && { identity: identity.map(i => ({ role: i.role, from: i.from, to: i.to, merge_audit_id: i.audit_id })) }),
+    })
+  })
+  return { id, status: to === 'canon' ? 'canon' : 'pending', subject: names.subject, object: names.object }
+})
