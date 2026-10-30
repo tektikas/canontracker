@@ -196,6 +196,7 @@ const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day:
               </div>
               <div class="statement">{{ f.statement }}</div>
               <span v-if="f.origin === 'human'" class="small faint">Added by {{ f.created_by_name ?? 'a teammate' }}</span>
+              <span v-else-if="f.origin === 'sample'" class="small faint">Sample canon (preloaded)</span>
               <NuxtLink v-if="f.status === 'pending'" :to="`/review?fact=${f.id}`" class="small">Review this candidate →</NuxtLink>
             </li>
           </ul>

@@ -52,6 +52,8 @@ async function merge() {
   try {
     const { id } = await $fetch(`/api/entities/${props.entity.id}/merge`, { method: 'POST', body: { into: into.value } }) as { id: string }
     await refreshEntities()
+    // A merge can close conflicts and mark proposals stale: the sidebar counts follow at once.
+    refreshNuxtData('stats')
     await navigateTo({ path: `/entities/${id}`, query: { merged: props.entity.name } })
   } catch (e) {
     error.value = errorMessage(e)
@@ -110,7 +112,7 @@ async function merge() {
       </div>
       <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
       <div class="row">
-        <UiButton variant="primary" icon="merge" :disabled="!plan" :loading="busy" @click="merge">{{ target ? `Merge into ${target.name}` : 'Merge' }}</UiButton>
+        <UiButton :variant="doubt ? 'secondary' : 'primary'" :class="{ caution: doubt }" icon="merge" :disabled="!plan" :loading="busy" @click="merge">{{ target ? `Merge into ${target.name}` : 'Merge' }}</UiButton>
         <UiButton variant="ghost" @click="emit('close')">Cancel</UiButton>
       </div>
     </div>
@@ -125,6 +127,9 @@ async function merge() {
 .plan > ul { margin: 0; padding-left: 1.2em; display: grid; gap: 6px; font-size: var(--text-sm); }
 .warn-text { color: var(--warn); }
 .doubt { margin: 0; }
+/* After a warning the merge is still allowed, but it no longer looks like the obvious next click. */
+.btn.caution:not(:disabled) { background: var(--warn-soft); border-color: color-mix(in srgb, var(--warn) 55%, transparent); color: var(--warn); }
+.btn.caution:hover:not(:disabled) { border-color: var(--warn); color: var(--warn); }
 .doubt svg { flex: none; margin-top: 2px; }
 .moved summary { cursor: pointer; color: var(--muted); font-weight: 500; }
 .moved ul { list-style: none; margin: var(--s-2) 0 0; padding: 0; display: grid; gap: var(--s-2); }

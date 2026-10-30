@@ -12,6 +12,8 @@ const DEMO_EXAMPLES = [
 // The Broken Tide questions only fit a project holding the demo; elsewhere, ask about the project's own most-cited pages.
 const { data: docs } = await useFetch('/api/documents')
 const { data: entities } = await useEntityList()
+const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
+const fill = useFillAction()
 const examples = computed(() => {
   if (docs.value?.some(d => d.filename === 'lore-chord-stone.md')) return DEMO_EXAMPLES
   const cited = entities.value.filter(e => e.facts > 0).sort((a, b) => b.facts - a.facts)
@@ -48,7 +50,13 @@ const status = computed(() => result.value ? STATUS[result.value.status as keyof
 <template>
   <UiPageHeader title="Ask the canon" description="Answers come only from accepted canon and cite their sources. If the canon doesn't support an answer, the result is “unknown”." />
 
-  <UiPanel>
+  <UiPanel v-if="stats && !stats.canon && !result">
+    <UiEmptyState title="Nothing to ask yet" icon="ask">
+      Answers come only from accepted canon, and this project has none yet. Once facts are accepted, ask about who, where and when.
+      <template #actions><UiButton variant="primary" :icon="fill.icon" :to="fill.to">{{ fill.label }}</UiButton></template>
+    </UiEmptyState>
+  </UiPanel>
+  <UiPanel v-else>
     <form class="ask-form" @submit.prevent="ask()">
       <UiField label="Question">
         <div class="ask-input">

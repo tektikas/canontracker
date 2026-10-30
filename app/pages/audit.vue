@@ -12,6 +12,7 @@ const clip = (v: unknown, n = 90) => {
 }
 const q = (v: unknown) => (v ? `“${clip(v)}”` : '')
 const identity = (d: Record<string, any>) => (d.identity ?? []).map((i: any) => `${i.from} saved as ${i.to} (merged page)`).join(', ')
+const SAMPLE_NAME: Record<string, string> = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample' }
 const because = (d: Record<string, any>) => (d.rationale ? `Reason: ${clip(d.rationale, 140)}` : '')
 
 // One plain sentence per event type; unknown types fall back to the raw event name.
@@ -32,6 +33,9 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'candidate.accept_refused': return [`${who} tried to accept a candidate; it was refused`, 'Quote not found verbatim in the source']
     case 'fact.authored': return [d.to === 'canon' ? `${who} added a fact to canon: ${q(d.statement)}` : `${who} sent a fact to review: ${q(d.statement)}`,
       [`From the source: ${q(d.quote)}`, d.to === 'canon' ? 'Added by hand, a person’s decision' : 'Waiting for a human decision', identity(d)].filter(Boolean).join(' · ')]
+    case 'project.reset': return [`${who} cleared this project to load ${SAMPLE_NAME[d.set] ?? d.set}`, 'Sources, facts, conflicts and changes were removed; earlier events stay in the trail']
+    case 'sample.loaded': return [`${who} loaded ${d.name ?? SAMPLE_NAME[d.set] ?? d.set}: ${counted(d.documents ?? 0, 'document')}, ${d.facts?.length ? counted(d.facts.length, 'preloaded fact') : counted(d.candidates ?? 0, 'candidate')}`,
+      d.facts?.length ? 'Sample canon, preloaded with verified quotes; no person decided it' : d.candidates ? 'Candidates wait for a human decision' : '']
     case 'note.created': return [`${who} added a note: ${q(d.body)}`, d.quote ? `On ${q(d.quote)} · editorial, not canon` : 'Editorial, not canon']
     case 'note.updated': return [d.status ? `${who} marked a note ${d.status.to}` : `${who} edited a note`, [
       d.status ? `Was ${d.status.from}` : '', d.body ? `Now reads ${q(d.body.to)}` : '',
@@ -106,12 +110,13 @@ const TONE: Record<string, 'accent' | 'good' | 'bad' | 'warn' | 'pencil' | 'neut
 }
 
 // Short ID plus a link where a page exists; pages have no per-item anchors, so links go to the list.
-function target(e: { event_type: string, target_type: string, target_id: string }) {
+function target(e: { event_type: string, target_type: string, target_id: string, target_removed: boolean }) {
   const t = e.target_type
+  const short = e.target_id.replace(/^[a-z]+_/, '').slice(0, 6)
+  if (e.target_removed) return { to: '', label: `${t.charAt(0).toUpperCase() + t.slice(1)} · ${short}… (removed by reset)` }
   const to = t === 'entity' ? (e.event_type === 'entity.deleted' ? '' : `/entities/${e.target_id}`) : t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' || e.event_type === 'conflict.scan' ? '/conflicts' : t === 'change' ? '/changes'
     : t === 'fact' ? (e.event_type.startsWith('candidate.') ? '/review' : '/canon') : t === 'note' ? '/notes' : ['folder', 'tag', 'library'].includes(t) ? '/library' : ''
   // Ids already carry a type prefix ("fact_d0e…", "trc_e02c…"): drop it and label the thing in words.
-  const short = e.target_id.replace(/^[a-z]+_/, '').slice(0, 6)
   const noun = e.target_id.startsWith('trc_') ? 'Model call' : t.charAt(0).toUpperCase() + t.slice(1)
   return { to: e.target_id.startsWith('trc_') ? '/metrics' : to, label: `${noun} · ${short}…` }
 }

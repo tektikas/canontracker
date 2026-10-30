@@ -174,18 +174,6 @@ async function remove() {
     deleting.value = false
   }
 }
-// Tabs scroll sideways on narrow screens; a fade on the right says there are more.
-const tabScroller = ref<HTMLElement>()
-const moreTabs = ref(false)
-function tabOverflow() {
-  const el = tabScroller.value?.firstElementChild as HTMLElement | undefined
-  moreTabs.value = !!el && el.scrollLeft + el.clientWidth < el.scrollWidth - 2
-}
-onMounted(() => {
-  tabOverflow()
-  window.addEventListener('resize', tabOverflow)
-})
-onBeforeUnmount(() => window.removeEventListener('resize', tabOverflow))
 watch(() => route.params.id, () => {
   editing.value = ''
   panel.value = ''
@@ -331,9 +319,7 @@ const ago = (iso: string) => {
       </div>
     </UiPanel>
 
-    <div ref="tabScroller" class="tab-scroller" :class="{ more: moreTabs }" @scroll.capture="tabOverflow">
-      <UiTabs v-model="tab" :items="tabs" />
-    </div>
+    <UiTabs v-model="tab" :items="tabs" class="entity-tabs" />
 
     <!-- Story -->
     <div v-if="tab === 'story'" class="story-grid">
@@ -502,7 +488,7 @@ const ago = (iso: string) => {
 .gen-note p { margin: var(--s-2) 0 0; padding: var(--s-2) var(--s-3); border-left: 2px solid var(--line-strong); white-space: pre-line; color: var(--muted); overflow-wrap: anywhere; }
 .actions { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 .gap { margin-bottom: var(--s-5); }
-.details-row { display: grid; grid-template-columns: 1fr 180px; gap: var(--s-3); max-width: 640px; }
+.details-row { display: grid; grid-template-columns: 1fr 180px; gap: var(--s-3); max-width: 640px; align-items: start; }
 .aliases-edit { display: grid; gap: var(--s-2); max-width: 640px; }
 .aliases-edit .label { font-weight: 500; font-size: var(--text-sm); }
 .alias-input { flex: 1 1 220px; }
@@ -513,10 +499,7 @@ const ago = (iso: string) => {
 .danger-panel { border-color: color-mix(in srgb, var(--bad) 35%, var(--line)); }
 .panel-title { margin: 0; font-size: var(--text-md); }
 .danger-panel p { margin: 0; max-width: 64ch; }
-.tab-scroller { position: relative; margin-bottom: var(--s-5); }
-.tab-scroller .tabs { margin-bottom: 0; }
-.tab-scroller::after { content: ""; position: absolute; top: 0; right: 0; bottom: 1px; width: 48px; pointer-events: none; background: linear-gradient(to right, transparent, var(--canvas) 85%); opacity: 0; transition: opacity var(--dur-1) var(--ease); }
-.tab-scroller.more::after { opacity: 1; }
+.entity-tabs { margin-bottom: var(--s-5); }
 .story-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s-4); align-items: start; }
 .main-col { gap: var(--s-4); }
 .summary { margin: 0; font-size: var(--text-md); line-height: 1.6; max-width: 68ch; white-space: pre-line; }

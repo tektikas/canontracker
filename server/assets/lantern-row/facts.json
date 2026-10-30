@@ -1,0 +1,7 @@
+[
+  { "file": "lantern-row-guide.md", "kind": "character", "subject": "Ines", "predicate": "is", "statement": "Ines Calder is the master glassblower of Lantern Row.", "quote": "Ines Calder is the master glassblower of Lantern Row." },
+  { "file": "lantern-row-guide.md", "kind": "relationship", "subject": "Tobin", "predicate": "apprentice_of", "object": "Ines", "statement": "Tobin Reed is Ines's apprentice.", "quote": "Her apprentice, Tobin Reed, is fifteen" },
+  { "file": "lantern-row-guide.md", "kind": "location", "subject": "Bell Tower", "predicate": "located_at", "object": "Lantern Row", "statement": "The Bell Tower stands at the north end of Lantern Row.", "quote": "The Bell Tower stands at the north end of the Row." },
+  { "file": "S1-the-curfew.md", "kind": "event", "subject": "Ines", "predicate": "located_at", "object": "Glassworks", "statement": "Ines works at the Glassworks from 20:00 to 21:00 on Day 1.", "quote": "Ines works the last furnace at the Glassworks from 20:00 to 21:00 on Day 1", "time_from": "D1 20:00", "time_to": "D1 21:00" },
+  { "file": "S2-the-bell.md", "kind": "event", "subject": "Ines", "predicate": "located_at", "object": "Bell Tower", "statement": "Ines is at the Bell Tower at 20:30 on Day 1.", "quote": "At 20:30 on Day 1, Ines climbs the Bell Tower", "time_from": "D1 20:30" }
+]

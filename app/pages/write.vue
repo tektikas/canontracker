@@ -397,7 +397,7 @@ const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: 
 .body-input.body-input:focus-visible { outline: none; }
 .syntax { margin: calc(-1 * var(--s-2)) 0 0; }
 .bar {
-  position: sticky; bottom: 0; z-index: 5; display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; justify-content: space-between;
+  position: sticky; bottom: var(--bottom-nav-h, 0px); z-index: 5; display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; justify-content: space-between;
   padding: var(--s-3) 0; background: var(--canvas); border-top: 1px solid var(--line);
 }
 .save-error { flex: 1 1 100%; margin: 0; }

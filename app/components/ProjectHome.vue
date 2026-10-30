@@ -12,6 +12,8 @@ const { data: drafts } = await useFetch('/api/drafts', { default: () => [] })
 const recordedMode = computed(() => stats.value?.model.mode === 'mock')
 // The first source (the list holds latest versions only): where adding facts by hand starts.
 const firstSource = computed(() => docs.value?.[0])
+// The guided tour only fits the Broken Tide demo.
+const demoLoaded = computed(() => !!docs.value?.some(d => d.filename === 'lore-chord-stone.md'))
 const liveHelp = ref(false)
 const draftTime = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 // No scan record in the API: a scan in this session (set on /conflicts) counts until new sources arrive.
@@ -37,7 +39,7 @@ async function run(kind: 'demo', fn: () => Promise<{ results: Record<string, any
 }
 
 function loadDemo() {
-  if (stats.value?.documents && !confirm(`Replace everything in ${projectName.value} with the Broken Tide demo set? Other projects are not touched.`)) return
+  if (stats.value?.documents && !confirm(`Replace everything in ${projectName.value} with the Broken Tide demo set? The audit trail keeps its history; other projects are not touched.`)) return
   run('demo', () => $fetch('/api/demo/load', { method: 'POST' }))
 }
 
@@ -124,7 +126,9 @@ const next = computed(() => {
     <span><b>Recorded run.</b> Candidates and model checks are replayed from a recorded extraction, not a live model call.</span>
   </p>
 
-  <section class="panel flush workflow" aria-labelledby="workflow-title">
+  <GettingStarted v-if="editor" :demo="demoLoaded" />
+
+  <section id="workflow" class="panel flush workflow" aria-labelledby="workflow-title">
     <h2 id="workflow-title" class="sr-only">Workflow</h2>
     <ol class="rail">
       <li v-for="(s, i) in steps" :key="s.key" class="rail-step" :class="{ 'is-done': s.done, 'is-next': s.key === nextKey }">
@@ -168,7 +172,7 @@ const next = computed(() => {
   <p v-if="busy" class="notice info" role="status">Loading the demo set and extracting candidates…</p>
   <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
 
-  <div class="home-grid" :class="{ solo: !editor }">
+  <div class="home-grid" :class="{ solo: !editor || nextKey === 'import' }">
     <div class="stack" style="gap: var(--s-5)">
       <LibraryUpload v-if="editor" ref="uploader" @uploaded="uploaded" />
       <UiPanel v-if="results.length" title="Import results" flush>
@@ -186,7 +190,8 @@ const next = computed(() => {
                   <div v-if="r.extraction_error" class="field-error">Extraction failed: {{ r.extraction_error }}</div>
                   <div v-else-if="r.status === 'imported' && r.candidates === 0" class="small muted">{{ stats?.model.mode === 'mock'
                     ? 'No candidates: the recorded run only covers the Broken Tide demo files. Open the file to add facts by hand, or use the live model.'
-                    : 'No candidates: the model found no facts it could quote from this file. Open it to add facts by hand.' }}</div>
+                    : stats?.model.mode === 'meta' ? 'No candidates: the model found no facts it could quote from this file. Open it to add facts by hand.'
+                      : 'No candidates were proposed from this file. Open it to add facts by hand.' }}</div>
                 </td>
                 <td class="num">{{ r.passages ?? '—' }}</td>
                 <td class="num">
@@ -217,14 +222,15 @@ const next = computed(() => {
       </UiPanel>
     </div>
 
-    <UiPanel v-if="editor" id="sources" title="Add sources" as="aside" class="sources">
+    <!-- With no sources yet, the next step above already offers every way in. -->
+    <UiPanel v-if="editor && nextKey !== 'import'" id="sources" title="Add sources" as="aside" class="sources">
       <div class="stack">
-        <div v-if="admin && nextKey !== 'import'" class="source-option">
+        <div v-if="admin" class="source-option">
           <h3>Broken Tide demo</h3>
-          <p>An original island story: 2 lore documents and 11 scenes. Loading it replaces everything in {{ projectName }}; other projects are not touched.</p>
+          <p>An original island story: 2 lore documents and 11 scenes. Loading it replaces everything in {{ projectName }} except the audit trail; other projects are not touched.</p>
           <UiButton icon="demo" :loading="busy === 'demo'" :disabled="!!busy" @click="loadDemo">Load demo set</UiButton>
         </div>
-        <div v-if="nextKey !== 'import'" class="source-option">
+        <div class="source-option">
           <h3>Write it here</h3>
           <p>Write or paste a scene. Drafts save as you type; each save to the story is a new read-only version.</p>
           <UiButton icon="review" to="/write">New document</UiButton>

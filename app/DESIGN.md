@@ -35,7 +35,7 @@ Fonts load from Google Fonts in `nuxt.config.ts`.
 | `<UiButton variant size to icon loading disabled>` | `variant`: `secondary` (default), `primary` (one per view), `ghost`, `danger`, `good`. `size`: `sm`, `md`, `lg`. With `to` it renders a link. |
 | `<UiBadge tone dot>` | Status. `tone`: `neutral`, `pencil` (proposed), `accent` (canon), `good` (verified), `warn`, `bad`. `dot` for live states. Never fill a row with more than three. |
 | `<UiField label hint error>` | Wraps one input/select/textarea. |
-| `<UiTabs v-model :items="[{ value, label, count }]">` | In-page views (Canon: facts, graph, …). |
+| `<UiTabs v-model :items="[{ value, label, count }]">` | In-page views (Canon: facts, graph, …). One row that scrolls sideways when narrow, with a fade on the cut edge. |
 | `<UiEmptyState title icon>` | Say what is missing, then `#actions` with the button that fills it. |
 | `<UiIcon name size label>` | Inline SVG stroke icons. Add new paths to the map in `Icon.vue`. |
 
@@ -47,6 +47,8 @@ The components render the same global classes old pages use, so both stay consis
 
 - **Shell** (`app/app.vue`): sidebar 240px on desktop with nav grouped as Home / Workflow (Review, Canon, Conflicts, Changes) / Tools (Ask, Metrics, Audit). Live counts: pending review (ink), open conflicts (vermilion), canon and changes (quiet). Model status sits at the bottom: "Recorded run" with a hollow ochre dot in mock mode, "Live model" with a filled dot otherwise. Recorded output must always be labeled as recorded.
 - **Mobile (≤ 900px)**: a 52px top bar with menu, brand and the model badge; the sidebar becomes a drawer that closes on navigation, scrim tap or Esc.
+- **Phones (≤ 720px)**: a bottom nav with Home, Review, Canon, Entities and More (opens the drawer). Review carries the pending count; More shows a vermilion dot for open conflicts. It respects the safe-area inset; anything fixed or sticky at the bottom sits at `bottom: var(--bottom-nav-h)`. Focus mode and modal dialogs cover it.
+- **Empty pages**: `UiEmptyState` with one sentence of why and one primary action. When the fix is "add or review something", use `useFillAction()` so every page sends people to the same next step.
 - **Content**: max 1100px, left-aligned, 40px side padding (16px on phones). Text blocks stay under ~70ch.
 - **Page rhythm**: `UiPageHeader`, then optional notice, then panels separated by `--s-5`. Two-column layouts collapse to one column at 720px (`.grid-2`) or 1100px (Home).
 - **Phones (390px)**: no horizontal page scroll. Wide tables live in `.table-wrap` and hide secondary columns with `.hide-sm`. Touch targets are at least 34px (42px in the drawer).

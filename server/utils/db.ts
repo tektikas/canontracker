@@ -200,13 +200,26 @@ export function audit(eventType: string, targetType: string, targetId: string, d
   return id
 }
 
-// Empties the current project only. Other projects and studios are untouched.
+// Empties the current project only. Other projects and studios are untouched. audit_events is append-only and stays:
+// the caller appends a project.reset event, and events before it whose target was cleared read as removed (listAudit).
 export function resetData() {
   tx(() => {
-    for (const t of ['document_tags', 'tags', 'folders', 'notes', 'drafts', 'images', 'model_calls', 'eval_runs', 'audit_events', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['document_tags', 'tags', 'folders', 'notes', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })
+}
+
+// The project's audit trail. Targets of events before the latest project.reset were deleted by that reset (tokens and the
+// project itself survive one), so those events carry target_removed instead of pointing at an id that no longer exists.
+const SURVIVES_RESET = ['token', 'project', 'audit', 'question']
+export function listAudit(order: 'asc' | 'desc') {
+  const db = useDb()
+  const reset = (db.prepare(`select max(rowid) r from audit_events where project_id = ? and event_type = 'project.reset'`).get(pid()) as { r: number | null }).r ?? 0
+  const rows = db.prepare(`select a.rowid seq, a.*, coalesce(u.name, 'Unknown user') actor_name from audit_events a left join users u on u.id = a.actor
+    where a.project_id = ? order by a.rowid ${order === 'asc' ? 'asc' : 'desc'}`).all(pid()) as unknown as (AuditRow & { seq: number, actor_name: string })[]
+  return rows.map(({ seq, ...r }) => ({ ...r, detail: JSON.parse(r.detail) as Record<string, any>,
+    target_removed: seq < reset && !SURVIVES_RESET.includes(r.target_type) }))
 }
 
 export interface Fact {

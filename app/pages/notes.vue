@@ -70,7 +70,8 @@ async function changed() {
 
 <style scoped>
 .filters { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: end; justify-content: space-between; margin-bottom: var(--s-4); border-bottom: 1px solid var(--line); }
-.filters .tabs { margin-bottom: -1px; border-bottom: 0; }
+.filters .tabs-wrap { margin-bottom: -1px; }
+.filters :deep(.tabs) { border-bottom: 0; }
 .doc-filter { min-width: 220px; padding-bottom: var(--s-2); }
 .none { margin: 0; }
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); max-width: 760px; }

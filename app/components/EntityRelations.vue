@@ -21,7 +21,8 @@ function groupOf(predicate: string, otherKind: string | undefined): Group {
   const p = predicate.toLowerCase()
   if (otherKind === 'location' || /located|kept_in|lives|born_in|travel/.test(p)) return 'places'
   if (otherKind === 'item') return 'items'
-  if (otherKind === 'faction' || /member|leads|belongs|sworn|joins|commands/.test(p)) return 'factions'
+  // Word starts only: "remembers" is not membership.
+  if (otherKind === 'faction' || /(^|_)(member|leads|belongs|sworn|joins|commands)/.test(p)) return 'factions'
   if (/sibling|brother|sister|parent|mother|father|child|son|daughter|married|spouse|engaged|betrothed|cousin|kin|wife|husband|widow/.test(p)) return 'family'
   if (/ally|friend|serves|loyal|mentor|protect|trust|helps|loves/.test(p)) return 'allies'
   if (/rival|enemy|hate|betray|oppose|fight|attack|threat|hunts/.test(p)) return 'rivals'
