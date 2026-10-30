@@ -37,19 +37,25 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'qa.asked': return [`${who} asked: ${q(d.question)}`, `Result: ${({ supported: 'Supported by canon', source_only: 'Related canon only', unknown: 'Unknown' } as Record<string, string>)[d.status] ?? d.status}`]
     case 'eval.completed': return [`${who} ran the evaluation`, `${d.passed} met, ${d.failed} missed`]
     case 'export.created': return [`${who} exported ${d.format?.toUpperCase()}`, d.items != null ? `${d.items} impact items` : d.events != null ? `${d.events} audit events` : '']
+    case 'entity.created': return [`${who} created a page for ${d.name}`, `${KIND_LABEL[d.kind as EntityKind]?.one ?? d.kind}`]
+    case 'entity.updated': return [`${who} edited ${d.name}’s page`, `Changed: ${(d.changed ?? []).join(', ')}. Editorial, not canon`]
+    case 'entity.merged': return [`${who} merged ${d.from?.name} into ${d.into}`, `${d.facts?.length ? `${d.facts.length} fact${d.facts.length === 1 ? '' : 's'} now name ${d.into}` : 'No facts needed re-pointing'}; ${d.from?.name}’s old page is kept in this event`]
+    case 'entity.deleted': return [`${who} deleted ${d.name}’s page`, 'Canon unaffected; the page text is kept in this event']
+    case 'entity.portrait_set': return [`${who} ${d.replaced ? 'replaced' : 'added'} ${d.name}’s portrait`, '']
+    case 'entity.portrait_removed': return [`${who} removed ${d.name}’s portrait`, '']
     case 'job.failed': return [`Extraction failed for ${d.filename ?? 'a document'}`, clip(d.error, 140)]
     default: return [e.event_type, clip(d)]
   }
 }
 
 const TONE: Record<string, 'accent' | 'good' | 'bad' | 'warn' | 'pencil' | 'neutral'> = {
-  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad',
+  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad', entity: 'neutral',
 }
 
 // Short ID plus a link where a page exists; pages have no per-item anchors, so links go to the list.
 function target(e: { event_type: string, target_type: string, target_id: string }) {
   const t = e.target_type
-  const to = t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' ? '/conflicts' : t === 'change' ? '/changes'
+  const to = t === 'entity' ? (e.event_type === 'entity.deleted' ? '' : `/entities/${e.target_id}`) : t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' ? '/conflicts' : t === 'change' ? '/changes'
     : t === 'fact' ? (e.event_type.startsWith('candidate.') ? '/review' : '/canon') : ''
   return { to, label: `${t} ${e.target_id.slice(0, 8)}` }
 }

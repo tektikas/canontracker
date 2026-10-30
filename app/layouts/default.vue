@@ -3,6 +3,7 @@ import type { IconName } from '~/components/ui/Icon.vue'
 
 const me = useMe()
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
+const { data: entities } = await useEntityList()
 const route = useRoute()
 const navOpen = ref(false)
 const navTrigger = ref<HTMLButtonElement>()
@@ -30,6 +31,7 @@ const groups = computed<{ label?: string, links: NavLink[] }[]>(() => [
     links: [
       { to: '/review', label: 'Review', icon: 'review', count: stats.value?.pending || undefined, tone: 'accent' },
       { to: '/canon', label: 'Canon', icon: 'canon', count: stats.value?.canon || undefined },
+      { to: '/entities', label: 'Entities', icon: 'entities', count: entities.value?.length || undefined },
       { to: '/conflicts', label: 'Conflicts', icon: 'conflicts', count: stats.value?.open_conflicts || undefined, tone: 'bad' },
       { to: '/changes', label: 'Changes', icon: 'changes', count: stats.value?.changes || undefined },
     ],
@@ -119,7 +121,7 @@ async function open(id: string) {
       <nav class="nav" aria-label="Main">
         <div v-for="(g, i) in groups" :key="i" class="nav-group">
           <div v-if="g.label" class="nav-group-label">{{ g.label }}</div>
-          <NuxtLink v-for="l in g.links" :key="l.to" :to="l.to" class="nav-link">
+          <NuxtLink v-for="l in g.links" :key="l.to" :to="l.to" class="nav-link" :class="{ 'router-link-exact-active': l.to !== '/' && route.path.startsWith(`${l.to}/`) }">
             <UiIcon :name="l.icon" />
             <span class="nav-label">{{ l.label }}</span>
             <span v-if="l.count" class="nav-count" :class="l.tone">{{ l.count }}</span>
@@ -161,6 +163,7 @@ async function open(id: string) {
       </p>
       <slot />
     </main>
+    <MentionCard />
   </div>
 </template>
 

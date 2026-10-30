@@ -1,9 +1,9 @@
 import { DatabaseSync } from 'node:sqlite'
-import { mkdirSync } from 'node:fs'
+import { mkdirSync, rmSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-const SCHEMA_VERSION = 3
+const SCHEMA_VERSION = 4
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -22,7 +22,11 @@ create table if not exists invites (
   created_by text not null, created_at text not null, expires_at text not null,
   accepted_by text, accepted_at text, revoked_at text
 );
-create table if not exists projects (id text primary key, studio_id text not null references studios(id), name text not null, created_at text not null);
+-- medium: game | prose | screen (decides the entity wiki's extra fields)
+create table if not exists projects (
+  id text primary key, studio_id text not null references studios(id), name text not null, created_at text not null,
+  medium text not null default 'game'
+);
 
 -- Content. Every row belongs to one project; routes only ever read and write the caller's current project.
 create table if not exists documents (
@@ -58,6 +62,13 @@ create table if not exists changes (
   created_at text not null, decided_at text, decision_rationale text, reverted_at text, revert_rationale text,
   decided_by text, reverted_by text, project_id text not null
 );
+-- Entity wiki pages. Editorial metadata only (summary, aliases, fields, notes, portrait): never canon, never used by
+-- conflicts or impact. origin: canon (filed automatically for a name in accepted canon) | manual.
+create table if not exists entities (
+  id text primary key, name text not null, kind text not null, summary text not null default '', aliases text not null default '[]',
+  fields text not null default '{}', notes text not null default '', portrait_type text, portrait_at text, origin text not null,
+  created_at text not null, created_by text, updated_at text not null, updated_by text, project_id text not null
+);
 create table if not exists audit_events (
   id text primary key, event_type text not null, target_type text not null, target_id text not null,
   actor text not null, detail text not null, created_at text not null, project_id text not null
@@ -74,6 +85,7 @@ create table if not exists eval_runs (
 create index if not exists facts_project on facts(project_id, status);
 create index if not exists evidence_fact on evidence(fact_id);
 create index if not exists passages_document on passages(document_id);
+create index if not exists entities_project on entities(project_id);
 create index if not exists audit_project on audit_events(project_id);
 create index if not exists memberships_user on memberships(user_id);
 `
@@ -121,9 +133,10 @@ export function audit(eventType: string, targetType: string, targetId: string, d
 // Empties the current project only. Other projects and studios are untouched.
 export function resetData() {
   tx(() => {
-    for (const t of ['model_calls', 'eval_runs', 'audit_events', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents'])
+    for (const t of ['model_calls', 'eval_runs', 'audit_events', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
+  rmSync(portraitDir(), { recursive: true, force: true })
 }
 
 export interface Fact {
