@@ -15,6 +15,8 @@ const ui = reactive<Record<string, { rationale: string, error: string, busy: boo
 const state = (id: string) => (ui[id] ??= { rationale: '', error: '', busy: false })
 const STATUS_TONE: Record<string, string> = { ready_for_review: 'warn', applied: 'good', rejected: 'bad', reverted: 'neutral' }
 const STATUS_LABEL: Record<string, string> = { ready_for_review: 'Ready for review', applied: 'Applied', rejected: 'Rejected', reverted: 'Reverted' }
+// Pencil while proposed, ink once applied, neutral when rejected/reverted (DESIGN.md).
+const PROPOSAL_TONE: Record<string, string> = { ready_for_review: 'pencil', applied: 'accent', rejected: 'neutral', reverted: 'neutral' }
 const open = reactive<Record<string, boolean>>({})
 // Path items are ids; label them: changed fact, dependent fact, scene.
 function chain(c: Record<string, any>, i: any) {
@@ -92,9 +94,9 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
   <UiEmptyState v-if="!changes?.length" title="No change proposals yet" icon="changes">Choose a canon fact above, or start from the Canon page.</UiEmptyState>
 
   <div class="list">
-    <article v-for="c in changes" :key="c.id" class="proposal">
+    <article v-for="c in changes" :key="c.id" class="proposal" :class="`is-${c.status}`">
       <header class="spread">
-        <div class="row"><UiBadge tone="accent">Change proposal</UiBadge><UiBadge :tone="STATUS_TONE[c.status] as any" dot>{{ STATUS_LABEL[c.status] }}</UiBadge></div>
+        <div class="row"><UiBadge :tone="PROPOSAL_TONE[c.status] as any">Change proposal</UiBadge><UiBadge :tone="STATUS_TONE[c.status] as any" dot>{{ STATUS_LABEL[c.status] }}</UiBadge></div>
         <span class="small faint mono">{{ c.id }}</span>
       </header>
       <div class="diff">
@@ -126,9 +128,10 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
                 <li class="node"><span class="small faint">{{ n.kind }}</span><span class="nlabel">{{ n.label }}</span></li>
               </template>
             </ol>
+            <p v-if="i.rationale" class="small muted why">{{ i.rationale }}</p>
           </li>
         </ul>
-        <p v-else class="small muted">No scene is affected within 2 hops. That is not a guarantee of no impact.</p>
+        <p v-else class="small muted">No scene impact found within 2 hops. That is not a guarantee of no impact.</p>
         <details v-if="facts(c).length" class="deps">
           <summary>Dependent canon facts ({{ facts(c).length }}): 1 hop, share an entity with the changed fact</summary>
           <ul class="small">
@@ -170,7 +173,10 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
 .current { display: grid; gap: 4px; }
 .list-title { margin: var(--s-5) 0 var(--s-3); font-size: var(--text-md); }
 .list { display: grid; gap: var(--s-5); }
-.proposal { background: var(--raised); border: 1px solid var(--line); border-left: 3px solid var(--accent); border-radius: var(--r-lg); padding: var(--s-4) var(--s-5); display: grid; gap: var(--s-4); min-width: 0; }
+.proposal { background: var(--raised); border: 1px solid var(--line); border-left: 3px dashed var(--pencil); border-radius: var(--r-lg); padding: var(--s-4) var(--s-5); display: grid; gap: var(--s-4); min-width: 0; }
+.proposal.is-applied { border-left: 3px solid var(--accent); }
+.proposal.is-rejected, .proposal.is-reverted { border-left: 3px solid var(--line-strong); }
+.why { margin: 0; }
 .diff { display: grid; gap: var(--s-1); }
 .impact { border: 1px dashed var(--line-strong); border-radius: var(--r-md); padding: var(--s-3); display: grid; gap: var(--s-3); background: var(--surface); }
 .items { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
