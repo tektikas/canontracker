@@ -50,6 +50,16 @@ function upload(e: Event) {
 }
 
 const plural = (n: number, word: string) => `${word}${n === 1 ? '' : 's'}`
+// "3 sources, 1 of them a scene" / "2 sources, both scenes" / "1 source, a scene"
+const sourceLine = computed(() => {
+  const n = stats.value?.documents ?? 0
+  const k = stats.value?.scenes ?? 0
+  const head = `${n} ${plural(n, 'source')}`
+  if (!k) return head
+  if (n === 1) return `${head}, a scene`
+  if (k === n) return `${head}, ${n === 2 ? 'both' : 'all'} scenes`
+  return `${head}, ${k} of them ${k === 1 ? 'a scene' : 'scenes'}`
+})
 
 // The workflow, in order. `done` reflects stored data only; the first step that isn't done is the next action.
 const steps = computed(() => {
@@ -101,7 +111,7 @@ const next = computed(() => {
   <p v-if="left" class="notice info home-notice" role="status">You left {{ left }}. You’re now working in {{ me?.current?.studio.name ?? 'another studio' }}.</p>
   <UiPageHeader title="Overview">
     <template v-if="stats?.documents">
-      {{ stats.documents }} {{ plural(stats.documents, 'source') }}, {{ stats.scenes }} of them {{ plural(stats.scenes, 'scene') }}.
+      {{ sourceLine }}.
       Canon holds only facts a person accepted, each tied to its exact passage.
     </template>
     <template v-else>
