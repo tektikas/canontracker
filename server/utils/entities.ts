@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, rmSync, renameSync, writeFileSync, existsSync 
 import { join } from 'node:path'
 
 export interface EntityRow {
-  id: string, name: string, kind: EntityKind, summary: string, aliases: string, fields: string, notes: string
+  id: string, name: string, analysis_name: string | null, kind: EntityKind, summary: string, aliases: string, fields: string, notes: string
   portrait_type: string | null, portrait_at: string | null, origin: string, created_at: string, created_by: string | null
   updated_at: string, updated_by: string | null, project_id: string
 }
@@ -11,7 +11,10 @@ const fail = (statusCode: number, statusMessage: string, message: string) => cre
 
 export const aliasesOf = (e: EntityRow) => JSON.parse(e.aliases) as string[]
 export const fieldsOf = (e: EntityRow) => JSON.parse(e.fields) as Record<string, string>
-export const namesOf = (e: EntityRow) => [e.name, ...aliasesOf(e)]
+// The name analysis knows a page by. Stored once and never recalculated; a hand-made page nothing has pinned yet uses its title.
+export const analysisName = (e: EntityRow) => e.analysis_name ?? e.name
+// Every name that links to the page: title, aliases and the analysis name (which a rename or alias edit may have dropped).
+export const namesOf = (e: EntityRow) => [...new Map([e.name, ...aliasesOf(e), analysisName(e)].map(n => [normName(n), n])).values()]
 export const portraitUrl = (e: EntityRow) => (e.portrait_type ? `/api/entities/${e.id}/portrait?v=${encodeURIComponent(e.portrait_at ?? '')}` : null)
 
 export const portraitDir = () => join('.data', 'portraits', pid())
@@ -53,11 +56,11 @@ export function syncEntities() {
     }
   }
   if (!found.size) return
-  const insert = d.prepare(`insert into entities (id, name, kind, origin, created_at, updated_at, project_id) values (?, ?, ?, 'canon', ?, ?, ?)`)
+  const insert = d.prepare(`insert into entities (id, name, analysis_name, kind, origin, created_at, updated_at, project_id) values (?, ?, ?, ?, 'canon', ?, ?, ?)`)
   tx(() => {
     for (const { name, votes } of found.values()) {
       const kind = [...votes].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'other'
-      insert.run(newId('ent'), name, kind, now(), now(), pid())
+      insert.run(newId('ent'), name, name, kind, now(), now(), pid())
     }
   })
 }
@@ -69,22 +72,27 @@ export function factsAbout(e: EntityRow, statuses = ['canon']) {
     .filter(f => names.has(normName(f.subject)) || names.has(normName(f.object)))
 }
 
-// The name analysis knows a page by: the one accepted canon uses most for it (a renamed page keeps its old name in canon),
-// the page name when canon doesn't name it yet.
-export function analysisName(e: EntityRow) {
-  const uses = new Map(namesOf(e).map(n => [normName(n), { name: n, n: 0 }]))
-  for (const f of factsAbout(e)) for (const n of [f.subject, f.object]) { const u = n && uses.get(normName(n)); if (u) u.n++ }
-  const top = [...uses.values()].sort((a, b) => b.n - a.n)[0]!
-  return top.n > uses.get(normName(e.name))!.n ? top.name : e.name
-}
+const mergeRows = () => useDb().prepare('select name_norm, name, canonical from entity_merges where project_id = ? order by rowid')
+  .all(pid()) as { name_norm: string, name: string, canonical: string }[]
 
-// Names and aliases must point at one page only, or mentions and fact links would be ambiguous.
+// Whether analysis already depends on this page's current name: canon or candidates use it, or names were merged into it.
+// A rename then pins it as the analysis name instead of letting it follow the title.
+export const identityInUse = (e: EntityRow) => factsAbout(e, ['canon', 'pending']).some(f => [f.subject, f.object].some(n => normName(n) === normName(e.name)))
+  || mergeRows().some(m => normName(m.canonical) === normName(e.name))
+
+// Names and aliases must point at one page only, or mentions and fact links would be ambiguous. A name merged away belongs
+// to the entity it was merged into: only that one may carry it again (as an alias or title).
 export function assertNamesFree(names: string[], exceptId?: string) {
   const taken = new Map<string, string>()
-  for (const e of listEntities()) if (e.id !== exceptId) for (const n of namesOf(e)) taken.set(normName(n), e.name)
+  const all = listEntities()
+  for (const e of all) if (e.id !== exceptId) for (const n of namesOf(e)) taken.set(normName(n), e.name)
+  const self = all.find(e => e.id === exceptId)
+  const merged = new Map(mergeRows().filter(m => !self || normName(m.canonical) !== normName(analysisName(self))).map(m => [m.name_norm, m.canonical]))
   for (const n of names) {
     const owner = taken.get(normName(n))
     if (owner) throw fail(409, 'NAME_TAKEN', owner.toLowerCase() === n.toLowerCase() ? `There is already a page for ${owner}.` : `“${n}” is already a name or alias of ${owner}.`)
+    const into = merged.get(normName(n))
+    if (into) throw fail(409, 'NAME_TAKEN', `“${n}” was merged into ${into}. Add it as an alias there instead.`)
   }
 }
 
@@ -128,15 +136,19 @@ export const snapshot = (e: EntityRow) => ({
   id: e.id, name: e.name, kind: e.kind, summary: e.summary, aliases: aliasesOf(e), fields: fieldsOf(e), notes: e.notes, portrait: !!e.portrait_type,
 })
 
-// Merging `src` into `dst`: canon and pending facts naming src are re-pointed at dst's analysis name; src's names become dst aliases;
+// Merging `src` into `dst`: canon and pending facts naming src's analysis name, or a name merged into src earlier, are
+// re-pointed at dst's analysis name (titles and hand-typed aliases never decide this); src's names become dst aliases;
 // empty dst fields are filled from src; src's summary and notes are appended to dst's notes. Rejected and superseded facts
 // keep their original wording as history (the new aliases still link them to dst).
 export function planMerge(src: EntityRow, dst: EntityRow) {
   if (src.id === dst.id) throw fail(400, 'INVALID', 'Pick a different page to merge into.')
-  const srcNames = new Set(namesOf(src).map(normName))
+  const canonical = analysisName(dst)
+  const moved = new Map([[normName(analysisName(src)), analysisName(src)]])
+  for (const m of mergeRows()) if (normName(m.canonical) === normName(analysisName(src))) moved.set(m.name_norm, m.name)
+  if (moved.has(normName(canonical))) throw fail(409, 'INVALID', `${dst.name} is already known as ${src.name}.`)
   const facts = (useDb().prepare(`select id, subject, object, statement, status from facts where project_id = ? and status in ('canon', 'pending') order by rowid`)
     .all(pid()) as { id: string, subject: string, object: string | null, statement: string, status: string }[])
-    .filter(f => srcNames.has(normName(f.subject)) || srcNames.has(normName(f.object)))
+    .filter(f => moved.has(normName(f.subject)) || moved.has(normName(f.object)))
   const aliases = [...aliasesOf(dst)]
   const added: string[] = []
   for (const n of namesOf(src)) {
@@ -154,15 +166,16 @@ export function planMerge(src: EntityRow, dst: EntityRow) {
   const portrait = src.portrait_type ? (dst.portrait_type ? 'discard' : 'move') : 'none'
   return {
     source: { id: src.id, name: src.name, kind: src.kind },
-    target: { id: dst.id, name: dst.name, kind: dst.kind }, canonical: analysisName(dst),
+    target: { id: dst.id, name: dst.name, kind: dst.kind }, canonical,
     facts, aliases_added: added, fields_filled: filled, summary_taken: !dst.summary && !!src.summary, notes_added: !!carried, portrait,
-    apply: { aliases, fields, summary, notes, srcNames },
+    apply: { aliases, fields, summary, notes, moved },
   }
 }
 
 // What a merge decides beyond the page itself, measured by running the real rules before and after the re-point:
 // open rule-based conflicts whose premise the merge removed close as "resolved by merge"; pending change proposals whose
-// impact the merge changed are marked stale; the merged names are remembered so later candidates follow the same identity.
+// impact the merge changed are marked stale; the merged names (src's and those merged into it before) map to dst's analysis
+// name from now on, so later candidates follow the same identity.
 // Writes everything in the caller's transaction (the preview runs it in dryRun and rolls back).
 export function mergeEntities(src: EntityRow, dst: EntityRow, plan: ReturnType<typeof planMerge>) {
   const d = useDb()
@@ -179,20 +192,18 @@ export function mergeEntities(src: EntityRow, dst: EntityRow, plan: ReturnType<t
   const impactBefore = new Map(pending.map(c => [c.id, impactKey(c)]))
 
   const { apply } = plan
-  const repoint = (n: string | null) => (n && apply.srcNames.has(normName(n)) ? plan.canonical : n)
+  const repoint = (n: string | null) => (n && apply.moved.has(normName(n)) ? plan.canonical : n)
   const upd = d.prepare('update facts set subject = ?, object = ? where id = ?')
   for (const f of plan.facts) upd.run(repoint(f.subject), repoint(f.object), f.id)
-  d.prepare(`update entities set aliases = ?, fields = ?, summary = ?, notes = ?, updated_at = ?, updated_by = ? where id = ?`)
-    .run(JSON.stringify(apply.aliases), JSON.stringify(apply.fields), apply.summary, apply.notes, at, by, dst.id)
+  d.prepare(`update entities set analysis_name = ?, aliases = ?, fields = ?, summary = ?, notes = ?, updated_at = ?, updated_by = ? where id = ?`)
+    .run(plan.canonical, JSON.stringify(apply.aliases), JSON.stringify(apply.fields), apply.summary, apply.notes, at, by, dst.id)
   if (plan.portrait === 'move') d.prepare('update entities set portrait_type = ?, portrait_at = ? where id = ?').run(src.portrait_type, at, dst.id)
   d.prepare('delete from entities where id = ?').run(src.id)
 
   const travelAfter = canon().filter(isTravel)
   const resolved = openConflicts.filter(c => heldBefore.has(c.id) && !holds(c, travelAfter))
   const stale = pending.filter(c => impactKey(c) !== impactBefore.get(c.id))
-  // The page's name plus every name canon actually used for it; hand-typed aliases nobody cited stay editorial.
-  const mapped = new Map([[normName(src.name), src.name]])
-  for (const f of plan.facts) for (const n of [f.subject, f.object]) if (n && apply.srcNames.has(normName(n))) mapped.set(normName(n), n.trim())
+  const mapped = apply.moved
 
   // The before-values of every re-pointed fact and the full source page, so the merge can be traced and undone by hand.
   const auditId = audit('entity.merged', 'entity', dst.id, {
@@ -212,15 +223,10 @@ export function mergeEntities(src: EntityRow, dst: EntityRow, plan: ReturnType<t
     d.prepare('update changes set impact_stale = ? where id = ?').run(staleNote, c.id)
     audit('impact.stale', 'change', c.id, { from: src.name, into: dst.name, merge_audit_id: auditId })
   }
-  const remember = d.prepare(`insert into entity_merges (name_norm, name, canonical, entity_id, audit_id, merged_at, merged_by, project_id) values (?, ?, ?, ?, ?, ?, ?, ?)
-    on conflict (project_id, name_norm) do update set name = excluded.name, canonical = excluded.canonical, entity_id = excluded.entity_id,
-    audit_id = excluded.audit_id, merged_at = excluded.merged_at, merged_by = excluded.merged_by`)
-  for (const [norm, name] of mapped) remember.run(norm, name, plan.canonical, dst.id, auditId, at, by, pid())
-  // Names merged into src earlier (their facts were just re-pointed along with src's) now map to dst's canonical name.
-  const earlier = d.prepare('select name_norm, canonical, entity_id from entity_merges where project_id = ?').all(pid()) as { name_norm: string, canonical: string, entity_id: string }[]
-  const follow = d.prepare('update entity_merges set canonical = ?, entity_id = ?, audit_id = ?, merged_at = ?, merged_by = ? where project_id = ? and name_norm = ?')
-  for (const m of earlier) if (!mapped.has(m.name_norm) && (m.entity_id === src.id || apply.srcNames.has(normName(m.canonical))))
-    follow.run(plan.canonical, dst.id, auditId, at, by, pid(), m.name_norm)
+  // src's analysis name is added; names merged into src earlier move along to dst (their facts were re-pointed above).
+  const remember = d.prepare(`insert into entity_merges (name_norm, name, canonical, audit_id, merged_at, merged_by, project_id) values (?, ?, ?, ?, ?, ?, ?)
+    on conflict (project_id, name_norm) do update set canonical = excluded.canonical, audit_id = excluded.audit_id, merged_at = excluded.merged_at, merged_by = excluded.merged_by`)
+  for (const [norm, name] of mapped) remember.run(norm, name, plan.canonical, auditId, at, by, pid())
 
   return {
     audit_id: auditId, names_mapped: [...mapped.values()],
@@ -230,14 +236,14 @@ export function mergeEntities(src: EntityRow, dst: EntityRow, plan: ReturnType<t
 }
 
 // The merge decision that maps `name` to another entity, if one was made. Only merges write these; hand-typed aliases never do.
-// `to` is the canonical name fixed at merge time; entity_id is whichever page carries that name now (null if none does).
+// `to` is the analysis name fixed at merge time; entity_id is the page whose analysis name it is now (null if it was deleted).
 export function mergedIdentity(name: string | null) {
   if (!name) return null
   const m = useDb().prepare(`select m.canonical, m.audit_id, m.merged_at, u.name merged_by_name from entity_merges m
     left join users u on u.id = m.merged_by where m.project_id = ? and m.name_norm = ?`)
     .get(pid(), normName(name)) as { canonical: string, audit_id: string, merged_at: string, merged_by_name: string | null } | undefined
   if (!m || normName(m.canonical) === normName(name)) return null
-  const page = listEntities().find(e => namesOf(e).some(n => normName(n) === normName(m.canonical)))
+  const page = listEntities().find(e => normName(analysisName(e)) === normName(m.canonical))
   return { from: name, to: m.canonical, entity_id: page?.id ?? null, merged_at: m.merged_at, merged_by_name: m.merged_by_name, audit_id: m.audit_id }
 }
 export const identityOf = (f: { subject: string, object: string | null }) => (['subject', 'object'] as const)

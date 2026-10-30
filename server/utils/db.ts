@@ -3,7 +3,7 @@ import { mkdirSync, rmSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-const SCHEMA_VERSION = 6
+const SCHEMA_VERSION = 7
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -66,17 +66,19 @@ create table if not exists changes (
 );
 -- Entity wiki pages. Editorial metadata only (summary, aliases, fields, notes, portrait): never canon, never used by
 -- conflicts or impact. origin: canon (filed automatically for a name in accepted canon) | manual.
+-- analysis_name: the one name analysis (facts, conflicts, impact, merges) knows this entity by. Set once — when canon files
+-- the page, or when a renamed or merged page first needs it — and never changed by renames, alias edits or usage counts.
+-- Null on a hand-made page nothing has pinned yet; its title stands in until then.
 create table if not exists entities (
-  id text primary key, name text not null, kind text not null, summary text not null default '', aliases text not null default '[]',
+  id text primary key, name text not null, analysis_name text, kind text not null, summary text not null default '', aliases text not null default '[]',
   fields text not null default '{}', notes text not null default '', portrait_type text, portrait_at text, origin text not null,
   created_at text not null, created_by text, updated_at text not null, updated_by text, project_id text not null
 );
--- Identity decisions from merges: a name that was merged away maps to the canonical name analysis uses for the kept entity,
--- fixed at merge time (renaming or deleting the page later doesn't change it). entity_id is the page it was merged into, kept
--- so later merges of that page carry the mapping along. Applied when a later candidate naming it is accepted. Only merges
--- write here; hand-typed aliases never feed analysis.
+-- Identity decisions from merges: a name that was merged away maps to the kept entity's analysis_name (renaming or deleting
+-- the page later doesn't change it; merging the kept entity on moves the row along). Applied when a later candidate naming it
+-- is accepted. Only merges write here; hand-typed aliases and titles never feed analysis.
 create table if not exists entity_merges (
-  name_norm text not null, name text not null, canonical text not null, entity_id text not null, audit_id text not null, merged_at text not null,
+  name_norm text not null, name text not null, canonical text not null, audit_id text not null, merged_at text not null,
   merged_by text not null, project_id text not null, primary key (project_id, name_norm)
 );
 create table if not exists audit_events (

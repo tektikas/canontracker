@@ -1,8 +1,9 @@
 // Merge identity probe against a running server: node scripts/merge-probe.mjs [baseUrl]
 // Loads the demo into a throwaway account, merges Lighthouse into Causeway and asserts that everything downstream follows:
 // pending change impact goes stale (CSV export says so too), conflicts whose premise vanished close, model prompts get the
-// canonical names, later candidates map to the name fixed at merge time even after the kept page is renamed, and the
-// project medium only accepts real keys.
+// canonical names, later candidates map to the name fixed at merge time even after the kept page is renamed, a re-merge of
+// the renamed page carries every earlier name along, a second merge into one page reuses its identity, and the project
+// medium only accepts real keys. scripts/merge-fuzz.mjs runs the same invariants over random sequences.
 import assert from 'node:assert/strict'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
@@ -137,10 +138,47 @@ const change2 = (await a('/api/changes', { method: 'POST', body: { target_fact_i
 check('impact reaches the new fact', change2.impact.some(i => i.target_id === cand.id), true)
 check('no page re-filed for Lighthouse', (await a('/api/entities')).data.some(e => e.name === 'Lighthouse'), false)
 
+// Re-merge (lead c11r3 #1): the renamed page loses its Causeway alias and is merged into Salt Market. Every fact under its
+// analysis name and every name merged into it before moves along; titles and hand-typed aliases play no part.
+check('remove the Causeway alias', (await a(`/api/entities/${causeway.id}`, { method: 'PATCH', body: { aliases: [] } })).status, 200)
+check('no page re-filed for Causeway', (await a('/api/entities')).data.filter(e => e.name === 'Causeway').length, 0)
+const market = (await a('/api/entities')).data.find(e => e.name === 'Salt Market')
+const remerge = await a(`/api/entities/${causeway.id}/merge`, { method: 'POST', body: { into: market.id } })
+check('re-merge into Salt Market', remerge.status, 200)
+check('re-merge maps both names', remerge.data.names_mapped.sort().join(), 'Causeway,Lighthouse')
+canon = (await a('/api/facts?status=canon')).data
+check('no canon fact names Causeway or Lighthouse', canon.filter(f => names(f).some(n => n === 'Causeway' || n === 'Lighthouse')).length, 0)
+check('re-pointed facts name Salt Market', canon.filter(f => [atCauseway.id, cand.id, ...atLighthouse.map(x => x.id)].includes(f.id)).every(f => f.object === 'Salt Market'), true)
+const s06v2 = (await a('/api/documents')).data.filter(d => d.filename === 'S06.md').sort((x, y) => y.version - x.version)[0]
+const form2 = new FormData()
+form2.append('files', new Blob([`${(await a(`/api/documents/${s06v2.id}`)).data.content}\nThird draft.\n`], { type: 'text/markdown' }), 'S06.md')
+check('S06 re-import again', (await a('/api/documents', { method: 'POST', form: form2 })).status, 200)
+const cand3 = (await a('/api/facts?status=pending')).data.find(f => names(f).includes('Lighthouse') && f.evidence.some(e => e.verified))
+check('candidate maps Lighthouse to Salt Market', cand3.identity.map(i => `${i.from}->${i.to} ${i.entity_id}`).join(), `Lighthouse->Salt Market ${market.id}`)
+check('accept it', (await a(`/api/facts/${cand3.id}/review`, { method: 'POST', body: { decision: 'accept' } })).status, 200)
+await a('/api/conflicts/scan', { method: 'POST' })
+const same = (await a('/api/conflicts')).data.filter(c => c.status === 'open' && /LOCATION|TRAVEL/.test(c.rule) && c.left.object === c.right.object)
+check('no open location conflict within one place', same.length, 0)
+check('no open conflict on the new fact', (await a('/api/conflicts')).data.filter(c => c.status === 'open' && c.origin === 'rule' && [c.left_fact_id, c.right_fact_id].includes(cand3.id)).length, 0)
+const travel = (await a('/api/facts?status=canon')).data.find(f => f.predicate === 'travel_time')
+const change3 = (await a('/api/changes', { method: 'POST', body: { target_fact_id: travel.id, proposed_statement: 'The trip takes an hour.', rationale: 'probe' } })).data
+check('travel impact reaches the new fact', change3.impact.some(i => i.target_id === cand3.id), true)
+
+// Second merge into the same page (lead c11r3 #2) reuses its stored identity, even after a rename and more canon under the title.
+check('rename Salt Market', (await a(`/api/entities/${market.id}`, { method: 'PATCH', body: { name: 'Market Row' } })).status, 200)
+const archive = (await a('/api/entities')).data.find(e => e.name === 'Old Archive')
+const second = (await a(`/api/entities/${archive.id}/merge`, { method: 'POST', body: { into: market.id, preview: true } })).data
+check('second merge keeps the identity', second.canonical, 'Salt Market')
+check('second merge succeeds', (await a(`/api/entities/${archive.id}/merge`, { method: 'POST', body: { into: market.id } })).status, 200)
+canon = (await a('/api/facts?status=canon')).data
+check('no canon fact names Old Archive or Market Row', canon.filter(f => names(f).some(n => n === 'Old Archive' || n === 'Market Row')).length, 0)
+check('a merged-away name cannot be reused as a page', (await a('/api/entities', { method: 'POST', body: { name: 'Lighthouse', kind: 'location' } })).status, 409)
+check('the kept page may take it back as an alias', (await a(`/api/entities/${market.id}`, { method: 'PATCH', body: { aliases: ['Lighthouse'] } })).status, 200)
+
 // 5. Medium must be a real key.
 for (const bad of ['constructor', 'toString', '__proto__', 'hasOwnProperty'])
   check(`medium "${bad}" refused`, (await a(`/api/projects/${project.id}`, { method: 'PATCH', body: { medium: bad } })).status, 400)
 check('medium "prose" accepted', (await a(`/api/projects/${project.id}`, { method: 'PATCH', body: { medium: 'prose' } })).status, 200)
-check('entity page still renders', (await a(`/api/entities/${causeway.id}`)).status, 200)
-check('unknown field "constructor" refused', (await a(`/api/entities/${causeway.id}`, { method: 'PATCH', body: { fields: { constructor: 'x' } } })).status, 400)
+check('entity page still renders', (await a(`/api/entities/${market.id}`)).status, 200)
+check('unknown field "constructor" refused', (await a(`/api/entities/${market.id}`, { method: 'PATCH', body: { fields: { constructor: 'x' } } })).status, 400)
 console.log('all checks passed')
