@@ -113,4 +113,5 @@ const status = computed(() => result.value ? STATUS[result.value.status as keyof
 .cited-title { margin: var(--s-2) 0 0; font-size: var(--text-md); }
 .cited-title .faint { font-weight: 400; font-size: var(--text-sm); }
 @media (max-width: 520px) { .ask-input { flex-direction: column; } }
+@media (max-width: 720px) { .example { min-height: 44px; } }
 </style>

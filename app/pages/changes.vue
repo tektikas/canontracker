@@ -12,6 +12,7 @@ const proposed = ref('')
 const rationale = ref('')
 const busy = ref(false)
 const error = ref('')
+const fresh = ref('') // the proposal just analysed: the guided tour points at its impact
 // The new wording starts empty, with the current wording shown above it; "Start from current wording" copies it in for a small edit.
 watch(target, () => { proposed.value = '' })
 
@@ -37,7 +38,7 @@ async function propose() {
   busy.value = true
   error.value = ''
   try {
-    await $fetch('/api/changes', { method: 'POST', body: { target_fact_id: targetId.value, proposed_statement: proposed.value, rationale: rationale.value } })
+    fresh.value = (await $fetch('/api/changes', { method: 'POST', body: { target_fact_id: targetId.value, proposed_statement: proposed.value, rationale: rationale.value } })).id
     targetId.value = ''
     rationale.value = ''
     await Promise.all([refresh(), refreshNuxtData('stats')])
@@ -125,7 +126,7 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
   <UiEmptyState v-if="!changes?.length" title="No change proposals yet" icon="changes">{{ editor ? 'Choose a canon fact above, or start from the Canon page.' : 'Proposals your team makes show up here with their impact.' }}</UiEmptyState>
 
   <div class="list">
-    <article v-for="c in changes" :key="c.id" class="proposal" :class="`is-${c.status}`">
+    <article v-for="c in changes" :key="c.id" class="proposal" :class="`is-${c.status}`" :data-tour="c.id === fresh ? 'impact' : undefined">
       <header class="spread">
         <div class="row"><UiBadge :tone="PROPOSAL_TONE[c.status] as any">Change proposal</UiBadge><UiBadge :tone="STATUS_TONE[c.status] as any" dot>{{ STATUS_LABEL[c.status] }}</UiBadge></div>
         <span class="small faint mono">{{ c.id }}</span>

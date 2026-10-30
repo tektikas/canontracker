@@ -10,6 +10,7 @@ const fill = useFillAction()
 // Decisions made on this visit. They leave the queue at once; the refresh that follows confirms it from the server.
 const decided = reactive<Record<string, 'accepted' | 'rejected'>>({})
 const last = ref<{ decision: 'accepted' | 'rejected' | 'added', statement: string }>()
+const tour = useTourSignal()
 const queue = computed(() => (pending.value ?? []).filter(f => !decided[f.id]))
 // Every candidate ends up pending, canon or rejected; applying a change swaps one canon fact for another, so this sum stays the candidate count.
 const total = computed(() => (stats.value ? stats.value.canon - stats.value.authored_canon + stats.value.rejected + stats.value.pending : queue.value.length))
@@ -22,7 +23,6 @@ watch(() => route.query.fact, (v) => { if (typeof v === 'string') selectedId.val
 const current = computed(() => queue.value.find(f => f.id === selectedId.value) ?? queue.value[0])
 const index = computed(() => (current.value ? queue.value.indexOf(current.value) : -1))
 const verified = (f: Record<string, any>) => f.evidence.some((e: any) => e.verified)
-const mergedOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 const lowConfidence = (f: Record<string, any>) => f.confidence != null && f.confidence < 0.7
 
 type Mode = 'idle' | 'edit' | 'reject'
@@ -113,6 +113,7 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
   decided[f.id] = decision === 'reject' ? 'rejected' : 'accepted'
   last.value = { decision: decided[f.id]!, statement: decision === 'correct_and_accept' ? form.statement : f.statement }
   if (stayed) selectedId.value = next?.id
+  tour.value = { did: decided[f.id]!, id: f.id }
   mode.value = 'idle'
   panel.value?.focus({ preventScroll: true })
   // Not awaited: a newer refresh cancels an older one, and a cancelled refresh never settles.
@@ -122,10 +123,70 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
   if (decision !== 'reject') refreshEntities() // a new canon name gets its page; mentions link it
 }
 
+// Accept every verified candidate still waiting, as one informed decision: the sheet lists each one (statement and source)
+// before anything happens. Blocked candidates (quote not in the source) are never in the list; the server re-checks each.
+const verifiedLeft = computed(() => queue.value.filter(verified))
+const bulkOpen = ref(false)
+const bulkBusy = ref(false)
+const bulkError = ref('')
+const bulkShown = ref<typeof verifiedLeft.value>([])
+// Candidates the server refused because they changed after the sheet opened; they stay in the queue for a one-by-one look.
+const bulkChanged = ref<typeof verifiedLeft.value>([])
+const citeEv = (f: Record<string, any>) => f.evidence.find((x: any) => x.verified)
+const cite = (f: Record<string, any>) => {
+  const e = citeEv(f)
+  return e ? `${e.document_title}${e.start_line ? `, line ${e.start_line}` : ''}` : ''
+}
+// Merge decisions that rename names on accept, as the single review shows them; counted once per name.
+const bulkBlocked = computed(() => queue.value.length - verifiedLeft.value.length)
+const bulkMapped = computed(() => new Set(bulkShown.value.flatMap(f => f.identity.map(i => `${i.from}\u0000${i.to}`))).size)
+function openBulk() {
+  bulkShown.value = verifiedLeft.value
+  bulkChanged.value = []
+  bulkError.value = ''
+  bulkOpen.value = !!bulkShown.value.length
+}
+// The tour opens the sheet with ?bulk=1; the person still reads the list and confirms.
+watch(() => route.query.bulk, (v) => {
+  if (v !== '1' || !editor.value) return
+  openBulk()
+  navigateTo({ query: { ...route.query, bulk: undefined } }, { replace: true })
+})
+onMounted(() => { if (route.query.bulk === '1' && editor.value) openBulk() })
+async function acceptAll() {
+  if (bulkBusy.value) return
+  bulkBusy.value = true
+  bulkError.value = ''
+  try {
+    // Each candidate goes with the fingerprint of what this sheet shows; the server refuses the lot if any of them changed.
+    const items = bulkShown.value.map(f => ({ id: f.id, fingerprint: candidateFingerprint(f) }))
+    const r = await $fetch('/api/facts/accept-verified', { method: 'POST', body: { items } })
+    for (const id of r.accepted) decided[id] = 'accepted'
+    last.value = { decision: 'accepted', statement: `${counted(r.accepted.length, 'candidate')}${r.skipped.length ? ` · ${r.skipped.length} skipped (already decided or quote not found)` : ''}` }
+    tour.value = { did: 'bulk' }
+    bulkOpen.value = false
+  } catch (e) {
+    const changed: string[] | undefined = (e as { data?: { data?: { changed?: string[] } } }).data?.data?.changed
+    if (changed?.length) {
+      // Nothing was accepted. Show the fresh list without the changed ones; the person reads it and confirms again.
+      await refresh()
+      bulkChanged.value = bulkShown.value.filter(f => changed.includes(f.id))
+      bulkShown.value = verifiedLeft.value.filter(f => !changed.includes(f.id))
+    } else bulkError.value = errorMessage(e)
+    return
+  } finally {
+    bulkBusy.value = false
+  }
+  if (!current.value || decided[current.value.id]) selectedId.value = queue.value[0]?.id
+  refresh()
+  refreshNuxtData('stats')
+  refreshEntities()
+}
+
 // Keyboard triage (desktop). Each key is one explicit decision; held keys don't repeat, and typing in a field never triggers one.
 function onKey(e: KeyboardEvent) {
   if (!editor.value || e.ctrlKey || e.metaKey || e.altKey || composing(e) || mode.value !== 'idle' || matchMedia(NO_KEYS).matches) return
-  if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], .sidebar, .topbar, dialog')) return
+  if (bulkOpen.value || (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], .sidebar, .topbar, dialog'))) return
   const key = e.key.toLowerCase()
   if (key === 'j') move(1)
   else if (key === 'k') move(-1)
@@ -206,7 +267,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
   </UiPanel>
 
   <div v-else class="split">
-    <section ref="panel" class="panel candidate" data-tour="candidate" tabindex="-1" :aria-label="`Candidate ${index + 1} of ${queue.length}`">
+    <section ref="panel" class="panel candidate" data-tour="candidate" :data-fact="current.id" tabindex="-1" :aria-label="`Candidate ${index + 1} of ${queue.length}`">
       <header class="cand-head">
         <span class="cand-pos">Candidate {{ index + 1 }} <span class="faint">of {{ queue.length }}</span></span>
         <div class="row">
@@ -229,7 +290,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
         <UiIcon name="merge" :size="16" />
         <span>
           <b>{{ i.from }} → <NuxtLink v-if="i.entity_id" :to="`/entities/${i.entity_id}`">{{ i.to }}</NuxtLink><template v-else>{{ i.to }}</template></b>
-          (merged on {{ mergedOn(i.merged_at) }}<template v-if="i.merged_by_name"> by {{ i.merged_by_name }}</template>).
+          (merged on {{ shortDate(i.merged_at) }}<template v-if="i.merged_by_name"> by {{ i.merged_by_name }}</template>).
           Accepting saves the {{ i.role }} as {{ i.to }}; the statement and quote stay as written.
         </span>
       </p>
@@ -243,7 +304,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
         <span><b v-if="error === BLOCKED" role="alert">Accept refused. </b>The model's quote doesn't appear in the source, so this can't become canon. Reject it, or leave it pending until the source says it.</span>
       </p>
 
-      <form v-if="mode === 'edit'" class="stack decision" @submit.prevent="decide('correct_and_accept')" @keydown="formKey">
+      <form v-if="mode === 'edit'" class="stack decision" data-tour="decide" @submit.prevent="decide('correct_and_accept')" @keydown="formKey">
         <UiField label="Statement">
           <textarea ref="firstField" v-model="form.statement" rows="2" required />
         </UiField>
@@ -261,7 +322,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
         </div>
       </form>
 
-      <form v-else-if="mode === 'reject'" class="stack decision" @submit.prevent="decide('reject')" @keydown="formKey">
+      <form v-else-if="mode === 'reject'" class="stack decision" data-tour="decide" @submit.prevent="decide('reject')" @keydown="formKey">
         <UiField label="Why reject it?" hint="Required. Saved to the audit log; the candidate is kept but never becomes canon.">
           <input ref="firstField" v-model="form.rationale" type="text" list="reject-reasons" required placeholder="e.g. Figurative, not a literal relationship">
         </UiField>
@@ -310,20 +371,59 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
     </UiPanel>
 
     <UiPanel class="queue" flush title="Queue" :description="`${queue.length} waiting`">
+      <template v-if="editor && verifiedLeft.length" #actions>
+        <UiButton size="sm" icon="check" data-tour="bulk" @click="openBulk">Accept all {{ verifiedLeft.length }} verified…</UiButton>
+      </template>
       <ol ref="list" class="queue-list">
-        <li v-for="(f, i) in queue" :key="f.id">
-          <button type="button" class="queue-item" :aria-current="f.id === current.id ? 'true' : undefined" @click="selectedId = f.id">
-            <span class="q-n faint">{{ i + 1 }}</span>
-            <span class="q-text">{{ f.statement }}</span>
-            <UiBadge v-if="!verified(f)" tone="bad" dot title="Quote not found in source">Blocked</UiBadge>
-            <span v-else-if="f.origin === 'human'" class="q-conf" title="Added by a person">by hand</span>
-            <span v-else-if="f.agent_name" class="q-conf" :title="`Proposed by agent ${f.agent_name}`">agent</span>
-            <span v-else class="q-conf" :class="{ low: lowConfidence(f) }">{{ percent(f.confidence) }}</span>
-          </button>
-        </li>
+        <TransitionGroup name="q">
+          <li v-for="(f, i) in queue" :key="f.id">
+            <button type="button" class="queue-item" :aria-current="f.id === current.id ? 'true' : undefined" @click="selectedId = f.id">
+              <span class="q-n faint">{{ i + 1 }}</span>
+              <span class="q-text">{{ f.statement }}</span>
+              <UiBadge v-if="!verified(f)" tone="bad" dot title="Quote not found in source">Blocked</UiBadge>
+              <span v-else-if="f.origin === 'human'" class="q-conf" title="Added by a person">by hand</span>
+              <span v-else-if="f.agent_name" class="q-conf" :title="`Proposed by agent ${f.agent_name}`">agent</span>
+              <span v-else class="q-conf" :class="{ low: lowConfidence(f) }">{{ percent(f.confidence) }}</span>
+            </button>
+          </li>
+        </TransitionGroup>
       </ol>
     </UiPanel>
   </div>
+
+  <UiDialog v-model:open="bulkOpen" wide :title="`Accept ${counted(bulkShown.length, 'verified candidate')}?`">
+    <p>Each one becomes canon with your name on it in the audit log. Every quote below appears word for word in its source.
+      <template v-if="bulkBlocked"> {{ counted(bulkBlocked, 'blocked candidate') }} (quote not found) {{ bulkBlocked === 1 ? 'stays' : 'stay' }} in the queue.</template>
+      Read the list first; anything you’re unsure of, close this and decide it on its own.</p>
+    <div v-if="bulkChanged.length" class="notice warn" role="alert">
+      <UiIcon name="conflicts" :size="16" />
+      <span><b>Nothing was accepted.</b> {{ counted(bulkChanged.length, 'candidate') }} changed since you opened the list (its source, version or name mapping), so {{ bulkChanged.length === 1 ? 'it was' : 'they were' }} taken out — review {{ bulkChanged.length === 1 ? 'it' : 'them' }} on {{ bulkChanged.length === 1 ? 'its' : 'their' }} own:
+        <template v-for="(f, i) in bulkChanged" :key="f.id">{{ i ? '; ' : ' ' }}“{{ f.statement }}”</template>
+        <template v-if="bulkShown.length"> Check the list below and confirm again.</template></span>
+    </div>
+    <p v-if="bulkMapped" class="notice info">
+      <UiIcon name="merge" :size="16" />
+      <span>{{ bulkMapped === 1 ? '1 name will be linked to an existing page' : `${bulkMapped} names will be linked to existing pages` }} (merged earlier); marked below. The statement and quote stay as written.</span>
+    </p>
+    <ol class="bulk-list">
+      <li v-for="f in bulkShown" :key="f.id">
+        <span class="statement">{{ f.statement }}</span>
+        <span class="small muted">
+          <UiBadge tone="good" dot>Quote verified</UiBadge>
+          {{ cite(f) }}
+          <UiBadge v-if="citeEv(f) && citeEv(f).latest_version > citeEv(f).document_version" tone="warn">Stale: source now v{{ citeEv(f).latest_version }}</UiBadge>
+        </span>
+        <span v-for="i in f.identity" :key="i.role" class="small mapping">
+          <UiIcon name="merge" :size="14" /> Saved with {{ i.role }} <b>{{ i.from }} → {{ i.to }}</b>
+        </span>
+      </li>
+    </ol>
+    <p v-if="bulkError" class="notice bad" role="alert">{{ bulkError }}</p>
+    <template #actions>
+      <UiButton variant="ghost" @click="bulkOpen = false">Cancel</UiButton>
+      <UiButton variant="primary" icon="check" :loading="bulkBusy" :disabled="!bulkShown.length" @click="acceptAll">Accept {{ bulkShown.length }} into canon</UiButton>
+    </template>
+  </UiDialog>
 
   <details v-if="rejected?.length" class="panel rejected">
     <summary><b>Rejected</b> <span class="faint">{{ rejected.length }} · kept for the audit trail, never part of canon</span></summary>
@@ -343,7 +443,6 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 .progress-bar span { display: block; height: 100%; background: var(--accent); transition: width var(--dur-2) var(--ease); }
 
 .last { display: flex; align-items: center; gap: var(--s-2); min-height: 22px; margin: 0 0 var(--s-3); font-size: var(--text-sm); color: var(--muted); }
-.last:empty { min-height: 0; margin: 0; }
 .last-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
 
 .split {
@@ -384,6 +483,18 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 .q-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .q-conf { font-size: var(--text-xs); color: var(--faint); font-variant-numeric: tabular-nums; }
 .q-conf.low { color: var(--warn); font-weight: 600; }
+/* A decided row folds away in place instead of the rows below jumping up (DESIGN: motion answers a user action). */
+.queue-list li { overflow: hidden; }
+.q-leave-active { transition: opacity var(--dur-1) var(--ease), max-height var(--dur-2) var(--ease); max-height: 44px; }
+.q-leave-to { opacity: 0; max-height: 0; }
+@media (prefers-reduced-motion: reduce) { .q-leave-active { transition: none; } }
+
+.bulk-list { list-style: none; margin: 0; padding: 0; display: grid; border: 1px solid var(--line); border-radius: var(--r-md); max-height: min(50vh, 420px); overflow-y: auto; color: var(--ink); }
+.bulk-list li { display: grid; gap: 4px; padding: var(--s-2) var(--s-3); }
+.bulk-list li + li { border-top: 1px solid var(--line); }
+.bulk-list .statement { font-size: var(--text-base); }
+.bulk-list .small { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.bulk-list .mapping { color: var(--ink); }
 
 .rejected { margin-top: var(--s-5); }
 .rejected summary { cursor: pointer; display: flex; gap: var(--s-2); align-items: baseline; flex-wrap: wrap; }

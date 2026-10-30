@@ -5,7 +5,7 @@
 // pending candidates and skips what the project already has, an upload skips candidates already decided, a version is matched
 // by name within its folder (moves keep identity), a new version carries pending candidates whose quote appears exactly once
 // (never canon), audit/MCP/source refs show the file name and current folder (never the internal key), and another studio gets
-// 404 while a viewer gets 403.
+// 404 while a viewer gets 403. The history page opens on a non-empty older → newer diff from any version.
 import assert from 'node:assert/strict'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
@@ -192,6 +192,14 @@ const big3 = (await a('/api/documents', { method: 'POST', form: filesForm([['big
 const bigDiff3 = (await a(`/api/documents/${big3.document_id}/diff?from=${big1.document_id}`)).data
 check('large diff v1→v3: three edits, a removal and an insertion', [bigDiff3.counts.changed, bigDiff3.counts.removed, bigDiff3.counts.added, bigDiff3.counts.same], [3, 1, 1, 1998])
 check('large diff: the edited cited passage is flagged', bigDiff3.rows.filter(r => r.facts.length).map(r => [r.op, r.facts[0].id]), [['changed', midFact.id]])
+// The history page (server-rendered) never opens on an empty diff and always shows older → newer, from whichever version you came.
+const comparing = async path => (/Comparing v(\d+) with v(\d+)/.exec((await a(path)).data) ?? []).slice(1).map(Number)
+check('history opened from v1 compares the latest with the one before it', await comparing(`/documents/${big1.document_id}/history`), [2, 3])
+check('history opened from v2 compares v2 with v1', await comparing(`/documents/${big2.document_id}/history`), [1, 2])
+check('history opened from v3 compares v3 with v2', await comparing(`/documents/${big3.document_id}/history`), [2, 3])
+check('a pair picked the wrong way round is swapped', await comparing(`/documents/${big1.document_id}/history?from=${big3.document_id}&to=${big1.document_id}`), [1, 3])
+check('only "to" = the first version compares it with the next', await comparing(`/documents/${big1.document_id}/history?to=${big1.document_id}`), [1, 2])
+check('a two-version document opened from v1 compares v1 with v2', await comparing(`/documents/${s04.id}/history`), [1, 2])
 
 // Version identity is the file name within its folder (lead c18r #2); moving a document keeps its identity.
 const actA = (await a('/api/library/folders', { method: 'POST', body: { name: 'Act A' } })).data

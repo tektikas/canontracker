@@ -15,7 +15,6 @@ const firstSource = computed(() => docs.value?.[0])
 // The guided tour only fits the Broken Tide demo.
 const demoLoaded = computed(() => !!docs.value?.some(d => d.filename === 'lore-chord-stone.md'))
 const liveHelp = ref(false)
-const draftTime = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 // No scan record in the API: a scan in this session (set on /conflicts) counts until new sources arrive.
 const scanned = useState('conflicts-scanned', () => false)
 const busy = ref<'' | 'demo'>('')
@@ -38,8 +37,8 @@ async function run(kind: 'demo', fn: () => Promise<{ results: Record<string, any
   }
 }
 
-function loadDemo() {
-  if (stats.value?.documents && !confirm(`Replace everything in ${projectName.value} with the Broken Tide demo set? The audit trail keeps its history; other projects are not touched.`)) return
+async function loadDemo() {
+  if (stats.value?.documents && !(await askConfirm({ title: `Replace everything in ${projectName.value}?`, body: 'The Broken Tide demo set takes its place. The audit trail keeps its history; other projects are not touched.', confirm: 'Replace with demo', danger: true }))) return
   run('demo', () => $fetch('/api/demo/load', { method: 'POST' }))
 }
 
@@ -69,7 +68,7 @@ const steps = computed(() => {
   const runs = evals.value?.length ?? 0
   return [
     { key: 'import', label: 'Import', to: '/library', value: s.documents, caption: plural(s.documents, 'source'), done: s.documents > 0 },
-    { key: 'review', label: 'Review', to: '/review', value: s.pending || null, caption: s.pending ? 'to review' : s.canon + s.rejected ? 'all reviewed' : s.documents ? 'none proposed' : 'nothing yet', done: s.documents > 0 && s.pending === 0 },
+    { key: 'review', label: 'Review', to: '/review', value: s.pending || null, caption: s.pending ? 'to review' : s.canon - s.sample_canon + s.rejected ? 'all reviewed' : s.documents ? 'none proposed' : 'nothing yet', done: s.documents > 0 && s.pending === 0 },
     { key: 'canon', label: 'Canon', to: '/canon', value: s.canon, caption: plural(s.canon, 'fact'), done: s.canon > 0 },
     { key: 'conflicts', label: 'Conflicts', to: '/conflicts', value: s.open_conflicts || null, caption: s.open_conflicts ? 'open' : found || scanned.value ? 'none open' : s.canon ? 'none open · scan to check' : 'nothing yet', done: s.canon > 0 && s.open_conflicts === 0 && (found > 0 || scanned.value), skip: s.canon > 0 && s.open_conflicts === 0 },
     { key: 'changes', label: 'Changes', to: '/changes', value: s.changes, caption: plural(s.changes, 'proposal'), done: s.changes > 0 },
@@ -112,7 +111,8 @@ const next = computed(() => {
   <UiPageHeader title="Overview">
     <template v-if="stats?.documents">
       {{ sourceLine }}.
-      Canon holds only facts a person accepted, each tied to its exact passage.
+      <template v-if="stats.sample_canon">Canon here is the sample’s preloaded facts, labelled as such, plus any a person accepts; each is tied to its exact passage.</template>
+      <template v-else>Canon holds only facts a person accepted, each tied to its exact passage.</template>
     </template>
     <template v-else-if="editor">
       Import or write lore and scenes. The model proposes facts with a quote, or you add them from the text yourself; only facts a person accepts become canon.
@@ -208,7 +208,7 @@ const next = computed(() => {
         <ul class="drafts">
           <li v-for="d in drafts" :key="d.id">
             <NuxtLink :to="`/write?draft=${d.id}`" class="doc-link">{{ d.title || 'Untitled' }}</NuxtLink>
-            <span class="small faint">{{ d.document_id ? 'Edits a saved document' : 'New document' }} · {{ draftTime(d.updated_at) }}</span>
+            <span class="small faint">{{ d.document_id ? 'Edits a saved document' : 'New document' }} · {{ dateTime(d.updated_at) }}</span>
           </li>
         </ul>
       </UiPanel>

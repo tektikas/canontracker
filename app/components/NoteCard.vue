@@ -22,7 +22,6 @@ async function move(status: string) {
     busy.value = false
   }
 }
-const when = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })
 const line = computed(() => `line ${props.note.start_line}${props.note.end_line !== props.note.start_line ? `–${props.note.end_line}` : ''}`)
 </script>
 
@@ -30,7 +29,7 @@ const line = computed(() => `line ${props.note.start_line}${props.note.end_line 
   <article :id="`note-${note.id}`" class="note" :class="note.status" tabindex="-1">
     <div class="note-top">
       <UiBadge :tone="STATUS[note.status]?.tone" :dot="note.status !== 'done'">{{ STATUS[note.status]?.label }}</UiBadge>
-      <span class="small faint">{{ note.created_by_name }} · {{ when(note.created_at) }}</span>
+      <span class="small faint">{{ note.created_by_name }} · {{ shortDate(note.created_at) }}</span>
     </div>
     <blockquote v-if="note.quote" class="note-quote">{{ note.quote }}</blockquote>
     <p class="note-body">{{ note.body }}</p>

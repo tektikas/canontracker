@@ -7,18 +7,29 @@ const { data: doc, error } = await useFetch(() => `/api/documents/${route.params
 useHead({ title: computed(() => `History · ${doc.value?.title ?? 'Document'} · Story Bible`) })
 
 const versions = computed(() => doc.value?.versions ?? [])
-// Compare `from` → `to` (ids of two versions). Defaults: the version before this one → this one.
+// Compare `from` (older) → `to` (newer), as ids of two versions; versions are listed newest first. Default: the version you came
+// from against the one before it, or, from the first version, the latest against the one before it. A pair picked the wrong
+// way round is swapped, so the sides are always labelled by version number and the diff is never empty.
+const pair = computed(() => {
+  const vs = versions.value
+  const at = (id: unknown) => vs.findIndex(v => v.id === id)
+  let t = at(route.query.to)
+  if (t < 0) {
+    t = at(doc.value?.id)
+    if (t < 0 || t === vs.length - 1) t = 0
+  }
+  let f = at(route.query.from)
+  if (f < 0 || f === t) f = t + 1 < vs.length ? t + 1 : t - 1
+  if (f < t) [f, t] = [t, f]
+  return { to: vs[t]?.id ?? '', from: vs[f]?.id ?? '' }
+})
 const toId = computed<string>({
-  get: () => (typeof route.query.to === 'string' && versions.value.some(v => v.id === route.query.to) ? route.query.to : doc.value?.id ?? ''),
-  set: v => router.replace({ query: { ...route.query, to: v } }),
+  get: () => pair.value.to,
+  set: v => router.replace({ query: { ...route.query, from: pair.value.from, to: v } }),
 })
 const fromId = computed<string>({
-  get: () => {
-    if (typeof route.query.from === 'string' && versions.value.some(v => v.id === route.query.from)) return route.query.from
-    const to = versions.value.findIndex(v => v.id === toId.value)
-    return versions.value[to + 1]?.id ?? ''
-  },
-  set: v => router.replace({ query: { ...route.query, from: v } }),
+  get: () => pair.value.from,
+  set: v => router.replace({ query: { ...route.query, to: pair.value.to, from: v } }),
 })
 const verOf = (id: string) => versions.value.find(v => v.id === id)
 const { data: diff, pending, error: diffError } = await useFetch(() => `/api/documents/${toId.value}/diff`, {

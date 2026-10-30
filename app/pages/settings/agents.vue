@@ -58,7 +58,7 @@ const snippets = computed(() => ({
   other: { file: 'Any MCP client with Streamable HTTP', text: `URL:     ${endpoint}\nHeader:  Authorization: Bearer ${secret.value}\nTransport: Streamable HTTP (stateless, JSON responses)` },
 }))
 
-const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '')
+const when = (iso: string | null) => (iso ? dateTime(iso) : '')
 const TOOLS = [
   ['sb_get_context_pack', 'Approved facts about an entity or topic, with quotes and source ids'],
   ['sb_search_facts', 'Keyword search over canon'],

@@ -24,33 +24,10 @@ export default defineEventHandler(async (event) => {
 
   if (body.decision !== 'accept' && body.decision !== 'correct_and_accept')
     throw createError({ statusCode: 400, statusMessage: 'BAD_DECISION', message: 'decision must be accept, correct_and_accept or reject.' })
-  const quotes = db.prepare(`select e.quote, p.text from evidence e join passages p on p.id = e.passage_id
-    where e.fact_id = ? and e.verified = 1 and e.project_id = ?`).all(id, pid()) as { quote: string, text: string }[]
-  // Re-verify against the cited passage's text (not the quote against itself): blank, short, padded or non-verbatim quotes are not evidence.
-  if (!quotes.some(e => isVerbatimQuote(e.text, e.quote))) {
+  if (!hasVerifiedQuote(id)) {
     audit('candidate.accept_refused', 'fact', id, { reason: 'no_valid_evidence' })
     throw createError({ statusCode: 422, statusMessage: 'UNVERIFIED_EVIDENCE', message: 'The quote was not found verbatim in the source, so this cannot become canon.' })
   }
-
-  const c = body.decision === 'correct_and_accept' ? body.corrected ?? {} : {}
-  const after = {
-    statement: c.statement?.trim() || fact.statement,
-    subject: c.subject?.trim() || fact.subject,
-    predicate: c.predicate?.trim() || fact.predicate,
-    object: c.object === undefined ? fact.object : (c.object?.trim() || null),
-  }
-  // A merge already decided these names are one page (the reviewer saw it on the candidate), so canon uses the kept name.
-  const identity = identityOf(after)
-  for (const i of identity) after[i.role] = i.to
-  tx(() => {
-    db.prepare(`update facts set status = 'canon', statement = ?, subject = ?, predicate = ?, object = ?, decided_at = ?, rationale = ?, decided_by = ? where id = ?`)
-      .run(after.statement, after.subject, after.predicate, after.object, now(), rationale, access().user.id, id)
-    audit(body.decision === 'accept' ? 'candidate.accepted' : 'candidate.corrected_and_accepted', 'fact', id, {
-      rationale,
-      before: { statement: fact.statement, subject: fact.subject, predicate: fact.predicate, object: fact.object },
-      after,
-      ...(identity.length && { identity: identity.map(i => ({ role: i.role, from: i.from, to: i.to, merge_audit_id: i.audit_id })) }),
-    })
-  })
+  tx(() => acceptCandidate(fact, body.decision as 'accept' | 'correct_and_accept', body.corrected, rationale))
   return { id, status: 'canon' }
 })

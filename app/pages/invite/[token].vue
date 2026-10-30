@@ -7,7 +7,7 @@ const { data: invite, error: loadError } = await useFetch(`/api/invites/${token}
 useHead({ title: () => (invite.value ? `Join ${invite.value.studio_name} · Story Bible` : 'Invite · Story Bible') })
 const busy = ref(false)
 const error = ref('')
-const expires = computed(() => invite.value && new Date(invite.value.expires_at).toLocaleDateString(undefined, { month: 'long', day: 'numeric' }))
+const expires = computed(() => invite.value && shortDate(invite.value.expires_at))
 const role = computed(() => (invite.value?.role ?? 'viewer') as Role)
 
 async function join() {

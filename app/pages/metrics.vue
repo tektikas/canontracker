@@ -35,7 +35,6 @@ const score = (results: { pass: boolean | null }[]) => ({
 })
 const s = computed(() => latest.value ? score(latest.value.results) : null)
 const tone = (id: string) => ({ recorded: 'warn', live: 'good', mixed: 'pencil', none: 'neutral' } as const)[provenance(id).kind]
-const fmt = (iso: string) => new Date(iso).toLocaleString()
 </script>
 
 <template>
@@ -73,7 +72,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString()
         <i v-for="(r, i) in latest!.results" :key="i" :class="verdict(r.pass).tone" />
       </div>
       <div class="score-meta small muted">
-        {{ fmt(latest!.created_at) }} · dataset <span class="mono">{{ latest!.dataset }}</span> ·
+        {{ dateTime(latest!.created_at) }} · dataset <span class="mono">{{ latest!.dataset }}</span> ·
         scored data: <UiBadge :tone="tone(latest!.model_id)" dot>{{ provenance(latest!.model_id).label }}</UiBadge>
         <span class="faint">Scores the database as it is now. Ask checks use retrieval only; no model is called.</span>
       </div>
@@ -98,7 +97,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString()
     <UiPanel v-if="runs && runs.length > 1" title="Earlier runs" class="gap">
       <ul class="runs small">
         <li v-for="r in runs.slice(1)" :key="r.id">
-          <span>{{ fmt(r.created_at) }}</span>
+          <span>{{ dateTime(r.created_at) }}</span>
           <b>{{ score(r.results).met }} met · {{ score(r.results).missed }} missed</b>
           <UiBadge :tone="tone(r.model_id)">{{ provenance(r.model_id).label }}</UiBadge>
         </li>
@@ -113,7 +112,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString()
         <thead><tr><th>Time</th><th>Purpose</th><th>Model · prompt</th><th class="hide-sm">Inputs</th><th>Result</th><th class="hide-sm">Latency</th></tr></thead>
         <tbody>
           <tr v-for="c in calls" :key="c.id">
-            <td class="mono small nowrap">{{ new Date(c.created_at).toLocaleTimeString() }}</td>
+            <td class="mono small nowrap">{{ clock(c.created_at) }}</td>
             <td><UiBadge tone="accent">{{ c.purpose.replace('_', ' ') }}</UiBadge></td>
             <td>
               <UiBadge :tone="tone(c.model_id)" dot>{{ provenance(c.model_id).label }}</UiBadge>

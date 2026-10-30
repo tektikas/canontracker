@@ -285,6 +285,12 @@ code, .mono { font-family: var(--font-code); font-size: 0.85em; }
 .btn:disabled, .btn.disabled, .btn.primary:disabled, .btn.danger:disabled, .btn.good:disabled, .btn.ghost:disabled { background: var(--sunken); border: 1px dashed var(--line-strong); color: var(--faint); font-weight: 500; cursor: not-allowed; }
 .btn.sm { min-height: 28px; padding: 3px 10px; font-size: var(--text-sm); }
 .btn.lg { min-height: 40px; padding: 8px 18px; font-size: var(--text-md); }
+/* Phones: every control is at least 44px tall, small buttons too (DESIGN.md, touch targets). */
+@media (max-width: 720px) {
+  .btn, .btn.sm, .btn.lg { min-height: 44px; }
+  .icon-btn { width: 44px; height: 44px; }
+  .tabs button { min-height: 44px; }
+}
 .spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
@@ -294,6 +300,9 @@ input[type=text], input[type=number], input[type=search], input[type=email], inp
   font: inherit; color: var(--ink);
   background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-md);
   transition: border-color var(--dur-1) var(--ease);
+}
+@media (max-width: 720px) {
+  input[type=text], input[type=number], input[type=search], input[type=email], input[type=password], input[type=url], select { min-height: 44px; }
 }
 input::placeholder, textarea::placeholder { color: var(--faint); }
 select {

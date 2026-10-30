@@ -72,6 +72,7 @@ check('non-verbatim quote is refused', (await a('/api/facts', { method: 'POST', 
 check('a quote under 8 characters is refused (the shared findQuotePassage rule)', (await a('/api/facts', { method: 'POST', body: fact({ passage_id: harbor.id, quote: 'Arin', object: 'Harbor', statement: 'Arin is at the Harbor.' }) })).status, 422)
 check('quote from another passage’s words is refused', (await a('/api/facts', { method: 'POST', body: fact({ passage_id: harbor.id, quote: 'Arin waits on the Harbor wall, counting the boats. Half', object: 'Harbor', statement: 'x' }) })).status, 422)
 check('missing subject is refused', (await a('/api/facts', { method: 'POST', body: fact({ passage_id: harbor.id, quote: 'Arin waits on the Harbor wall', subject: '', object: 'Harbor', statement: 'x' }) })).status, 400)
+check('"is" without an object is refused (no dangling "Arin → is")', (await a('/api/facts', { method: 'POST', body: fact({ passage_id: harbor.id, quote: 'Arin waits on the Harbor wall', predicate: 'is', object: '', statement: 'Arin is waiting.' }) })).data.statusMessage, 'OBJECT_REQUIRED')
 check('bad story time is refused', (await a('/api/facts', { method: 'POST', body: fact({ passage_id: harbor.id, quote: 'Arin waits on the Harbor wall', object: 'Harbor', statement: 'x', time_from: 'ten am' }) })).status, 400)
 check('unknown document is 404', (await a('/api/facts', { method: 'POST', body: fact({ document_id: 'doc_nope', quote: 'Arin', statement: 'x' }) })).status, 404)
 

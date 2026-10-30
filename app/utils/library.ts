@@ -27,6 +27,3 @@ export function uploadProblem(f: File) {
   if (!f.size) return 'Empty file.'
   return null
 }
-
-export const shortDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
-export const dateTime = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })

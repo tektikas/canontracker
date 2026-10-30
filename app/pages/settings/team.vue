@@ -70,9 +70,13 @@ async function memberAction(id: string, fn: () => Promise<unknown>) {
   }
 }
 const setRole = (id: string, role: string) => memberAction(id, () => $fetch(`/api/team/${id}`, { method: 'PATCH', body: { role } }))
-function remove(m: { id: string, name: string }) {
+async function remove(m: { id: string, name: string }) {
   const self = m.id === team.value?.user_id
-  if (!confirm(self ? `Leave ${team.value?.studio.name}? You'll lose access to its projects.` : `Remove ${m.name} from ${team.value?.studio.name}? Their past decisions stay in the audit log.`)) return
+  const studio = team.value?.studio.name
+  const ok = await askConfirm(self
+    ? { title: `Leave ${studio}?`, body: 'You’ll lose access to its projects. Your past decisions stay in the audit log.', confirm: 'Leave studio', danger: true }
+    : { title: `Remove ${m.name}?`, body: `${m.name} loses access to ${studio} and its projects. Their past decisions stay in the audit log.`, confirm: 'Remove', danger: true })
+  if (!ok) return
   memberAction(m.id, async () => {
     await $fetch(`/api/team/${m.id}`, { method: 'DELETE' })
     if (self) rememberLeft(team.value!.studio.name)
@@ -80,7 +84,7 @@ function remove(m: { id: string, name: string }) {
   })
 }
 async function revoke(id: string) {
-  if (!confirm('Revoke this invite link? Anyone who has it will no longer be able to join.')) return
+  if (!(await askConfirm({ title: 'Revoke this invite link?', body: 'Anyone who has it will no longer be able to join.', confirm: 'Revoke link', danger: true }))) return
   await memberAction(id, () => $fetch(`/api/team/invites/${id}`, { method: 'DELETE' }))
   if (created.value && team.value?.invites.every(i => linkFor(i.token) !== created.value!.url)) created.value = undefined
 }
@@ -90,8 +94,6 @@ const inDays = (iso: string) => {
   const hours = (new Date(iso).getTime() - Date.now()) / 36e5
   return hours < 24 ? rtf.format(Math.max(1, Math.round(hours)), 'hour') : rtf.format(Math.round(hours / 24), 'day')
 }
-const joined = (iso: string) => new Date(iso).toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' })
-const fullDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { weekday: 'short', month: 'long', day: 'numeric' })
 </script>
 
 <template>
@@ -116,7 +118,7 @@ const fullDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { 
       <p v-if="inviteError" class="notice bad" role="alert">{{ inviteError }}</p>
 
       <div v-if="created" class="created" role="status">
-        <div class="small"><b>Invite link for one {{ ROLE_LABEL[created.role].toLowerCase() }}</b> · expires <span class="nowrap">{{ fullDate(created.expires_at) }}</span></div>
+        <div class="small"><b>Invite link for one {{ ROLE_LABEL[created.role].toLowerCase() }}</b> · expires <span class="nowrap">{{ dateTime(created.expires_at) }}</span></div>
         <div class="link-row">
           <input id="link-new" :value="created.url" type="text" readonly class="mono" aria-label="Invite link" @focus="($event.target as HTMLInputElement).select()">
           <UiButton :variant="copied === 'new' ? 'good' : 'primary'" :icon="copied === 'new' ? 'check' : 'copy'" @click="copy(created.url, 'new')">{{ copied === 'new' ? 'Copied' : 'Copy link' }}</UiButton>
@@ -151,7 +153,7 @@ const fullDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { 
                   <span v-if="lastOwner(m) && team.can_manage" class="small faint hide-sm">Only owner</span>
                 </span>
               </td>
-              <td class="hide-sm muted small">{{ joined(m.joined_at) }}</td>
+              <td class="hide-sm muted small">{{ shortDate(m.joined_at) }}</td>
               <td class="actions">
                 <UiButton v-if="canRemove(m)" size="sm" :variant="m.id === team.user_id ? 'ghost' : 'danger'" :loading="rowBusy === m.id" @click="remove(m)">
                   {{ m.id === team.user_id ? 'Leave' : 'Remove' }}
