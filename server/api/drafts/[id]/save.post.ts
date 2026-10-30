@@ -1,0 +1,34 @@
+// "Save to story": the draft becomes a read-only document version (hash, passages, stale citations) and the draft goes away.
+// A new document gets a filename from its title; an edit adds a version to the document it came from.
+export default defineEventHandler(async (event) => {
+  const d = getDraft(getRouterParam(event, 'id')!)
+  const db = useDb()
+  const title = d.title.trim()
+  if (!title) throw createError({ statusCode: 400, statusMessage: 'TITLE_REQUIRED', message: 'Give the document a title.' })
+  if (!d.content.trim()) throw createError({ statusCode: 400, statusMessage: 'EMPTY_DOCUMENT', message: 'Write something before saving.' })
+
+  let filename = d.filename
+  if (!filename) {
+    // No extension, so a written document never shares a name (and a version line) with an uploaded .md/.txt file.
+    const slug = title.toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '').slice(0, 60) || 'document'
+    const taken = new Set((db.prepare('select distinct filename from documents where project_id = ?').all(pid()) as { filename: string }[]).map(r => r.filename))
+    filename = slug
+    for (let n = 2; taken.has(filename); n++) filename = `${slug}-${n}`
+  }
+
+  const latest = latestDocument(filename)
+  const result = await importDocument(filename, d.content, { title, kind: d.kind })
+  if (result.status === 'duplicate') {
+    // Saving unchanged text is not an error: the story already has it.
+    if (latest && result.document_id === latest.id) {
+      if (latest.title !== title || latest.kind !== d.kind)
+        throw createError({ statusCode: 409, statusMessage: 'TEXT_UNCHANGED', message: `The text is the same as v${latest.version}. A new version needs a change in the text.` })
+      db.prepare('delete from drafts where id = ?').run(d.id)
+      return { ...result, status: 'unchanged' as const, version: latest.version }
+    }
+    const same = db.prepare('select title, version from documents where id = ?').get(result.document_id) as { title: string, version: number }
+    throw createError({ statusCode: 409, statusMessage: 'DUPLICATE_TEXT', message: `This text is word for word the same as “${same.title}” v${same.version}. Change something before saving.` })
+  }
+  db.prepare('delete from drafts where id = ?').run(d.id)
+  return result
+})

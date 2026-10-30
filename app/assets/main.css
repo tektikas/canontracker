@@ -261,7 +261,7 @@ code, .mono { font-family: var(--font-code); font-size: 0.85em; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- Fields ---------- */
-input[type=text], input[type=search], input[type=email], input[type=password], textarea, select {
+input[type=text], input[type=number], input[type=search], input[type=email], input[type=password], textarea, select {
   width: 100%; min-height: 36px; padding: 7px 10px;
   font: inherit; color: var(--ink);
   background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-md);
@@ -313,6 +313,14 @@ label { display: grid; gap: 6px; font-size: var(--text-sm); font-weight: 500; co
 }
 .quote.unverified { border-left-color: var(--bad); text-decoration: underline wavy color-mix(in srgb, var(--bad) 55%, transparent); text-underline-offset: 4px; }
 .quote.prior { border-left-color: var(--pencil); border-left-style: dashed; }
+
+/* Keyboard hints. Desktop only: touch and narrow screens get the same buttons without them. */
+kbd {
+  font: 600 11px/1 var(--font-code); padding: 2px 5px; border-radius: var(--r-sm);
+  border: 1px solid var(--line-strong); border-bottom-width: 2px; color: inherit;
+}
+.btn kbd { margin-left: 4px; }
+@media (hover: none), (max-width: 900px) { kbd { display: none; } }
 
 /* ---------- Tables ---------- */
 table { width: 100%; border-collapse: collapse; font-size: var(--text-base); }

@@ -61,7 +61,7 @@ async function create() {
     <form class="create" novalidate @submit.prevent="create">
       <div class="create-row">
         <UiField label="Name" :error="error">
-          <input ref="nameInput" v-model="form.name" type="text" maxlength="80" placeholder="e.g. The Tide Guard" @keydown.esc="creating = false">
+          <input ref="nameInput" v-model="form.name" type="text" maxlength="80" spellcheck="false" placeholder="e.g. The Tide Guard" @keydown.esc="creating = false">
         </UiField>
         <UiField label="Kind">
           <select v-model="form.kind">

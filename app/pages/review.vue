@@ -8,10 +8,10 @@ const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
 
 // Decisions made on this visit. They leave the queue at once; the refresh that follows confirms it from the server.
 const decided = reactive<Record<string, 'accepted' | 'rejected'>>({})
-const last = ref<{ decision: 'accepted' | 'rejected', statement: string }>()
+const last = ref<{ decision: 'accepted' | 'rejected' | 'added', statement: string }>()
 const queue = computed(() => (pending.value ?? []).filter(f => !decided[f.id]))
 // Every candidate ends up pending, canon or rejected; applying a change swaps one canon fact for another, so this sum stays the candidate count.
-const total = computed(() => (stats.value ? stats.value.canon + stats.value.rejected + stats.value.pending : queue.value.length))
+const total = computed(() => (stats.value ? stats.value.canon - stats.value.authored_canon + stats.value.rejected + stats.value.pending : queue.value.length))
 const reviewed = computed(() => Math.max(0, total.value - queue.value.length))
 const decidedNow = computed(() => Object.values(decided))
 
@@ -122,7 +122,7 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
 // Keyboard triage (desktop). Each key is one explicit decision; held keys don't repeat, and typing in a field never triggers one.
 function onKey(e: KeyboardEvent) {
   if (!editor.value || e.ctrlKey || e.metaKey || e.altKey || composing(e) || mode.value !== 'idle' || matchMedia(NO_KEYS).matches) return
-  if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], .sidebar, .topbar')) return
+  if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], .sidebar, .topbar, dialog')) return
   const key = e.key.toLowerCase()
   if (key === 'j') move(1)
   else if (key === 'k') move(-1)
@@ -146,6 +146,15 @@ watch(() => current.value?.id, async () => {
   if (el.offsetTop < box.scrollTop) box.scrollTop = el.offsetTop
   else if (el.offsetTop + el.offsetHeight > box.scrollTop + box.clientHeight) box.scrollTop = el.offsetTop + el.offsetHeight - box.clientHeight
 }, { flush: 'post' })
+
+// A fact or note added from the source panel: a fact sent to review joins the queue; one added to canon shows on top.
+function sourceSaved(kind: 'fact' | 'note', r: Record<string, any>) {
+  if (kind === 'note') return
+  last.value = { decision: r.to === 'canon' ? 'accepted' : 'added', statement: r.statement }
+  refresh()
+  refreshNuxtData('stats')
+  if (r.to === 'canon') refreshEntities()
+}
 
 // Source passage for the split view.
 const source = computed(() => current.value?.evidence[evIndex.value] ?? current.value?.evidence[0])
@@ -172,7 +181,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 
   <p class="last" aria-live="polite">
     <template v-if="last">
-      <UiBadge :tone="last.decision === 'accepted' ? 'accent' : 'bad'">{{ last.decision === 'accepted' ? 'Accepted into canon' : 'Rejected' }}</UiBadge>
+      <UiBadge :tone="last.decision === 'accepted' ? 'accent' : last.decision === 'added' ? 'pencil' : 'bad'">{{ last.decision === 'accepted' ? 'Accepted into canon' : last.decision === 'added' ? 'Added to the queue' : 'Rejected' }}</UiBadge>
       <span class="last-text">{{ last.statement }}</span>
     </template>
   </p>
@@ -181,7 +190,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
     <UiEmptyState :title="reviewed ? 'Queue done' : 'Nothing waiting for review'" icon="check">
       <template v-if="decidedNow.length">You decided {{ decidedNow.length }} {{ decidedNow.length === 1 ? 'candidate' : 'candidates' }} on this visit: {{ decidedNow.filter(d => d === 'accepted').length }} accepted, {{ decidedNow.filter(d => d === 'rejected').length }} rejected.</template>
       <template v-else-if="reviewed">All {{ reviewed }} candidates have a decision.</template>
-      <template v-else>Import sources on Home and the model's candidates show up here.</template>
+      <template v-else>Import sources on Home and the model's candidates show up here. You can also select text in a source and send a fact here for someone to review.</template>
       <template #actions>
         <UiButton variant="primary" to="/canon" icon="canon">Browse canon</UiButton>
         <UiButton to="/conflicts" icon="conflicts">Check conflicts</UiButton>
@@ -203,7 +212,8 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
           <UiBadge v-if="isRecordedModel(current.model_id)" tone="warn" title="Replayed from a recorded extraction, not a live model call">Recorded demo run</UiBadge>
         </div>
       </header>
-      <p v-if="current.agent_name" class="small faint model">Proposed by agent <strong>{{ current.agent_name }}</strong> for {{ current.proposed_by_name }}</p>
+      <p v-if="current.origin === 'human'" class="small faint model">Added by {{ current.created_by_name ?? 'a teammate' }} from the source, not proposed by a model</p>
+      <p v-else-if="current.agent_name" class="small faint model">Proposed by agent <strong>{{ current.agent_name }}</strong> for {{ current.proposed_by_name }}</p>
       <p v-else class="small faint model">Proposed by {{ modelLabel(current.model_id) }}</p>
 
       <FactSummary v-if="mode !== 'edit'" :fact="current" />
@@ -288,7 +298,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
           <UiButton v-if="source" size="sm" variant="ghost" :to="`/documents/${source.document_id}${source.passage_id ? `#${source.passage_id}` : ''}`">Open document</UiButton>
         </div>
       </header>
-      <PassageReader v-if="docReady" class="source-body" :doc="docReady" :active="source?.passage_id" :quote="source?.verified ? source.quote : undefined" contained />
+      <PassageReader v-if="docReady" class="source-body" :doc="docReady" :active="source?.passage_id" :quote="source?.verified ? source.quote : undefined" contained :annotate="editor && docReady.latest.id === docReady.id" @saved="sourceSaved" />
       <p v-else class="source-body faint small loading">Loading source…</p>
     </UiPanel>
 
@@ -299,6 +309,8 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
             <span class="q-n faint">{{ i + 1 }}</span>
             <span class="q-text">{{ f.statement }}</span>
             <UiBadge v-if="!verified(f)" tone="bad" dot title="Quote not found in source">Blocked</UiBadge>
+            <span v-else-if="f.origin === 'human'" class="q-conf" title="Added by a person">by hand</span>
+            <span v-else-if="f.agent_name" class="q-conf" :title="`Proposed by agent ${f.agent_name}`">agent</span>
             <span v-else class="q-conf" :class="{ low: lowConfidence(f) }">{{ percent(f.confidence) }}</span>
           </button>
         </li>
@@ -345,11 +357,6 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 .decision { padding-top: var(--s-3); border-top: 1px solid var(--line); }
 .triple-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); }
 .keys { margin: 0; }
-kbd {
-  font: 600 11px/1 var(--font-code); padding: 2px 5px; border-radius: var(--r-sm);
-  border: 1px solid var(--line-strong); border-bottom-width: 2px; color: inherit;
-}
-.btn kbd { margin-left: 4px; }
 
 .source-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-2); flex-wrap: wrap; padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); background: var(--surface); }
 .source-title { display: flex; align-items: center; gap: var(--s-2); min-width: 0; font-size: var(--text-sm); }
@@ -391,6 +398,6 @@ kbd {
 }
 /* Shortcuts are a desktop affordance; touch users get the same buttons without the key hints. */
 @media (hover: none), (max-width: 900px) {
-  kbd, .keys { display: none; }
+  .keys { display: none; }
 }
 </style>

@@ -4,11 +4,22 @@ const result = ref<Record<string, any> | null>(null)
 const asked = ref('')
 const busy = ref(false)
 const error = ref('')
-const examples = [
+const DEMO_EXAMPLES = [
   'Why can\'t Leya remember an hour of Day 1?',
   'Where is Arin at 22:00 on Day 1?',
   'What did the harbor master eat on Day 3?',
 ]
+// The Broken Tide questions only fit a project holding the demo; elsewhere, ask about the project's own most-cited pages.
+const { data: docs } = await useFetch('/api/documents')
+const { data: entities } = await useEntityList()
+const examples = computed(() => {
+  if (docs.value?.some(d => d.filename === 'lore-chord-stone.md')) return DEMO_EXAMPLES
+  const cited = entities.value.filter(e => e.facts > 0).sort((a, b) => b.facts - a.facts)
+  const who = cited.find(e => e.kind === 'character')
+  const where = cited.find(e => e.kind === 'location')
+  const top = cited.find(e => e !== who && e !== where)
+  return [who && `Where is ${who.name}?`, where && `Who has been to ${placePhrase(where.name)}?`, top && `What do we know about ${top.name}?`].filter((q): q is string => !!q)
+})
 
 async function ask(q = question.value) {
   question.value = q
@@ -45,7 +56,7 @@ const status = computed(() => result.value ? STATUS[result.value.status as keyof
           <UiButton type="submit" variant="primary" :disabled="busy || !question.trim()" :loading="busy">{{ busy ? 'Searching…' : 'Ask' }}</UiButton>
         </div>
       </UiField>
-      <div class="examples">
+      <div v-if="examples.length" class="examples">
         <span class="faint small">Try</span>
         <button v-for="ex in examples" :key="ex" type="button" class="example" @click="ask(ex)">{{ ex }}</button>
       </div>

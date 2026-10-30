@@ -26,13 +26,14 @@ const tab = computed<Tab>({
 const facts = computed(() => e.value?.facts ?? [])
 const relCount = computed(() => facts.value.filter(f => f.object).length)
 const timedCount = computed(() => facts.value.filter(f => f.t_from != null || f.t_to != null).length)
+const openNotes = computed(() => e.value?.text_notes.filter(n => n.status !== 'done').length ?? 0)
 const passageCount = computed(() => e.value?.appearances.reduce((n, d) => n + d.passages.length, 0) ?? 0)
 const tabs = computed(() => [
   { value: 'story' as Tab, label: 'Story' },
   { value: 'timeline' as Tab, label: 'Timeline', count: timedCount.value },
   { value: 'relationships' as Tab, label: 'Relationships', count: relCount.value },
   { value: 'appearances' as Tab, label: 'Appearances', count: passageCount.value },
-  { value: 'notes' as Tab, label: 'Notes' },
+  { value: 'notes' as Tab, label: 'Notes', count: openNotes.value || undefined },
 ])
 
 // Key canon facts on the Story tab: everything except links to other entities (those are on Relationships).
@@ -272,7 +273,7 @@ const ago = (iso: string) => {
       <form class="stack" novalidate @submit.prevent="saveDetails">
         <div class="details-row">
           <UiField label="Name" hint="If canon uses the old name, it stays as an alias so facts keep linking here.">
-            <input v-model="draft.name" type="text" maxlength="80" required @keydown.esc="editing = ''">
+            <input v-model="draft.name" type="text" maxlength="80" required spellcheck="false" @keydown.esc="editing = ''">
           </UiField>
           <UiField label="Kind">
             <select v-model="draft.kind">
@@ -289,7 +290,7 @@ const ago = (iso: string) => {
             </li>
           </ul>
           <div class="row">
-            <input v-model="draft.alias" type="text" maxlength="80" placeholder="Add a nickname, title or full name" aria-label="New alias" class="alias-input" @keydown="aliasKey">
+            <input v-model="draft.alias" type="text" maxlength="80" spellcheck="false" placeholder="Add a nickname, title or full name" aria-label="New alias" class="alias-input" @keydown="aliasKey">
             <UiButton size="sm" :disabled="!draft.alias.trim()" @click="addAlias">Add</UiButton>
           </div>
           <span class="field-hint">Other names canon or your scripts use. Mentions of them link here.</span>
@@ -448,7 +449,14 @@ const ago = (iso: string) => {
     </template>
 
     <!-- Notes -->
-    <UiPanel v-else title="Notes" description="Working notes for the team: open questions, references, voice lines. Not canon.">
+    <div v-else class="stack notes-tab">
+    <UiPanel title="Notes on the text" :description="`Notes pinned to passages that mention ${e.name}. Not canon.`">
+      <ul v-if="e.text_notes.length" class="text-notes">
+        <li v-for="n in e.text_notes" :key="n.id"><NoteCard :note="n" source @changed="refresh(); refreshNuxtData('stats')" /></li>
+      </ul>
+      <p v-else class="muted none">No notes on passages that mention {{ e.name }}.<template v-if="editable"> Select words in a source and choose Add note.</template></p>
+    </UiPanel>
+    <UiPanel title="Page notes" description="Working notes for the team: open questions, references, voice lines. Not canon.">
       <template v-if="editable && editing !== 'notes'" #actions>
         <UiButton size="sm" variant="ghost" icon="review" @click="edit('notes')">{{ e.notes ? 'Edit' : 'Write' }}</UiButton>
       </template>
@@ -469,6 +477,7 @@ const ago = (iso: string) => {
         <template v-if="editable" #actions><UiButton @click="edit('notes')">Write notes</UiButton></template>
       </UiEmptyState>
     </UiPanel>
+    </div>
   </template>
 </template>
 
@@ -537,6 +546,8 @@ const ago = (iso: string) => {
 .ln { color: var(--faint); font-size: var(--text-xs); text-align: right; padding-top: 4px; }
 .p-text { font-family: var(--font-story); font-size: var(--text-md); line-height: 1.6; max-width: 70ch; }
 .p-text mark { background: color-mix(in srgb, var(--accent) 22%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+.notes-tab { gap: var(--s-4); }
+.text-notes { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); max-width: 760px; }
 .notes { max-width: 70ch; line-height: 1.65; }
 .notes :deep(p), .notes :deep(ul) { margin: 0 0 var(--s-3); }
 .notes :deep(h3) { margin: var(--s-4) 0 var(--s-2); font-size: var(--text-md); }
