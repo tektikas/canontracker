@@ -45,12 +45,15 @@ const createProject = () => run('project', async () => {
   step.value = 'start'
 })
 
-// The demo gets its own project, so the team's real project stays clean for their own files.
+// The demo gets its own project, so the team's real project stays clean for their own files. A tiny second sample comes
+// with it, so switching projects is something to try, not an empty menu. Broken Tide loads last and opens with the tour.
 const tryDemo = () => run('demo', async () => {
   const studioId = me.value?.current?.studio.id ?? adminStudio.value?.id
+  await $fetch('/api/projects', { method: 'POST', body: { name: 'Lantern Row (sample)', studio_id: studioId } })
+  await $fetch('/api/demo/load', { method: 'POST', body: { set: 'lantern-row' } })
   await $fetch('/api/projects', { method: 'POST', body: { name: 'Broken Tide (demo)', studio_id: studioId } })
   await $fetch('/api/demo/load', { method: 'POST' })
-  reloadNuxtApp({ path: '/review', force: true })
+  reloadNuxtApp({ path: '/?tour=1', force: true })
 })
 </script>
 
@@ -101,10 +104,10 @@ const tryDemo = () => run('demo', async () => {
         <button type="button" class="option" :disabled="!!busy" @click="tryDemo">
           <span class="option-icon"><UiIcon name="demo" :size="20" /></span>
           <span class="option-title">Try the Broken Tide demo</span>
-          <span class="option-text">An original island story, 2 lore documents and 11 scenes, with planted contradictions. Opens in its own project; {{ me?.current?.project.name }} stays empty.</span>
+          <span class="option-text">An original island story, 2 lore documents and 11 scenes, with planted contradictions, plus a three-page sample to switch to. Both open in their own projects; {{ me?.current?.project.name }} stays empty.</span>
           <span class="option-cta">
-            <template v-if="busy === 'demo'"><span class="spinner" aria-hidden="true" />Loading 13 sources…</template>
-            <template v-else>Load demo and start reviewing<UiIcon name="arrow" :size="16" /></template>
+            <template v-if="busy === 'demo'"><span class="spinner" aria-hidden="true" />Loading 16 sources…</template>
+            <template v-else>Load demo and take the tour<UiIcon name="arrow" :size="16" /></template>
           </span>
         </button>
         <NuxtLink to="/" class="option" :class="{ disabled: !!busy }">

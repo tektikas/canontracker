@@ -4,6 +4,7 @@ const editor = computed(() => canEdit(useMe().value))
 const route = useRoute()
 const { data: canon, refresh: refreshCanon } = await useFetch('/api/facts', { query: { status: 'canon' } })
 const { data: changes, refresh } = await useFetch('/api/changes')
+const fill = useFillAction()
 
 const targetId = ref(String(route.query.target ?? ''))
 const target = computed(() => canon.value?.find(f => f.id === targetId.value))
@@ -91,7 +92,15 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
 <template>
   <UiPageHeader title="Changes &amp; impact" description="Propose a new value for a canon fact and see what it may touch before anything changes. Analysis stays inside accepted canon, at most 2 hops away. Nothing is rewritten automatically." />
 
-  <UiPanel v-if="editor" title="1 · Propose a change" description="Pick a canon fact, write the new wording and say why.">
+  <UiPanel v-if="!canon?.length && !changes?.length">
+    <UiEmptyState title="No canon to change yet" icon="changes">
+      A change proposal rewrites one accepted fact and shows what it may touch before anything changes. Accept some canon first.
+      <template #actions><UiButton variant="primary" :icon="fill.icon" :to="fill.to">{{ fill.label }}</UiButton></template>
+    </UiEmptyState>
+  </UiPanel>
+
+  <template v-else>
+  <UiPanel v-if="editor" data-tour="propose" title="1 · Propose a change" description="Pick a canon fact, write the new wording and say why.">
     <form class="stack" @submit.prevent="propose">
       <UiField label="Canon fact to change">
         <select v-model="targetId">
@@ -198,6 +207,7 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
       </template>
     </article>
   </div>
+  </template>
 </template>
 
 <style scoped>

@@ -3,6 +3,7 @@
 const editor = computed(() => canEdit(useMe().value))
 const { data: conflicts, refresh } = await useFetch('/api/conflicts')
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
+const fill = useFillAction()
 const since = (iso: string) => new Date(iso).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' })
 const scanning = ref(false)
 const scanMsg = ref('')
@@ -66,7 +67,7 @@ async function decide(id: string, decision: string) {
 
 <template>
   <UiPageHeader title="Conflict candidates" description="Narrow checks over accepted canon: timing, travel and relationships in code, world rules with the model's help. A hit is a possible conflict for you to judge. Deciding never edits canon.">
-    <template v-if="editor" #actions><UiButton variant="primary" :loading="scanning" @click="scan">{{ scanning ? 'Scanning…' : 'Scan canon' }}</UiButton></template>
+    <template v-if="editor" #actions><UiButton variant="primary" data-tour="scan" :loading="scanning" @click="scan">{{ scanning ? 'Scanning…' : 'Scan canon' }}</UiButton></template>
   </UiPageHeader>
 
   <p v-if="scanMsg" class="notice info" role="status">{{ scanMsg }}</p>
@@ -74,7 +75,7 @@ async function decide(id: string, decision: string) {
 
   <UiEmptyState v-if="!conflicts?.length && !stats?.canon" title="No canon to check yet" icon="conflicts">
     Conflicts are found in accepted canon. Accept candidates in Review, then scan.
-    <template #actions><UiButton variant="primary" to="/review">Review candidates</UiButton></template>
+    <template #actions><UiButton variant="primary" :icon="fill.icon" :to="fill.to">{{ fill.label }}</UiButton></template>
   </UiEmptyState>
   <UiEmptyState v-else-if="!conflicts?.length && stats?.last_scan" title="No conflicts found" icon="check">
     The last scan checked {{ counted(stats.last_scan.facts, 'canon fact') }} on {{ since(stats.last_scan.at) }}.
@@ -83,7 +84,7 @@ async function decide(id: string, decision: string) {
   </UiEmptyState>
   <UiEmptyState v-else-if="!conflicts?.length" title="Not scanned yet" icon="conflicts">
     Scan {{ counted(stats?.canon ?? 0, 'canon fact') }} for timing, travel and relationship conflicts.
-    <template v-if="editor" #actions><UiButton variant="primary" :loading="scanning" @click="scan">Scan canon</UiButton></template>
+    <template v-if="editor" #actions><UiButton variant="primary" data-tour="scan" :loading="scanning" @click="scan">Scan canon</UiButton></template>
   </UiEmptyState>
 
   <template v-else>
@@ -91,7 +92,7 @@ async function decide(id: string, decision: string) {
     <p v-if="!shown.length" class="muted empty-note">{{ view === 'open' ? 'Nothing left to judge. Scan again after canon changes.' : 'No decisions yet.' }}</p>
 
     <div class="list">
-      <article v-for="c in shown" :key="c.id" class="conflict" :class="{ model: c.origin === 'model' }">
+      <article v-for="c in shown" :key="c.id" class="conflict" :class="{ model: c.origin === 'model', decided: c.status !== 'open' }" :data-tour="c.rule === 'EXACT_TIME_LOCATION_OVERLAP' && c.status === 'open' ? 'c1' : undefined">
         <header class="head">
           <div class="row">
             <UiBadge :tone="STATUS_TONE[c.status] as any" dot>{{ STATUS_LABEL[c.status] }}</UiBadge>
@@ -136,6 +137,8 @@ async function decide(id: string, decision: string) {
 .list { display: grid; gap: var(--s-5); margin-top: var(--s-4); }
 .conflict { background: var(--raised); border: 1px solid var(--line); border-left: 3px solid var(--bad); border-radius: var(--r-lg); padding: var(--s-4) var(--s-5); display: grid; gap: var(--s-3); min-width: 0; }
 .conflict.model { border-left: 3px dashed var(--pencil); }
+/* Decided: the vermilion edge is for conflicts still waiting on someone. */
+.conflict.decided { border-left-color: var(--line-strong); }
 .head { display: flex; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; align-items: center; }
 h2 { margin: 0; font-size: var(--text-lg); }
 h3 { margin: 0 0 var(--s-2); font-size: var(--text-xs); color: var(--faint); font-weight: 600; }

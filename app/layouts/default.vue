@@ -53,6 +53,7 @@ const groups = computed<{ label?: string, links: NavLink[] }[]>(() => [
     ],
   },
 ])
+const bottomLinks = computed(() => [groups.value[0]!.links[0]!, ...groups.value[1]!.links.slice(0, 3)])
 const recorded = computed(() => stats.value?.model.mode === 'mock')
 const current = computed(() => me.value?.current)
 // Projects grouped by studio for the switcher; most people have one studio, so its heading only shows when there are several.
@@ -164,7 +165,21 @@ async function open(id: string) {
       </p>
       <slot />
     </main>
+
+    <!-- Phones: the five core sections stay one tap away; More opens the drawer with the rest. -->
+    <nav class="bottom-nav" aria-label="Sections" :inert="navOpen">
+      <NuxtLink v-for="l in bottomLinks" :key="l.to" :to="l.to" class="bottom-link" :class="{ 'router-link-exact-active': l.to !== '/' && route.path.startsWith(`${l.to}/`) }">
+        <span class="bottom-icon"><UiIcon :name="l.icon" :size="22" /><span v-if="l.count && l.tone" class="bottom-badge" :class="l.tone">{{ l.count > 99 ? '99+' : l.count }}</span></span>
+        <span>{{ l.label }}</span>
+      </NuxtLink>
+      <button type="button" class="bottom-link" :aria-expanded="navOpen" aria-controls="sidebar" @click="navOpen = true">
+        <span class="bottom-icon"><UiIcon name="menu" :size="22" /><span v-if="stats?.open_conflicts" class="bottom-badge bad dot" /></span>
+        <span>More</span>
+        <span v-if="stats?.open_conflicts" class="sr-only">({{ counted(stats.open_conflicts, 'open conflict') }})</span>
+      </button>
+    </nav>
     <MentionCard />
+    <GuidedTour />
   </div>
 </template>
 
@@ -185,4 +200,5 @@ async function open(id: string) {
 .viewer-note { margin-bottom: var(--s-5); }
 .viewer-note svg { flex: none; margin-top: 2px; }
 .topbar-name { overflow: hidden; text-overflow: ellipsis; }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 </style>

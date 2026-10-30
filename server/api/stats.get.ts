@@ -1,5 +1,6 @@
 export default defineEventHandler(() => {
   const db = useDb()
+  const a = access()
   // every query below filters on the current project
   const count = (sql: string) => (db.prepare(sql).get(pid()) as { n: number }).n
   const lastScan = () => {
@@ -24,5 +25,10 @@ export default defineEventHandler(() => {
     open_notes: count(`select count(*) n from notes where project_id = ? and status = 'open'`),
     audit_events: count('select count(*) n from audit_events where project_id = ?'),
     last_scan: lastScan(),
+    // Getting started on Home: has anyone else been invited to the studio, and has this person connected an agent here.
+    teammates: (db.prepare(`select (select count(*) from memberships where studio_id = ? and user_id != ?)
+      + (select count(*) from invites where studio_id = ? and revoked_at is null and accepted_at is null and expires_at > ?) n`)
+      .get(a.studio.id, a.user.id, a.studio.id, now()) as { n: number }).n,
+    agent_tokens: (db.prepare('select count(*) n from api_tokens where user_id = ? and project_id = ? and revoked_at is null').get(a.user.id, pid()) as { n: number }).n,
   }
 })

@@ -7,6 +7,10 @@ const currentId = computed(() => me.value?.current?.project.id)
 
 const creating = ref(route.query.new === '1')
 const newName = ref('')
+// A new project can start from one of the sample sets; loading one is the same admin action as Load demo set on Home.
+const SAMPLES = { empty: '', 'broken-tide': 'Broken Tide (demo)', 'lantern-row': 'Lantern Row (sample)' } as const
+const startWith = ref<keyof typeof SAMPLES>('empty')
+watch(startWith, (v, old) => { if (!newName.value.trim() || newName.value === SAMPLES[old]) newName.value = SAMPLES[v] })
 const createBusy = ref(false)
 const createError = ref('')
 const createInput = ref<HTMLInputElement>()
@@ -26,6 +30,7 @@ async function create() {
   try {
     // Creating opens the new project, like switching to it.
     await $fetch('/api/projects', { method: 'POST', body: { name: newName.value, studio_id: data.value?.studio.id } })
+    if (startWith.value !== 'empty') await $fetch('/api/demo/load', { method: 'POST', body: { set: startWith.value } })
     reloadNuxtApp({ path: '/', force: true })
   } catch (e) {
     createError.value = errorMessage(e)
@@ -125,8 +130,15 @@ const ago = (iso: string | null) => {
         <UiField label="Game or project name" :error="createError">
           <input ref="createInput" v-model="newName" type="text" maxlength="80" placeholder="e.g. Saltmarsh Chronicles" @keydown.esc="creating = false">
         </UiField>
+        <UiField label="Start with" :hint="startWith === 'broken-tide' ? 'An island story in 13 sources with planted contradictions. In recorded mode its candidates replay a recorded run.' : startWith === 'lantern-row' ? 'Three short sources and five facts with quotes, added in your name. No recorded model run.' : 'Add your own sources from Home.'">
+          <select v-model="startWith">
+            <option value="empty">An empty project</option>
+            <option value="broken-tide">The Broken Tide demo</option>
+            <option value="lantern-row">The Lantern Row sample</option>
+          </select>
+        </UiField>
         <div class="row">
-          <UiButton type="submit" variant="primary" :loading="createBusy">Create and open</UiButton>
+          <UiButton type="submit" variant="primary" :loading="createBusy">{{ createBusy && startWith !== 'empty' ? 'Loading sources…' : 'Create and open' }}</UiButton>
           <UiButton variant="ghost" @click="creating = false">Cancel</UiButton>
         </div>
       </form>
