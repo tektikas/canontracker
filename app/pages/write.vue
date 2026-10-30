@@ -42,68 +42,74 @@ onMounted(async () => {
   body.value?.focus()
 })
 
-// Autosave: one request at a time; changes made while it runs are saved right after.
+// Autosave is one drain: one request at a time, and changes made while it runs are saved right after. persist() returns
+// that drain, which resolves only once nothing is in flight and nothing is unsaved, or rejects when a save fails.
 let timer: ReturnType<typeof setTimeout> | undefined
-let running: Promise<void> | null = null
+let drain: Promise<void> | null = null
 let dirty = false
-async function persist() {
-  clearTimeout(timer)
-  if (running) {
-    await running
-    if (!dirty) return
+async function saveOnce() {
+  const fields = { title: f.title, kind: f.kind, content: f.content }
+  if (draftId.value) {
+    savedAt.value = (await $fetch(`/api/drafts/${draftId.value}`, { method: 'PUT', body: fields })).updated_at
+  } else {
+    const d = await $fetch('/api/drafts', { method: 'POST', body: fields })
+    draftId.value = d.id
+    savedAt.value = d.updated_at
+    router.replace({ query: { draft: d.id } })
   }
-  if (!dirty) return
-  dirty = false
-  status.value = 'saving'
-  let failed = false
-  running = (async () => {
+}
+function persist(): Promise<void> {
+  clearTimeout(timer)
+  drain ??= (async () => {
     try {
-      const fields = { title: f.title, kind: f.kind, content: f.content }
-      if (draftId.value) {
-        savedAt.value = (await $fetch(`/api/drafts/${draftId.value}`, { method: 'PUT', body: fields })).updated_at
-      } else {
-        const d = await $fetch('/api/drafts', { method: 'POST', body: fields })
-        draftId.value = d.id
-        savedAt.value = d.updated_at
-        router.replace({ query: { draft: d.id } })
+      while (dirty) {
+        dirty = false
+        clearTimeout(timer) // this save carries every change made so far
+        status.value = 'saving'
+        try {
+          await saveOnce()
+        } catch (e) {
+          dirty = true
+          status.value = 'error'
+          saveError.value = errorMessage(e)
+          throw e
+        }
       }
-      status.value = dirty ? 'saving' : 'saved'
+      status.value = 'saved'
       saveError.value = ''
-    } catch (e) {
-      dirty = true
-      failed = true
-      status.value = 'error'
-      saveError.value = errorMessage(e)
+    } finally {
+      drain = null
     }
   })()
-  await running
-  running = null
-  if (dirty && !failed) await persist()
+  return drain
 }
+// Background saves (timer, Ctrl+S, leaving focus) show a failure in the status line instead of throwing.
+const persistQuietly = () => persist().catch(() => {})
 watch(f, () => {
   if (loading.value) return
   dirty = true
   status.value = 'saving'
   clearTimeout(timer)
-  timer = setTimeout(persist, 700)
+  timer = setTimeout(persistQuietly, 700)
 })
-// Leaving waits for the save; if the text still isn't stored, stay unless the writer chooses to lose it.
+// Leaving waits for the whole drain; if the text still isn't stored, stay unless the writer chooses to lose it.
 let leaving = false
 onBeforeRouteLeave(async () => {
-  if (leaving || (!dirty && !running)) return
-  await persist()
-  if (!dirty) return
-  return confirm('Your latest changes couldn’t be saved, so they’re only on this screen. Leave anyway and lose them?')
+  if (leaving || (!dirty && !drain)) return
+  try {
+    await persist()
+  } catch {
+    return confirm('Your latest changes couldn’t be saved, so they’re only on this screen. Leave anyway and lose them?')
+  }
 })
 onBeforeUnmount(() => clearTimeout(timer))
 function unload(e: BeforeUnloadEvent) {
-  if (!dirty && !running) return
+  if (!dirty && !drain) return
   e.preventDefault()
   e.returnValue = ''
 }
 onMounted(() => window.addEventListener('beforeunload', unload))
 onBeforeUnmount(() => window.removeEventListener('beforeunload', unload))
-
 const saving = ref(false)
 const error = ref('')
 const canSave = computed(() => !!f.title.trim() && !!f.content.trim())
@@ -139,7 +145,7 @@ function keys(e: KeyboardEvent) {
   if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
     e.preventDefault()
     dirty = true
-    persist()
+    persistQuietly()
   }
 }
 
@@ -166,7 +172,7 @@ function exitFocus() {
   if (!focus.value) return
   focus.value = false
   // Leaving focus is a natural pause: store the text now rather than after the autosave delay.
-  if (dirty) persist()
+  if (dirty || drain) persistQuietly()
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
   nextTick(() => {
     grow()

@@ -32,8 +32,11 @@ export function reanchorNote(note: Pick<NoteItem, 'passage_id' | 'quote' | 'pass
   if (hits.length === 1) return { anchor: passages[hits[0]!]!.id, anchor_issue: null }
   if (!hits.length) return { anchor: null, anchor_issue: 'gone' as const }
   const k = original.findIndex(p => p.id === note.passage_id)
-  const score = (i: number) => (passages[i]!.text === original[k]?.text ? 2 : 0)
-    + (passages[i - 1]?.text === original[k - 1]?.text ? 1 : 0) + (passages[i + 1]?.text === original[k + 1]?.text ? 1 : 0)
+  if (k < 0) return { anchor: null, anchor_issue: 'ambiguous' as const }
+  // Only real paragraphs count: two missing neighbours at a document edge are not shared context.
+  const same = (a?: P, b?: P) => !!a && !!b && a.text === b.text
+  const score = (i: number) => (same(passages[i], original[k]) ? 2 : 0) + (same(passages[i - 1], original[k - 1]) ? 1 : 0)
+    + (same(passages[i + 1], original[k + 1]) ? 1 : 0)
   const scored = hits.map(i => ({ i, s: score(i) })).sort((a, b) => b.s - a.s)
   const [best, next] = scored
   if (best!.s > 0 && best!.s > next!.s) return { anchor: passages[best!.i]!.id, anchor_issue: null }

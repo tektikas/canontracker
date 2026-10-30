@@ -44,12 +44,17 @@ export default defineEventHandler(async (event) => {
   if (tFrom != null && tTo != null && tTo < tFrom) throw fail(400, 'BAD_TIME', 'To must be after From.')
   const precision = tFrom == null && tTo == null ? null : b.precision === 'approximate' ? 'approximate' : 'exact'
 
-  // A name that links to a wiki page (title, alias, merged name) is stored as the name analysis knows that page by, so a
-  // renamed page ("Arin" titled "Captain Arin") still meets its other facts in conflicts and impact. New names stay as typed.
-  const pages = new Map(listEntities().flatMap(e => namesOf(e).map(n => [normName(n), e] as const)))
+  // Identity changes only by an explicit choice. A page picked in the form (subject_entity_id / object_entity_id) is stored
+  // under the name analysis knows it by, so a renamed page ("Arin" titled "Captain Arin") still meets its other facts in
+  // conflicts and impact. Typed text is stored as typed (in the analysis name's casing when it is one): a page title or a
+  // hand-typed alias alone never decides who a fact is about.
+  const pages = listEntities()
   const linked = (['subject', 'object'] as const).flatMap((role) => {
-    const e = names[role] ? pages.get(normName(names[role])) : undefined
-    return e && analysisName(e) !== names[role] ? [{ role, from: names[role]!, to: analysisName(e), entity_id: e.id }] : []
+    const picked = b[`${role}_entity_id`]
+    const e = picked ? pages.find(p => p.id === picked) : undefined
+    if (picked && !e) throw fail(404, 'NOT_FOUND', `The page linked as ${role} no longer exists.`)
+    const page = e ?? (names[role] ? pages.find(p => normName(analysisName(p)) === normName(names[role]!)) : undefined)
+    return page && analysisName(page) !== names[role] ? [{ role, from: names[role], to: analysisName(page), entity_id: page.id }] : []
   })
   for (const l of linked) names[l.role] = l.to
   // Canon uses the name a merge already decided on, the same as accepting a candidate does.

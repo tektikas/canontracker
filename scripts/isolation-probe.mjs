@@ -73,6 +73,9 @@ check('B gets 404 updating A’s note', (await b(`/api/notes/${noteA.id}`, { met
 check('B gets 404 noting A’s document', (await b('/api/notes', { method: 'POST', body: { document_id: docA.id, passage_id: psgA.id, body: 'x' } })).status, 404)
 check('B gets 404 adding a fact from A’s document', (await b('/api/facts', { method: 'POST', body: { to: 'canon', document_id: docA.id, passage_id: psgA.id, quote: psgA.text.slice(0, 20), subject: 'X', predicate: 'is', statement: 'X.' } })).status, 404)
 check('B sees none of A’s notes', (await b('/api/notes')).data.length, 0)
+const draftB = (await b('/api/drafts', { method: 'POST', body: { title: 'B scene', kind: 'scene', content: 'Bo waits.' } })).data
+const docB = (await b(`/api/documents/${(await b(`/api/drafts/${draftB.id}/save`, { method: 'POST' })).data.document_id}`)).data
+check('B gets 404 linking a fact to A’s entity', (await b('/api/facts', { method: 'POST', body: { to: 'canon', document_id: docB.id, passage_id: docB.passages[0].id, quote: 'Bo waits', subject: 'Bo', subject_entity_id: entA.id, predicate: 'is', statement: 'Bo waits.' } })).status, 404)
 const projA = (await a('/api/me')).data.current.project.id
 check('B gets 404 switching into A’s project', (await b(`/api/projects/${projA}/switch`, { method: 'POST' })).status, 404)
 check('Signed-out caller gets 401', (await client()('/api/stats')).status, 401)

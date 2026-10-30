@@ -173,31 +173,59 @@ check('audit: fact.authored keeps the quote', log.find(x => x.event_type === 'fa
 check('audit: note.created', by('note.created') + by('note.created', 'Eli'), 2)
 check('audit: note.updated', by('note.updated'), 2)
 check('audit: citation.stale names the authored facts', log.find(x => x.event_type === 'citation.stale')?.detail.fact_ids.includes(atHarbor.data.id), true)
-// 8. A renamed page keeps one identity: facts authored under its title, an alias or another casing are stored under the
-// name analysis uses, so they meet the page's other facts in conflicts and impact. New names stay as typed.
+// 8. Identity changes only by an explicit choice. A page picked in the form (subject_entity_id) is stored under its analysis
+// name, so a renamed page still meets its other facts in conflicts and impact. Typed text stays as typed: a title or a
+// hand-typed alias never re-routes a fact; only the exact analysis name (any casing) and a merge do.
 async function writeDoc(title, content) {
   const d = (await a('/api/drafts', { method: 'POST', body: { title, kind: 'scene', content } })).data
   return (await a(`/api/documents/${(await a(`/api/drafts/${d.id}/save`, { method: 'POST' })).data.document_id}`)).data
 }
 check('rename Arin to Captain Arin', (await a(`/api/entities/${arin.id}`, { method: 'PATCH', body: { name: 'Captain Arin', aliases: ['The Keeper'] } })).status, 200)
+check('the page list gives the analysis name', (await a('/api/entities')).data.find(e => e.id === arin.id)?.analysis_name, 'Arin')
 const dawn = await writeDoc('Dawn Watch', ['Captain Arin stands at the Docks at eight.', '', 'At eight Arin is also at the Mill.', '', 'The Keeper rows to Gull Rock with Mira.'].join('\n'))
 const [docks, mill, rock] = dawn.passages
 const at = (p, over) => a('/api/facts', { method: 'POST', body: fact({ document_id: dawn.id, passage_id: p.id, ...over }) })
-const byTitle = (await at(docks, { subject: 'Captain Arin', quote: 'Captain Arin stands at the Docks', object: 'Docks', statement: 'Captain Arin is at the Docks at D2 08:00.', time_from: 'D2 08:00' })).data
-check('a page title is stored as the analysis name', byTitle.subject, 'Arin')
-const byName = (await at(mill, { subject: 'Arin', quote: 'Arin is also at the Mill', object: 'Mill', statement: 'Arin is at the Mill at D2 08:00.', time_from: 'D2 08:00' })).data
-const byAlias = (await at(rock, { subject: 'the keeper', quote: 'The Keeper rows to Gull Rock', object: 'Gull Rock', statement: 'The Keeper is at Gull Rock.' })).data
-check('an alias in other casing is stored as the analysis name', byAlias.subject, 'Arin')
-const fresh = (await at(rock, { subject: 'Mira', predicate: 'rows_with', quote: 'with Mira', object: 'Captain Arin', statement: 'Mira rows with Arin.' })).data
+const byTitle = (await at(docks, { subject: 'Captain Arin', subject_entity_id: arin.id, quote: 'Captain Arin stands at the Docks', object: 'Docks', statement: 'Captain Arin is at the Docks at D2 08:00.', time_from: 'D2 08:00' })).data
+check('a picked page is stored under its analysis name', byTitle.subject, 'Arin')
+const byName = (await at(mill, { subject: 'arin', quote: 'Arin is also at the Mill', object: 'Mill', statement: 'Arin is at the Mill at D2 08:00.', time_from: 'D2 08:00' })).data
+check('the analysis name typed in other casing is stored as the analysis name', byName.subject, 'Arin')
+const typedTitle = (await at(docks, { subject: 'Captain Arin', quote: 'Captain Arin stands at the Docks', object: 'Docks', statement: 'Captain Arin is at the Docks.', to: 'review' })).data
+check('a typed page title without picking the page stays as typed', typedTitle.subject, 'Captain Arin')
+const typedAlias = (await at(rock, { subject: 'The Keeper', quote: 'The Keeper rows to Gull Rock', object: 'Gull Rock', statement: 'The Keeper is at Gull Rock.' })).data
+check('a typed alias without picking the page stays as typed', typedAlias.subject, 'The Keeper')
+const fresh = (await at(rock, { subject: 'Mira', predicate: 'rows_with', quote: 'with Mira', object: 'Captain Arin', object_entity_id: arin.id, statement: 'Mira rows with Arin.' })).data
 check('a new name stays as typed', fresh.subject, 'Mira')
-check('a page title as object is stored as the analysis name', fresh.object, 'Arin')
+check('a picked page as object is stored under its analysis name', fresh.object, 'Arin')
+check('a picked page from another project or deleted is refused', (await at(rock, { subject: 'Mira', subject_entity_id: 'ent_nope', quote: 'with Mira', object: 'Gull Rock', statement: 'x' })).status, 404)
 await a('/api/conflicts/scan', { method: 'POST' })
 const pair = (await a('/api/conflicts')).data.find(c => [c.left_fact_id, c.right_fact_id].sort().join() === [byTitle.id, byName.id].sort().join())
-check('fact under the title conflicts with one under the analysis name', pair?.rule, 'EXACT_TIME_LOCATION_OVERLAP')
+check('fact on the picked page conflicts with one under the analysis name', pair?.rule, 'EXACT_TIME_LOCATION_OVERLAP')
 const titleChange = (await a('/api/changes', { method: 'POST', body: { target_fact_id: byName.id, proposed_statement: 'Arin is at the Mill at D2 09:00.', rationale: 'probe' } })).data
-check('impact reaches the fact authored under the title', titleChange.impact.some(i => i.target_id === byTitle.id), true)
+check('impact reaches the fact on the picked page', titleChange.impact.some(i => i.target_id === byTitle.id), true)
 const linkedAudit = (await a('/api/audit')).data.find(x => x.event_type === 'fact.authored' && x.target_id === byTitle.id)?.detail.linked?.[0]
-check('audit records the name it linked', `${linkedAudit?.from} → ${linkedAudit?.to}`, 'Captain Arin → Arin')
+check('audit records the page it linked', `${linkedAudit?.from} → ${linkedAudit?.to} (${linkedAudit?.entity_id === arin.id})`, 'Captain Arin → Arin (true)')
+
+// 8b. An editorial alias must not re-route identity (lead repro): pending "Wren" is accepted after another page takes the
+// alias "Wren"; another typed "Wren" fact still meets it in conflicts.
+const quay = await writeDoc('Quay', ['Wren waits at the Quay.', '', 'Wren stands at the Ropewalk.'].join('\n'))
+const wren = (p, obj, over) => a('/api/facts', { method: 'POST', body: fact({ document_id: quay.id, passage_id: quay.passages[p].id, subject: 'Wren', quote: 'Wren', object: obj, statement: `Wren is at the ${obj}.`, time_from: 'D5 10:00', ...over }) })
+const wrenPending = (await wren(0, 'Quay', { to: 'review' })).data
+const zeta = (await a('/api/entities', { method: 'POST', body: { name: 'Zeta', kind: 'character' } })).data
+check('another page takes the alias Wren', (await a(`/api/entities/${zeta.id}`, { method: 'PATCH', body: { aliases: ['Wren'] } })).status, 200)
+check('accept the pending Wren fact', (await a(`/api/facts/${wrenPending.id}/review`, { method: 'POST', body: { decision: 'accept' } })).status, 200)
+const wrenTyped = (await wren(1, 'Ropewalk')).data
+check('typed Wren stays Wren despite the alias on Zeta', wrenTyped.subject, 'Wren')
+await a('/api/conflicts/scan', { method: 'POST' })
+const wrenPair = (await a('/api/conflicts')).data.find(c => [c.left_fact_id, c.right_fact_id].sort().join() === [wrenPending.id, wrenTyped.id].sort().join())
+check('…so it conflicts with the accepted Wren fact', wrenPair?.rule, 'EXACT_TIME_LOCATION_OVERLAP')
+const wrenPicked = (await wren(1, 'Ropewalk', { subject_entity_id: zeta.id, time_from: 'D6 10:00' })).data
+check('picking Zeta explicitly links the fact to Zeta', wrenPicked.subject, 'Zeta')
+
+// 8c. A merge decision does re-route typed names: after merging Mira into Captain Arin, a typed "Mira" fact is Arin's.
+const mira = (await a('/api/entities')).data.find(e => e.name === 'Mira')
+check('merge Mira into Captain Arin', (await a(`/api/entities/${mira.id}/merge`, { method: 'POST', body: { into: arin.id } })).status, 200)
+const merged = (await at(rock, { subject: 'Mira', predicate: 'rows_with', quote: 'with Mira', object: 'Gull Rock', statement: 'Mira rows to Gull Rock.' })).data
+check('a typed merged name is stored under the name the merge decided', merged.subject, 'Arin')
 
 // 9. Notes re-anchor by their own paragraph's context, never by the first place the words appear; ambiguous stays unpinned.
 const tides = await writeDoc('Tides', ['# Tides', '', 'Arin checks the nets at the Docks.', '', 'Arin climbs to the Lighthouse.', '', 'The tide turns.'].join('\n'))
@@ -217,4 +245,11 @@ check('when the context is gone and the words appear twice, the note is not plac
 check('…and says it needs re-anchoring', lost.anchor_issue, 'ambiguous')
 const t4 = await version(['# Tides', '', 'Mira mends the nets at the Docks.', '', 'Arin rests at the Lighthouse.', '', 'The tide runs out.'].join('\n'))
 check('words found once are placed there', t4.notes.find(n => n.id === pinned.id).anchor, t4.passages[2].id)
+// A note at a document edge: missing neighbours on both sides are not context. Every paragraph rewritten, the words twice → ambiguous.
+const edge = await writeDoc('Edge', ['Arin waits at the Docks.', '', 'The moon rises.', '', 'Ships cross the bay.'].join('\n'))
+const edgeNote = (await a('/api/notes', { method: 'POST', body: { document_id: edge.id, passage_id: edge.passages[0].id, quote: 'Arin', body: 'Docks scene' } })).data
+const ed = (await a('/api/drafts', { method: 'POST', body: { document_id: edge.id } })).data
+await a(`/api/drafts/${ed.id}`, { method: 'PUT', body: { content: ['Arin climbs to the Lighthouse.', '', 'The fog clears.', '', 'Arin sleeps at the Mill.', '', 'Rain falls.'].join('\n') } })
+const e2 = (await a(`/api/documents/${(await a(`/api/drafts/${ed.id}/save`, { method: 'POST' })).data.document_id}`)).data
+check('a note at the document edge with no real context left is not placed', e2.notes.find(n => n.id === edgeNote.id).anchor_issue, 'ambiguous')
 console.log('all checks passed')

@@ -8,7 +8,7 @@ export default defineEventHandler(() => {
     const all = namesOf(e)
     const names = new Set(all.map(normName))
     return {
-      id: e.id, name: e.name, kind: e.kind, summary: e.summary, aliases: aliasesOf(e), portrait: portraitUrl(e), origin: e.origin, updated_at: e.updated_at,
+      id: e.id, name: e.name, analysis_name: analysisName(e), kind: e.kind, summary: e.summary, aliases: aliasesOf(e), portrait: portraitUrl(e), origin: e.origin, updated_at: e.updated_at,
       // Every name that links here (title, aliases, analysis name, merged names), for read-time mention links.
       names: all, facts: [...names].reduce((n, k) => n + (counts.get(k) ?? 0), 0),
     }

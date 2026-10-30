@@ -15,16 +15,36 @@ onMounted(() => dialog.value?.showModal())
 const KINDS = ['character', 'location', 'relationship', 'event', 'rule', 'claim']
 const { data: entities } = useEntityList()
 const lookup = useEntityLookup()
-// Start from the first known name in the selection, so the common case is one less field to type.
+// Start from the first known name in the selection, as written there, so the common case is one less field to type.
 const firstName = () => {
   const re = lookup.value.pattern
   if (!re) return ''
   re.lastIndex = 0
-  const m = re.exec(props.selection.quote)
-  const e = m && lookup.value.byName.get(normName(m[0]))
-  return e?.name ?? ''
+  return re.exec(props.selection.quote)?.[0] ?? ''
 }
 const f = reactive({ subject: firstName(), predicate: '', object: '', value: '', kind: 'claim', time_from: '', time_to: '', approximate: false, statement: '', body: '' })
+
+// Who a fact is about changes only by an explicit choice: picking a page from the list (its exact title) links it, and the
+// server stores the name analysis knows that page by. Typed names stay as typed; a title or alias of a page is only offered.
+type Role = 'subject' | 'object'
+const ROLES = ['subject', 'object'] as const
+const link = reactive<Record<Role, EntityListItem | null>>({ subject: null, object: null })
+for (const role of ROLES) {
+  watch([() => f[role], entities], ([v]) => {
+    if (link[role] && normName(link[role]!.name) === normName(v)) return
+    link[role] = entities.value?.find(e => normName(e.name) === normName(v)) ?? null
+  }, { immediate: true })
+}
+function pick(role: Role, e: EntityListItem) {
+  f[role] = e.name
+  link[role] = e
+}
+// A typed name that is a page's title or alias but isn't linked. The analysis name (and merged names) link on the server.
+const suggestion = (role: Role) => {
+  const n = normName(f[role])
+  if (link[role] || !n) return null
+  return entities.value?.find(e => normName(e.analysis_name) !== n && [e.name, ...e.aliases].some(x => normName(x) === n)) ?? null
+}
 const kindTouched = ref(false)
 const statementTouched = ref(false)
 watch(() => f.predicate, (p) => { if (!kindTouched.value) f.kind = kindForPredicate(p.trim().toLowerCase().replace(/\s+/g, '_')) })
@@ -55,6 +75,7 @@ async function submit(to: 'canon' | 'review' | 'note') {
         body: {
           to, document_id: props.selection.doc.id, passage_id: props.selection.passage.id, quote: props.selection.quote,
           kind: f.kind, subject: f.subject, predicate: f.predicate, object: f.object, value: f.value, statement: f.statement,
+          subject_entity_id: link.subject?.id, object_entity_id: link.object?.id,
           time_from: f.time_from, time_to: f.time_to, precision: f.approximate ? 'approximate' : 'exact',
         },
       })
@@ -93,12 +114,20 @@ const canSave = computed(() => (props.mode === 'note' ? !!f.body.trim()
         <div class="triple-fields">
           <UiField label="Subject">
             <input v-model="f.subject" type="text" list="sel-entities" required maxlength="80" autofocus placeholder="Who or what">
+            <span v-if="link.subject" class="link-state"><UiIcon name="link" :size="14" />Linked to {{ link.subject.name }}
+              <button type="button" class="linkish" @click="link.subject = null">Unlink</button></span>
+            <span v-else-if="suggestion('subject')" class="link-state">Did you mean {{ suggestion('subject')!.name }}?
+              <button type="button" class="linkish" @click="pick('subject', suggestion('subject')!)">Select it to link</button></span>
           </UiField>
           <UiField label="Predicate" :hint="hint">
             <input v-model="f.predicate" type="text" list="sel-predicates" required maxlength="60" placeholder="e.g. located_at">
           </UiField>
           <UiField :label="objectLabel">
             <input v-model="f.object" type="text" list="sel-entities" maxlength="80" :placeholder="pred === 'located_at' ? 'Where' : 'Optional'">
+            <span v-if="link.object" class="link-state"><UiIcon name="link" :size="14" />Linked to {{ link.object.name }}
+              <button type="button" class="linkish" @click="link.object = null">Unlink</button></span>
+            <span v-else-if="suggestion('object')" class="link-state">Did you mean {{ suggestion('object')!.name }}?
+              <button type="button" class="linkish" @click="pick('object', suggestion('object')!)">Select it to link</button></span>
           </UiField>
         </div>
         <datalist id="sel-entities"><option v-for="e in entities" :key="e.id" :value="e.name" /></datalist>
@@ -166,6 +195,8 @@ const canSave = computed(() => (props.mode === 'note' ? !!f.body.trim()
 .statement-input { font-family: var(--font-story); font-size: var(--text-md); }
 .sel-actions { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .decide { margin: calc(-1 * var(--s-2)) 0 0; }
+.link-state { display: flex; flex-wrap: wrap; align-items: center; gap: 4px; font-size: var(--text-xs); font-weight: 400; color: var(--muted); }
+.linkish { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; }
 @media (max-width: 720px) {
   .sel-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); padding: var(--s-4); }
   .triple-fields { grid-template-columns: 1fr; }
