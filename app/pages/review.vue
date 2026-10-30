@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// Viewers read only; the server refuses their writes too (server/middleware/access.ts).
+const editor = computed(() => canEdit(useMe().value))
 const route = useRoute()
 const { data: pending, refresh } = await useFetch('/api/facts', { query: { status: 'pending' } })
 const { data: rejected, refresh: refreshRejected } = await useFetch('/api/facts', { query: { status: 'rejected' } })
@@ -118,7 +120,7 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
 
 // Keyboard triage (desktop). Each key is one explicit decision; held keys don't repeat, and typing in a field never triggers one.
 function onKey(e: KeyboardEvent) {
-  if (e.ctrlKey || e.metaKey || e.altKey || composing(e) || mode.value !== 'idle' || matchMedia(NO_KEYS).matches) return
+  if (!editor.value || e.ctrlKey || e.metaKey || e.altKey || composing(e) || mode.value !== 'idle' || matchMedia(NO_KEYS).matches) return
   if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], .sidebar, .topbar')) return
   const key = e.key.toLowerCase()
   if (key === 'j') move(1)
@@ -242,6 +244,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
         </div>
       </form>
 
+      <p v-else-if="!editor" class="small muted decision"><UiIcon name="lock" :size="14" /> View only. An editor, admin or owner decides on candidates.</p>
       <div v-else class="row decision">
         <UiButton variant="primary" icon="check" :loading="busy" :disabled="!verified(current)" @click="decide('accept')">Accept <kbd>A</kbd></UiButton>
         <UiButton :disabled="busy || !verified(current)" @click="open('edit')">Edit &amp; accept <kbd>E</kbd></UiButton>
@@ -250,7 +253,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 
       <p v-if="error && error !== BLOCKED" class="notice bad" role="alert">{{ error }}</p>
 
-      <p class="keys small faint">
+      <p v-if="editor" class="keys small faint">
         <kbd>J</kbd> <kbd>K</kbd> next / previous · <kbd>A</kbd> accept · <kbd>E</kbd> edit · <kbd>R</kbd> reject · <kbd>Esc</kbd> cancel
       </p>
     </section>
@@ -292,7 +295,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
     <ul class="rejected-list">
       <li v-for="f in rejected" :key="f.id">
         <div class="statement">{{ f.statement }}</div>
-        <div class="small muted">Reason: {{ f.rationale }}</div>
+        <div class="small muted"><template v-if="f.decided_by_name">Rejected by {{ f.decided_by_name }} · </template>Reason: {{ f.rationale }}</div>
       </li>
     </ul>
   </details>

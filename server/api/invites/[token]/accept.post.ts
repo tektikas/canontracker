@@ -1,4 +1,4 @@
-// Joins the studio with the invite's role and opens its first project. A link works once.
+// Joins the studio with the invite's role and opens its most active project. A link works once.
 export default defineEventHandler(async (event) => {
   const { user } = await requireUser(event)
   const invite = findInvite(getRouterParam(event, 'token')!)
@@ -11,7 +11,9 @@ export default defineEventHandler(async (event) => {
       db.prepare('update invites set accepted_by = ?, accepted_at = ? where id = ?').run(user.id, now(), invite.id)
     })
   }
-  const project = db.prepare('select id from projects where studio_id = ? order by created_at limit 1').get(invite.studio_id) as { id: string } | undefined
+  // Land where the team is working: the studio's most recently active project.
+  const project = db.prepare(`select p.id from projects p where p.studio_id = ?
+    order by (select max(a.created_at) from audit_events a where a.project_id = p.id) desc nulls last, p.created_at limit 1`).get(invite.studio_id) as { id: string } | undefined
   await switchProject(event, user.id, project?.id ?? null)
   return { studio_id: invite.studio_id, project_id: project?.id ?? null }
 })

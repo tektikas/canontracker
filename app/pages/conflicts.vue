@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// Viewers read only; the server refuses their writes too (server/middleware/access.ts).
+const editor = computed(() => canEdit(useMe().value))
 const { data: conflicts, refresh } = await useFetch('/api/conflicts')
 const scanning = ref(false)
 const scanMsg = ref('')
@@ -62,7 +64,7 @@ async function decide(id: string, decision: string) {
 
 <template>
   <UiPageHeader title="Conflict candidates" description="Narrow checks over accepted canon: timing, travel and relationships in code, world rules with the model's help. A hit is a possible conflict for you to judge. Deciding never edits canon.">
-    <template #actions><UiButton variant="primary" :loading="scanning" @click="scan">{{ scanning ? 'Scanning…' : 'Scan canon' }}</UiButton></template>
+    <template v-if="editor" #actions><UiButton variant="primary" :loading="scanning" @click="scan">{{ scanning ? 'Scanning…' : 'Scan canon' }}</UiButton></template>
   </UiPageHeader>
 
   <p v-if="scanMsg" class="notice info" role="status">{{ scanMsg }}</p>
@@ -70,7 +72,7 @@ async function decide(id: string, decision: string) {
 
   <UiEmptyState v-if="!conflicts?.length" title="No conflict candidates yet" icon="conflicts">
     Accept some canon, then scan.
-    <template #actions><UiButton variant="primary" :loading="scanning" @click="scan">Scan canon</UiButton></template>
+    <template v-if="editor" #actions><UiButton variant="primary" :loading="scanning" @click="scan">Scan canon</UiButton></template>
   </UiEmptyState>
 
   <template v-else>
@@ -98,7 +100,8 @@ async function decide(id: string, decision: string) {
           <div class="vs" aria-hidden="true">vs</div>
           <section><h3>Source B</h3><FactSummary :fact="c.right" sources /></section>
         </div>
-        <footer v-if="c.status === 'open'" class="decide">
+        <footer v-if="c.status === 'open' && !editor" class="decide small muted">Open · waiting for an editor to decide.</footer>
+        <footer v-else-if="c.status === 'open'" class="decide">
           <UiField label="Your rationale (required)" :error="state(c.id).error">
             <input v-model="state(c.id).rationale" type="text" placeholder="e.g. One source gives only an approximate time">
           </UiField>
@@ -106,7 +109,7 @@ async function decide(id: string, decision: string) {
             <UiButton v-for="d in DECISIONS" :key="d.value" :variant="(d.cls || 'secondary') as any" :disabled="state(c.id).busy || !state(c.id).rationale.trim()" @click="decide(c.id, d.value)">{{ d.label }}</UiButton>
           </div>
         </footer>
-        <footer v-else class="decide small muted">Decision: {{ c.decision_rationale }}</footer>
+        <footer v-else class="decide small muted"><template v-if="c.decided_by_name">Decided by {{ c.decided_by_name }} · </template>{{ c.decision_rationale }}</footer>
       </article>
     </div>
   </template>

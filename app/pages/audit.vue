@@ -13,9 +13,9 @@ const q = (v: unknown) => (v ? `“${clip(v)}”` : '')
 const because = (d: Record<string, any>) => (d.rationale ? `Reason: ${clip(d.rationale, 140)}` : '')
 
 // One plain sentence per event type; unknown types fall back to the raw event name.
-function sentence(e: { event_type: string, actor: string, target_id: string, detail: Record<string, any> }) {
+function sentence(e: { event_type: string, actor_name: string, target_id: string, detail: Record<string, any> }) {
   const d = e.detail
-  const who = e.actor
+  const who = e.actor_name
   switch (e.event_type) {
     case 'document.imported': return [`${who} imported ${d.filename}`, `${d.passages} passages, read-only`]
     case 'document.version_added': return [`${who} imported version ${d.version} of ${d.filename}`, `${d.passages} passages`]

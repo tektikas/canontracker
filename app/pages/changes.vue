@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// Viewers read only; the server refuses their writes too (server/middleware/access.ts).
+const editor = computed(() => canEdit(useMe().value))
 const route = useRoute()
 const { data: canon, refresh: refreshCanon } = await useFetch('/api/facts', { query: { status: 'canon' } })
 const { data: changes, refresh } = await useFetch('/api/changes')
@@ -72,7 +74,7 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
 <template>
   <UiPageHeader title="Changes &amp; impact" description="Propose a new value for a canon fact and see what it may touch before anything changes. Analysis stays inside accepted canon, at most 2 hops away. Nothing is rewritten automatically." />
 
-  <UiPanel title="1 · Propose a change" description="Pick a canon fact, write the new wording and say why.">
+  <UiPanel v-if="editor" title="1 · Propose a change" description="Pick a canon fact, write the new wording and say why.">
     <form class="stack" @submit.prevent="propose">
       <UiField label="Canon fact to change">
         <select v-model="targetId">
@@ -90,8 +92,8 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
     </form>
   </UiPanel>
 
-  <h2 class="list-title">2 · Proposals</h2>
-  <UiEmptyState v-if="!changes?.length" title="No change proposals yet" icon="changes">Choose a canon fact above, or start from the Canon page.</UiEmptyState>
+  <h2 class="list-title">{{ editor ? '2 · Proposals' : 'Proposals' }}</h2>
+  <UiEmptyState v-if="!changes?.length" title="No change proposals yet" icon="changes">{{ editor ? 'Choose a canon fact above, or start from the Canon page.' : 'Proposals your team makes show up here with their impact.' }}</UiEmptyState>
 
   <div class="list">
     <article v-for="c in changes" :key="c.id" class="proposal" :class="`is-${c.status}`">
@@ -140,7 +142,8 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
         </details>
       </section>
 
-      <template v-if="c.status === 'ready_for_review'">
+      <p v-if="c.status === 'ready_for_review' && !editor" class="decide small muted">Ready for review · waiting for an editor to accept or reject.</p>
+      <template v-else-if="c.status === 'ready_for_review'">
         <div class="decide">
           <UiField label="3 · Decision rationale (required)" :error="state(c.id).error"><input v-model="state(c.id).rationale" type="text" placeholder="e.g. Impact list reviewed with the writers"></UiField>
           <div class="row">
@@ -152,11 +155,11 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
       <template v-else>
         <div class="decide">
           <p class="small muted">
-            Decision: {{ c.decision_rationale }}
+            <template v-if="c.decided_by_name">{{ c.status === 'rejected' ? 'Rejected' : 'Accepted' }} by {{ c.decided_by_name }}: </template><template v-else>Decision: </template>{{ c.decision_rationale }}
             <template v-if="c.status === 'applied'"> · new canon version created; the old fact is kept as superseded.</template>
           </p>
-          <p v-if="c.status === 'reverted'" class="small muted">Reverted: {{ c.revert_rationale }} · the original wording is canon again as a new version.</p>
-          <template v-if="c.status === 'applied'">
+          <p v-if="c.status === 'reverted'" class="small muted">Reverted<template v-if="c.reverted_by_name"> by {{ c.reverted_by_name }}</template>: {{ c.revert_rationale }} · the original wording is canon again as a new version.</p>
+          <template v-if="c.status === 'applied' && editor">
             <div><UiButton v-if="!open[c.id]" size="sm" @click="open[c.id] = true">Revert this change…</UiButton></div>
             <template v-if="open[c.id]">
               <UiField label="Why revert (required)" :error="state(c.id).error"><input v-model="state(c.id).rationale" type="text" placeholder="e.g. Playtest showed the old rule reads better"></UiField>

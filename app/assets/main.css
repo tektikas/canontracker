@@ -261,7 +261,7 @@ code, .mono { font-family: var(--font-code); font-size: 0.85em; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 /* ---------- Fields ---------- */
-input[type=text], input[type=search], textarea, select {
+input[type=text], input[type=search], input[type=email], input[type=password], textarea, select {
   width: 100%; min-height: 36px; padding: 7px 10px;
   font: inherit; color: var(--ink);
   background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-md);

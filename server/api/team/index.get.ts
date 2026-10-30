@@ -7,7 +7,7 @@ export default defineEventHandler(() => {
   const canManage = atLeast(role, 'admin')
   const invites = canManage
     ? db.prepare(`select i.id, i.token, i.role, i.created_at, i.expires_at, u.name created_by_name from invites i join users u on u.id = i.created_by
-        where i.studio_id = ? and i.accepted_at is null and i.revoked_at is null and i.expires_at > ? order by i.created_at desc`).all(studio.id, now())
+        where i.studio_id = ? and i.accepted_at is null and i.revoked_at is null and i.expires_at > ? order by i.created_at desc`).all(studio.id, now()) as { id: string, token: string, role: Role, created_at: string, expires_at: string, created_by_name: string }[]
     : []
   return { studio, role, user_id: user.id, can_manage: canManage, members, invites }
 })
