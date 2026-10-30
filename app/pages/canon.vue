@@ -39,7 +39,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 <template>
   <UiPageHeader title="Canon" description="Only facts a person accepted. Every fact links to the exact passage it came from." />
 
-  <UiTabs v-model="tab" :items="tabs" />
+  <div class="tabwrap"><UiTabs v-model="tab" :items="tabs" /></div>
 
   <div v-if="tab === 'facts' || tab === 'timeline'" class="filter">
     <input v-model="filter" type="search" placeholder="Filter by character, place, word…" aria-label="Filter canon">
@@ -96,6 +96,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 </template>
 
 <style scoped>
+.tabwrap :deep(.tabs) { flex-wrap: wrap; overflow-x: visible; }
 .filter { display: flex; gap: var(--s-2); margin-bottom: var(--s-4); max-width: 420px; }
 .kind { margin-bottom: var(--s-5); }
 .kind h2 { text-transform: capitalize; }

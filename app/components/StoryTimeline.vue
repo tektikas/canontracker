@@ -16,9 +16,10 @@ const days = computed(() => {
 })
 const width = computed(() => days.value * 24 * PX_H)
 
+const names = computed(() => new Set(props.facts.flatMap(f => [f.subject, f.object]).filter(Boolean)))
 function label(f: Fact) {
   if (f.predicate === 'located_at') return `at ${f.object}`
-  return [f.predicate.replace(/_/g, ' '), f.object].filter(Boolean).join(' ')
+  return factPhrase(f, names.value)
 }
 
 const lanes = computed(() => {
@@ -41,9 +42,9 @@ const lanes = computed(() => {
         b = b + (range ? FUZZ / 2 : FUZZ)
       }
       const left = a * PX
-      const w = approx || range ? Math.max((b - a) * PX, 10) : 0
+      const w = approx || range ? (b - a) * PX : 0
       const text = label(f)
-      const end = left + (w || 12) + 8 + text.length * 6.6
+      const end = left + (Math.max(w, 12)) + 8 + text.length * 6.6
       let row = rowEnds.findIndex(e => e + 6 <= left)
       if (row < 0) row = rowEnds.length
       rowEnds[row] = end
@@ -52,6 +53,12 @@ const lanes = computed(() => {
     return { name, items, rows: rowEnds.length }
   })
 })
+const detailEl = ref<HTMLElement | null>(null)
+function pick(id: string) {
+  selectedId.value = id === selectedId.value ? null : id
+  // The detail sits below the chart: bring it into view so the click visibly does something.
+  if (selectedId.value) nextTick(() => detailEl.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
+}
 const selected = computed(() => timed.value.find(f => f.id === selectedId.value) ?? null)
 const dayTicks = computed(() => Array.from({ length: days.value }, (_, i) => i + 1))
 </script>
@@ -84,7 +91,7 @@ const dayTicks = computed(() => Array.from({ length: days.value }, (_, i) => i +
               :style="{ left: `${it.left}px`, top: `${7 + it.row * 30}px` }"
               :aria-pressed="it.f.id === selectedId"
               :aria-label="`${it.f.time_label}${it.approx ? ' (approximate)' : ''}: ${it.f.statement}`"
-              @click="selectedId = it.f.id === selectedId ? null : it.f.id"
+              @click="pick(it.f.id)"
             >
               <span class="mark" :style="it.w ? { width: `${it.w}px` } : undefined" />
               <span class="text">{{ it.text }}</span>
@@ -94,7 +101,7 @@ const dayTicks = computed(() => Array.from({ length: days.value }, (_, i) => i +
       </div>
     </div>
 
-    <div v-if="selected" class="detail">
+    <div v-if="selected" ref="detailEl" class="detail">
       <FactSummary :fact="selected" sources />
       <div class="row">
         <UiButton size="sm" :to="`/changes?target=${selected.id}`">Propose change…</UiButton>
@@ -123,6 +130,7 @@ const dayTicks = computed(() => Array.from({ length: days.value }, (_, i) => i +
 .day { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line-strong); padding: 4px 6px; font-size: var(--text-xs); }
 .hour { position: absolute; top: 22px; transform: translateX(-50%); color: var(--faint); font-size: var(--text-xs); }
 .item { position: absolute; display: flex; align-items: center; gap: 6px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; font-size: var(--text-sm); color: var(--ink); white-space: nowrap; border-radius: var(--r-sm); }
+.item::before { content: ""; position: absolute; inset: -6px -8px; } /* transparent hit area; bar geometry stays true */
 .item:hover .text, .item.sel .text { text-decoration: underline; }
 .item:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .item.sel { outline: 2px solid var(--ink); outline-offset: 2px; }

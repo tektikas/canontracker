@@ -4,9 +4,19 @@
 const props = defineProps<{ facts: { id: string, kind: string, subject: string, predicate: string, object: string | null, statement: string }[], selected?: string }>()
 const emit = defineEmits<{ select: [entity: string] }>()
 
-const W = 760
-const H = 520
-const R = 180
+// Layout adapts to the container: on a phone the circle becomes a tall ellipse so every label fits without panning.
+const box = ref<HTMLElement | null>(null)
+const W = ref(760)
+onMounted(() => {
+  const ro = new ResizeObserver(([e]) => { W.value = Math.max(260, Math.floor(e!.contentRect.width)) })
+  ro.observe(box.value!)
+  onBeforeUnmount(() => ro.disconnect())
+})
+const narrow = computed(() => W.value < 560)
+const LABEL_ROOM = 112 // node radius + gap + a ~11-character label
+const Rx = computed(() => Math.max(36, Math.min(180, W.value / 2 - LABEL_ROOM)))
+const Ry = computed(() => narrow.value ? Math.max(180, props.facts.length * 9) : 180)
+const H = computed(() => Ry.value * 2 + 80)
 const active = ref<string | null>(null)
 
 const links = computed(() => props.facts.filter(f => f.object && f.predicate !== 'travel_time'))
@@ -17,7 +27,7 @@ const nodes = computed(() => {
   return names.map((name, i) => {
     const a = (i / names.length) * 2 * Math.PI - Math.PI / 2
     const cos = Math.cos(a)
-    return { name, degree: degree.get(name)!, x: W / 2 + R * cos, y: H / 2 + R * Math.sin(a), anchor: Math.abs(cos) < 0.25 ? 'middle' : cos > 0 ? 'start' : 'end', cos, sin: Math.sin(a) }
+    return { name, degree: degree.get(name)!, x: W.value / 2 + Rx.value * cos, y: H.value / 2 + Ry.value * Math.sin(a), anchor: Math.abs(cos) < 0.25 ? 'middle' : cos > 0 ? 'start' : 'end', cos, sin: Math.sin(a) }
   })
 })
 const pos = computed(() => new Map(nodes.value.map(n => [n.name, n])))
@@ -30,7 +40,7 @@ const edges = computed(() => {
     const p = pairs.get(key)!
     p.n++
     p.titles.push(f.statement)
-    if (f.kind === 'relationship') p.rels.add(f.predicate.replace(/_/g, ' '))
+    if (f.kind === 'relationship') p.rels.add(humanizePredicate(f.predicate, props.facts.flatMap(x => [x.subject, x.object ?? ''])))
   }
   return [...pairs].map(([key, p]) => {
     const A = pos.value.get(p.a)!
@@ -49,12 +59,12 @@ const summary = computed(() => `${nodes.value.length} entities linked by ${links
       <span><i class="l" /> Other shared facts</span>
       <span class="faint">Select an entity to open its profile.</span>
     </div>
-    <div class="scroll">
-      <svg :viewBox="`0 0 ${W} ${H}`" role="group" :aria-label="summary">
+    <div ref="box" class="scroll">
+      <svg :viewBox="`0 0 ${W} ${H}`" :width="W" :height="H" :class="{ narrow }" role="group" :aria-label="summary">
         <g v-for="e in edges" :key="e.key" :class="{ dim: !on(e) }">
           <line :x1="e.x1" :y1="e.y1" :x2="e.x2" :y2="e.y2" :class="e.rel ? 'edge rel' : 'edge'"><title>{{ e.titles.join('\n') }}</title></line>
         </g>
-        <g v-for="e in edges.filter(x => x.rel)" :key="`l${e.key}`" :class="{ dim: !on(e) }">
+        <g v-for="e in edges.filter(x => x.rel)" :key="`l${e.key}`">
           <text :x="e.mx" :y="e.my" class="edge-label" text-anchor="middle" dominant-baseline="middle">{{ e.label }}</text>
         </g>
         <g
@@ -78,15 +88,16 @@ const summary = computed(() => `${nodes.value.length} entities linked by ${links
 .l { display: inline-block; width: 24px; vertical-align: middle; margin-right: 6px; border-top: 1.5px dashed var(--line-strong); }
 .l.rel { border-top: 3px solid var(--accent); }
 .scroll { overflow-x: auto; max-width: 100%; }
-svg { width: 100%; min-width: 620px; height: auto; max-height: 560px; display: block; }
-.edge { stroke: var(--line-strong); stroke-width: 1.5; stroke-dasharray: 4 4; }
+svg { max-width: 100%; height: auto; display: block; }
+.narrow .edge-label { font-size: 11px; }
+.edge { stroke: var(--muted); stroke-width: 1.5; stroke-dasharray: 4 4; }
 .edge.rel { stroke: var(--accent); stroke-width: 3; stroke-dasharray: none; }
 .edge-label { fill: var(--accent); font: 600 12px var(--font-ui); paint-order: stroke; stroke: var(--raised); stroke-width: 6px; stroke-linejoin: round; }
 .node { cursor: pointer; }
-.node circle { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 2; }
+.node circle { fill: color-mix(in srgb, var(--accent) 30%, var(--raised)); stroke: var(--accent); stroke-width: 2; }
 .node:hover circle, .node:focus-visible circle, .node.sel circle { fill: var(--accent); }
 .node:focus-visible { outline: none; }
 .node:focus-visible circle { stroke: var(--ink); stroke-width: 3; }
 .node text { fill: var(--ink); font: 600 13px var(--font-ui); paint-order: stroke; stroke: var(--raised); stroke-width: 4px; stroke-linejoin: round; }
-.dim { opacity: .22; }
+g.dim .edge, .node.dim circle { opacity: .2; } /* decorations only; label text stays full contrast */
 </style>
