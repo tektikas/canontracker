@@ -32,7 +32,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
       return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
     case 'candidate.accepted': return [`${who} accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d), d.bulk ? 'Part of one “accept all verified” decision' : ''].filter(Boolean).join(' · ')]
     case 'candidate.bulk_accepted': return [`${who} accepted ${counted(d.accepted?.length ?? 0, 'verified candidate')} in one decision`,
-      `After reading the list · each one is logged with its statement${d.skipped?.length ? ` · ${d.skipped.length} skipped (already decided or quote not found)` : ''}`]
+      `Confirmed from the listed candidates · each one is logged with its statement${d.skipped?.length ? ` · ${d.skipped.length} skipped (already decided or quote not found)` : ''}`]
     case 'candidate.corrected_and_accepted': return [`${who} corrected and accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
     case 'candidate.evidence_moved': return [`A pending candidate now cites ${d.filename}${inFolder(d)} v${d.to?.version}${d.to?.line ? `, line ${d.to.line}` : ''}`,
       `Its quote appears exactly once in the new version (was v${d.from?.version}${d.from?.line ? `, line ${d.from.line}` : ''}): ${q(d.quote)} · still waiting for a human decision`]
@@ -196,6 +196,7 @@ const groups = computed(() => {
 .kind { justify-self: start; }
 .what { min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 720px) {
+  .f { min-height: 44px; }
   .events li { grid-template-columns: auto 1fr; gap: var(--s-1) var(--s-3); }
   .what { grid-column: 1 / -1; }
 }

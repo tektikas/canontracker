@@ -289,6 +289,7 @@ code, .mono { font-family: var(--font-code); font-size: 0.85em; }
 @media (max-width: 720px) {
   .btn, .btn.sm, .btn.lg { min-height: 44px; }
   .icon-btn { width: 44px; height: 44px; }
+  .tabs button { min-height: 44px; }
 }
 .spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; }
 @keyframes spin { to { transform: rotate(360deg); } }

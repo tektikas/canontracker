@@ -373,7 +373,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
           <table>
             <thead>
               <tr>
-                <th v-if="editor" class="sel"><input type="checkbox" :checked="allShown" :indeterminate="selected.size > 0 && !allShown" aria-label="Select all shown" @change="toggleAll"></th>
+                <th v-if="editor" class="sel"><label class="sel-hit"><input type="checkbox" :checked="allShown" :indeterminate="selected.size > 0 && !allShown" aria-label="Select all shown" @change="toggleAll"></label></th>
                 <th :aria-sort="ariaSort('title')"><button type="button" class="sort" @click="sortBy('title')">Title<UiIcon v-if="sortKey === 'title'" :name="desc ? 'down' : 'up'" :size="14" /></button></th>
                 <th class="hide-sm">Folder</th>
                 <th class="hide-sm" :aria-sort="ariaSort('updated')"><button type="button" class="sort" @click="sortBy('updated')">Last change<UiIcon v-if="sortKey === 'updated'" :name="desc ? 'down' : 'up'" :size="14" /></button></th>
@@ -384,7 +384,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
             </thead>
             <tbody>
               <tr v-for="d in shown" :key="d.id" :class="{ picked: selected.has(d.id) }">
-                <td v-if="editor" class="sel"><input type="checkbox" :checked="selected.has(d.id)" :aria-label="`Select ${d.title}`" @change="toggle(d.id)"></td>
+                <td v-if="editor" class="sel"><label class="sel-hit"><input type="checkbox" :checked="selected.has(d.id)" :aria-label="`Select ${d.title}`" @change="toggle(d.id)"></label></td>
                 <td class="title-cell">
                   <div class="title-line">
                     <span class="kind" :title="docKind(d.kind).label"><UiIcon :name="docKind(d.kind).icon" :size="16" :label="docKind(d.kind).label" /></span>
@@ -498,6 +498,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
 th.sel, td.sel { width: 36px; padding-right: 0; }
 .sel input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--accent); cursor: pointer; }
 th.act, td.act { width: 40px; padding: 6px 8px; }
+.sel-hit { display: inline-grid; place-items: center; cursor: pointer; }
 .sort { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 .sort:hover { color: var(--ink); }
 th[aria-sort] { color: var(--ink); }
@@ -537,5 +538,11 @@ tbody tr.picked { background: var(--accent-soft); }
   .title-cell { min-width: 0; }
   .sub-line, .meta-sm { margin-left: 0; }
   .selbar { padding: var(--s-2) var(--s-3); }
+  .icon-btn.sm { width: 44px; height: 44px; }
+  .side-item, .check, .sort { min-height: 44px; }
+  th.sel, td.sel { width: 44px; }
+  .sel-hit { min-width: 44px; min-height: 44px; }
+  .row-menu :deep(.menu-trigger) { width: 44px; height: 44px; }
+  .bar-menu :deep(.menu-trigger) { min-height: 44px; }
 }
 </style>

@@ -443,6 +443,7 @@ const time = (iso: string) => clock(iso).slice(0, 5)
 .typing { cursor: none; }
 @media (prefers-reduced-motion: reduce) { .focus-bar, .switch, .switch::after { transition: none; } }
 @media (max-width: 720px) {
+  .kind { min-height: 44px; }
   .write.focusing { padding: 64px var(--s-4) 0; }
   .focusing .body-input.body-input { font-size: var(--text-md); }
   .focus-bar { padding: var(--s-1) var(--s-2) var(--s-1) var(--s-4); background: var(--raised); border-bottom: 1px solid var(--line); }

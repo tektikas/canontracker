@@ -126,7 +126,7 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
   <UiEmptyState v-if="!changes?.length" title="No change proposals yet" icon="changes">{{ editor ? 'Choose a canon fact above, or start from the Canon page.' : 'Proposals your team makes show up here with their impact.' }}</UiEmptyState>
 
   <div class="list">
-    <article v-for="c in changes" :key="c.id" class="proposal" :class="`is-${c.status}`">
+    <article v-for="c in changes" :key="c.id" class="proposal" :class="`is-${c.status}`" :data-tour="c.id === fresh ? 'impact' : undefined">
       <header class="spread">
         <div class="row"><UiBadge :tone="PROPOSAL_TONE[c.status] as any">Change proposal</UiBadge><UiBadge :tone="STATUS_TONE[c.status] as any" dot>{{ STATUS_LABEL[c.status] }}</UiBadge></div>
         <span class="small faint mono">{{ c.id }}</span>
@@ -137,7 +137,7 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
         <div class="small muted">Why: {{ c.rationale }}</div>
       </div>
 
-      <section class="impact" :class="{ stale: c.impact_stale }" :data-tour="c.id === fresh ? 'impact' : undefined">
+      <section class="impact" :class="{ stale: c.impact_stale }">
         <div v-if="c.impact_stale && c.status === 'ready_for_review'" class="notice warn stale-note" role="status">
           <UiIcon name="merge" :size="16" />
           <span>

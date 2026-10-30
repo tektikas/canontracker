@@ -118,7 +118,7 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
         </select>
         <UiBadge v-else>v{{ doc.version }}</UiBadge>
         <UiBadge v-for="t in doc.tags" :key="t.id" :tone="(t.color as TagTone)">{{ t.name }}</UiBadge>
-        <UiBadge tone="good" :title="doc.origin === 'written' ? 'Each save is a new version; saved versions never change' : 'Story Bible never edits imported sources'">Read-only source</UiBadge>
+        <UiBadge tone="good" :title="doc.origin === 'written' ? 'Each save is a new version; saved versions never change' : 'Story Bible never edits imported sources'">{{ doc.origin === 'written' ? 'Saved version' : 'Read-only source' }}</UiBadge>
         <span v-if="doc.origin === 'written'" class="small muted">Written in Story Bible<template v-if="doc.created_by_name"> by {{ doc.created_by_name }}</template>, {{ shortDate(doc.imported_at) }}</span>
         <span class="mono faint" :title="`sha256 ${doc.sha256}`">sha256 {{ String(doc.sha256).slice(0, 12) }}…</span>
       </span>
@@ -246,6 +246,7 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
   .side { position: static; max-height: none; }
 }
 @media (max-width: 720px) {
+  .version-pick { min-height: 44px; }
   .doc { padding: var(--s-3) var(--s-2); }
 }
 </style>

@@ -81,7 +81,7 @@ const STEPS = computed<Step[]>(() => [
     page: '/changes',
     to: ids.value.rule && `/changes?target=${ids.value.rule}`,
     targets: [
-      { sel: '[data-tour="impact"]', phone: '[data-tour="impact"] header', body: 'What the new rule may touch, within two hops, each with its path and sources: scenes S04, S07, S09 and S10, and not S01 or S03. Canon hasn’t changed: accept or reject the proposal, with a reason.' },
+      { sel: '[data-tour="impact"]', phone: '[data-tour="impact"] .impact > header', body: 'What the new rule may touch, within two hops, each with its path and sources: scenes S04, S07, S09 and S10, and not S01 or S03. Canon hasn’t changed: accept or reject the proposal, with a reason.' },
       ...(ids.value.rule ? [{ sel: '[data-tour="propose"]', phone: '[data-tour="propose"] form', body: 'The chord-stone rule is picked. Press Start from current wording, change it (say, a day instead of an hour), add why, and press Analyze impact. Nothing changes until someone accepts it.' }] : []),
     ],
     missing: 'The chord-stone rule (“…whoever carries it”) isn’t in canon right now. Accept it in Review, then pick it here and press Analyze impact.',
@@ -116,6 +116,8 @@ const phone = () => matchMedia('(max-width: 720px)').matches
 const GAP = 16
 const PAD = 6 // the outline's distance from the target
 let placedFor = ''
+let placedHeight = 0
+let settling = ''
 function measure() {
   const s = current.value
   let el: HTMLElement | null = null
@@ -125,10 +127,18 @@ function measure() {
     return
   }
   // Once per target: a step whose target changes (Scan → the conflict it found) places the card for the new one too.
+  // Again when a target above or below the card changes height (the page finished loading, a form opened): beside it, height doesn't matter.
   const key = `${step.value}:${found.value!.sel}:${phone()}`
-  if (placedFor !== key) {
-    placedFor = key
-    place(el)
+  const height = (el as HTMLElement).offsetHeight
+  if (placedFor !== key || (side.value !== 'right' && side.value !== 'left' && Math.abs(height - placedHeight) > 24)) {
+    // Only once the page holds still for one tick: the router's own scroll and late data would undo the placement.
+    const sig = `${key}:${Math.round((el as HTMLElement).getBoundingClientRect().top)}:${height}:${scrollY}`
+    if (sig === settling) {
+      placedFor = key
+      placedHeight = height
+      place(el)
+    }
+    settling = sig
   }
   const r = (el as HTMLElement).getBoundingClientRect()
   rect.value = { top: r.top, left: r.left, width: r.width, height: r.height }
@@ -153,7 +163,14 @@ function place(el: HTMLElement) {
   // Card above the target; when both fit on screen, centre the pair.
   scrollTo(r.height + h + 3 * GAP <= innerHeight ? (innerHeight - r.height - h - GAP) / 2 + h + GAP : h + 2 * GAP)
   r = el.getBoundingClientRect()
-  side.value = r.top >= h + 2 * GAP ? 'above' : innerHeight - r.bottom >= h + 2 * GAP ? 'below' : 'corner'
+  if (r.top >= h + 2 * GAP - 2) {
+    side.value = 'above'
+    return
+  }
+  // Too close to the top of the page for that: below it instead (the page has extra room at the bottom while the tour runs).
+  if (r.height + h + 3 * GAP <= innerHeight) scrollTo(innerHeight - h - 2 * GAP - r.height - 4)
+  r = el.getBoundingClientRect()
+  side.value = innerHeight - r.bottom >= h + 2 * GAP - 2 ? 'below' : 'corner'
 }
 
 // navigate: false when the tour is only picking up again (a reload, or Home's own layout mounting it afresh):
@@ -220,7 +237,7 @@ const popStyle = computed(() => {
     default: return { bottom: '16px', right: '16px', width: `${w}px` }
   }
 })
-// The page needs room below its last element so a target near the bottom can scroll above the phone sheet.
+// The page gets room below its last element so a target near the bottom can scroll clear of the card (see the CSS).
 watch(() => !!current.value, on => import.meta.client && document.documentElement.classList.toggle('tour-on', on), { immediate: true })
 const next = () => (last.value ? finish() : set(step.value! + 1))
 const finish = () => stop()
@@ -266,9 +283,10 @@ const finish = () => stop()
 .tour-actions { display: flex; justify-content: space-between; gap: var(--s-2); margin-top: var(--s-1); }
 .tour-do { justify-content: center; white-space: normal; text-align: center; }
 /* Phones: a bottom sheet above the bottom nav; the outlined target sits above it (place() scrolls it up). */
+/* Room below the last element while the tour runs, so any target can scroll clear of the card. */
+:global(html.tour-on .shell) { padding-bottom: 70vh; }
 @media (max-width: 720px) {
   .tour-pop.docked { top: auto; left: 0; right: 0; bottom: var(--bottom-nav-h, 0px); width: auto; border-radius: var(--r-lg) var(--r-lg) 0 0; border-bottom: 0; }
-  :global(html.tour-on .shell) { padding-bottom: 70vh; }
 }
 @media (prefers-reduced-motion: reduce) { .tour-spot { transition: none; } }
 </style>

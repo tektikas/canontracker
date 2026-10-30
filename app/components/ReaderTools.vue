@@ -182,5 +182,8 @@ onBeforeUnmount(() => {
 .line input { width: 72px; min-height: 28px; padding: 2px 6px; }
 .line .field-error { flex-basis: 100%; text-align: right; }
 @media (max-width: 900px) { .tools { top: 52px; } }
-@media (max-width: 720px) { .tools { margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-2)) var(--s-3); } }
+@media (max-width: 720px) {
+  .tools { margin: calc(-1 * var(--s-3)) calc(-1 * var(--s-2)) var(--s-3); }
+  .outline :deep(.menu-trigger), .line input { min-height: 44px; }
+}
 </style>

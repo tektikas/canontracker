@@ -68,7 +68,7 @@ const steps = computed(() => {
   const runs = evals.value?.length ?? 0
   return [
     { key: 'import', label: 'Import', to: '/library', value: s.documents, caption: plural(s.documents, 'source'), done: s.documents > 0 },
-    { key: 'review', label: 'Review', to: '/review', value: s.pending || null, caption: s.pending ? 'to review' : s.canon + s.rejected ? 'all reviewed' : s.documents ? 'none proposed' : 'nothing yet', done: s.documents > 0 && s.pending === 0 },
+    { key: 'review', label: 'Review', to: '/review', value: s.pending || null, caption: s.pending ? 'to review' : s.canon - s.sample_canon + s.rejected ? 'all reviewed' : s.documents ? 'none proposed' : 'nothing yet', done: s.documents > 0 && s.pending === 0 },
     { key: 'canon', label: 'Canon', to: '/canon', value: s.canon, caption: plural(s.canon, 'fact'), done: s.canon > 0 },
     { key: 'conflicts', label: 'Conflicts', to: '/conflicts', value: s.open_conflicts || null, caption: s.open_conflicts ? 'open' : found || scanned.value ? 'none open' : s.canon ? 'none open · scan to check' : 'nothing yet', done: s.canon > 0 && s.open_conflicts === 0 && (found > 0 || scanned.value), skip: s.canon > 0 && s.open_conflicts === 0 },
     { key: 'changes', label: 'Changes', to: '/changes', value: s.changes, caption: plural(s.changes, 'proposal'), done: s.changes > 0 },
@@ -111,7 +111,8 @@ const next = computed(() => {
   <UiPageHeader title="Overview">
     <template v-if="stats?.documents">
       {{ sourceLine }}.
-      Canon holds only facts a person accepted, each tied to its exact passage.
+      <template v-if="stats.sample_canon">Canon here is the sample’s preloaded facts, labelled as such, plus any a person accepts; each is tied to its exact passage.</template>
+      <template v-else>Canon holds only facts a person accepted, each tied to its exact passage.</template>
     </template>
     <template v-else-if="editor">
       Import or write lore and scenes. The model proposes facts with a quote, or you add them from the text yourself; only facts a person accepts become canon.

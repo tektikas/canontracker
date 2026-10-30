@@ -11,7 +11,7 @@ type FullFact = ReturnType<typeof listFacts>[number]
 function present(f: FullFact) {
   return {
     id: f.id, statement: f.statement, kind: f.kind, subject: f.subject, predicate: f.predicate, object: f.object, value: f.value,
-    time: f.time_label, version: f.version,
+    time: f.time_label, version: f.version, origin: f.origin, // 'sample' = preloaded with a sample project, no person decided it
     evidence: f.evidence.filter(e => e.verified).map(e => ({
       quote: e.quote, document_id: e.document_id, file: e.document_filename, folder: e.document_folder, title: e.document_title, document_version: e.document_version,
       lines: e.start_line == null ? null : `${e.start_line}-${e.end_line}`, passage_id: e.passage_id, support: e.support, stale: e.latest_version > e.document_version,
@@ -76,7 +76,7 @@ export function buildMcpServer(token: { id: string, name: string }) {
   }, ({ query, limit }) => {
     const hits = searchCanon(query, limit ?? 10)
     return reply({ status: hits.length ? 'ok' : 'unknown', query, ...(hits.length ? {} : { message: UNKNOWN }),
-      facts: hits.map(f => ({ id: f.id, statement: f.statement, subject: f.subject, predicate: f.predicate, object: f.object, time: f.time_label })) })
+      facts: hits.map(f => ({ id: f.id, statement: f.statement, subject: f.subject, predicate: f.predicate, object: f.object, time: f.time_label, origin: f.origin })) })
   })
 
   server.registerTool('sb_get_fact', {

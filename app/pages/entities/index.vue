@@ -146,7 +146,7 @@ async function create() {
 .f span { color: var(--faint); }
 @media (max-width: 720px) {
   .filters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--s-4)); padding: 0 var(--s-4); }
-  .f { flex: none; }
+  .f { flex: none; min-height: 44px; }
 }
 .f:hover { color: var(--ink); }
 .f[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
