@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// Viewers read only; the server refuses their writes too (server/middleware/access.ts).
+const editor = computed(() => canEdit(useMe().value))
 const { data: runs, refresh } = await useFetch('/api/eval')
 const { data: calls, refresh: refreshCalls } = await useFetch('/api/model-calls')
 const busy = ref(false)
@@ -36,7 +38,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString()
 <template>
   <UiPageHeader title="Measurements">
     <template #actions>
-      <UiButton variant="primary" :loading="busy" :disabled="busy" @click="run">{{ busy ? 'Measuring…' : 'Run evaluation' }}</UiButton>
+      <UiButton v-if="editor" variant="primary" :loading="busy" :disabled="busy" @click="run">{{ busy ? 'Measuring…' : 'Run evaluation' }}</UiButton>
     </template>
     Targets from the MVP acceptance list, measured on the current data.
   </UiPageHeader>

@@ -2,6 +2,9 @@
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
+  modules: ['nuxt-auth-utils'], // sealed httpOnly session cookie; needs NUXT_SESSION_PASSWORD (32+ chars)
+  // Lets server utils (audit, scoped queries) read the request's user and project without threading the event through.
+  nitro: { experimental: { asyncContext: true } },
   css: ['~/assets/main.css'],
   app: {
     head: {

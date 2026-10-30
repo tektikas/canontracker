@@ -13,9 +13,9 @@ const q = (v: unknown) => (v ? `“${clip(v)}”` : '')
 const because = (d: Record<string, any>) => (d.rationale ? `Reason: ${clip(d.rationale, 140)}` : '')
 
 // One plain sentence per event type; unknown types fall back to the raw event name.
-function sentence(e: { event_type: string, actor: string, target_id: string, detail: Record<string, any> }) {
+function sentence(e: { event_type: string, actor_name: string, target_id: string, detail: Record<string, any> }) {
   const d = e.detail
-  const who = e.actor
+  const who = e.actor_name
   switch (e.event_type) {
     case 'document.imported': return [`${who} imported ${d.filename}`, `${d.passages} passages, read-only`]
     case 'document.version_added': return [`${who} imported version ${d.version} of ${d.filename}`, `${d.passages} passages`]
@@ -51,7 +51,10 @@ function target(e: { event_type: string, target_type: string, target_id: string 
   const t = e.target_type
   const to = t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' ? '/conflicts' : t === 'change' ? '/changes'
     : t === 'fact' ? (e.event_type.startsWith('candidate.') ? '/review' : '/canon') : ''
-  return { to, label: `${t} ${e.target_id.slice(0, 8)}` }
+  // Ids already carry a type prefix ("fact_d0e…", "trc_e02c…"): drop it and label the thing in words.
+  const short = e.target_id.replace(/^[a-z]+_/, '').slice(0, 6)
+  const noun = e.target_id.startsWith('trc_') ? 'Model call' : t.charAt(0).toUpperCase() + t.slice(1)
+  return { to: e.target_id.startsWith('trc_') ? '/metrics' : to, label: `${noun} · ${short}…` }
 }
 const hms = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour12: false })
 

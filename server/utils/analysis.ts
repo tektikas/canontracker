@@ -8,14 +8,14 @@ const isRule = (f: Fact) => f.kind === 'rule' && f.predicate === 'rule'
 // Deterministic rules run in code; the world-rule check is model-suggested and labeled as such.
 export async function scanConflicts() {
   const db = useDb()
-  const facts = db.prepare(`select * from facts where status = 'canon'`).all() as unknown as Fact[]
-  const ins = db.prepare(`insert or ignore into conflicts (id, left_fact_id, right_fact_id, rule, origin, model_id, rationale, confidence, status, pair_hash, created_at)
-    values (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)`)
+  const facts = db.prepare(`select * from facts where project_id = ? and status = 'canon'`).all(pid()) as unknown as Fact[]
+  const ins = db.prepare(`insert or ignore into conflicts (id, left_fact_id, right_fact_id, rule, origin, model_id, rationale, confidence, status, pair_hash, created_at, project_id)
+    values (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)`)
   let created = 0
   const add = (a: Fact, b: Fact, rule: string, rationale: string, confidence: number, modelId: string | null = null) => {
     const pairHash = createHash('sha256').update([a.id, b.id].sort().join('|') + rule).digest('hex').slice(0, 24)
     const id = newId('conf')
-    if (ins.run(id, a.id, b.id, rule, modelId ? 'model' : 'rule', modelId, rationale, confidence, pairHash, now()).changes) {
+    if (ins.run(id, a.id, b.id, rule, modelId ? 'model' : 'rule', modelId, rationale, confidence, pairHash, now(), pid()).changes) {
       audit('conflict.detected', 'conflict', id, { rule, left: a.id, right: b.id, model_id: modelId })
       created++
     }
@@ -92,7 +92,7 @@ export interface ImpactItem {
 export function analyzeImpact(targetId: string): ImpactItem[] {
   const db = useDb()
   const target = getFact(targetId)
-  const canon = db.prepare(`select * from facts where status = 'canon' and id != ?`).all(targetId) as unknown as Fact[]
+  const canon = db.prepare(`select * from facts where project_id = ? and status = 'canon' and id != ?`).all(pid(), targetId) as unknown as Fact[]
   const scenesCiting = db.prepare(`select distinct d.id, d.title, e.id evidence_id from evidence e
     join documents d on d.id = e.document_id where e.fact_id = ? and d.kind = 'scene' and e.verified = 1`)
   const items: ImpactItem[] = []

@@ -1,5 +1,7 @@
-// Resets the local demo database and imports the synthetic "Broken Tide" set: lore first, then scenes in order.
+// Empties the current project and imports the synthetic "Broken Tide" set: lore first, then scenes in order.
+// Replacing a project's data is an admin action; other projects are untouched.
 export default defineEventHandler(async () => {
+  requireRole('admin')
   resetData()
   const assets = useStorage('assets:server')
   const files = (await assets.getKeys('broken-tide:docs')).map(k => k.split(':').pop()!)

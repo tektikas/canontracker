@@ -27,7 +27,7 @@ export async function runEval() {
   const canon = all.filter(f => f.status === 'canon')
   const byStatement = (s: string) => all.find(f => f.statement === s && f.status === 'canon') ?? all.find(f => f.statement === s)
   const statementOf = new Map(all.map(f => [f.id, f.statement]))
-  const conflicts = (db.prepare('select * from conflicts').all() as unknown as ConflictRow[])
+  const conflicts = (db.prepare('select * from conflicts where project_id = ?').all(pid()) as unknown as ConflictRow[])
     .map(c => ({ ...c, pair: [statementOf.get(c.left_fact_id)!, statementOf.get(c.right_fact_id)!] }))
   const results: EvalMetric[] = []
 
@@ -93,11 +93,11 @@ export async function runEval() {
     results.push({ key: 'impact_recall', label: `${gold.impact.id} impact recall`, target: '4/4', measured: 'not run', num: null, den: null, pass: null, note: 'Rule fact not imported yet.' })
   }
 
-  const calls = db.prepare(`select count(*) n, sum(status = 'failed') failed from model_calls`).get() as { n: number, failed: number | null }
+  const calls = db.prepare(`select count(*) n, sum(status = 'failed') failed from model_calls where project_id = ?`).get(pid()) as { n: number, failed: number | null }
   results.push({ key: 'model_calls', label: 'Model calls recorded (failed)', target: 'info', measured: `${calls.n} (${calls.failed ?? 0} failed)`, num: calls.n, den: null, pass: null })
 
   const run = { id: newId('eval'), dataset: gold.dataset, model_id: modelInfo().id, results, created_at: now() }
-  db.prepare('insert into eval_runs values (?, ?, ?, ?, ?)').run(run.id, run.dataset, run.model_id, JSON.stringify(results), run.created_at)
+  db.prepare('insert into eval_runs values (?, ?, ?, ?, ?, ?)').run(run.id, run.dataset, run.model_id, JSON.stringify(results), run.created_at, pid())
   audit('eval.completed', 'eval', run.id, { dataset: gold.dataset, passed: results.filter(r => r.pass).length, failed: results.filter(r => r.pass === false).length })
   return run
 }

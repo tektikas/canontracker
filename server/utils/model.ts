@@ -25,9 +25,9 @@ async function traced<T>(
 ): Promise<T> {
   const started = Date.now()
   const record = (status: string, summary: string | null, error: string | null) =>
-    useDb().prepare('insert into model_calls values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    useDb().prepare('insert into model_calls values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       .run(newId('mc'), purpose, modelInfo().id, PROMPT_VERSIONS[purpose], target.type, target.id, JSON.stringify(inputRefs),
-        status, Date.now() - started, summary, error, now())
+        status, Date.now() - started, summary, error, now(), pid())
   try {
     const result = await fn()
     record('ok', summarize(result), null)

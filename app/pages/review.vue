@@ -1,4 +1,6 @@
 <script setup lang="ts">
+// Viewers read only; the server refuses their writes too (server/middleware/access.ts).
+const editor = computed(() => canEdit(useMe().value))
 const route = useRoute()
 const { data: pending, refresh } = await useFetch('/api/facts', { query: { status: 'pending' } })
 const { data: rejected, refresh: refreshRejected } = await useFetch('/api/facts', { query: { status: 'rejected' } })
@@ -118,7 +120,7 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
 
 // Keyboard triage (desktop). Each key is one explicit decision; held keys don't repeat, and typing in a field never triggers one.
 function onKey(e: KeyboardEvent) {
-  if (e.ctrlKey || e.metaKey || e.altKey || composing(e) || mode.value !== 'idle' || matchMedia(NO_KEYS).matches) return
+  if (!editor.value || e.ctrlKey || e.metaKey || e.altKey || composing(e) || mode.value !== 'idle' || matchMedia(NO_KEYS).matches) return
   if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], .sidebar, .topbar')) return
   const key = e.key.toLowerCase()
   if (key === 'j') move(1)
@@ -147,7 +149,9 @@ watch(() => current.value?.id, async () => {
 // Source passage for the split view.
 const source = computed(() => current.value?.evidence[evIndex.value] ?? current.value?.evidence[0])
 const docId = computed(() => source.value?.document_id as string | undefined)
-const { data: doc } = await useAsyncData('review-source', () => (docId.value ? $fetch(`/api/documents/${docId.value}`) : Promise.resolve(null)), { watch: [docId] })
+// useRequestFetch forwards the session cookie during SSR; a bare $fetch there is signed out and the panel would hydrate empty.
+const reqFetch = useRequestFetch()
+const { data: doc } = await useAsyncData('review-source', () => (docId.value ? reqFetch(`/api/documents/${docId.value}`) : Promise.resolve(null)), { watch: [docId] })
 const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.value : null)
 </script>
 
@@ -242,6 +246,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
         </div>
       </form>
 
+      <p v-else-if="!editor" class="small muted decision"><UiIcon name="lock" :size="14" /> View only. An editor, admin or owner decides on candidates.</p>
       <div v-else class="row decision">
         <UiButton variant="primary" icon="check" :loading="busy" :disabled="!verified(current)" @click="decide('accept')">Accept <kbd>A</kbd></UiButton>
         <UiButton :disabled="busy || !verified(current)" @click="open('edit')">Edit &amp; accept <kbd>E</kbd></UiButton>
@@ -250,7 +255,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 
       <p v-if="error && error !== BLOCKED" class="notice bad" role="alert">{{ error }}</p>
 
-      <p class="keys small faint">
+      <p v-if="editor" class="keys small faint">
         <kbd>J</kbd> <kbd>K</kbd> next / previous · <kbd>A</kbd> accept · <kbd>E</kbd> edit · <kbd>R</kbd> reject · <kbd>Esc</kbd> cancel
       </p>
     </section>
@@ -259,7 +264,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
       <header class="source-head">
         <div class="source-title">
           <UiIcon name="file" :size="16" />
-          <b>{{ source?.document_title }}</b>
+          <b :title="source?.document_title">{{ source?.document_title }}</b>
           <span class="faint small">{{ source?.verified ? `line ${source.start_line}${source.end_line !== source.start_line ? `–${source.end_line}` : ''}` : 'no matching line' }}</span>
         </div>
         <div class="row">
@@ -292,7 +297,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
     <ul class="rejected-list">
       <li v-for="f in rejected" :key="f.id">
         <div class="statement">{{ f.statement }}</div>
-        <div class="small muted">Reason: {{ f.rationale }}</div>
+        <div class="small muted"><template v-if="f.decided_by_name">Rejected by {{ f.decided_by_name }} · </template>Reason: {{ f.rationale }}</div>
       </li>
     </ul>
   </details>
@@ -334,7 +339,8 @@ kbd {
 
 .source-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-2); flex-wrap: wrap; padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); background: var(--surface); }
 .source-title { display: flex; align-items: center; gap: var(--s-2); min-width: 0; font-size: var(--text-sm); }
-.source-title b { overflow-wrap: anywhere; }
+.source-title b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.source-title .faint { white-space: nowrap; }
 .source-body { flex: 1; min-height: 0; padding: var(--s-3); }
 .loading { margin: 0; }
 
@@ -362,6 +368,9 @@ kbd {
   .source-body { max-height: 45vh; }
 }
 @media (max-width: 720px) {
+  .source-head { flex-wrap: nowrap; }
+  .source-title { flex: 1; }
+  .source-head .row { flex: none; }
   .triple-fields { grid-template-columns: 1fr; }
   .queue-item { padding: 8px var(--s-4); min-height: 42px; }
   .progress { min-width: 0; width: 100%; }
