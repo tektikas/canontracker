@@ -7,7 +7,7 @@ const run = Date.now().toString(36)
 
 function client() {
   let cookie = ''
-  return async (path, { method = 'GET', body } = {}) => {
+  const call = async (path, { method = 'GET', body } = {}) => {
     const res = await fetch(base + path, { method, headers: { 'content-type': 'application/json', cookie }, body: body && JSON.stringify(body) })
     const set = res.headers.getSetCookie().map(c => c.split(';')[0]).filter(c => c.includes('='))
     if (set.length) cookie = set.join('; ')
@@ -16,6 +16,9 @@ function client() {
     try { data = JSON.parse(text) } catch { data = text }
     return { status: res.status, data }
   }
+  call.cookie = () => cookie
+  call.absorb = (headers) => { const set = headers.map(c => c.split(';')[0]); if (set.length) cookie = set.join('; ') }
+  return call
 }
 async function account(name) {
   const c = client()
@@ -63,4 +66,31 @@ check('Editor gets 403 inviting', (await e('/api/team/invites', { method: 'POST'
 
 const me = (await a('/api/me')).data.user.id
 check('Last owner cannot step down', (await a(`/api/team/${me}`, { method: 'PATCH', body: { role: 'admin' } })).status, 409)
+
+// Removed member with another studio to fall back to: the SSR page load re-points the session and forwards the
+// cookie, so the next content request lands on a valid project (no 409).
+const eStudio = (await e('/api/studios', { method: 'POST', body: { name: 'Eli Games' } })).data
+await e('/api/projects', { method: 'POST', body: { name: 'Eli Game', studio_id: eStudio.id } })
+await e(`/api/projects/${projA}/switch`, { method: 'POST' })
+check('Editor works in A’s project', (await e('/api/facts?status=pending')).status, 200)
+check('Admin removes editor', (await a(`/api/team/${(await e('/api/me')).data.user.id}`, { method: 'DELETE' })).status, 200)
+check('Stale cookie gets 409 on content', (await e('/api/facts?status=pending')).status, 409)
+const page = await fetch(base + '/', { headers: { cookie: e.cookie() } })
+check('SSR page for removed member is 200', page.status, 200)
+const set = page.headers.getSetCookie()
+check('SSR forwards the fallback session cookie', set.some(c => c.startsWith('nuxt-session=')), true)
+e.absorb(set)
+check('Removed member’s next request lands on a valid project', (await e('/api/facts?status=pending')).status, 200)
+
+// A viewer can leave on their own.
+check('Viewer leaves the studio', (await v(`/api/team/${(await v('/api/me')).data.user.id}`, { method: 'DELETE' })).status, 200)
+check('Outsider can’t remove an owner', (await b(`/api/team/${me}`, { method: 'DELETE' })).status, 404)
+
+// One invite link, two people accepting at once: exactly one membership.
+const raceLink = (await a('/api/team/invites', { method: 'POST', body: { role: 'editor', days: 1 } })).data
+const [r1, r2] = [await account('Rae'), await account('Rob')]
+const res = await Promise.all([r1, r2].map(c => c(`/api/invites/${raceLink.token}/accept`, { method: 'POST' })))
+check('Double accept: exactly one 200', res.filter(r => r.status === 200).length, 1)
+const members = (await a('/api/team')).data.members
+check('Double accept: one new membership', members.filter(m => /^Ra[e]|^Ro[b]/.test(m.name)).length, 1)
 console.log('all checks passed')

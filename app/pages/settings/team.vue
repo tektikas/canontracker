@@ -60,6 +60,7 @@ async function memberAction(id: string, fn: () => Promise<unknown>) {
   } finally {
     rowBusy.value = ''
     await refresh()
+    if (id === team.value?.user_id) await loadMe()
   }
 }
 const setRole = (id: string, role: string) => memberAction(id, () => $fetch(`/api/team/${id}`, { method: 'PATCH', body: { role } }))
