@@ -130,12 +130,19 @@ const bulkOpen = ref(false)
 const bulkBusy = ref(false)
 const bulkError = ref('')
 const bulkShown = ref<typeof verifiedLeft.value>([])
+// Candidates the server refused because they changed after the sheet opened; they stay in the queue for a one-by-one look.
+const bulkChanged = ref<typeof verifiedLeft.value>([])
+const citeEv = (f: Record<string, any>) => f.evidence.find((x: any) => x.verified)
 const cite = (f: Record<string, any>) => {
-  const e = f.evidence.find((x: any) => x.verified)
+  const e = citeEv(f)
   return e ? `${e.document_title}${e.start_line ? `, line ${e.start_line}` : ''}` : ''
 }
+// Merge decisions that rename names on accept, as the single review shows them; counted once per name.
+const bulkBlocked = computed(() => queue.value.length - verifiedLeft.value.length)
+const bulkMapped = computed(() => new Set(bulkShown.value.flatMap(f => f.identity.map(i => `${i.from}\u0000${i.to}`))).size)
 function openBulk() {
   bulkShown.value = verifiedLeft.value
+  bulkChanged.value = []
   bulkError.value = ''
   bulkOpen.value = !!bulkShown.value.length
 }
@@ -151,13 +158,21 @@ async function acceptAll() {
   bulkBusy.value = true
   bulkError.value = ''
   try {
-    const r = await $fetch('/api/facts/accept-verified', { method: 'POST', body: { ids: bulkShown.value.map(f => f.id) } })
+    // Each candidate goes with the fingerprint of what this sheet shows; the server refuses the lot if any of them changed.
+    const items = bulkShown.value.map(f => ({ id: f.id, fingerprint: candidateFingerprint(f) }))
+    const r = await $fetch('/api/facts/accept-verified', { method: 'POST', body: { items } })
     for (const id of r.accepted) decided[id] = 'accepted'
     last.value = { decision: 'accepted', statement: `${counted(r.accepted.length, 'candidate')}${r.skipped.length ? ` · ${r.skipped.length} skipped (already decided or quote not found)` : ''}` }
     tour.value = { did: 'bulk' }
     bulkOpen.value = false
   } catch (e) {
-    bulkError.value = errorMessage(e)
+    const changed: string[] | undefined = (e as { data?: { data?: { changed?: string[] } } }).data?.data?.changed
+    if (changed?.length) {
+      // Nothing was accepted. Show the fresh list without the changed ones; the person reads it and confirms again.
+      await refresh()
+      bulkChanged.value = bulkShown.value.filter(f => changed.includes(f.id))
+      bulkShown.value = verifiedLeft.value.filter(f => !changed.includes(f.id))
+    } else bulkError.value = errorMessage(e)
     return
   } finally {
     bulkBusy.value = false
@@ -378,21 +393,35 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 
   <UiDialog v-model:open="bulkOpen" wide :title="`Accept ${counted(bulkShown.length, 'verified candidate')}?`">
     <p>Each one becomes canon with your name on it in the audit log. Every quote below appears word for word in its source.
-      <template v-if="queue.length > bulkShown.length"> {{ counted(queue.length - bulkShown.length, 'blocked candidate') }} (quote not found) {{ queue.length - bulkShown.length === 1 ? 'stays' : 'stay' }} in the queue.</template>
+      <template v-if="bulkBlocked"> {{ counted(bulkBlocked, 'blocked candidate') }} (quote not found) {{ bulkBlocked === 1 ? 'stays' : 'stay' }} in the queue.</template>
       Read the list first; anything you’re unsure of, close this and decide it on its own.</p>
+    <div v-if="bulkChanged.length" class="notice warn" role="alert">
+      <UiIcon name="conflicts" :size="16" />
+      <span><b>Nothing was accepted.</b> {{ counted(bulkChanged.length, 'candidate') }} changed since you opened the list (its source, version or name mapping), so {{ bulkChanged.length === 1 ? 'it was' : 'they were' }} taken out — review {{ bulkChanged.length === 1 ? 'it' : 'them' }} on {{ bulkChanged.length === 1 ? 'its' : 'their' }} own:
+        <template v-for="(f, i) in bulkChanged" :key="f.id">{{ i ? '; ' : ' ' }}“{{ f.statement }}”</template>
+        <template v-if="bulkShown.length"> Check the list below and confirm again.</template></span>
+    </div>
+    <p v-if="bulkMapped" class="notice info">
+      <UiIcon name="merge" :size="16" />
+      <span>{{ bulkMapped === 1 ? '1 name will be linked to an existing page' : `${bulkMapped} names will be linked to existing pages` }} (merged earlier); marked below. The statement and quote stay as written.</span>
+    </p>
     <ol class="bulk-list">
       <li v-for="f in bulkShown" :key="f.id">
         <span class="statement">{{ f.statement }}</span>
         <span class="small muted">
           <UiBadge tone="good" dot>Quote verified</UiBadge>
           {{ cite(f) }}
+          <UiBadge v-if="citeEv(f) && citeEv(f).latest_version > citeEv(f).document_version" tone="warn">Stale: source now v{{ citeEv(f).latest_version }}</UiBadge>
+        </span>
+        <span v-for="i in f.identity" :key="i.role" class="small mapping">
+          <UiIcon name="merge" :size="14" /> Saved with {{ i.role }} <b>{{ i.from }} → {{ i.to }}</b>
         </span>
       </li>
     </ol>
     <p v-if="bulkError" class="notice bad" role="alert">{{ bulkError }}</p>
     <template #actions>
       <UiButton variant="ghost" @click="bulkOpen = false">Cancel</UiButton>
-      <UiButton variant="primary" icon="check" :loading="bulkBusy" @click="acceptAll">Accept {{ bulkShown.length }} into canon</UiButton>
+      <UiButton variant="primary" icon="check" :loading="bulkBusy" :disabled="!bulkShown.length" @click="acceptAll">Accept {{ bulkShown.length }} into canon</UiButton>
     </template>
   </UiDialog>
 
@@ -465,6 +494,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 .bulk-list li + li { border-top: 1px solid var(--line); }
 .bulk-list .statement { font-size: var(--text-base); }
 .bulk-list .small { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.bulk-list .mapping { color: var(--ink); }
 
 .rejected { margin-top: var(--s-5); }
 .rejected summary { cursor: pointer; display: flex; gap: var(--s-2); align-items: baseline; flex-wrap: wrap; }

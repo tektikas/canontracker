@@ -95,7 +95,7 @@ const text = computed(() => {
   const s = current.value
   if (!s) return ''
   if (offPage.value) return `This step is on ${PAGE_NAME[s.page!]}.`
-  return s.intro ?? found.value?.body ?? (s.targets?.length && s.lost) ?? s.missing ?? ''
+  return s.intro ?? found.value?.body ?? (s.targets?.length ? s.lost : undefined) ?? s.missing ?? ''
 })
 
 // The person's own action moves the tour on: rejecting (or deciding) the candidate a step is about, or accepting the verified ones.

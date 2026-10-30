@@ -127,10 +127,10 @@ function target(e: { event_type: string, target_type: string, target_id: string,
   return { to: e.target_id.startsWith('trc_') ? '/metrics' : to, label: `${noun} · ${short}…` }
 }
 
+// Compared as formatted dates, so "Today" follows the same time zone as every date on the page.
 const day = (iso: string) => {
-  const d = new Date(iso)
-  const days = Math.round((new Date().setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 864e5)
-  return days === 0 ? 'Today' : days === 1 ? 'Yesterday' : shortDate(iso)
+  const d = shortDate(iso)
+  return d === shortDate(new Date().toISOString()) ? 'Today' : d === shortDate(new Date(Date.now() - 864e5).toISOString()) ? 'Yesterday' : d
 }
 const groups = computed(() => {
   const out: { day: string, items: typeof shown.value }[] = []
