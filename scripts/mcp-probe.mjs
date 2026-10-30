@@ -1,6 +1,7 @@
 // MCP probe against a running dev server: node scripts/mcp-probe.mjs [baseUrl]
 // Drives the real /mcp endpoint with the official SDK client. Creates throwaway accounts (unique emails per run).
 import assert from 'node:assert/strict'
+import { DatabaseSync } from 'node:sqlite'
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js'
 
@@ -118,6 +119,24 @@ for (const q of [' \n\t ', 'a', quote.slice(0, 5)]) {
 }
 assert.equal((await ada('/api/facts?status=pending')).data.length, pendingBefore + 1)
 ok('blank / too-short quotes refused, nothing stored')
+// Padded quote: stored trimmed and verbatim in its cited passage.
+const padded = await call(c, 'sb_propose_candidate', { document: lore.filename, quote: `  \n${quote}\t `, statement: `Padded ${run}`, kind: 'claim', subject: 'Padded', predicate: 'x' })
+assert.equal(padded.isError, false, JSON.stringify(padded.data))
+const pf = (await ada('/api/facts?status=pending')).data.find(f => f.id === padded.data.fact_id)
+assert.equal(pf.evidence[0].quote, quote.trim())
+assert.ok(text.includes(pf.evidence[0].quote))
+ok('padded quote stored without padding, verbatim in passage')
+// Injected bad evidence rows (needs the dev server's DB: cwd/.data/storybible.db or argv[3]) -> accept 422.
+const db = new DatabaseSync(process.argv[3] ?? '.data/storybible.db')
+for (const bad of [` ${quote} `, 'never written in this passage at all']) {
+  db.prepare('update evidence set quote = ? where fact_id = ?').run(bad, pf.id)
+  const r = await ada(`/api/facts/${pf.id}/review`, { method: 'POST', body: { decision: 'accept' } })
+  assert.equal(r.status, 422, JSON.stringify(r.data))
+}
+db.prepare('update evidence set quote = ? where fact_id = ?').run(quote.trim(), pf.id)
+db.close()
+assert.equal((await ada(`/api/facts/${pf.id}/review`, { method: 'POST', body: { decision: 'accept', rationale: 'probe' } })).status, 200)
+ok('injected padded / non-verbatim evidence -> accept 422; restored -> 200')
 const pend = await call(c, 'sb_get_fact', { fact_id: made.id })
 assert.ok(pend.isError && pend.data.error.code === 'NOT_CANON')
 ok('sb_get_fact refuses pending fact')

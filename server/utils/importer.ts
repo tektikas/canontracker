@@ -59,7 +59,8 @@ export async function importDocument(filename: string, content: string) {
     const model = modelInfo()
     tx(() => {
       for (const c of drafts) {
-        const passage = findQuotePassage(passages, c.quote)
+        const match = findQuotePassage(passages, c.quote)
+        const passage = match?.passage
         const tFrom = parseStoryTime(c.time?.from)
         const tTo = parseStoryTime(c.time?.to)
         const precision = c.time ? (c.time.precision ?? 'exact') : null
@@ -69,7 +70,7 @@ export async function importDocument(filename: string, content: string) {
           .run(factId, c.kind, c.subject, c.predicate, c.object ?? null, c.value == null ? null : String(c.value), c.statement, tFrom, tTo,
             timeLabel(tFrom, tTo, precision), precision, c.confidence ?? null, `model:${PROMPT_VERSIONS.extract}`, model.id, now(), projectId)
         db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, ?, ?)')
-          .run(newId('ev'), factId, documentId, passage?.id ?? null, c.quote ?? '', passage ? 1 : 0, projectId)
+          .run(newId('ev'), factId, documentId, passage?.id ?? null, match?.quote ?? c.quote ?? '', passage ? 1 : 0, projectId)
         audit('candidate.created', 'fact', factId, { document_id: documentId, quote_verified: !!passage, model_id: model.id })
         candidates++
         if (!passage) unverified++

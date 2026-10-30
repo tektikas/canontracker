@@ -173,10 +173,14 @@ export function getFact(id: string) {
 // latest_version > document_version means the citation points at an older version of the source (stale).
 export const MIN_QUOTE_CHARS = 8
 /** The one quote check: non-blank (>= MIN_QUOTE_CHARS non-space chars) and verbatim in a passage. */
-export function findQuotePassage<T extends { text: string }>(passages: T[], quote: string | null | undefined): T | undefined {
+export function isVerbatimQuote(text: string, quote: string | null | undefined): boolean {
+  return !!quote && quote === quote.trim() && quote.replace(/\s/g, '').length >= MIN_QUOTE_CHARS && text.includes(quote)
+}
+/** Returns the matched passage and the exact normalized (trimmed) quote; callers must store that string, not the input. */
+export function findQuotePassage<T extends { text: string }>(passages: T[], quote: string | null | undefined): { passage: T, quote: string } | undefined {
   const q = quote?.trim()
-  if (!q || q.replace(/\s/g, '').length < MIN_QUOTE_CHARS) return undefined
-  return passages.find(p => p.text.includes(q))
+  const passage = passages.find(p => isVerbatimQuote(p.text, q))
+  return passage && q ? { passage, quote: q } : undefined
 }
 
 export function listFacts(where = '1 = 1', ...params: (string | number)[]) {

@@ -148,9 +148,8 @@ export function buildMcpServer(token: { id: string, name: string }) {
     const doc = (db.prepare('select id, filename from documents where project_id = ? and id = ?').get(pid(), p.document)
       ?? db.prepare('select id, filename from documents where project_id = ? and filename = ? order by version desc').get(pid(), p.document)) as { id: string, filename: string } | undefined
     if (!doc) return refuse('DOCUMENT_NOT_FOUND', `No imported document "${p.document}" in this project. Candidates must cite an imported document.`)
-    const quote = p.quote.trim()
-    const passage = findQuotePassage(db.prepare('select id, text from passages where document_id = ? order by ordinal').all(doc.id) as { id: string, text: string }[], quote)
-    if (!passage) return denied('QUOTE_NOT_VERBATIM', `The quote was blank, too short (min ${MIN_QUOTE_CHARS} characters) or not found verbatim in ${doc.filename}. Copy the exact text; nothing was stored.`)
+    const match = findQuotePassage(db.prepare('select id, text from passages where document_id = ? order by ordinal').all(doc.id) as { id: string, text: string }[], p.quote)
+    if (!match) return denied('QUOTE_NOT_VERBATIM', `The quote was blank, too short (min ${MIN_QUOTE_CHARS} characters) or not found verbatim in ${doc.filename}. Copy the exact text; nothing was stored.`)
     const tFrom = p.time_from ? parseStoryTime(p.time_from) : null
     const tTo = p.time_to ? parseStoryTime(p.time_to) : null
     if ((p.time_from && tFrom == null) || (p.time_to && tTo == null)) return refuse('BAD_TIME', 'Story time must look like "D2 14:30".')
@@ -165,7 +164,7 @@ export function buildMcpServer(token: { id: string, name: string }) {
         .run(id, p.kind, p.subject.trim(), p.predicate.trim(), p.object?.trim() || null, p.value?.trim() || null, p.statement.trim(), tFrom, tTo,
           timeLabel(tFrom, tTo, precision), precision, now(), pid(), token.id, a.user.id)
       db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, 1, ?)')
-        .run(newId('ev'), id, doc.id, passage.id, quote, pid())
+        .run(newId('ev'), id, doc.id, match.passage.id, match.quote, pid())
       audit('candidate.created', 'fact', id, { via: 'mcp', token_id: token.id, token_name: token.name, document_id: doc.id, quote_verified: true })
     })
     return reply({ status: 'pending', fact_id: id, message: 'Candidate created and waiting in the review queue. It is not canon until a person accepts it.' })
