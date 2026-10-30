@@ -13,7 +13,21 @@ watch(target, (t) => { proposed.value = t?.statement ?? '' }, { immediate: true 
 
 const ui = reactive<Record<string, { rationale: string, error: string, busy: boolean }>>({})
 const state = (id: string) => (ui[id] ??= { rationale: '', error: '', busy: false })
-const STATUS_CHIP: Record<string, string> = { ready_for_review: 'warn', applied: 'good', rejected: 'bad', reverted: '' }
+const STATUS_TONE: Record<string, string> = { ready_for_review: 'warn', applied: 'good', rejected: 'bad', reverted: 'neutral' }
+const STATUS_LABEL: Record<string, string> = { ready_for_review: 'Ready for review', applied: 'Applied', rejected: 'Rejected', reverted: 'Reverted' }
+// Pencil while proposed, ink once applied, neutral when rejected/reverted (DESIGN.md).
+const PROPOSAL_TONE: Record<string, string> = { ready_for_review: 'pencil', applied: 'accent', rejected: 'neutral', reverted: 'neutral' }
+const open = reactive<Record<string, boolean>>({})
+// Path items are ids; label them: changed fact, dependent fact, scene.
+function chain(c: Record<string, any>, i: any) {
+  const names = new Map<string, string>([[c.target_fact_id, c.before_statement]])
+  for (const x of c.impact) names.set(x.target_id, x.label)
+  return i.path.map((id: string, n: number) => ({
+    id,
+    label: names.get(id) ?? id,
+    kind: n === 0 ? 'Changed fact' : n === i.path.length - 1 && i.target_type === 'scene' ? 'Scene' : 'Dependent fact',
+  }))
+}
 
 async function propose() {
   busy.value = true
@@ -50,100 +64,136 @@ async function decide(id: string, decision: 'accept' | 'reject' | 'revert') {
   refreshNuxtData('stats')
 }
 
+const impacts = (c: Record<string, any>) => c.impact as any[]
 const scenes = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_type === 'scene')
 const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_type === 'fact')
 </script>
 
 <template>
-  <div class="page-head">
-    <h1>Changes &amp; impact</h1>
-    <p>Propose a new value for a canon fact and see what it may touch before anything changes. Analysis stays inside accepted canon, at most 2 hops away. Nothing is rewritten automatically.</p>
-  </div>
+  <UiPageHeader title="Changes &amp; impact" description="Propose a new value for a canon fact and see what it may touch before anything changes. Analysis stays inside accepted canon, at most 2 hops away. Nothing is rewritten automatically." />
 
-  <form class="card stack" style="margin-bottom: 24px" @submit.prevent="propose">
-    <h2>New proposal</h2>
-    <label>Canon fact to change
-      <select v-model="targetId">
-        <option value="">Choose a fact…</option>
-        <option v-for="f in canon" :key="f.id" :value="f.id">[{{ f.kind }}] {{ f.statement }}</option>
-      </select>
-    </label>
-    <template v-if="target">
-      <div class="small muted">Current: <span class="statement">{{ target.statement }}</span></div>
-      <label>Proposed statement<textarea v-model="proposed" rows="2" /></label>
-      <label>Why (required)<input v-model="rationale" type="text" placeholder="e.g. Make the memory rule conditional"></label>
-    </template>
-    <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
-    <div><button class="btn primary" :disabled="busy || !target || !rationale.trim()">{{ busy ? 'Analyzing…' : 'Analyze impact' }}</button></div>
-  </form>
+  <UiPanel title="1 · Propose a change" description="Pick a canon fact, write the new wording and say why.">
+    <form class="stack" @submit.prevent="propose">
+      <UiField label="Canon fact to change">
+        <select v-model="targetId">
+          <option value="">Choose a fact…</option>
+          <option v-for="f in canon" :key="f.id" :value="f.id">[{{ f.kind }}] {{ f.statement }}</option>
+        </select>
+      </UiField>
+      <template v-if="target">
+        <div class="current"><span class="small muted">Current wording</span><div class="statement">{{ target.statement }}</div></div>
+        <UiField label="Proposed statement"><textarea v-model="proposed" rows="2" /></UiField>
+        <UiField label="Why (required)"><input v-model="rationale" type="text" placeholder="e.g. Make the memory rule conditional"></UiField>
+      </template>
+      <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
+      <div><UiButton variant="primary" type="submit" :loading="busy" :disabled="!target || !rationale.trim()">{{ busy ? 'Analyzing…' : 'Analyze impact' }}</UiButton></div>
+    </form>
+  </UiPanel>
 
-  <div v-if="!changes?.length" class="card empty">No change proposals yet.</div>
+  <h2 class="list-title">2 · Proposals</h2>
+  <UiEmptyState v-if="!changes?.length" title="No change proposals yet" icon="changes">Choose a canon fact above, or start from the Canon page.</UiEmptyState>
 
-  <div class="stack">
-    <article v-for="c in changes" :key="c.id" class="card stack">
-      <div class="spread">
-        <span class="chip" :class="STATUS_CHIP[c.status]">{{ c.status.replaceAll('_', ' ') }}</span>
-        <span class="small muted mono">{{ c.id }}</span>
-      </div>
-      <div class="stack" style="gap: 4px">
+  <div class="list">
+    <article v-for="c in changes" :key="c.id" class="proposal" :class="`is-${c.status}`">
+      <header class="spread">
+        <div class="row"><UiBadge :tone="PROPOSAL_TONE[c.status] as any">Change proposal</UiBadge><UiBadge :tone="STATUS_TONE[c.status] as any" dot>{{ STATUS_LABEL[c.status] }}</UiBadge></div>
+        <span class="small faint mono">{{ c.id }}</span>
+      </header>
+      <div class="diff">
         <div class="statement diff-old">{{ c.before_statement }}</div>
         <div class="statement diff-new">{{ c.proposed_statement }}</div>
         <div class="small muted">Why: {{ c.rationale }}</div>
       </div>
 
-      <div>
-        <h3>Scenes to re-review ({{ scenes(c).length }})</h3>
-        <p v-if="!scenes(c).length" class="small muted">No impact found within 2 hops. That is not a guarantee of no impact.</p>
-        <div class="table-wrap">
-          <table v-if="scenes(c).length">
-            <thead><tr><th>Scene</th><th>Hops</th><th>Why</th><th>Confidence</th></tr></thead>
-            <tbody>
-              <tr v-for="i in scenes(c)" :key="i.target_id">
-                <td><NuxtLink :to="`/documents/${i.target_id}`">{{ i.label }}</NuxtLink></td>
-                <td>{{ i.hop_count }}</td>
-                <td>{{ i.rationale }}<div class="path">{{ i.path.join(' → ') }}</div></td>
-                <td>{{ percent(i.confidence) }}</td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <details v-if="facts(c).length">
-        <summary>Dependent canon facts ({{ facts(c).length }})</summary>
-        <ul class="small">
-          <li v-for="i in facts(c)" :key="i.target_id">{{ i.label }} <span class="muted">· shares "{{ i.via }}"</span></li>
+      <section class="impact">
+        <header class="spread">
+          <div class="row"><UiBadge tone="pencil">Possible review impact</UiBadge><span class="small muted">{{ scenes(c).length }} scene{{ scenes(c).length === 1 ? '' : 's' }} to re-review</span></div>
+          <div class="row small"><span class="muted">Export</span>
+            <UiButton v-for="f in ['json', 'csv', 'md']" :key="f" size="sm" :to="`/api/changes/${c.id}/export?format=${f}`" external>{{ f.toUpperCase() }}</UiButton>
+          </div>
+        </header>
+        <p v-if="!impacts(c).length" class="small muted">No impact found within 2 hops. That is not a guarantee of no impact.</p>
+        <ul v-else-if="scenes(c).length" class="items">
+          <li v-for="i in scenes(c)" :key="i.target_id" class="item">
+            <div class="spread">
+              <div class="row">
+                <UiBadge>Scene</UiBadge>
+                <NuxtLink :to="`/documents/${i.target_id}`" class="name">{{ i.label }}</NuxtLink>
+              </div>
+              <div class="row small muted"><UiBadge>{{ i.hop_count }} {{ i.hop_count === 1 ? 'hop' : 'hops' }}</UiBadge>{{ percent(i.confidence) }}</div>
+            </div>
+            <ol class="chain" :aria-label="`Path, ${i.hop_count} hop${i.hop_count === 1 ? '' : 's'}`">
+              <template v-for="(n, k) in chain(c, i)" :key="n.id">
+                <li v-if="k" class="arrow" aria-hidden="true"><UiIcon name="arrow" :size="14" /></li>
+                <li class="node"><span class="small faint">{{ n.kind }}</span><span class="nlabel">{{ n.label }}</span></li>
+              </template>
+            </ol>
+            <p v-if="i.rationale" class="small muted why">{{ i.rationale }}</p>
+          </li>
         </ul>
-      </details>
-
-      <div class="row small">
-        <span class="muted">Export impact:</span>
-        <a v-for="f in ['json', 'csv', 'md']" :key="f" :href="`/api/changes/${c.id}/export?format=${f}`">{{ f.toUpperCase() }}</a>
-      </div>
+        <p v-else class="small muted">No scene impact found within 2 hops. That is not a guarantee of no impact.</p>
+        <details v-if="facts(c).length" class="deps">
+          <summary>Dependent canon facts ({{ facts(c).length }}): 1 hop, share an entity with the changed fact</summary>
+          <ul class="small">
+            <li v-for="i in facts(c)" :key="i.target_id">{{ i.label }} <span class="faint">· shares "{{ i.via ?? 'an entity' }}"</span></li>
+          </ul>
+        </details>
+      </section>
 
       <template v-if="c.status === 'ready_for_review'">
-        <label>Decision rationale (required)<input v-model="state(c.id).rationale" type="text" placeholder="e.g. Impact list reviewed with the writers"></label>
-        <p v-if="state(c.id).error" class="notice bad" role="alert">{{ state(c.id).error }}</p>
-        <div class="row">
-          <button class="btn primary" :disabled="state(c.id).busy || !state(c.id).rationale.trim()" @click="decide(c.id, 'accept')">Accept &amp; apply</button>
-          <button class="btn danger" :disabled="state(c.id).busy || !state(c.id).rationale.trim()" @click="decide(c.id, 'reject')">Reject</button>
+        <div class="decide">
+          <UiField label="3 · Decision rationale (required)" :error="state(c.id).error"><input v-model="state(c.id).rationale" type="text" placeholder="e.g. Impact list reviewed with the writers"></UiField>
+          <div class="row">
+            <UiButton variant="primary" :disabled="state(c.id).busy || !state(c.id).rationale.trim()" @click="decide(c.id, 'accept')">Accept &amp; apply</UiButton>
+            <UiButton variant="danger" :disabled="state(c.id).busy || !state(c.id).rationale.trim()" @click="decide(c.id, 'reject')">Reject</UiButton>
+          </div>
         </div>
       </template>
       <template v-else>
-        <p class="small muted" style="margin: 0">
-          Decision: {{ c.decision_rationale }}
-          <template v-if="c.status === 'applied'"> · new canon version created; the old fact is kept as superseded.</template>
-        </p>
-        <p v-if="c.status === 'reverted'" class="small muted" style="margin: 0">Reverted: {{ c.revert_rationale }} · the original wording is canon again as a new version.</p>
-        <details v-if="c.status === 'applied'">
-          <summary>Revert this change…</summary>
-          <div class="stack" style="margin-top: 10px">
-            <label>Why revert (required)<input v-model="state(c.id).rationale" type="text" placeholder="e.g. Playtest showed the old rule reads better"></label>
-            <p v-if="state(c.id).error" class="notice bad" role="alert">{{ state(c.id).error }}</p>
-            <div><button class="btn danger" :disabled="state(c.id).busy || !state(c.id).rationale.trim()" @click="decide(c.id, 'revert')">Revert to original</button></div>
-          </div>
-        </details>
+        <div class="decide">
+          <p class="small muted">
+            Decision: {{ c.decision_rationale }}
+            <template v-if="c.status === 'applied'"> · new canon version created; the old fact is kept as superseded.</template>
+          </p>
+          <p v-if="c.status === 'reverted'" class="small muted">Reverted: {{ c.revert_rationale }} · the original wording is canon again as a new version.</p>
+          <template v-if="c.status === 'applied'">
+            <div><UiButton v-if="!open[c.id]" size="sm" @click="open[c.id] = true">Revert this change…</UiButton></div>
+            <template v-if="open[c.id]">
+              <UiField label="Why revert (required)" :error="state(c.id).error"><input v-model="state(c.id).rationale" type="text" placeholder="e.g. Playtest showed the old rule reads better"></UiField>
+              <div><UiButton variant="danger" :disabled="state(c.id).busy || !state(c.id).rationale.trim()" @click="decide(c.id, 'revert')">Revert to original</UiButton></div>
+            </template>
+          </template>
+        </div>
       </template>
     </article>
   </div>
 </template>
+
+<style scoped>
+.current { display: grid; gap: 4px; }
+.list-title { margin: var(--s-5) 0 var(--s-3); font-size: var(--text-md); }
+.list { display: grid; gap: var(--s-5); }
+.proposal { background: var(--raised); border: 1px solid var(--line); border-left: 3px dashed var(--pencil); border-radius: var(--r-lg); padding: var(--s-4) var(--s-5); display: grid; gap: var(--s-4); min-width: 0; }
+.proposal.is-applied { border-left: 3px solid var(--accent); }
+.proposal.is-rejected, .proposal.is-reverted { border-left: 3px solid var(--line-strong); }
+.why { margin: 0; }
+.diff { display: grid; gap: var(--s-1); }
+.impact { border: 1px dashed var(--line-strong); border-radius: var(--r-md); padding: var(--s-3); display: grid; gap: var(--s-3); background: var(--surface); }
+.items { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
+.item { background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s-3); display: grid; gap: var(--s-2); min-width: 0; }
+.name { font-weight: 600; font-size: var(--text-base); }
+.chain { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; align-items: stretch; gap: var(--s-2); }
+.node { display: grid; gap: 2px; border: 1px solid var(--line-strong); border-radius: var(--r-sm); padding: var(--s-1) var(--s-2); max-width: 260px; min-width: 0; }
+.node:first-child { border-color: var(--accent); }
+.nlabel { font-size: var(--text-sm); overflow-wrap: anywhere; display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.arrow { display: flex; align-items: center; color: var(--faint); }
+.deps summary { cursor: pointer; font-size: var(--text-sm); color: var(--muted); }
+.deps ul { margin: var(--s-2) 0 0; padding-left: var(--s-5); display: grid; gap: var(--s-1); }
+.decide { border-top: 1px solid var(--line); padding-top: var(--s-3); display: grid; gap: var(--s-3); }
+.decide p { margin: 0; }
+@media (max-width: 720px) {
+  .chain { flex-direction: column; }
+  .node { max-width: none; }
+  .arrow { transform: rotate(90deg); justify-content: flex-start; padding-left: var(--s-3); }
+}
+</style>
