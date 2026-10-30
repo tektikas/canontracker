@@ -163,7 +163,7 @@ const TOOLS = [
 .revoked summary { cursor: pointer; }
 .snippet { margin: var(--s-4) 0 var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--sunken); }
 .snippet-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--line); }
-.snippet pre { margin: 0; padding: var(--s-3) var(--s-4); overflow-x: auto; white-space: pre; line-height: 1.55; }
+.snippet pre { margin: 0; padding: var(--s-3) var(--s-4); overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
 .tools-h { margin: var(--s-5) 0 var(--s-2); font-size: var(--text-md); }
 .tools { display: grid; grid-template-columns: max-content 1fr; gap: var(--s-2) var(--s-4); margin: 0 0 var(--s-4); }
 .tools dt { color: var(--ink); }
