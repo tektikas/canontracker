@@ -55,7 +55,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
     <p v-if="entity.summary" class="msum">{{ entity.summary }}</p>
-    <p v-else class="msum faint">No summary yet.</p>
+    <p v-else-if="entity.first_fact" class="msum story">{{ entity.first_fact }}</p>
     <p v-if="entity.aliases.length" class="small muted malias">Also: {{ entity.aliases.join(', ') }}</p>
     <NuxtLink :to="`/entities/${entity.id}`" class="mlink small" @click="card.close()">Open page <UiIcon name="arrow" :size="14" /></NuxtLink>
   </div>
@@ -67,6 +67,7 @@ onBeforeUnmount(() => {
 .mtitle { display: grid; min-width: 0; }
 .mtitle strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .msum { margin: 0; font-size: var(--text-sm); display: -webkit-box; -webkit-line-clamp: 3; line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.msum.story { font-family: var(--font-story); }
 .malias { margin: 0; }
 .mlink { display: inline-flex; align-items: center; gap: 4px; justify-self: start; font-weight: 600; min-height: 28px; }
 </style>

@@ -41,7 +41,7 @@ let guard
 const ctx = {
   ...vue, console, setTimeout, clearTimeout, requestAnimationFrame: fn => setTimeout(fn, 0),
   useHead() {}, useRoute: () => ({ query: {} }), useRouter: () => ({ replace() {} }), useMe: () => vue.ref(me), canEdit: () => true,
-  onMounted() {}, onBeforeUnmount() {}, onBeforeRouteLeave(fn) { guard = fn }, confirm() { confirms++; return answer },
+  onMounted() {}, onBeforeUnmount() {}, onBeforeRouteLeave(fn) { guard = fn }, askConfirm: async () => { confirms++; return answer },
   errorMessage: e => e.message, navigateTo() {}, refreshNuxtData() {},
   localStorage: { getItem: () => null, setItem() {} },
   document: { fullscreenElement: null, addEventListener() {}, removeEventListener() {} },

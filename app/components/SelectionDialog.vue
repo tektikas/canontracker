@@ -88,7 +88,7 @@ async function submit(to: 'canon' | 'review' | 'note') {
   }
 }
 const canSave = computed(() => (props.mode === 'note' ? !!f.body.trim()
-  : !!(f.subject.trim() && f.predicate.trim() && f.statement.trim() && !timeError(f.time_from) && !timeError(f.time_to) && (pred.value !== 'travel_time' || f.value.trim()))))
+  : !!(f.subject.trim() && f.predicate.trim() && f.statement.trim() && !timeError(f.time_from) && !timeError(f.time_to) && (pred.value !== 'travel_time' || f.value.trim()) && (pred.value !== 'is' || f.object.trim()))))
 </script>
 
 <template>

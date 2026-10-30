@@ -19,7 +19,8 @@ const authored = computed(() => {
     </div>
     <div class="statement"><MentionText :text="fact.statement" /></div>
     <div v-if="authored" class="authored small"><UiIcon name="review" :size="13" />{{ authored }}</div>
-    <div class="triple">{{ fact.subject }} → {{ fact.predicate }}<template v-if="fact.object"> → {{ fact.object }}</template></div>
+    <!-- Without an object the triple dangles ("Arin → is"); the statement above already says it in full. -->
+    <div v-if="fact.object" class="triple">{{ fact.subject }} → {{ fact.predicate }} → {{ fact.object }}</div>
     <div v-if="sources && fact.evidence?.length" class="fact-sources">
       <SourceRef v-for="ev in fact.evidence" :key="ev.id" :ev="ev" />
     </div>

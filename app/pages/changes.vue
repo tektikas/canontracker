@@ -12,6 +12,7 @@ const proposed = ref('')
 const rationale = ref('')
 const busy = ref(false)
 const error = ref('')
+const fresh = ref('') // the proposal just analysed: the guided tour points at its impact
 // The new wording starts empty, with the current wording shown above it; "Start from current wording" copies it in for a small edit.
 watch(target, () => { proposed.value = '' })
 
@@ -37,7 +38,7 @@ async function propose() {
   busy.value = true
   error.value = ''
   try {
-    await $fetch('/api/changes', { method: 'POST', body: { target_fact_id: targetId.value, proposed_statement: proposed.value, rationale: rationale.value } })
+    fresh.value = (await $fetch('/api/changes', { method: 'POST', body: { target_fact_id: targetId.value, proposed_statement: proposed.value, rationale: rationale.value } })).id
     targetId.value = ''
     rationale.value = ''
     await Promise.all([refresh(), refreshNuxtData('stats')])
@@ -136,7 +137,7 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
         <div class="small muted">Why: {{ c.rationale }}</div>
       </div>
 
-      <section class="impact" :class="{ stale: c.impact_stale }">
+      <section class="impact" :class="{ stale: c.impact_stale }" :data-tour="c.id === fresh ? 'impact' : undefined">
         <div v-if="c.impact_stale && c.status === 'ready_for_review'" class="notice warn stale-note" role="status">
           <UiIcon name="merge" :size="16" />
           <span>

@@ -155,7 +155,6 @@ async function undoRemove() {
   }
 }
 const portraitChanged = () => Promise.all([refresh(), refreshEntities()])
-const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
 // Merge and delete open a panel under the header.
 const panel = ref<'' | 'merge' | 'delete'>('')
@@ -244,7 +243,7 @@ const ago = (iso: string) => {
           <template v-if="e.updated_by"> · edited by {{ e.updated_by }} {{ ago(e.updated_at) }}</template>
         </p>
         <details v-if="e.portrait_image" class="gen-note small">
-          <summary class="expand"><UiBadge tone="pencil">Generated with Muse Image</UiBadge> {{ noun === 'portrait' ? 'Portrait' : 'Image' }} by {{ e.portrait_image.created_by_name ?? 'unknown' }}, {{ madeOn(e.portrait_image.created_at) }}</summary>
+          <summary class="expand"><UiBadge tone="pencil">Generated with Muse Image</UiBadge> {{ noun === 'portrait' ? 'Portrait' : 'Image' }} by {{ e.portrait_image.created_by_name ?? 'unknown' }}, {{ shortDate(e.portrait_image.created_at) }}</summary>
           <p>{{ e.portrait_image.prompt }}</p>
         </details>
       </div>

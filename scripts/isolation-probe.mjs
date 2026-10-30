@@ -121,7 +121,7 @@ check('B gets 404 adding a fact from A’s document', (await b('/api/facts', { m
 check('B sees none of A’s notes', (await b('/api/notes')).data.length, 0)
 const draftB = (await b('/api/drafts', { method: 'POST', body: { title: 'B scene', kind: 'scene', content: 'Bo waits.' } })).data
 const docB = (await b(`/api/documents/${(await b(`/api/drafts/${draftB.id}/save`, { method: 'POST' })).data.document_id}`)).data
-check('B gets 404 linking a fact to A’s entity', (await b('/api/facts', { method: 'POST', body: { to: 'canon', document_id: docB.id, passage_id: docB.passages[0].id, quote: 'Bo waits.', subject: 'Bo', subject_entity_id: entA.id, predicate: 'is', statement: 'Bo waits.' } })).status, 404)
+check('B gets 404 linking a fact to A’s entity', (await b('/api/facts', { method: 'POST', body: { to: 'canon', document_id: docB.id, passage_id: docB.passages[0].id, quote: 'Bo waits.', subject: 'Bo', subject_entity_id: entA.id, predicate: 'is', object: 'waiting', statement: 'Bo waits.' } })).status, 404)
 check('B gets 404 listing A’s entity images', (await b(`/api/images?target_type=entity&target_id=${entA.id}`)).status, 404)
 check('B gets 404 generating for A’s entity', (await b('/api/images', { method: 'POST', body: { target_type: 'entity', target_id: entA.id, prompt: 'x', n: 1 } })).status, 404)
 if (imgA) {

@@ -30,7 +30,9 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'candidate.created':
       if (d.via === 'mcp') return [`Agent “${d.token_name}” proposed a candidate for ${who}`, 'Quote found in source · waiting for a human decision']
       return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
-    case 'candidate.accepted': return [`${who} accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
+    case 'candidate.accepted': return [`${who} accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d), d.bulk ? 'Part of one “accept all verified” decision' : ''].filter(Boolean).join(' · ')]
+    case 'candidate.bulk_accepted': return [`${who} accepted ${counted(d.accepted?.length ?? 0, 'verified candidate')} in one decision`,
+      `After reading the list · each one is logged with its statement${d.skipped?.length ? ` · ${d.skipped.length} skipped (already decided or quote not found)` : ''}`]
     case 'candidate.corrected_and_accepted': return [`${who} corrected and accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
     case 'candidate.evidence_moved': return [`A pending candidate now cites ${d.filename}${inFolder(d)} v${d.to?.version}${d.to?.line ? `, line ${d.to.line}` : ''}`,
       `Its quote appears exactly once in the new version (was v${d.from?.version}${d.from?.line ? `, line ${d.from.line}` : ''}): ${q(d.quote)} · still waiting for a human decision`]
@@ -119,17 +121,16 @@ function target(e: { event_type: string, target_type: string, target_id: string,
   const short = e.target_id.replace(/^[a-z]+_/, '').slice(0, 6)
   if (e.target_removed) return { to: '', label: `${t.charAt(0).toUpperCase() + t.slice(1)} · ${short}… (removed by reset)` }
   const to = t === 'entity' ? (e.event_type === 'entity.deleted' ? '' : `/entities/${e.target_id}`) : t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' || e.event_type === 'conflict.scan' ? '/conflicts' : t === 'change' ? '/changes'
-    : t === 'fact' ? (e.event_type.startsWith('candidate.') ? '/review' : '/canon') : t === 'note' ? '/notes' : ['folder', 'tag', 'library'].includes(t) ? '/library' : ''
+    : t === 'fact' ? (e.event_type.startsWith('candidate.') && !e.event_type.endsWith('accepted') ? '/review' : '/canon') : t === 'note' ? '/notes' : ['folder', 'tag', 'library'].includes(t) ? '/library' : ''
   // Ids already carry a type prefix ("fact_d0e…", "trc_e02c…"): drop it and label the thing in words.
   const noun = e.target_id.startsWith('trc_') ? 'Model call' : t.charAt(0).toUpperCase() + t.slice(1)
   return { to: e.target_id.startsWith('trc_') ? '/metrics' : to, label: `${noun} · ${short}…` }
 }
-const hms = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour12: false })
 
 const day = (iso: string) => {
   const d = new Date(iso)
   const days = Math.round((new Date().setHours(0, 0, 0, 0) - new Date(d).setHours(0, 0, 0, 0)) / 864e5)
-  return days === 0 ? 'Today' : days === 1 ? 'Yesterday' : d.toLocaleDateString(undefined, { weekday: 'long', month: 'long', day: 'numeric' })
+  return days === 0 ? 'Today' : days === 1 ? 'Yesterday' : shortDate(iso)
 }
 const groups = computed(() => {
   const out: { day: string, items: typeof shown.value }[] = []
@@ -161,7 +162,7 @@ const groups = computed(() => {
       <h2>{{ g.day }}</h2>
       <ol class="events">
         <li v-for="e in g.items" :id="e.id" :key="e.id" :class="{ hit: route.hash === `#${e.id}` }">
-          <time class="mono small faint" :datetime="e.created_at">{{ hms(e.created_at) }}</time>
+          <time class="mono small faint" :datetime="e.created_at">{{ clock(e.created_at) }}</time>
           <UiBadge :tone="TONE[e.event_type.split('.')[0]!] ?? 'neutral'" class="kind">{{ e.event_type.split('.')[0] }}</UiBadge>
           <div class="what">
             <div>{{ sentence(e)[0] }}</div>

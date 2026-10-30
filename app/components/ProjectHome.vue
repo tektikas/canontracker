@@ -15,7 +15,6 @@ const firstSource = computed(() => docs.value?.[0])
 // The guided tour only fits the Broken Tide demo.
 const demoLoaded = computed(() => !!docs.value?.some(d => d.filename === 'lore-chord-stone.md'))
 const liveHelp = ref(false)
-const draftTime = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
 // No scan record in the API: a scan in this session (set on /conflicts) counts until new sources arrive.
 const scanned = useState('conflicts-scanned', () => false)
 const busy = ref<'' | 'demo'>('')
@@ -38,8 +37,8 @@ async function run(kind: 'demo', fn: () => Promise<{ results: Record<string, any
   }
 }
 
-function loadDemo() {
-  if (stats.value?.documents && !confirm(`Replace everything in ${projectName.value} with the Broken Tide demo set? The audit trail keeps its history; other projects are not touched.`)) return
+async function loadDemo() {
+  if (stats.value?.documents && !(await askConfirm({ title: `Replace everything in ${projectName.value}?`, body: 'The Broken Tide demo set takes its place. The audit trail keeps its history; other projects are not touched.', confirm: 'Replace with demo', danger: true }))) return
   run('demo', () => $fetch('/api/demo/load', { method: 'POST' }))
 }
 
@@ -208,7 +207,7 @@ const next = computed(() => {
         <ul class="drafts">
           <li v-for="d in drafts" :key="d.id">
             <NuxtLink :to="`/write?draft=${d.id}`" class="doc-link">{{ d.title || 'Untitled' }}</NuxtLink>
-            <span class="small faint">{{ d.document_id ? 'Edits a saved document' : 'New document' }} · {{ draftTime(d.updated_at) }}</span>
+            <span class="small faint">{{ d.document_id ? 'Edits a saved document' : 'New document' }} · {{ dateTime(d.updated_at) }}</span>
           </li>
         </ul>
       </UiPanel>

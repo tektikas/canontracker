@@ -104,7 +104,7 @@ onBeforeRouteLeave(async () => {
   try {
     await persist()
   } catch {
-    return confirm('Your latest changes couldn’t be saved, so they’re only on this screen. Leave anyway and lose them?')
+    return askConfirm({ title: 'Leave without your latest changes?', body: 'They couldn’t be saved, so they’re only on this screen.', confirm: 'Leave and lose them', cancel: 'Stay', danger: true })
   }
 })
 onBeforeUnmount(() => clearTimeout(timer))
@@ -142,7 +142,10 @@ async function saveToStory() {
   }
 }
 async function discard() {
-  if (!confirm(editing.value ? 'Discard your changes? The saved document stays as it is.' : 'Discard this draft? It can’t be recovered.')) return
+  const ok = await askConfirm(editing.value
+    ? { title: 'Discard your changes?', body: 'The saved document stays as it is.', confirm: 'Discard changes', danger: true }
+    : { title: 'Discard this draft?', body: 'It can’t be recovered.', confirm: 'Discard draft', danger: true })
+  if (!ok) return
   clearTimeout(timer)
   dirty = false
   leaving = true
@@ -280,7 +283,7 @@ function grow() {
   el.style.height = `${el.scrollHeight + 2}px`
 }
 watch(() => f.content, () => nextTick(grow), { flush: 'post' })
-const time = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })
+const time = (iso: string) => clock(iso).slice(0, 5)
 </script>
 
 <template>

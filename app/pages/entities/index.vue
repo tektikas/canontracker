@@ -120,7 +120,7 @@ async function create() {
             <span class="body">
               <span class="name">{{ e.name }}</span>
               <span v-if="e.summary" class="sum">{{ e.summary }}</span>
-              <span v-else class="sum faint">No summary yet</span>
+              <span v-else-if="e.first_fact" class="sum fact">{{ e.first_fact }}</span>
               <span class="meta">
                 <span>{{ counted(e.facts, 'canon fact') }}</span>
                 <span v-if="e.aliases.length" class="alias">aka {{ e.aliases.join(', ') }}</span>
@@ -166,6 +166,7 @@ async function create() {
 .name { font-weight: 600; overflow-wrap: anywhere; }
 .sum { font-size: var(--text-sm); color: var(--muted); display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
 .meta { display: flex; flex-wrap: wrap; gap: 2px var(--s-3); font-size: var(--text-xs); color: var(--faint); margin-top: 2px; }
+.sum.fact { font-family: var(--font-story); }
 .alias { overflow-wrap: anywhere; }
 @media (max-width: 720px) {
   .create-row { grid-template-columns: 1fr; }

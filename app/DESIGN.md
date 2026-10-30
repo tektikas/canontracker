@@ -37,6 +37,8 @@ Fonts load from Google Fonts in `nuxt.config.ts`.
 | `<UiField label hint error>` | Wraps one input/select/textarea. |
 | `<UiTabs v-model :items="[{ value, label, count }]">` | In-page views (Canon: facts, graph, …). One row that scrolls sideways when narrow, with a fade on the cut edge. |
 | `<UiEmptyState title icon>` | Say what is missing, then `#actions` with the button that fills it. |
+| `<UiDialog v-model:open title wide>` | Modal sheet on the native `<dialog>` (focus trap, Esc, backdrop), a bottom sheet on phones. `#actions` slot for the footer buttons. |
+| `askConfirm({ title, body, confirm, danger })` | Await it instead of the browser's `confirm()`; `<UiConfirm>` in `app.vue` shows it. Never use `confirm()`/`alert()`. |
 | `<UiIcon name size label>` | Inline SVG stroke icons. Add new paths to the map in `Icon.vue`. |
 
 Domain components restyled to this language: `SourceRef` (quote + source link + verification badge) and `FactSummary` (kind/time badges, statement, triple, optional sources).
@@ -51,6 +53,7 @@ The components render the same global classes old pages use, so both stay consis
 - **Empty pages**: `UiEmptyState` with one sentence of why and one primary action. When the fix is "add or review something", use `useFillAction()` so every page sends people to the same next step.
 - **Content**: max 1100px, left-aligned, 40px side padding (16px on phones). Text blocks stay under ~70ch.
 - **Page rhythm**: `UiPageHeader`, then optional notice, then panels separated by `--s-5`. Two-column layouts collapse to one column at 720px (`.grid-2`) or 1100px (Home).
-- **Phones (390px)**: no horizontal page scroll. Wide tables live in `.table-wrap` and hide secondary columns with `.hide-sm`. Touch targets are at least 34px (42px in the drawer).
+- **Phones (390px)**: no horizontal page scroll. Wide tables live in `.table-wrap` and hide secondary columns with `.hide-sm`. Touch targets are at least 44px: `.btn` of every size, `.icon-btn`, inputs and selects grow on phones; custom controls (pills, toggles, checkbox rows) set their own 44px.
 - **Disabled buttons** (`.btn:disabled`) look the same for every variant: sunken fill, dashed border, `--faint` label (≥ 4.5:1 in both themes). No opacity fade, so the label stays readable.
+- **Dates**: `shortDate` ("30 Oct 2026"), `dateTime` ("30 Oct 2026, 22:36") and `clock` ("22:36:05") from `app/utils/date.ts`, 24-hour, everywhere.
 - **Copy**: sentence case, plain verbs, button says what happens ("Start review", "Scan canon"). No all-caps labels.

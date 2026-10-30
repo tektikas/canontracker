@@ -117,7 +117,6 @@ async function discard(i: Img) {
   }
 }
 
-const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 </script>
 
 <template>
@@ -217,10 +216,10 @@ const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'nume
                   <UiBadge v-else tone="good">New</UiBadge>
                 </div>
                 <span class="small gen-by"><UiIcon name="image" :size="14" />Generated with Muse Image</span>
-                <span class="small faint">{{ i.created_by_name ?? 'Unknown' }} · {{ when(i.created_at) }}</span>
+                <span class="small faint">{{ i.created_by_name ?? 'Unknown' }} · {{ dateTime(i.created_at) }}</span>
                 <details class="small"><summary>Prompt</summary><p class="prompt">{{ i.prompt }}</p></details>
                 <div v-if="confirmId === i.id" class="confirm small" role="alertdialog" :aria-label="`Delete this image`">
-                  <span>Delete this image made by {{ i.created_by_name ?? 'unknown' }} on {{ when(i.created_at) }}? The file and its prompt are removed for good.</span>
+                  <span>Delete this image made by {{ i.created_by_name ?? 'unknown' }} on {{ dateTime(i.created_at) }}? The file and its prompt are removed for good.</span>
                   <div class="row">
                     <UiButton size="sm" variant="danger" :loading="busy === i.id" @click="discard(i)">Delete image</UiButton>
                     <UiButton size="sm" variant="ghost" @click="confirmId = ''">Keep it</UiButton>

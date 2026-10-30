@@ -38,7 +38,6 @@ async function showNotes(passageId: string) {
   el?.scrollIntoView({ block: 'nearest', behavior: 'smooth' })
   el?.focus({ preventScroll: true })
 }
-const savedAt = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
 // A generated cover is editorial: shown above the source, never written into it.
 const generator = ref<{ open: () => void }>()
@@ -96,7 +95,6 @@ async function reextract() {
 const recordedNoOutput = computed(() => stats.value?.model.mode === 'mock')
 const readerBox = ref<HTMLElement>()
 const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
-const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 </script>
 
 <template>
@@ -121,7 +119,7 @@ const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day:
         <UiBadge v-else>v{{ doc.version }}</UiBadge>
         <UiBadge v-for="t in doc.tags" :key="t.id" :tone="(t.color as TagTone)">{{ t.name }}</UiBadge>
         <UiBadge tone="good" :title="doc.origin === 'written' ? 'Each save is a new version; saved versions never change' : 'Story Bible never edits imported sources'">Read-only source</UiBadge>
-        <span v-if="doc.origin === 'written'" class="small muted">Written in Story Bible<template v-if="doc.created_by_name"> by {{ doc.created_by_name }}</template>, {{ savedAt(doc.imported_at) }}</span>
+        <span v-if="doc.origin === 'written'" class="small muted">Written in Story Bible<template v-if="doc.created_by_name"> by {{ doc.created_by_name }}</template>, {{ shortDate(doc.imported_at) }}</span>
         <span class="mono faint" :title="`sha256 ${doc.sha256}`">sha256 {{ String(doc.sha256).slice(0, 12) }}…</span>
       </span>
       <template #actions>
@@ -140,7 +138,7 @@ const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day:
       <img :src="doc.cover.url" :alt="`Cover for ${doc.title}`">
       <figcaption>
         <details class="small">
-          <summary class="expand"><UiBadge tone="pencil">Generated with Muse Image</UiBadge> Cover by {{ doc.cover.created_by_name ?? 'unknown' }}, {{ madeOn(doc.cover.created_at) }}</summary>
+          <summary class="expand"><UiBadge tone="pencil">Generated with Muse Image</UiBadge> Cover by {{ doc.cover.created_by_name ?? 'unknown' }}, {{ shortDate(doc.cover.created_at) }}</summary>
           <p class="prompt">{{ doc.cover.prompt }}</p>
         </details>
         <div v-if="canEdit(me)" class="row">

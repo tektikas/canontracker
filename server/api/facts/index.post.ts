@@ -30,6 +30,8 @@ export default defineEventHandler(async (event) => {
   if (!names.subject) throw fail(400, 'SUBJECT_REQUIRED', 'Say who or what the fact is about.')
   if (!predicate) throw fail(400, 'PREDICATE_REQUIRED', 'Say how they relate, for example located_at.')
   if (!statement) throw fail(400, 'STATEMENT_REQUIRED', 'Write the fact as one sentence.')
+  // "Arin → is" says nothing on its own: who or what they are is the object.
+  if (predicate === 'is' && !names.object) throw fail(400, 'OBJECT_REQUIRED', 'Say what they are in Object, for example “keeper of the lighthouse”.')
   const value = str(b.value) || null
   if (predicate === 'travel_time' && (!value || !Number.isFinite(Number(value)))) throw fail(400, 'VALUE_REQUIRED', 'Travel time needs the minutes as a number.')
 

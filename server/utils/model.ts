@@ -117,7 +117,7 @@ export function extractCandidates(doc: { id: string, filename: string, title: st
     const out = await chatJson(
       `You extract narrative canon candidates from game lore documents. Return JSON {"candidates":[...]}.
 Each candidate: {"kind":"character|location|relationship|event|rule|claim","subject":"short entity name","predicate":"snake_case verb","object":"entity name or null","value":"number for measurable rules (e.g. travel minutes) or null","statement":"one plain sentence","quote":"EXACT verbatim substring of the document that supports it","time":{"from":"D<day> HH:MM","to":"D<day> HH:MM","precision":"exact|approximate"} or omitted,"confidence":0-1}.
-Rules: quotes must be copied character-for-character. Do not invent facts. Use first names for characters. Use predicate "located_at" for where someone is at a time and "travel_time" (value in minutes) for travel durations.
+Rules: quotes must be copied character-for-character. Do not invent facts. Use first names for characters. Use predicate "located_at" for where someone is at a time and "travel_time" (value in minutes) for travel durations. Use predicate "is" only with an object that says what the subject is (e.g. "keeper of the Solen Lighthouse").
 Figurative language ("my sister in all but blood") is NOT a literal relationship; skip it or give it low confidence.`,
       `Document: ${doc.title}\n\n${doc.text}`,
     )

@@ -26,3 +26,7 @@ export function useTour() {
   }
   return { step, set, saved, resume, start: () => set(0), stop: () => set(null) }
 }
+
+// What the person just did, so the tour can move on by itself: Review sets it after a decision (`did: 'rejected'` with the
+// candidate id, `did: 'bulk'` after accepting the verified ones), Conflicts after a scan and Changes after an analysis.
+export const useTourSignal = () => useState<{ did: string, id?: string } | null>('tour-signal', () => null)

@@ -4,7 +4,6 @@ const editor = computed(() => canEdit(useMe().value))
 const { data: conflicts, refresh } = await useFetch('/api/conflicts')
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
 const fill = useFillAction()
-const since = (iso: string) => new Date(iso).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' })
 const scanning = ref(false)
 const scanMsg = ref('')
 const scanError = ref('')
@@ -31,7 +30,8 @@ const tabs = computed(() => [
   { value: 'open', label: 'To judge', count: (conflicts.value ?? []).filter(c => c.status === 'open').length },
   { value: 'decided', label: 'Decided', count: (conflicts.value ?? []).filter(c => c.status !== 'open').length },
 ])
-const shown = computed(() => (conflicts.value ?? []).filter(c => (view.value === 'open') === (c.status === 'open')))
+// Most likely first, so the clearest clash leads the list.
+const shown = computed(() => (conflicts.value ?? []).filter(c => (view.value === 'open') === (c.status === 'open')).sort((a, b) => b.confidence - a.confidence))
 const level = (n: number) => (n >= 0.8 ? 'High' : n >= 0.5 ? 'Medium' : 'Low')
 
 async function scan() {
@@ -67,7 +67,7 @@ async function decide(id: string, decision: string) {
 
 <template>
   <UiPageHeader title="Conflict candidates" description="Narrow checks over accepted canon: timing, travel and relationships in code, world rules with the model's help. A hit is a possible conflict for you to judge. Deciding never edits canon.">
-    <template v-if="editor" #actions><UiButton variant="primary" data-tour="scan" :loading="scanning" @click="scan">{{ scanning ? 'Scanning…' : 'Scan canon' }}</UiButton></template>
+    <template v-if="editor && conflicts?.length" #actions><UiButton variant="primary" data-tour="scan" :loading="scanning" @click="scan">{{ scanning ? 'Scanning…' : 'Scan canon' }}</UiButton></template>
   </UiPageHeader>
 
   <p v-if="scanMsg" class="notice info" role="status">{{ scanMsg }}</p>
@@ -78,13 +78,13 @@ async function decide(id: string, decision: string) {
     <template #actions><UiButton variant="primary" :icon="fill.icon" :to="fill.to">{{ fill.label }}</UiButton></template>
   </UiEmptyState>
   <UiEmptyState v-else-if="!conflicts?.length && stats?.last_scan" title="No conflicts found" icon="check">
-    The last scan checked {{ counted(stats.last_scan.facts, 'canon fact') }} on {{ since(stats.last_scan.at) }}.
+    The last scan checked {{ counted(stats.last_scan.facts, 'canon fact') }} on {{ dateTime(stats.last_scan.at) }}.
     <template v-if="stats.canon !== stats.last_scan.facts">Canon has {{ stats.canon }} facts now; scan again to check them.</template>
-    <template v-if="editor" #actions><UiButton :loading="scanning" @click="scan">Scan again</UiButton></template>
+    <template v-if="editor" #actions><UiButton data-tour="scan" :loading="scanning" @click="scan">Scan again</UiButton></template>
   </UiEmptyState>
   <UiEmptyState v-else-if="!conflicts?.length" title="Not scanned yet" icon="conflicts">
     Scan {{ counted(stats?.canon ?? 0, 'canon fact') }} for timing, travel and relationship conflicts.
-    <template v-if="editor" #actions><UiButton variant="primary" data-tour="scan" :loading="scanning" @click="scan">Scan canon</UiButton></template>
+    <template v-if="editor" #actions><UiButton variant="primary" data-tour="scan" :loading="scanning" @click="scan">{{ scanning ? 'Scanning…' : 'Scan canon' }}</UiButton></template>
   </UiEmptyState>
 
   <template v-else>

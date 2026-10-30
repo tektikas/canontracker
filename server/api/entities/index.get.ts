@@ -1,9 +1,17 @@
-// Every wiki page in the project, with how many canon facts name it. Also files pages for new names in accepted canon.
+// Every wiki page in the project, with how many canon facts name it and the first of them (shown when the page has no summary).
+// Also files pages for new names in accepted canon.
 export default defineEventHandler(() => {
   syncEntities()
-  const facts = useDb().prepare(`select subject, object from facts where project_id = ? and status = 'canon'`).all(pid()) as { subject: string, object: string | null }[]
+  const facts = useDb().prepare(`select subject, object, statement from facts where project_id = ? and status = 'canon' order by rowid`).all(pid()) as { subject: string, object: string | null, statement: string }[]
   const counts = new Map<string, number>()
-  for (const f of facts) for (const n of new Set([normName(f.subject), normName(f.object)])) if (n) counts.set(n, (counts.get(n) ?? 0) + 1)
+  const first = new Map<string, string>()
+  for (const f of facts) {
+    for (const n of new Set([normName(f.subject), normName(f.object)])) {
+      if (!n) continue
+      counts.set(n, (counts.get(n) ?? 0) + 1)
+      if (!first.has(n)) first.set(n, f.statement)
+    }
+  }
   return listEntities().map((e) => {
     const all = namesOf(e)
     const names = new Set(all.map(normName))
@@ -11,6 +19,7 @@ export default defineEventHandler(() => {
       id: e.id, name: e.name, analysis_name: analysisName(e), kind: e.kind, summary: e.summary, aliases: aliasesOf(e), portrait: portraitUrl(e), origin: e.origin, updated_at: e.updated_at,
       // Every name that links here (title, aliases, analysis name, merged names), for read-time mention links.
       names: all, facts: [...names].reduce((n, k) => n + (counts.get(k) ?? 0), 0),
+      first_fact: [...names].map(k => first.get(k)).find(Boolean) ?? null,
     }
   })
 })

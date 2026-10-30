@@ -169,17 +169,17 @@ async function saveEdit() {
   saving = false
   if (ok && editing.value === e) editing.value = null
 }
-function deleteFolder(f: Folder) {
+async function deleteFolder(f: Folder) {
   const n = folderCount(f.id)
   const to = f.parent_id ? folderPath(f.parent_id) : 'the Library root'
-  if (!confirm(`Delete the folder “${folderPath(f.id)}”?${n ? ` Its ${nDocs(n)} move to ${to}.` : ''} No documents are deleted.`)) return
+  if (!(await askConfirm({ title: `Delete the folder “${folderPath(f.id)}”?`, body: `${n ? `Its ${nDocs(n)} move to ${to}. ` : ''}No documents are deleted.`, confirm: 'Delete folder', danger: true }))) return
   call(() => $fetch(`/api/library/folders/${f.id}`, { method: 'DELETE' })).then((ok) => {
     if (ok && folderSel.value === f.id) folderSel.value = f.parent_id ?? ''
   })
 }
-function deleteTag(t: { id: string, name: string }) {
+async function deleteTag(t: { id: string, name: string }) {
   const n = tagCount(t.id)
-  if (!confirm(`Delete the tag “${t.name}”?${n ? ` It comes off ${nDocs(n)}.` : ''} No documents are deleted.`)) return
+  if (!(await askConfirm({ title: `Delete the tag “${t.name}”?`, body: `${n ? `It comes off ${nDocs(n)}. ` : ''}No documents are deleted.`, confirm: 'Delete tag', danger: true }))) return
   call(() => $fetch(`/api/library/tags/${t.id}`, { method: 'DELETE' })).then((ok) => {
     if (ok && tagSel.value === t.id) tagSel.value = ''
   })
