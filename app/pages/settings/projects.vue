@@ -70,6 +70,35 @@ async function setMedium(id: string, medium: string) {
     mediumBusy.value = ''
   }
 }
+// Art style is added to every image prompt in the project, so portraits and covers look like one game.
+const artDraft = reactive<Record<string, string>>({})
+const artState = ref<Record<string, 'saving' | 'saved'>>({})
+const artError = ref<{ id: string, message: string } | null>(null)
+const artTimers: Record<string, ReturnType<typeof setTimeout>> = {}
+// Saves itself shortly after typing stops; "Saved" shows once the server has it.
+async function saveArt(id: string) {
+  clearTimeout(artTimers[id])
+  const value = artDraft[id]
+  if (value === undefined) return
+  artState.value[id] = 'saving'
+  artError.value = null
+  try {
+    await $fetch(`/api/projects/${id}`, { method: 'PATCH', body: { art_style: value } })
+    await refresh()
+    if (artDraft[id] === value) delete artDraft[id] // keep typing that arrived while saving
+    artState.value[id] = 'saved'
+  } catch (e) {
+    delete artState.value[id]
+    artError.value = { id, message: errorMessage(e) }
+  }
+}
+function typeArt(id: string, value: string) {
+  artDraft[id] = value
+  delete artState.value[id]
+  clearTimeout(artTimers[id])
+  artTimers[id] = setTimeout(() => saveArt(id), 800)
+}
+onBeforeUnmount(() => Object.keys(artTimers).forEach(id => artDraft[id] !== undefined && saveArt(id)))
 async function open(id: string) {
   busy.value = id
   await openProject(id)
@@ -136,6 +165,20 @@ const ago = (iso: string | null) => {
             <b v-else>{{ MEDIA[mediumOf(p.medium)].label }}</b>
             <span v-if="mediumError?.id === p.id" class="field-error" role="alert">{{ mediumError.message }}</span>
           </label>
+          <div class="art">
+            <label :for="`art-${p.id}`">Art style <span class="faint">· added to every generated image</span></label>
+            <template v-if="data.can_manage">
+              <textarea
+                :id="`art-${p.id}`" rows="3" maxlength="500" placeholder="e.g. Muted coastal palette, weathered textures, hand-inked linework"
+                :value="artDraft[p.id] ?? p.art_style" @input="typeArt(p.id, ($event.target as HTMLTextAreaElement).value)" @blur="saveArt(p.id)"
+              />
+              <span v-if="artState[p.id] === 'saving'" class="small faint" role="status">Saving…</span>
+              <span v-else-if="artState[p.id] === 'saved'" class="small good-text" role="status"><UiIcon name="check" :size="14" /> Saved</span>
+              <span v-else-if="artDraft[p.id] !== undefined" class="small faint">Saves when you stop typing</span>
+              <span v-if="artError?.id === p.id" class="field-error" role="alert">{{ artError.message }}</span>
+            </template>
+            <p v-else :id="`art-${p.id}`" class="small" :class="{ faint: !p.art_style }">{{ p.art_style || 'Not set' }}</p>
+          </div>
           <div class="row project-actions">
             <UiButton v-if="p.id === currentId" size="sm" to="/">Go to home</UiButton>
             <UiButton v-else size="sm" variant="primary" :loading="busy === p.id" @click="open(p.id)">Open project</UiButton>
@@ -172,5 +215,10 @@ const ago = (iso: string | null) => {
 .medium > span:first-child { font-weight: 500; }
 .medium .faint { font-weight: 400; }
 .medium select { max-width: 240px; }
+.art { display: grid; gap: 6px; font-size: var(--text-sm); }
+.art label { display: block; font-weight: 500; }
+.art label .faint { font-weight: 400; }
+.art p { margin: 0; overflow-wrap: anywhere; }
+.good-text { display: inline-flex; align-items: center; gap: 4px; color: var(--good); font-weight: 500; }
 @media (max-width: 720px) { .projects { grid-template-columns: 1fr; } }
 </style>

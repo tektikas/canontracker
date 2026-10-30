@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
   const at = now()
   tx(() => {
     useDb().prepare('update entities set portrait_type = ?, portrait_at = ?, updated_at = ?, updated_by = ? where id = ?').run(type, at, at, access().user.id, e.id)
+    clearApplied('entity', e.id)
     audit('entity.portrait_set', 'entity', e.id, { name: e.name, type, bytes: file.data.length, replaced: !!e.portrait_type })
   })
   return { portrait: portraitUrl({ ...e, portrait_type: type, portrait_at: at }) }

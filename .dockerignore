@@ -1,0 +1,16 @@
+node_modules
+.nuxt
+.nitro
+.output
+.cache
+.data
+.git
+.env
+.env.*
+!.env.example
+*.log
+.orka
+.orka-evidence
+.playwright-cli
+.forgejo
+docs

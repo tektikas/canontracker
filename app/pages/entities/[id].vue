@@ -124,11 +124,15 @@ async function upload(ev: Event) {
     uploading.value = false
   }
 }
+// Removing a generated portrait can be undone (its image stays in the history); an uploaded one is gone for good.
+const undo = ref<{ id: string, message: string } | null>(null)
 async function removePortrait() {
   uploading.value = true
   portraitError.value = ''
+  const gen = e.value!.portrait_image
   try {
     await $fetch(`/api/entities/${e.value!.id}/portrait`, { method: 'DELETE' })
+    undo.value = gen ? { id: gen.id, message: `${noun.value === 'portrait' ? 'Portrait' : 'Image'} removed.` } : null
     await Promise.all([refresh(), refreshEntities()])
   } catch (err) {
     portraitError.value = errorMessage(err)
@@ -136,6 +140,22 @@ async function removePortrait() {
     uploading.value = false
   }
 }
+
+// Generated portraits come from the dialog; it keeps every image with its prompt so an older one can be picked again.
+const generator = ref<{ open: () => void }>()
+const noun = computed(() => imageNoun('entity', e.value?.kind))
+async function undoRemove() {
+  const id = undo.value!.id
+  undo.value = null
+  try {
+    await $fetch(`/api/images/${id}/apply`, { method: 'POST' })
+    await portraitChanged()
+  } catch (err) {
+    portraitError.value = errorMessage(err)
+  }
+}
+const portraitChanged = () => Promise.all([refresh(), refreshEntities()])
+const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 
 // Merge and delete open a panel under the header.
 const panel = ref<'' | 'merge' | 'delete'>('')
@@ -212,10 +232,13 @@ const ago = (iso: string) => {
         <EntityAvatar :entity="e" :size="104" />
         <div v-if="editable" class="portrait-actions">
           <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden @change="upload">
-          <UiButton size="sm" icon="image" :loading="uploading" @click="fileInput?.click()">{{ e.portrait ? 'Replace' : 'Add portrait' }}</UiButton>
-          <UiButton v-if="e.portrait" size="sm" variant="ghost" :disabled="uploading" @click="removePortrait">Remove</UiButton>
+          <UiButton size="sm" icon="upload" :loading="uploading" @click="fileInput?.click()">{{ e.portrait ? 'Replace' : 'Upload' }}</UiButton>
+          <UiButton size="sm" icon="image" :disabled="uploading" @click="generator?.open()">Generate</UiButton>
+          <UiButton v-if="e.portrait" size="sm" variant="ghost" icon="trash" :disabled="uploading" :aria-label="`Remove ${noun}`" :title="`Remove ${noun}`" @click="removePortrait" />
         </div>
         <p v-if="portraitError" class="portrait-error" role="alert">{{ portraitError }}</p>
+        <ImageGenerator v-if="editable" :id="e.id" ref="generator" type="entity" can-upload @changed="portraitChanged" @upload="fileInput?.click()" />
+        <UndoToast v-if="undo" :message="undo.message" @undo="undoRemove" @close="undo = null" />
       </div>
       <div class="ident">
         <div class="row">
@@ -232,6 +255,10 @@ const ago = (iso: string) => {
           {{ counted(facts.length, 'canon fact') }} · {{ e.appearances.length ? `appears in ${counted(e.appearances.length, 'document')}` : 'not mentioned in any source' }}
           <template v-if="e.updated_by"> · edited by {{ e.updated_by }} {{ ago(e.updated_at) }}</template>
         </p>
+        <details v-if="e.portrait_image" class="gen-note small">
+          <summary class="expand"><UiBadge tone="pencil">Generated with Muse Image</UiBadge> {{ noun === 'portrait' ? 'Portrait' : 'Image' }} by {{ e.portrait_image.created_by_name ?? 'unknown' }}, {{ madeOn(e.portrait_image.created_at) }}</summary>
+          <p>{{ e.portrait_image.prompt }}</p>
+        </details>
       </div>
       <div v-if="editable" class="actions">
         <UiButton icon="review" @click="edit('details')">Edit</UiButton>
@@ -458,7 +485,7 @@ const ago = (iso: string) => {
 .crumbs { display: flex; gap: var(--s-2); align-items: center; color: var(--muted); margin-bottom: var(--s-3); }
 .crumbs a { color: var(--muted); }
 .hero { display: flex; gap: var(--s-5); align-items: flex-start; flex-wrap: wrap; margin-bottom: var(--s-5); }
-.portrait { display: grid; gap: var(--s-2); justify-items: center; }
+.portrait { display: grid; gap: var(--s-2); justify-items: center; width: 256px; }  /* fixed so the header does not shift when Remove appears */
 .portrait-actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
 .ident { flex: 1 1 320px; min-width: 0; display: grid; gap: var(--s-1); align-content: start; }
 .ident h1 { margin: var(--s-1) 0 0; font-size: var(--text-2xl); line-height: 1.2; overflow-wrap: anywhere; }
@@ -470,6 +497,9 @@ const ago = (iso: string) => {
 .merged-note svg { flex: none; margin-top: 3px; color: var(--faint); }
 .portrait-error { margin: 0; max-width: 200px; font-size: var(--text-sm); font-weight: 500; color: var(--bad); text-align: center; }
 .meta { margin: 0; }
+.gen-note { margin-top: var(--s-1); max-width: 70ch; }
+.gen-note summary { display: flex; flex-wrap: wrap; gap: 4px var(--s-2); align-items: center; cursor: pointer; color: var(--muted); }
+.gen-note p { margin: var(--s-2) 0 0; padding: var(--s-2) var(--s-3); border-left: 2px solid var(--line-strong); white-space: pre-line; color: var(--muted); overflow-wrap: anywhere; }
 .actions { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 .gap { margin-bottom: var(--s-5); }
 .details-row { display: grid; grid-template-columns: 1fr 180px; gap: var(--s-3); max-width: 640px; }
@@ -529,7 +559,7 @@ const ago = (iso: string) => {
 }
 @media (max-width: 720px) {
   .hero { gap: var(--s-3) var(--s-4); }
-  .portrait { justify-items: start; }
+  .portrait { justify-items: start; width: auto; }
   .portrait-error { text-align: left; }
   .ident h1 { font-size: var(--text-xl); }
   .details-row { grid-template-columns: 1fr; }

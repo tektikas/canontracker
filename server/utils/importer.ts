@@ -22,13 +22,6 @@ export function splitPassages(content: string) {
   return out.map((p, i) => ({ ordinal: i + 1, start_line: p.start, end_line: p.end, text: p.lines.join('\n') }))
 }
 
-// The one quote check: a quote is verified only if it appears verbatim in a passage. Blank never matches.
-// `prefer`: the passage the quote was selected in, checked first so a phrase that repeats is cited where it was picked.
-export function findQuotePassage<P extends { id: string, text: string }>(passages: P[], quote: string | null | undefined, prefer?: string | null) {
-  if (!quote?.trim()) return undefined
-  return [...passages.filter(p => p.id === prefer), ...passages].find(p => p.text.includes(quote))
-}
-
 export const DOCUMENT_KINDS = ['scene', 'lore', 'character', 'other'] as const
 
 // Uploads and documents written in the app take the same path: hash, version, passages, stale citations, extraction.
@@ -72,7 +65,8 @@ export async function importDocument(filename: string, content: string, written?
     const model = modelInfo()
     tx(() => {
       for (const c of drafts) {
-        const passage = findQuotePassage(passages, c.quote)
+        const match = findQuotePassage(passages, c.quote)
+        const passage = match?.passage
         const tFrom = parseStoryTime(c.time?.from)
         const tTo = parseStoryTime(c.time?.to)
         const precision = c.time ? (c.time.precision ?? 'exact') : null
@@ -82,7 +76,7 @@ export async function importDocument(filename: string, content: string, written?
           .run(factId, c.kind, c.subject, c.predicate, c.object ?? null, c.value == null ? null : String(c.value), c.statement, tFrom, tTo,
             timeLabel(tFrom, tTo, precision), precision, c.confidence ?? null, `model:${PROMPT_VERSIONS.extract}`, model.id, now(), projectId)
         db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, ?, ?)')
-          .run(newId('ev'), factId, documentId, passage?.id ?? null, c.quote ?? '', passage ? 1 : 0, projectId)
+          .run(newId('ev'), factId, documentId, passage?.id ?? null, match?.quote ?? c.quote ?? '', passage ? 1 : 0, projectId)
         audit('candidate.created', 'fact', factId, { document_id: documentId, quote_verified: !!passage, model_id: model.id })
         candidates++
         if (!passage) unverified++

@@ -203,13 +203,17 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
       <header class="cand-head">
         <span class="cand-pos">Candidate {{ index + 1 }} <span class="faint">of {{ queue.length }}</span></span>
         <div class="row">
-          <UiBadge v-if="current.origin !== 'human'" :tone="lowConfidence(current) ? 'warn' : 'neutral'" :title="lowConfidence(current) ? 'Low model confidence: read the source closely' : 'Model confidence'">
+          <UiBadge v-if="current.agent_name" tone="accent" :title="`Proposed over MCP with the API token “${current.agent_name}”. Not canon until you accept it.`">
+            Agent proposal
+          </UiBadge>
+          <UiBadge v-if="current.confidence != null" :tone="lowConfidence(current) ? 'warn' : 'neutral'" :title="lowConfidence(current) ? 'Low model confidence: read the source closely' : 'Model confidence'">
             {{ percent(current.confidence) }} confidence
           </UiBadge>
           <UiBadge v-if="isRecordedModel(current.model_id)" tone="warn" title="Replayed from a recorded extraction, not a live model call">Recorded demo run</UiBadge>
         </div>
       </header>
-      <p v-if="current.origin === 'human'" class="small faint model">Added by hand from the source, not proposed by a model</p>
+      <p v-if="current.origin === 'human'" class="small faint model">Added by {{ current.created_by_name ?? 'a teammate' }} from the source, not proposed by a model</p>
+      <p v-else-if="current.agent_name" class="small faint model">Proposed by agent <strong>{{ current.agent_name }}</strong> for {{ current.proposed_by_name }}</p>
       <p v-else class="small faint model">Proposed by {{ modelLabel(current.model_id) }}</p>
 
       <FactSummary v-if="mode !== 'edit'" :fact="current" />
@@ -306,6 +310,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
             <span class="q-text">{{ f.statement }}</span>
             <UiBadge v-if="!verified(f)" tone="bad" dot title="Quote not found in source">Blocked</UiBadge>
             <span v-else-if="f.origin === 'human'" class="q-conf" title="Added by a person">by hand</span>
+            <span v-else-if="f.agent_name" class="q-conf" :title="`Proposed by agent ${f.agent_name}`">agent</span>
             <span v-else class="q-conf" :class="{ low: lowConfidence(f) }">{{ percent(f.confidence) }}</span>
           </button>
         </li>

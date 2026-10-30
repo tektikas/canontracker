@@ -1,5 +1,5 @@
-// A person adds a fact from text they selected in a source. The quote must appear verbatim in that passage (the same check
-// extraction uses). to = canon: the person creating and confirming it is the human decision (audited as fact.authored);
+// A person adds a fact from text they selected in a source. The quote must appear verbatim in that passage (findQuotePassage,
+// the same check extraction, MCP proposals and accept use). to = canon: the person creating and confirming it is the human decision (audited as fact.authored);
 // to = review: it waits in the review queue like any candidate.
 const KINDS = ['character', 'location', 'relationship', 'event', 'rule', 'claim']
 const fail = (statusCode: number, statusMessage: string, message: string) => createError({ statusCode, statusMessage, message })
@@ -18,8 +18,9 @@ export default defineEventHandler(async (event) => {
   const quote = typeof b.quote === 'string' ? b.quote.trim() : ''
   if (!quote) throw fail(422, 'QUOTE_REQUIRED', 'Select the words in the source that say this.')
   const passages = db.prepare('select * from passages where document_id = ? order by ordinal').all(doc.id) as unknown as PassageRow[]
-  const passage = findQuotePassage(passages, quote, typeof b.passage_id === 'string' ? b.passage_id : null)
-  if (!passage) throw fail(422, 'UNVERIFIED_EVIDENCE', 'The quote was not found verbatim in the source, so it can’t back a fact.')
+  const match = findQuotePassage(passages, quote, typeof b.passage_id === 'string' ? b.passage_id : null)
+  if (!match) throw fail(422, 'UNVERIFIED_EVIDENCE', `The quote must appear verbatim in the source and be at least ${MIN_QUOTE_CHARS} characters, so it can back a fact.`)
+  const passage = match.passage
 
   const kind = str(b.kind) || 'claim'
   if (!KINDS.includes(kind)) throw fail(400, 'BAD_KIND', `kind must be one of ${KINDS.join(', ')}.`)

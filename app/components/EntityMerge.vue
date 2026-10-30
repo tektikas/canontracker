@@ -18,7 +18,7 @@ const error = ref('')
 const preview = (id: string) => $fetch(`/api/entities/${props.entity.id}/merge`, { method: 'POST', body: { into: id, preview: true } }) as Promise<{
   source: { kind: string }, target: { kind: string }, source_canon: number, target_canon: number
   facts: { id: string, statement: string, status: string }[], aliases_added: string[], fields_filled: string[], summary_taken: boolean, notes_added: boolean, portrait: string, canonical: string
-  names_mapped: string[], conflicts_resolved: { id: string, rule: string, rationale: string }[], changes_stale: { id: string, proposed_statement: string }[]
+  names_mapped: string[], conflicts_resolved: { id: string, rule: string, rationale: string }[], changes_stale: { id: string, proposed_statement: string }[], images_moved: number
 }>
 // A merge says two pages are one thing. Different kinds, or canon on both sides, suggest they may not be.
 const doubt = computed(() => {
@@ -61,7 +61,7 @@ async function merge() {
 </script>
 
 <template>
-  <UiPanel :title="`Merge ${entity.name} into another page`" :description="`Use this when two pages are the same ${kindLabel(entity.kind).one.toLowerCase()}. ${entity.name}’s page goes away; its facts, names and notes move to the page you keep.`" class="merge">
+  <UiPanel :title="`Merge ${entity.name} into another page`" :description="`Use this when two pages are the same ${kindLabel(entity.kind).one.toLowerCase()}. ${entity.name}’s page goes away; its facts, names, notes and generated images move to the page you keep.`" class="merge">
     <div class="stack">
       <UiField label="Keep this page">
         <select v-model="into">
@@ -88,6 +88,7 @@ async function merge() {
           <li v-if="plan.notes_added">{{ entity.name }}’s {{ plan.summary_taken ? 'notes are' : 'summary and notes are' }} added to the end of {{ target.name }}’s notes.</li>
           <li v-if="plan.portrait === 'move'">{{ entity.name }}’s portrait moves over.</li>
           <li v-if="plan.portrait === 'discard'" class="warn-text">{{ target.name }} keeps its own portrait; {{ entity.name }}’s portrait is discarded.</li>
+          <li v-if="plan.images_moved"><b>{{ counted(plan.images_moved, 'generated image') }}</b> move{{ plan.images_moved === 1 ? 's' : '' }} to {{ target.name }}’s image history.</li>
           <li v-if="plan.conflicts_resolved.length">
             <b>{{ counted(plan.conflicts_resolved.length, 'open conflict') }}</b> only exist{{ plan.conflicts_resolved.length === 1 ? 's' : '' }} because these were two pages, so {{ plan.conflicts_resolved.length === 1 ? 'it closes' : 'they close' }} as “resolved by merge”. The decision history stays.
           </li>

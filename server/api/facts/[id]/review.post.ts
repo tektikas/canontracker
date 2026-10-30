@@ -24,9 +24,13 @@ export default defineEventHandler(async (event) => {
 
   if (body.decision !== 'accept' && body.decision !== 'correct_and_accept')
     throw createError({ statusCode: 400, statusMessage: 'BAD_DECISION', message: 'decision must be accept, correct_and_accept or reject.' })
-  const verified = db.prepare('select count(*) n from evidence where fact_id = ? and verified = 1').get(id) as { n: number }
-  if (!verified.n)
+  const quotes = db.prepare(`select e.quote, p.text from evidence e join passages p on p.id = e.passage_id
+    where e.fact_id = ? and e.verified = 1 and e.project_id = ?`).all(id, pid()) as { quote: string, text: string }[]
+  // Re-verify against the cited passage's text (not the quote against itself): blank, short, padded or non-verbatim quotes are not evidence.
+  if (!quotes.some(e => isVerbatimQuote(e.text, e.quote))) {
+    audit('candidate.accept_refused', 'fact', id, { reason: 'no_valid_evidence' })
     throw createError({ statusCode: 422, statusMessage: 'UNVERIFIED_EVIDENCE', message: 'The quote was not found verbatim in the source, so this cannot become canon.' })
+  }
 
   const c = body.decision === 'correct_and_accept' ? body.corrected ?? {} : {}
   const after = {

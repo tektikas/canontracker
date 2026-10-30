@@ -7,7 +7,7 @@ export default defineEventHandler(async (event) => {
   const passages = db.prepare('select id, text from passages where document_id = ?').all(doc.id) as { id: string, text: string }[]
   const quote = typeof b.quote === 'string' ? b.quote.trim() : ''
   // The note is pinned to the selected words when they are in the passage; otherwise to the passage as a whole.
-  const passage = findQuotePassage(passages, quote, String(b.passage_id ?? '')) ?? passages.find(p => p.id === b.passage_id)
+  const passage = findQuotePassage(passages, quote, String(b.passage_id ?? ''))?.passage ?? passages.find(p => p.id === b.passage_id)
   if (!passage) throw createError({ statusCode: 400, statusMessage: 'BAD_PASSAGE', message: 'Pick the passage the note is about.' })
   const body = typeof b.body === 'string' ? b.body.trim() : ''
   if (!body) throw createError({ statusCode: 400, statusMessage: 'BODY_REQUIRED', message: 'Write the note.' })

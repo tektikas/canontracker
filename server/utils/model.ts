@@ -10,7 +10,7 @@ export interface CandidateDraft {
 
 export interface RuleViolation { fact_id: string, rationale: string, confidence: number }
 
-export const PROMPT_VERSIONS = { extract: 'extract-v1', answer: 'answer-v2', rule_check: 'rule-check-v2' } as const
+export const PROMPT_VERSIONS = { extract: 'extract-v1', answer: 'answer-v2', rule_check: 'rule-check-v2', image: 'image-v1' } as const
 
 export function modelInfo() {
   const { modelMode, modelId } = useRuntimeConfig()
@@ -19,15 +19,21 @@ export function modelInfo() {
     : { mode: 'mock', id: 'mock:recorded-fixtures', label: 'Recorded demo run (model offline)' }
 }
 
+// Images have no recorded fallback: in mock mode there is simply no image model.
+export function imageModelInfo() {
+  const { modelMode, imageModelId } = useRuntimeConfig()
+  return { live: modelMode === 'meta', id: imageModelId, label: `${imageModelId === 'muse-image-1.0' ? 'Muse Image 1.0' : imageModelId} via Meta Model API` }
+}
+
 async function traced<T>(
   purpose: keyof typeof PROMPT_VERSIONS, target: { type: string, id: string }, inputRefs: string[], input: string | null,
-  fn: () => Promise<T>, summarize: (r: T) => string,
+  fn: () => Promise<T>, summarize: (r: T) => string, modelId = modelInfo().id,
 ): Promise<T> {
   const started = Date.now()
   const record = (status: string, summary: string | null, error: string | null) =>
     useDb().prepare(`insert into model_calls (id, purpose, model_id, prompt_version, target_type, target_id, input_refs, input, status,
       latency_ms, output_summary, error, created_at, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
-      .run(newId('mc'), purpose, modelInfo().id, PROMPT_VERSIONS[purpose], target.type, target.id, JSON.stringify(inputRefs), input,
+      .run(newId('mc'), purpose, modelId, PROMPT_VERSIONS[purpose], target.type, target.id, JSON.stringify(inputRefs), input,
         status, Date.now() - started, summary, error, now(), pid())
   try {
     const result = await fn()
@@ -39,24 +45,35 @@ async function traced<T>(
   }
 }
 
-async function chatJson(system: string, user: string) {
-  const { metaApiKey, metaBaseUrl, modelId } = useRuntimeConfig()
+function apiKey() {
+  const { metaApiKey } = useRuntimeConfig()
   if (!metaApiKey)
     throw createError({ statusCode: 503, statusMessage: 'MODEL_NOT_CONFIGURED', message: 'Meta Model API key is not set (NUXT_META_API_KEY).' })
+  return metaApiKey
+}
+
+// One plain sentence for every way a Meta Model API call can fail. Never falls back to recorded output.
+function apiFailure(
+  e: { statusCode?: number, data?: { error?: { code?: string, message?: string }, detail?: string }, name?: string, message: string, cause?: { code?: string } },
+  what = 'Model call failed', after = 'Nothing was replaced with recorded output.',
+) {
+  const code = e.data?.error?.code, detail = (e.data?.error?.message ?? e.data?.detail)?.replace(/\.$/, '')
+  const why = e.statusCode === 402 ? 'billing is not set up for this Meta Model API key (402)'
+    : e.statusCode === 401 || e.statusCode === 403 ? `the Meta Model API rejected the key (${e.statusCode})`
+    : e.statusCode === 429 ? 'rate limited by the Meta Model API (429)'
+    : !e.statusCode ? (e.name === 'TimeoutError' || /timeout|aborted/i.test(e.message) ? 'the Meta Model API timed out' : `could not reach the Meta Model API (${e.cause?.code ?? e.message})`)
+    : `Meta Model API error ${e.statusCode}`
+  return createError({ statusCode: 503, statusMessage: 'MODEL_UNAVAILABLE', message: `${what}: ${why}${code || detail ? ` — ${[code, detail].filter(Boolean).join(': ')}` : ''}. ${after}` })
+}
+
+async function chatJson(system: string, user: string) {
+  const { metaBaseUrl, modelId } = useRuntimeConfig()
   const res = await $fetch<{ choices: { message: { content: string } }[] }>(`${metaBaseUrl}/chat/completions`, {
     method: 'POST',
     timeout: 60_000,
-    headers: { Authorization: `Bearer ${metaApiKey}` },
+    headers: { Authorization: `Bearer ${apiKey()}` },
     body: { model: modelId, temperature: 0, messages: [{ role: 'system', content: system }, { role: 'user', content: user }] },
-  }).catch((e) => {
-    const code = e.data?.error?.code, detail = e.data?.error?.message ?? e.data?.detail
-    const why = e.statusCode === 402 ? 'billing is not set up for this Meta Model API key (402)'
-      : e.statusCode === 401 || e.statusCode === 403 ? `the Meta Model API rejected the key (${e.statusCode})`
-      : e.statusCode === 429 ? 'rate limited by the Meta Model API (429)'
-      : !e.statusCode ? (e.name === 'TimeoutError' || /timeout|aborted/i.test(e.message) ? 'the Meta Model API timed out' : `could not reach the Meta Model API (${e.cause?.code ?? e.message})`)
-      : `Meta Model API error ${e.statusCode}`
-    throw createError({ statusCode: 503, statusMessage: 'MODEL_UNAVAILABLE', message: `Model call failed: ${why}${code || detail ? ` — ${[code, detail].filter(Boolean).join(': ')}` : ''}. Nothing was replaced with recorded output.` })
-  })
+  }).catch((e) => { throw apiFailure(e) })
   const text = res.choices?.[0]?.message?.content ?? ''
   try {
     return JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1))
@@ -139,4 +156,56 @@ Only list facts that cannot be true if the rule holds as written. Being related 
     const ids = new Set(facts.map(f => f.id))
     return (Array.isArray(out.violations) ? out.violations as RuleViolation[] : []).filter(v => ids.has(v.fact_id))
   }, r => plural(r.length, 'violation'))
+}
+
+// Muse Image via the OpenAI-style images endpoint. The success shape is not documented yet, so both data[].b64_json and
+// data[].url are accepted; URLs are downloaded (safely, see downloadImage) and stored, never hot-linked. Anything that isn't
+// a raster image fails loudly. One deadline covers the API call, its body and every download.
+const MAX_IMAGE_BYTES = 20_000_000
+const MAX_B64_CHARS = Math.ceil(MAX_IMAGE_BYTES / 3) * 4
+const MAX_API_BYTES = 4 * (MAX_B64_CHARS + 1024) + 65_536
+export function generateImages(prompt: string, n: number, target: { type: string, id: string }) {
+  const { metaBaseUrl, imageModelId } = useRuntimeConfig()
+  const bad = (why: string) => createError({ statusCode: 502, statusMessage: 'MODEL_BAD_OUTPUT', message: `Image generation failed: ${why}. No image was saved.` })
+  return traced('image', target, [target.id], prompt, async () => {
+    const deadline = new AbortController()
+    const timer = setTimeout(() => deadline.abort(new DOMException('Image generation timed out', 'TimeoutError')), IMAGE_DEADLINE_MS)
+    const timedOut = () => deadline.signal.aborted
+    try {
+      const res = await fetchCapped(`${metaBaseUrl}/images/generations`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey()}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ model: imageModelId, prompt, n }),
+      }, MAX_API_BYTES, deadline.signal).catch((e) => {
+        if (e instanceof FetchRefused) throw bad(e.message)
+        throw apiFailure(timedOut() ? { name: 'TimeoutError', message: 'timeout' } : e, 'Image generation failed', 'No image was saved.')
+      })
+      let json: { data?: { b64_json?: unknown, url?: unknown }[], error?: { code?: string, message?: string }, detail?: string } | null = null
+      try {
+        json = JSON.parse(res.body.toString('utf8'))
+      } catch { /* judged below */ }
+      if (res.status < 200 || res.status >= 300)
+        throw apiFailure({ statusCode: res.status, data: json ?? undefined, message: `HTTP ${res.status}` }, 'Image generation failed', 'No image was saved.')
+      if (!json) throw bad('Muse Image did not return JSON')
+      if (!Array.isArray(json.data) || !json.data.length) throw bad('Muse Image returned no images')
+      const images = await Promise.all(json.data.slice(0, n).map(async (d) => {
+        let bytes: Buffer
+        if (typeof d?.b64_json === 'string') {
+          if (d.b64_json.length > MAX_B64_CHARS) throw bad('the image is larger than 20 MB')
+          bytes = Buffer.from(d.b64_json, 'base64')
+        } else if (typeof d?.url === 'string') {
+          bytes = await downloadImage(d.url, MAX_IMAGE_BYTES, deadline.signal).catch((e) => {
+            throw bad(timedOut() ? 'the image download timed out' : `could not download the image (${e.message})`)
+          })
+        } else throw bad('the response had neither b64_json nor a URL')
+        const type = imageType(bytes)
+        if (!type) throw bad('the response was not a PNG, JPEG, WebP or GIF image')
+        return { bytes, type }
+      }))
+      return { images, extra: json.data.length - images.length }
+    } finally {
+      clearTimeout(timer)
+      deadline.abort() // stops any download still running after a sibling failed
+    }
+  }, r => `${plural(r.images.length, 'image')}${r.extra > 0 ? ` (Muse Image returned ${r.extra} more than asked; not kept)` : ''}`, imageModelId)
 }

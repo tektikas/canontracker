@@ -16,5 +16,5 @@ export default defineEventHandler((event) => {
   const notes = listNotes('d.filename = ?', doc.filename).map(n => ({
     ...n, ...(n.document_id === doc.id ? { anchor: n.passage_id, anchor_issue: null } : reanchorNote(n, passages, passagesOf(n.document_id))),
   }))
-  return { ...doc, created_by_name: author, latest: { id: latest.id, version: latest.version }, passages, facts, notes }
+  return { ...doc, created_by_name: author, latest: { id: latest.id, version: latest.version }, passages, facts, notes, cover: appliedImage('document', doc.id) }
 })

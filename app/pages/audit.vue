@@ -22,7 +22,9 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'document.imported': return [`${who} imported ${d.filename}`, `${d.passages} passages, read-only`]
     case 'document.version_added': return [`${who} imported version ${d.version} of ${d.filename}`, `${d.passages} passages`]
     case 'citation.stale': return [`${d.filename} v${d.version} makes ${d.fact_ids?.length ?? 0} citation(s) stale`, 'Re-check the facts that cite it']
-    case 'candidate.created': return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
+    case 'candidate.created':
+      if (d.via === 'mcp') return [`Agent “${d.token_name}” proposed a candidate for ${who}`, 'Quote found in source · waiting for a human decision']
+      return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
     case 'candidate.accepted': return [`${who} accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
     case 'candidate.corrected_and_accepted': return [`${who} corrected and accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
     case 'candidate.rejected': return [`${who} rejected a candidate: ${q(d.statement)}`, because(d)]
@@ -40,6 +42,9 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'qa.asked': return [`${who} asked: ${q(d.question)}`, `Result: ${({ supported: 'Supported by canon', source_only: 'Related canon only', unknown: 'Unknown' } as Record<string, string>)[d.status] ?? d.status}`]
     case 'eval.completed': return [`${who} ran the evaluation`, `${d.passed} met, ${d.failed} missed`]
     case 'export.created': return [`${who} exported ${d.format?.toUpperCase()}`, d.items != null ? `${d.items} impact items` : d.events != null ? `${d.events} audit events` : '']
+    case 'agent.proposal_refused': return [`Agent “${d.token_name}” proposed a candidate and was refused for ${who}`, `${String(d.code).replaceAll('_', ' ').toLowerCase()}, nothing stored: ${q(d.statement)}`]
+    case 'token.created': return [`${who} created the API token “${d.name}”`, 'Shown once, stored hashed']
+    case 'token.revoked': return [`${who} revoked an API token`, '']
     case 'entity.created': return [`${who} created a page for ${d.name}`, `${KIND_LABEL[d.kind as EntityKind]?.one ?? d.kind}`]
     case 'entity.updated': return [`${who} edited ${d.name}’s page`, `Changed: ${(d.changed ?? []).join(', ')}. Editorial, not canon`]
     case 'entity.merged': return [`${who} merged ${d.from?.name} into ${d.into}`, [
@@ -54,13 +59,17 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'entity.deleted': return [`${who} deleted ${d.name}’s page`, 'Canon unaffected; the page text is kept in this event']
     case 'entity.portrait_set': return [`${who} ${d.replaced ? 'replaced' : 'added'} ${d.name}’s portrait`, '']
     case 'entity.portrait_removed': return [`${who} removed ${d.name}’s portrait`, '']
+    case 'image.generated': return [`${who} generated ${d.images?.length ?? 0} image${d.images?.length === 1 ? '' : 's'} for ${d.name} with Muse Image`, `Editorial, not canon · prompt: ${q(d.prompt)}`]
+    case 'image.applied': return [`${who} set an image as ${d.name}’s ${d.as ?? 'image'}`, d.replaced ? 'Replaced the previous one' : '']
+    case 'image.discarded': return [`${who} deleted a generated image${d.name ? ` of ${d.name}` : ''}`, `Prompt was ${q(d.prompt)}`]
+    case 'image.cover_removed': return [`${who} removed ${d.name ? `${d.name}’s` : 'a document’s'} cover`, 'The image stays in its history']
     case 'job.failed': return [`Extraction failed for ${d.filename ?? 'a document'}`, clip(d.error, 140)]
     default: return [e.event_type, clip(d)]
   }
 }
 
 const TONE: Record<string, 'accent' | 'good' | 'bad' | 'warn' | 'pencil' | 'neutral'> = {
-  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad', entity: 'neutral',
+  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad', entity: 'neutral', image: 'neutral', agent: 'bad', token: 'neutral',
 }
 
 // Short ID plus a link where a page exists; pages have no per-item anchors, so links go to the list.

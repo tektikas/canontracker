@@ -1,6 +1,7 @@
 <script setup lang="ts">
 const route = useRoute()
-const editor = computed(() => canEdit(useMe().value))
+const me = useMe()
+const editor = computed(() => canEdit(me.value))
 const { data: doc, error, refresh } = await useFetch(() => `/api/documents/${route.params.id}`)
 // :target does not update on client-side navigation, so highlight from the route hash.
 const active = computed(() => route.hash.slice(1))
@@ -38,6 +39,37 @@ async function showNotes(passageId: string) {
   el?.focus({ preventScroll: true })
 }
 const savedAt = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+
+// A generated cover is editorial: shown above the source, never written into it.
+const generator = ref<{ open: () => void }>()
+const undo = ref('')
+async function undoRemove() {
+  const id = undo.value
+  undo.value = ''
+  try {
+    await $fetch(`/api/images/${id}/apply`, { method: 'POST' })
+    await refresh()
+  } catch (e) {
+    coverError.value = errorMessage(e)
+  }
+}
+const coverBusy = ref(false)
+const coverError = ref('')
+async function removeCover() {
+  coverBusy.value = true
+  coverError.value = ''
+  try {
+    const id = doc.value!.cover!.id
+    await $fetch(`/api/images/${id}/apply`, { method: 'DELETE' })
+    await refresh()
+    undo.value = id
+  } catch (e) {
+    coverError.value = errorMessage(e)
+  } finally {
+    coverBusy.value = false
+  }
+}
+const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
 </script>
 
 <template>
@@ -59,10 +91,28 @@ const savedAt = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day
         <span v-if="doc.origin === 'written'" class="small muted">Written in Story Bible<template v-if="doc.created_by_name"> by {{ doc.created_by_name }}</template>, {{ savedAt(doc.imported_at) }}</span>
         <span class="mono faint" :title="`sha256 ${doc.sha256}`">sha256 {{ String(doc.sha256).slice(0, 12) }}…</span>
       </span>
-      <template v-if="editor && doc.origin === 'written'" #actions>
-        <UiButton icon="review" :to="`/write?doc=${doc.latest.id}`">Edit</UiButton>
+      <template v-if="editor" #actions>
+        <UiButton v-if="doc.origin === 'written'" icon="review" :to="`/write?doc=${doc.latest.id}`">Edit</UiButton>
+        <UiButton v-if="!doc.cover" icon="image" @click="generator?.open()">Generate cover</UiButton>
       </template>
     </UiPageHeader>
+    <ImageGenerator v-if="canEdit(me)" :id="doc.id" ref="generator" type="document" @changed="refresh" />
+    <UndoToast v-if="undo" message="Cover removed." @undo="undoRemove" @close="undo = ''" />
+
+    <figure v-if="doc.cover" class="cover panel">
+      <img :src="doc.cover.url" :alt="`Cover for ${doc.title}`">
+      <figcaption>
+        <details class="small">
+          <summary class="expand"><UiBadge tone="pencil">Generated with Muse Image</UiBadge> Cover by {{ doc.cover.created_by_name ?? 'unknown' }}, {{ madeOn(doc.cover.created_at) }}</summary>
+          <p class="prompt">{{ doc.cover.prompt }}</p>
+        </details>
+        <div v-if="canEdit(me)" class="row">
+          <UiButton size="sm" icon="image" @click="generator?.open()">Change</UiButton>
+          <UiButton size="sm" variant="ghost" :loading="coverBusy" @click="removeCover">Remove cover</UiButton>
+        </div>
+        <p v-if="coverError" class="field-error" role="alert">{{ coverError }}</p>
+      </figcaption>
+    </figure>
 
     <p v-if="!latest" class="notice warn gap" role="status">
       <UiIcon name="file" :size="16" />
@@ -126,6 +176,12 @@ const savedAt = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day
 .meta { display: inline-flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
 .gap { margin-bottom: var(--s-4); }
 .gap svg { flex: none; margin-top: 2px; }
+.cover { margin: 0 0 var(--s-4); padding: 0; overflow: hidden; }
+.cover img { display: block; width: 100%; max-height: 320px; object-fit: cover; background: var(--sunken); }
+.cover figcaption { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); align-items: flex-start; justify-content: space-between; padding: var(--s-3) var(--s-4); border-top: 1px solid var(--line); }
+.cover details { flex: 1 1 320px; min-width: 0; }
+.cover summary { display: flex; flex-wrap: wrap; gap: 4px var(--s-2); align-items: center; cursor: pointer; color: var(--muted); }
+.cover .prompt { margin: var(--s-2) 0 0; padding: var(--s-2) var(--s-3); border-left: 2px solid var(--line-strong); white-space: pre-line; color: var(--muted); overflow-wrap: anywhere; max-width: 70ch; }
 .layout { display: grid; gap: var(--s-4); grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
 .doc { padding: var(--s-5) var(--s-4); align-self: stretch; }
 .hint { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 var(--s-3); padding-left: 10px; }
