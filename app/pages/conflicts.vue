@@ -19,7 +19,15 @@ const DECISIONS = [
   { value: 'false_positive', label: 'False alarm', cls: 'good' },
   { value: 'uncertain', label: 'Uncertain', cls: '' },
 ]
-const STATUS_CHIP: Record<string, string> = { open: 'warn', confirmed: 'bad', false_positive: 'good', uncertain: '' }
+const STATUS_TONE: Record<string, string> = { open: 'warn', confirmed: 'bad', false_positive: 'good', uncertain: 'neutral' }
+const STATUS_LABEL: Record<string, string> = { open: 'Open', confirmed: 'Confirmed conflict', false_positive: 'False alarm', uncertain: 'Uncertain' }
+const view = ref('open')
+const tabs = computed(() => [
+  { value: 'open', label: 'To judge', count: (conflicts.value ?? []).filter(c => c.status === 'open').length },
+  { value: 'decided', label: 'Decided', count: (conflicts.value ?? []).filter(c => c.status !== 'open').length },
+])
+const shown = computed(() => (conflicts.value ?? []).filter(c => (view.value === 'open') === (c.status === 'open')))
+const level = (n: number) => (n >= 0.8 ? 'High' : n >= 0.5 ? 'Medium' : 'Low')
 
 async function scan() {
   scanning.value = true
@@ -53,43 +61,77 @@ async function decide(id: string, decision: string) {
 </script>
 
 <template>
-  <div class="page-head spread">
-    <div>
-      <h1>Conflict candidates</h1>
-      <p>Narrow checks over accepted canon: timing, travel and relationships in code, world rules with the model's help. A hit is a "possible conflict" for you to judge; deciding never edits canon.</p>
+  <UiPageHeader title="Conflict candidates" description="Narrow checks over accepted canon: timing, travel and relationships in code, world rules with the model's help. A hit is a possible conflict for you to judge. Deciding never edits canon.">
+    <template #actions><UiButton variant="primary" :loading="scanning" @click="scan">{{ scanning ? 'Scanning…' : 'Scan canon' }}</UiButton></template>
+  </UiPageHeader>
+
+  <p v-if="scanMsg" class="notice info" role="status">{{ scanMsg }}</p>
+  <p v-if="scanError" class="notice warn" role="alert">{{ scanError }}</p>
+
+  <UiEmptyState v-if="!conflicts?.length" title="No conflict candidates yet" icon="conflicts">
+    Accept some canon, then scan.
+    <template #actions><UiButton variant="primary" :loading="scanning" @click="scan">Scan canon</UiButton></template>
+  </UiEmptyState>
+
+  <template v-else>
+    <UiTabs v-model="view" :items="tabs" />
+    <p v-if="!shown.length" class="muted empty-note">{{ view === 'open' ? 'Nothing left to judge. Scan again after canon changes.' : 'No decisions yet.' }}</p>
+
+    <div class="list">
+      <article v-for="c in shown" :key="c.id" class="conflict" :class="{ model: c.origin === 'model' }">
+        <header class="head">
+          <div class="row">
+            <UiBadge :tone="STATUS_TONE[c.status] as any" dot>{{ STATUS_LABEL[c.status] }}</UiBadge>
+            <UiBadge v-if="c.origin === 'model'" tone="pencil" :title="c.model_id ?? ''">Model-suggested</UiBadge>
+            <UiBadge v-else>Rule-based</UiBadge>
+            <UiBadge v-if="c.left.status !== 'canon' || c.right.status !== 'canon'" tone="warn">Outdated: a fact here was superseded</UiBadge>
+          </div>
+          <div class="conf" :title="`Confidence ${percent(c.confidence)}`">
+            <span class="small muted">{{ level(c.confidence) }} confidence · {{ percent(c.confidence) }}</span>
+            <span class="meter"><span :style="{ width: percent(c.confidence) }" /></span>
+          </div>
+        </header>
+        <h2>{{ RULES[c.rule] ?? c.rule }}</h2>
+        <p class="clash"><UiIcon name="conflicts" :size="16" /><span>{{ c.rationale }}</span></p>
+        <div class="sides">
+          <section><h3>Source A</h3><FactSummary :fact="c.left" sources /></section>
+          <div class="vs" aria-hidden="true">vs</div>
+          <section><h3>Source B</h3><FactSummary :fact="c.right" sources /></section>
+        </div>
+        <footer v-if="c.status === 'open'" class="decide">
+          <UiField label="Your rationale (required)" :error="state(c.id).error">
+            <input v-model="state(c.id).rationale" type="text" placeholder="e.g. One source gives only an approximate time">
+          </UiField>
+          <div class="row">
+            <UiButton v-for="d in DECISIONS" :key="d.value" :variant="(d.cls || 'secondary') as any" :disabled="state(c.id).busy || !state(c.id).rationale.trim()" @click="decide(c.id, d.value)">{{ d.label }}</UiButton>
+          </div>
+        </footer>
+        <footer v-else class="decide small muted">Decision: {{ c.decision_rationale }}</footer>
+      </article>
     </div>
-    <button class="btn primary" :disabled="scanning" @click="scan">{{ scanning ? 'Scanning…' : 'Scan canon' }}</button>
-  </div>
-
-  <p v-if="scanMsg" class="notice info" style="margin-bottom: 14px">{{ scanMsg }}</p>
-  <p v-if="scanError" class="notice warn" role="alert" style="margin-bottom: 14px">{{ scanError }}</p>
-  <div v-if="!conflicts?.length" class="card empty">No conflict candidates yet. Accept some canon, then scan.</div>
-
-  <div class="stack">
-    <article v-for="c in conflicts" :key="c.id" class="card stack">
-      <div class="spread">
-        <div class="row">
-          <span class="chip" :class="STATUS_CHIP[c.status]">{{ c.status.replace('_', ' ') }}</span>
-          <strong>{{ RULES[c.rule] ?? c.rule }}</strong>
-          <span v-if="c.origin === 'model'" class="chip accent" :title="c.model_id ?? ''">Model-suggested</span>
-          <span v-else class="chip">Rule-based</span>
-          <span v-if="c.left.status !== 'canon' || c.right.status !== 'canon'" class="chip warn">Outdated: a fact here was superseded</span>
-        </div>
-        <span class="small muted">rule <span class="mono">{{ c.rule }}</span> · confidence {{ percent(c.confidence) }}</span>
-      </div>
-      <p class="muted" style="margin: 0">{{ c.rationale }}</p>
-      <div class="grid-2">
-        <div class="card" style="background: var(--bg)"><FactSummary :fact="c.left" sources /></div>
-        <div class="card" style="background: var(--bg)"><FactSummary :fact="c.right" sources /></div>
-      </div>
-      <template v-if="c.status === 'open'">
-        <label>Rationale (required)<input v-model="state(c.id).rationale" type="text" placeholder="e.g. One source gives only an approximate time"></label>
-        <p v-if="state(c.id).error" class="notice bad" role="alert">{{ state(c.id).error }}</p>
-        <div class="row">
-          <button v-for="d in DECISIONS" :key="d.value" class="btn" :class="d.cls" :disabled="state(c.id).busy || !state(c.id).rationale.trim()" @click="decide(c.id, d.value)">{{ d.label }}</button>
-        </div>
-      </template>
-      <p v-else class="small muted" style="margin: 0">Decision: {{ c.decision_rationale }}</p>
-    </article>
-  </div>
+  </template>
 </template>
+
+<style scoped>
+.notice { margin-bottom: var(--s-4); }
+.empty-note { margin: var(--s-5) 0; }
+.list { display: grid; gap: var(--s-5); margin-top: var(--s-4); }
+.conflict { background: var(--raised); border: 1px solid var(--line); border-left: 3px solid var(--bad); border-radius: var(--r-lg); padding: var(--s-4) var(--s-5); display: grid; gap: var(--s-3); min-width: 0; }
+.conflict.model { border-left: 3px dashed var(--pencil); }
+.head { display: flex; justify-content: space-between; gap: var(--s-3); flex-wrap: wrap; align-items: center; }
+h2 { margin: 0; font-size: var(--text-lg); }
+h3 { margin: 0 0 var(--s-2); font-size: var(--text-xs); color: var(--faint); font-weight: 600; }
+.clash { display: flex; gap: var(--s-2); margin: 0; padding: var(--s-3); background: var(--bad-soft); color: var(--ink); border-radius: var(--r-md); font-size: var(--text-sm); }
+.clash :deep(svg) { color: var(--bad); flex: none; margin-top: 2px; }
+.conf { display: grid; gap: 4px; justify-items: end; }
+.meter { width: 120px; height: 4px; background: var(--sunken); border-radius: 2px; overflow: hidden; }
+.meter span { display: block; height: 100%; background: var(--ink); }
+.sides { display: grid; grid-template-columns: 1fr auto 1fr; gap: var(--s-3); align-items: start; }
+.sides section { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s-3); min-width: 0; }
+.vs { align-self: center; color: var(--faint); font-size: var(--text-xs); font-weight: 600; }
+.decide { border-top: 1px solid var(--line); padding-top: var(--s-3); display: grid; gap: var(--s-3); }
+@media (max-width: 720px) {
+  .sides { grid-template-columns: 1fr; }
+  .conf { justify-items: start; }
+}
+</style>
