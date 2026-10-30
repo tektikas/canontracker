@@ -50,4 +50,5 @@ The components render the same global classes old pages use, so both stay consis
 - **Content**: max 1100px, left-aligned, 40px side padding (16px on phones). Text blocks stay under ~70ch.
 - **Page rhythm**: `UiPageHeader`, then optional notice, then panels separated by `--s-5`. Two-column layouts collapse to one column at 720px (`.grid-2`) or 1100px (Home).
 - **Phones (390px)**: no horizontal page scroll. Wide tables live in `.table-wrap` and hide secondary columns with `.hide-sm`. Touch targets are at least 34px (42px in the drawer).
+- **Disabled buttons** (`.btn:disabled`) look the same for every variant: sunken fill, dashed border, `--faint` label (≥ 4.5:1 in both themes). No opacity fade, so the label stays readable.
 - **Copy**: sentence case, plain verbs, button says what happens ("Start review", "Scan canon"). No all-caps labels.

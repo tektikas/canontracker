@@ -140,6 +140,9 @@ const next = computed(() => {
                   <UiBadge v-else-if="r.status === 'duplicate'" tone="warn">Already imported</UiBadge>
                   <UiBadge v-else tone="bad">{{ r.error }}</UiBadge>
                   <div v-if="r.extraction_error" class="field-error">Extraction failed: {{ r.extraction_error }}</div>
+                  <div v-else-if="r.status === 'imported' && r.candidates === 0" class="small muted">{{ stats?.model.mode === 'mock'
+                    ? 'No candidates: the recorded run only covers the Broken Tide demo files. Switch to a live model to extract from your own files.'
+                    : 'No candidates: the model found no facts it could quote from this file.' }}</div>
                 </td>
                 <td class="num">{{ r.passages ?? '—' }}</td>
                 <td class="num">
