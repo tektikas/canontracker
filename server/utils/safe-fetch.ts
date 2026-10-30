@@ -2,7 +2,7 @@
 // No Nuxt imports: scripts/image-fetch-probe.mjs runs this file directly with Node.
 import { lookup } from 'node:dns/promises'
 import type { IncomingMessage } from 'node:http'
-import { request } from 'node:https'
+import { Agent, request } from 'node:https'
 import { BlockList, isIP } from 'node:net'
 import type { LookupFunction } from 'node:net'
 
@@ -31,14 +31,15 @@ export async function fetchCapped(url: string, init: RequestInit, maxBytes: numb
 
 const private4 = new BlockList()
 for (const [net, bits] of [['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], ['127.0.0.0', 8], ['169.254.0.0', 16], ['172.16.0.0', 12],
-  ['192.0.0.0', 24], ['192.0.2.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['198.51.100.0', 24], ['203.0.113.0', 24], ['224.0.0.0', 3]] as const)
+  ['192.0.0.0', 24], ['192.0.2.0', 24], ['192.88.99.0', 24], ['192.168.0.0', 16], ['198.18.0.0', 15], ['198.51.100.0', 24], ['203.0.113.0', 24], ['224.0.0.0', 3]] as const)
   private4.addSubnet(net, bits, 'ipv4') // 224/3 = multicast + reserved + broadcast
 // IPv6 must be global unicast (2000::/3), which already leaves out ::, ::1, IPv4-mapped/NAT64, ULA, link-local and multicast;
-// Teredo, documentation and 6to4 can still wrap a private IPv4, so they are refused too.
+// inside it, the IANA special-purpose blocks that aren't globally reachable or can wrap a private IPv4 are refused:
+// IETF protocol assignments (Teredo, benchmarking, ORCHID, …), documentation (2001:db8::/32, 3fff::/20) and 6to4.
 const global6 = new BlockList()
 global6.addSubnet('2000::', 3, 'ipv6')
 const private6 = new BlockList()
-for (const [net, bits] of [['2001::', 32], ['2001:db8::', 32], ['2002::', 16]] as const) private6.addSubnet(net, bits, 'ipv6')
+for (const [net, bits] of [['2001::', 23], ['2001:db8::', 32], ['2002::', 16], ['3fff::', 20]] as const) private6.addSubnet(net, bits, 'ipv6')
 
 export function publicAddress(ip: string) {
   const v = isIP(ip)
@@ -54,6 +55,9 @@ const vettedLookup: LookupFunction = (host, opts, cb) => {
     else cb(null, addrs[0]!.address, addrs[0]!.family)
   }, err => cb(err, '', 0))
 }
+// Its own agent: the global one may tunnel through HTTPS_PROXY (NODE_USE_ENV_PROXY), which never calls vettedLookup.
+// Agent options override request options, so every connection goes through vettedLookup.
+const directAgent = new Agent({ lookup: vettedLookup, proxyEnv: undefined })
 
 // Downloads an image URL handed to us by the model: https only, public addresses only, at most 3 redirects (each hop
 // checked again), body capped while streaming. `signal` is the caller's deadline for every hop and the body.
@@ -63,8 +67,16 @@ export async function downloadImage(url: string, maxBytes: number, signal: Abort
     if (next.protocol !== 'https:') throw new FetchRefused('only https image URLs are allowed')
     const host = next.hostname.replace(/^\[|\]$/g, '')
     if (isIP(host) && !publicAddress(host)) throw new FetchRefused(`${host} is a private network address`)
+    // Every way a request can end settles this promise: response, error (incl. abort), upgrade, or a close before either.
     const res = await new Promise<IncomingMessage>((resolve, reject) =>
-      request(next, { lookup: vettedLookup, signal, headers: { 'accept': 'image/*', 'user-agent': 'StoryBible image download' } }, resolve).on('error', reject).end())
+      request(next, { agent: directAgent, signal, headers: { 'accept': 'image/*', 'user-agent': 'StoryBible image download' } }, resolve)
+        .on('error', reject)
+        .on('upgrade', (r, socket) => {
+          socket.destroy()
+          reject(new FetchRefused(`the image host answered ${r.statusCode} (switching protocols)`))
+        })
+        .on('close', () => reject(new FetchRefused('the image host closed the connection')))
+        .end())
     const status = res.statusCode ?? 0
     if (status >= 300 && status < 400 && res.headers.location) {
       res.destroy()

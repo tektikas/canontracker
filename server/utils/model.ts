@@ -139,7 +139,6 @@ Only list facts that cannot be true if the rule holds as written. Being related 
 const MAX_IMAGE_BYTES = 20_000_000
 const MAX_B64_CHARS = Math.ceil(MAX_IMAGE_BYTES / 3) * 4
 const MAX_API_BYTES = 4 * (MAX_B64_CHARS + 1024) + 65_536
-const IMAGE_DEADLINE_MS = 150_000
 export function generateImages(prompt: string, n: number, target: { type: string, id: string }) {
   const { metaBaseUrl, imageModelId } = useRuntimeConfig()
   const bad = (why: string) => createError({ statusCode: 502, statusMessage: 'MODEL_BAD_OUTPUT', message: `Image generation failed: ${why}. No image was saved.` })

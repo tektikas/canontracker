@@ -174,7 +174,7 @@ const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'nume
             <UiButton type="submit" variant="primary" icon="image" :loading="generating" :disabled="!live">
               {{ generating ? `Generating… ${elapsed} s` : genError ? 'Try again' : `Generate ${counted(count, 'image')}` }}
             </UiButton>
-            <span v-if="generating" class="small faint" role="status">Story Bible waits up to 2 minutes. You can close this; images land in the history.</span>
+            <span v-if="generating" class="small faint" role="status">Story Bible waits up to {{ IMAGE_DEADLINE_MS / 1000 }} seconds. You can close this; images land in the history.</span>
           </div>
         </form>
 

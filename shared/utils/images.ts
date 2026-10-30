@@ -14,3 +14,6 @@ export type ImageTarget = typeof IMAGE_TARGETS[number]
 
 export const composeImagePrompt = (prompt: string, style: ImageStyle, artStyle: string) =>
   [prompt.trim(), IMAGE_STYLES[style].prompt, artStyle.trim() && `Project art style: ${artStyle.trim()}`].filter(Boolean).join('\n\n')
+
+// One deadline for the whole generation (API call, its body and every download); the dialog shows the same number.
+export const IMAGE_DEADLINE_MS = 150_000
