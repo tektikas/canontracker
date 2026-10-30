@@ -19,6 +19,13 @@ const ratio = (key: string, label: string, target: string, num: number, den: num
   ({ key, label, target, measured: den ? `${num}/${den} (${pct(num, den)})` : 'not run', num, den, pass: den ? ok(num, den) : null, note })
 const samePair = (a: string[], b: string[]) => a.length === b.length && a.every(s => b.includes(s))
 
+// An eval scores what is in the database; it runs no inference. Provenance is the model ids stored on that data.
+function dataModelIds() {
+  const rows = useDb().prepare(`select model_id from facts where project_id = ? and model_id is not null
+    union select model_id from conflicts where project_id = ? and model_id is not null order by 1`).all(pid(), pid()) as { model_id: string }[]
+  return rows.map(r => r.model_id).join(' + ')
+}
+
 export async function runEval() {
   const gold = await useStorage('assets:server').getItem<Gold>('broken-tide:gold.json')
   if (!gold) throw createError({ statusCode: 500, statusMessage: 'NO_GOLD', message: 'Gold set missing.' })
@@ -96,7 +103,7 @@ export async function runEval() {
   const calls = db.prepare(`select count(*) n, sum(status = 'failed') failed from model_calls where project_id = ?`).get(pid()) as { n: number, failed: number | null }
   results.push({ key: 'model_calls', label: 'Model calls recorded (failed)', target: 'info', measured: `${calls.n} (${calls.failed ?? 0} failed)`, num: calls.n, den: null, pass: null })
 
-  const run = { id: newId('eval'), dataset: gold.dataset, model_id: modelInfo().id, results, created_at: now() }
+  const run = { id: newId('eval'), dataset: gold.dataset, model_id: dataModelIds(), results, created_at: now() }
   db.prepare('insert into eval_runs values (?, ?, ?, ?, ?, ?)').run(run.id, run.dataset, run.model_id, JSON.stringify(results), run.created_at, pid())
   audit('eval.completed', 'eval', run.id, { dataset: gold.dataset, passed: results.filter(r => r.pass).length, failed: results.filter(r => r.pass === false).length })
   return run
