@@ -29,41 +29,59 @@ const derivedTitle = (filename: string, content: string) => content.match(/^#\s+
 
 // Uploads and documents written in the app take the same path: hash, version, passages, stale citations, extraction.
 // `written` carries what the writer chose; the audit says the text was written here, not imported.
-// `folderId` files a new document; a new version stays where the earlier ones are, with their kind and (if renamed) title.
+// Which document a file is a version of: an upload matches the file with the same name in the folder it lands in (`folderId`,
+// null = the Library root); a document moved to another folder keeps its identity, so its next upload goes where it is now.
+// Writing in the app names the document directly (`filename` is its key). The key (`documents.filename`) is unique per
+// document; `name` is the file's own name. A same-named file in another folder becomes its own document under a key that
+// carries its folder. A new version keeps the folder, kind and (if renamed) title of the earlier ones.
 export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }, folderId?: string | null) {
   const db = useDb()
   const projectId = pid()
   const sha256 = createHash('sha256').update(content).digest('hex')
-  const dup = db.prepare('select id, filename, title, version from documents where project_id = ? and sha256 = ?').get(projectId, sha256) as { id: string, filename: string, title: string, version: number } | undefined
-  if (dup) return { filename, status: 'duplicate' as const, document_id: dup.id, same_as: { filename: dup.filename, title: dup.title, version: dup.version } }
+  const dup = db.prepare('select id, name, title, version from documents where project_id = ? and sha256 = ?').get(projectId, sha256) as { id: string, name: string, title: string, version: number } | undefined
+  if (dup) return { filename, status: 'duplicate' as const, document_id: dup.id, same_as: { filename: dup.name, title: dup.title, version: dup.version } }
 
-  const prev = db.prepare('select * from documents where project_id = ? and filename = ? order by version desc limit 1').get(projectId, filename) as unknown as DocumentRow | undefined
+  const prev = (written
+    ? db.prepare('select * from documents where project_id = ? and filename = ? order by version desc limit 1').get(projectId, filename)
+    : db.prepare('select * from documents where project_id = ? and name = ? and folder_id is ? order by version desc limit 1').get(projectId, filename, folderId ?? null)) as unknown as DocumentRow | undefined
+  const folder = prev ? prev.folder_id : (folderId ?? null)
+  let key = prev?.filename ?? filename
+  let sameNameIn: { folder: string | null } | null = null
+  if (!prev) {
+    const taken = (k: string) => !!db.prepare('select 1 from documents where project_id = ? and filename = ?').get(projectId, k)
+    const other = db.prepare('select folder_id from documents where project_id = ? and name = ? limit 1').get(projectId, filename) as { folder_id: string | null } | undefined
+    if (other) sameNameIn = { folder: folderPath(other.folder_id) }
+    if (taken(key)) {
+      const base = `${folderPath(folder) ?? 'Library'}/${filename}`
+      key = base
+      for (let n = 2; taken(key); n++) key = `${base} (${n})`
+    }
+  }
   const version = (prev?.version ?? 0) + 1
-  const renamed = prev && prev.title !== derivedTitle(filename, prev.content)
+  const renamed = prev && prev.title !== derivedTitle(prev.name, prev.content)
   const title = written?.title ?? (renamed ? prev.title : derivedTitle(filename, content))
   const kind = written?.kind ?? prev?.kind ?? (/^S\d+/i.test(filename) ? 'scene' : 'lore')
-  const folder = prev ? prev.folder_id : (folderId ?? null)
   const documentId = newId('doc')
   const passages = splitPassages(content).map(p => ({ ...p, id: newId('psg') }))
   if (!passages.length) throw createError({ statusCode: 422, statusMessage: 'EMPTY_DOCUMENT', message: `${filename} has no text.` })
 
   let staleFacts = 0
   tx(() => {
-    db.prepare(`insert into documents (id, title, filename, kind, sha256, version, content, imported_at, project_id, origin, created_by, folder_id)
-      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, title, filename, kind, sha256, version, content, now(), projectId, written ? 'written' : 'import', access().user.id, folder)
+    db.prepare(`insert into documents (id, title, filename, name, kind, sha256, version, content, imported_at, project_id, origin, created_by, folder_id)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, title, key, prev?.name ?? filename, kind, sha256, version, content, now(), projectId, written ? 'written' : 'import', access().user.id, folder)
     // A written version may carry a new title or kind: the labels are per document, so earlier versions follow.
     if (prev && (prev.title !== title || prev.kind !== kind))
-      db.prepare('update documents set title = ?, kind = ? where project_id = ? and filename = ?').run(title, kind, projectId, filename)
+      db.prepare('update documents set title = ?, kind = ? where project_id = ? and filename = ?').run(title, kind, projectId, key)
     const ins = db.prepare('insert into passages values (?, ?, ?, ?, ?, ?, ?)')
     for (const p of passages) ins.run(p.id, documentId, p.ordinal, p.start_line, p.end_line, p.text, projectId)
     const event = written ? (version > 1 ? 'document.version_written' : 'document.written') : (version > 1 ? 'document.version_added' : 'document.imported')
-    audit(event, 'document', documentId, { filename, title, kind, version, sha256, passages: passages.length })
+    audit(event, 'document', documentId, { filename: key, title, kind, version, sha256, passages: passages.length, folder: folderPath(folder) })
     // Old citations are not silently moved to the new version; they are flagged stale until someone reviews them.
     if (version > 1) {
       const stale = db.prepare(`select distinct f.id from facts f join evidence e on e.fact_id = f.id join documents d on d.id = e.document_id
-        where f.project_id = ? and f.status = 'canon' and d.filename = ? and d.version < ?`).all(projectId, filename, version) as { id: string }[]
+        where f.project_id = ? and f.status = 'canon' and d.filename = ? and d.version < ?`).all(projectId, key, version) as { id: string }[]
       staleFacts = stale.length
-      if (stale.length) audit('citation.stale', 'document', documentId, { filename, version, fact_ids: stale.map(s => s.id) })
+      if (stale.length) audit('citation.stale', 'document', documentId, { filename: key, version, fact_ids: stale.map(s => s.id) })
     }
   })
 
@@ -71,38 +89,43 @@ export async function importDocument(filename: string, content: string, written?
   let extraction: Awaited<ReturnType<typeof extractInto>> | null = null
   let extractionError: string | null = null
   try {
-    extraction = await extractInto({ id: documentId, filename, title, content }, passages)
+    extraction = await extractInto({ id: documentId, filename: key, title, content }, passages)
   } catch (e) {
     extractionError = (e as Error).message
     audit('job.failed', 'document', documentId, { step: 'extraction', error: extractionError })
   }
 
   return {
-    filename, title, status: 'imported' as const, document_id: documentId, version, passages: passages.length, stale_facts: staleFacts,
+    filename, title, status: 'imported' as const, document_id: documentId, version, folder: folderPath(folder), same_name_in: sameNameIn, passages: passages.length, stale_facts: staleFacts,
     candidates: extraction?.created ?? 0, unverified: extraction?.unverified ?? 0, skipped: extraction?.skipped ?? 0, extraction_error: extractionError,
   }
 }
 
-// Re-extract only: same fact already in the project (any status: pending, canon, rejected or superseded, so a decision a person made stands):
+// What the project already has (any status: pending, canon, rejected or superseded, so a decision a person made stands):
 // the same statement, or the same kind, names, value and story time in other words.
 const norm = (s: string | null | undefined) => (s ?? '').toLowerCase().replace(/\s+/g, ' ').replace(/[.!?\s]+$/, '').trim()
 const factKey = (f: { kind: string, subject: string, predicate: string, object?: string | null, value?: unknown, t_from?: number | null, t_to?: number | null }) =>
   [f.kind, norm(f.subject), norm(f.predicate), norm(f.object), norm(f.value == null ? '' : String(f.value)), f.t_from ?? '', f.t_to ?? ''].join('|')
 
-// Runs extraction on one document version and stores the candidates as pending. Never touches canon.
-// `dedup` (re-extract): skip what the project already has. An import keeps every candidate, so a new version can bring back a
-// name a merge mapped (the reviewer sees the mapping; see entity_merges).
-export async function extractInto(doc: { id: string, filename: string, title: string, content: string }, passages: { id: string, text: string }[], dedup = false) {
+// Runs extraction on one document version and stores the candidates as pending. Never touches canon. A candidate the project
+// already has is skipped. One exception on import (not `strict`, which re-extract uses): a candidate naming something a merge
+// mapped to another name is kept unless the same one is already pending, because a merge rewrites the names of the facts
+// it moves but keeps their statements; the reviewer sees the mapping on it (see entity_merges).
+export async function extractInto(doc: { id: string, filename: string, title: string, content: string }, passages: { id: string, text: string }[], strict = false) {
   const db = useDb()
   const projectId = pid()
   const drafts = await extractCandidates({ id: doc.id, filename: doc.filename, title: doc.title, text: doc.content })
   const model = modelInfo()
   const existing = db.prepare('select statement, kind, subject, predicate, object, value, t_from, t_to, status from facts where project_id = ?').all(projectId) as { statement: string, kind: string, subject: string, predicate: string, object: string | null, value: string | null, t_from: number | null, t_to: number | null, status: string }[]
   const seen = new Map<string, string>()
-  for (const f of existing) {
-    seen.set(`s:${norm(f.statement)}`, f.status)
-    seen.set(`k:${factKey(f)}`, f.status)
+  const pending = new Set<string>()
+  const remember = (keys: string[], status: string) => {
+    for (const k of keys) {
+      seen.set(k, status)
+      if (status === 'pending') pending.add(k)
+    }
   }
+  for (const f of existing) remember([`s:${norm(f.statement)}`, `k:${factKey(f)}`], f.status)
   let created = 0
   let unverified = 0
   const skipped: Record<string, number> = {}
@@ -111,12 +134,13 @@ export async function extractInto(doc: { id: string, filename: string, title: st
       const tFrom = parseStoryTime(c.time?.from)
       const tTo = parseStoryTime(c.time?.to)
       const keys = [`s:${norm(c.statement)}`, `k:${factKey({ ...c, t_from: tFrom, t_to: tTo })}`]
-      const already = dedup ? keys.map(k => seen.get(k)).find(Boolean) : undefined
+      const mapped = !strict && identityOf({ subject: c.subject, object: c.object ?? null }).length > 0
+      const already = mapped ? (keys.some(k => pending.has(k)) ? 'pending' : undefined) : keys.map(k => seen.get(k)).find(Boolean)
       if (already) {
         skipped[already] = (skipped[already] ?? 0) + 1
         continue
       }
-      for (const k of keys) seen.set(k, 'pending')
+      remember(keys, 'pending')
       const match = findQuotePassage(passages, c.quote)
       const passage = match?.passage
       const precision = c.time ? (c.time.precision ?? 'exact') : null

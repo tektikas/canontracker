@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
 
   if (body.folder_id !== undefined) {
     const to = body.folder_id ? getFolder(body.folder_id).id : null
+    checkFileNames(docs, to)
     sets.push('folder_id = ?')
     args.push(to)
     detail.folder = { to: folderPath(to), from: [...new Set(docs.map(d => folderPath(d.folder_id)))] }

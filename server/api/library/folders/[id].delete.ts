@@ -4,6 +4,7 @@ export default defineEventHandler((event) => {
   const db = useDb()
   const path = folderPath(folder.id)
   const moved = (db.prepare('select count(distinct filename) n from documents where project_id = ? and folder_id = ?').get(pid(), folder.id) as { n: number }).n
+  checkFileNames(db.prepare('select distinct name, filename from documents where project_id = ? and folder_id = ?').all(pid(), folder.id) as { name: string, filename: string }[], folder.parent_id)
   const subfolders = db.prepare('select id, name from folders where project_id = ? and parent_id = ?').all(pid(), folder.id) as { id: string, name: string }[]
   tx(() => {
     db.prepare('update documents set folder_id = ? where project_id = ? and folder_id = ?').run(folder.parent_id, pid(), folder.id)

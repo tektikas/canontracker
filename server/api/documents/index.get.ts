@@ -1,5 +1,5 @@
 interface LibraryDocument {
-  id: string, title: string, filename: string, kind: string, version: number, sha256: string, imported_at: string, origin: string
+  id: string, title: string, filename: string, name: string, kind: string, version: number, sha256: string, imported_at: string, origin: string
   folder_id: string | null, created_by_name: string | null, passages: number, canon_facts: number, stale_facts: number, pending_facts: number
 }
 
@@ -7,7 +7,7 @@ interface LibraryDocument {
 // any version, and how many of those facts cite an older version than the latest (stale: re-check them).
 export default defineEventHandler(() => {
   const db = useDb()
-  const rows = db.prepare(`select d.id, d.title, d.filename, d.kind, d.version, d.sha256, d.imported_at, d.origin, d.folder_id,
+  const rows = db.prepare(`select d.id, d.title, d.filename, d.name, d.kind, d.version, d.sha256, d.imported_at, d.origin, d.folder_id,
     (select name from users u where u.id = d.created_by) created_by_name,
     (select count(*) from passages p where p.document_id = d.id) passages,
     (select count(distinct f.id) from evidence e join facts f on f.id = e.fact_id join documents v on v.id = e.document_id

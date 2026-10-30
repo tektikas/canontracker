@@ -110,7 +110,7 @@ const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day:
     <nav class="crumbs small" aria-label="Breadcrumb">
       <NuxtLink to="/library">Library</NuxtLink><span aria-hidden="true">/</span>
       <template v-if="doc.folder"><NuxtLink :to="`/library?folder=${doc.folder.id}`">{{ doc.folder.path }}</NuxtLink><span aria-hidden="true">/</span></template>
-      <span :title="doc.filename">{{ doc.title }}</span>
+      <span :title="doc.name">{{ doc.title }}</span>
     </nav>
     <UiPageHeader :title="doc.title">
       <span class="meta">

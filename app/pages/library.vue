@@ -56,7 +56,7 @@ const shown = computed(() => {
     && (!tagSel.value || d.tags.includes(tagSel.value))
     && (!kindSel.value || d.kind === kindSel.value)
     && (!staleOnly.value || d.stale_facts > 0)
-    && (!s || d.title.toLowerCase().includes(s) || d.filename.toLowerCase().includes(s)))
+    && (!s || d.title.toLowerCase().includes(s) || d.name.toLowerCase().includes(s)))
   const key: Record<SortKey, (d: Doc) => string | number> = {
     title: d => d.title.toLowerCase(), updated: d => d.imported_at, citations: d => d.canon_facts, stale: d => d.stale_facts,
   }
@@ -394,7 +394,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                     <NuxtLink v-else :to="`/documents/${d.id}`" class="doc-link">{{ d.title }}</NuxtLink>
                   </div>
                   <div class="sub-line">
-                    <span class="mono faint">{{ d.filename }}</span>
+                    <span class="mono faint">{{ d.name }}</span>
                     <span v-if="d.origin === 'written'" class="small faint">· written here</span>
                     <UiBadge v-for="t in d.tags.map(id => tagById.get(id)).filter(Boolean)" :key="t!.id" :tone="t!.color" class="tag">{{ t!.name }}</UiBadge>
                   </div>

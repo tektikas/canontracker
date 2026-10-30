@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Drop files anywhere on the page (or pick them) to add them to the Library. One request per file, in order, so each row
 // shows its own progress and result; one bad file never stops the others. Editors only: the parent leaves it out for viewers.
-// `folder`: where new documents land (a new version of an existing file stays where its document is).
+// `folder`: where the files land (null: not in a folder). A file is a new version of the document with its name in that folder.
 const props = defineProps<{ folder?: { id: string, label: string } | null }>()
 const emit = defineEmits<{ uploaded: [] }>()
 const { data: stats } = useNuxtData<{ model: { mode: string } }>('stats')
@@ -9,7 +9,7 @@ const recorded = computed(() => stats.value?.model.mode === 'mock')
 
 interface Item {
   key: number, name: string, size: number, state: 'queued' | 'uploading' | 'done' | 'error', error?: string
-  result?: { status: string, document_id?: string, version?: number, passages?: number, candidates?: number, skipped?: number, stale_facts?: number, extraction_error?: string | null, same_as?: { filename: string, title: string, version: number }, error?: string }
+  result?: { status: string, document_id?: string, version?: number, folder?: string | null, same_name_in?: { folder: string | null } | null, passages?: number, candidates?: number, skipped?: number, stale_facts?: number, extraction_error?: string | null, same_as?: { filename: string, title: string, version: number }, error?: string }
 }
 const items = ref<Item[]>([])
 const busy = computed(() => items.value.some(i => i.state === 'queued' || i.state === 'uploading'))
@@ -131,7 +131,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
       <div class="drop-card">
         <UiIcon name="upload" :size="28" />
         <b>Drop to add {{ folder ? `to ${folder.label}` : 'to the Library' }}</b>
-        <span>Markdown or plain text, up to 1 MB each. A file with a name you already have becomes its next version.</span>
+        <span>Markdown or plain text, up to 1 MB each. A file with the same name as one {{ folder ? `in ${folder.label}` : 'not in a folder' }} becomes its next version.</span>
       </div>
     </div>
   </Teleport>
@@ -168,6 +168,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
             </template>
             <template v-else-if="i.result">
               <b>{{ i.result.version === 1 ? 'Added' : `New version v${i.result.version}` }}</b>
+              · {{ i.result.folder ? `in ${i.result.folder}` : 'not in a folder' }}<template v-if="i.result.same_name_in"> · the other {{ i.name }} is {{ i.result.same_name_in.folder ? `in ${i.result.same_name_in.folder}` : 'not in a folder' }}</template>
               · {{ counted(i.result.passages ?? 0, 'passage') }}
               · {{ counted(i.result.candidates ?? 0, 'candidate') }}<template v-if="i.result.skipped"> ({{ i.result.skipped }} already in the project)</template>
               <template v-if="i.result.stale_facts">

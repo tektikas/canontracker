@@ -1,8 +1,9 @@
 // Library probe against a running server: node scripts/library-probe.mjs [baseUrl]
 // A fresh owner with the demo set: upload many files at once (bad type, too big and empty ones refused), a same-named file
 // becomes a new version and unchanged text is skipped, folders/tags/kind/title never touch a document's text or hash,
-// a version diff names the changed passages and the canon citing them, re-extract only adds pending candidates and skips
-// what the project already has, and another studio gets 404 while a viewer gets 403.
+// a version diff names the changed passages and the canon citing them (also in a 2,002-passage document), re-extract only adds
+// pending candidates and skips what the project already has, an upload skips candidates already decided, a version is matched
+// by name within its folder (moves keep identity), and another studio gets 404 while a viewer gets 403.
 import assert from 'node:assert/strict'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
@@ -54,10 +55,11 @@ check('an empty file is refused', up.find(r => r.filename === 'empty.md').status
 let docs = (await a('/api/documents')).data
 check('uploaded files land in the chosen folder', docs.filter(d => d.filename.startsWith('note-')).every(d => d.folder_id === folder.id), true)
 
-// 2. Same name → new version; same text → skipped, naming the version it matches.
-const v2 = (await a('/api/documents', { method: 'POST', form: filesForm([['note-1.md', '# Note 1\n\nThe tide turns on day 9.\n\nKeeper 1 lights the lamp.']]) })).data.results[0]
-check('same filename becomes version 2', v2.version, 2)
-const again = (await a('/api/documents', { method: 'POST', form: filesForm([['note-1.md', '# Note 1\n\nThe tide turns on day 9.\n\nKeeper 1 lights the lamp.']]) })).data.results[0]
+// 2. Same name in the same folder → new version; same text → skipped, naming the version it matches.
+const v2 = (await a('/api/documents', { method: 'POST', form: filesForm([['note-1.md', '# Note 1\n\nThe tide turns on day 9.\n\nKeeper 1 lights the lamp.']], folder.id) })).data.results[0]
+check('same filename in the same folder becomes version 2', v2.version, 2)
+check('the result says where the version landed', v2.folder, 'Notes')
+const again = (await a('/api/documents', { method: 'POST', form: filesForm([['note-1.md', '# Note 1\n\nThe tide turns on day 9.\n\nKeeper 1 lights the lamp.']], folder.id) })).data.results[0]
 check('unchanged text is skipped', again.status, 'duplicate')
 check('the skip names the matching version', again.same_as.version, 2)
 const note1 = (await a(`/api/documents/${v2.document_id}`)).data
@@ -106,8 +108,12 @@ check('accept an S04 candidate', (await a(`/api/facts/${cand.id}/review`, { meth
 const s04v1 = (await a(`/api/documents/${s04.id}`)).data
 const cited = s04v1.passages.find(p => p.id === cand.evidence[0].passage_id)
 const text = s04v1.content.replace(cited.text, `${cited.text} Then the bell rang twice.`)
-const s04v2 = (await a('/api/documents', { method: 'POST', form: filesForm([['S04.md', text]]) })).data.results[0]
+const s04v2 = (await a('/api/documents', { method: 'POST', form: filesForm([['S04.md', text]], sub.id) })).data.results[0]
 check('S04 v2 imported', s04v2.version, 2)
+// Upload dedup (lead c18r #3): the recorded extraction proposes S04's candidates again; the accepted one and the still pending
+// one are already in the project, so nothing new waits for review.
+check('S04 v2 adds no candidate the project already has', [s04v2.candidates, s04v2.skipped], [0, 2])
+check('the accepted candidate does not come back as pending', (await a('/api/facts?status=pending')).data.filter(f => f.statement === cand.statement).length, 0)
 check('v2 keeps the folder, tags and kind', [(await a(`/api/documents/${s04v2.document_id}`)).data.folder?.id, (await a(`/api/documents/${s04v2.document_id}`)).data.tags.length], [sub.id, 2])
 const diff = (await a(`/api/documents/${s04v2.document_id}/diff?from=${s04.id}`)).data
 const changedRow = diff.rows.find(r => r.op === 'changed' && r.from.id === cited.id)
@@ -117,13 +123,13 @@ check('every other passage is unchanged', [diff.counts.same, diff.counts.removed
 check('the changed passage lists the canon fact citing it', changedRow.facts.map(f => f.id), [cand.id])
 check('re-check count', diff.recheck, 1)
 const n2 = docs.find(d => d.filename === 'note-2.md')
-const n2v2 = (await a('/api/documents', { method: 'POST', form: filesForm([['note-2.md', '# Note 2\n\nKeeper 2 lights the lamp.\n\nA new closing line.']]) })).data.results[0]
+const n2v2 = (await a('/api/documents', { method: 'POST', form: filesForm([['note-2.md', '# Note 2\n\nKeeper 2 lights the lamp.\n\nA new closing line.']], folder.id) })).data.results[0]
 const d2 = (await a(`/api/documents/${n2v2.document_id}/diff?from=${n2.id}`)).data
 check('diff marks a removed and an added passage', d2.rows.map(r => r.op), ['same', 'removed', 'same', 'added'])
 check('nothing cites the removed text, so nothing to re-check', d2.recheck, 0)
 // A passage removed right before an edited one: the edit pairs with its own old text, not with the removed one.
 const n3 = docs.find(d => d.filename === 'note-3.md')
-const n3v2 = (await a('/api/documents', { method: 'POST', form: filesForm([['note-3.md', '# Note 3\n\nKeeper 3 lights the big lamp.']]) })).data.results[0]
+const n3v2 = (await a('/api/documents', { method: 'POST', form: filesForm([['note-3.md', '# Note 3\n\nKeeper 3 lights the big lamp.']], folder.id) })).data.results[0]
 const d3 = (await a(`/api/documents/${n3v2.document_id}/diff?from=${n3.id}`)).data
 check('a removal next to an edit is told apart', d3.rows.map(r => r.op), ['same', 'removed', 'changed'])
 check('the edit pairs with its own old text', d3.rows[2].from.text, 'Keeper 3 lights the lamp.')
@@ -131,6 +137,60 @@ check('same text on both sides has no changes', (await a(`/api/documents/${s04v2
 check('diff across two documents is refused', (await a(`/api/documents/${s04v2.document_id}/diff?from=${lore.id}`)).status, 404)
 docs = (await a('/api/documents')).data
 check('the list counts the stale fact on S04', row('S04.md').stale_facts, 1)
+// Large documents keep exact alignment (lead c18r #1): 2,002 passages, only the first and the last edited.
+const bigText = n => Array.from({ length: n }, (_, i) => `Passage ${i}: the keeper counts tide ${i} at the north wall.`)
+const bigV1 = bigText(2002)
+const big1 = (await a('/api/documents', { method: 'POST', form: filesForm([['big.md', bigV1.join('\n\n')]]) })).data.results[0]
+check('a 2,002-passage document imports', big1.passages, 2002)
+const bigDoc = (await a(`/api/documents/${big1.document_id}`)).data
+const midPassage = bigDoc.passages[1000]
+const midFact = (await a('/api/facts', { method: 'POST', body: { to: 'canon', document_id: big1.document_id, passage_id: midPassage.id, quote: 'the keeper counts tide 1000', kind: 'claim', subject: 'Keeper', predicate: 'counts', object: 'Tide', statement: `The keeper counts tide 1000 (${run}).` } })).data
+check('a canon fact cites an untouched middle passage', midFact.status, 'canon')
+const bigV2 = [...bigV1]
+bigV2[0] = 'Passage 0: the keeper counts tide 0 at the south wall.'
+bigV2[2001] = 'Passage 2001: the keeper counts tide 2001 at the south wall.'
+const big2 = (await a('/api/documents', { method: 'POST', form: filesForm([['big.md', bigV2.join('\n\n')]]) })).data.results[0]
+const bigDiff = (await a(`/api/documents/${big2.document_id}/diff?from=${big1.document_id}`)).data
+check('large diff: exactly the two edited passages changed', [bigDiff.counts.changed, bigDiff.counts.removed, bigDiff.counts.added, bigDiff.counts.same], [2, 0, 0, 2000])
+check('large diff: the untouched citation is not flagged', [bigDiff.recheck, bigDiff.unchanged_citations], [0, 1])
+const bigV3 = [...bigV2]
+bigV3.splice(1000, 1, 'Passage 1000: the keeper counts tide 1000 at the south wall.')
+bigV3.splice(500, 1)
+bigV3.splice(1500, 0, 'A new passage in the middle of the night.')
+const big3 = (await a('/api/documents', { method: 'POST', form: filesForm([['big.md', bigV3.join('\n\n')]]) })).data.results[0]
+const bigDiff3 = (await a(`/api/documents/${big3.document_id}/diff?from=${big1.document_id}`)).data
+check('large diff v1→v3: three edits, a removal and an insertion', [bigDiff3.counts.changed, bigDiff3.counts.removed, bigDiff3.counts.added, bigDiff3.counts.same], [3, 1, 1, 1998])
+check('large diff: the edited cited passage is flagged', bigDiff3.rows.filter(r => r.facts.length).map(r => [r.op, r.facts[0].id]), [['changed', midFact.id]])
+
+// Version identity is the file name within its folder (lead c18r #2); moving a document keeps its identity.
+const actA = (await a('/api/library/folders', { method: 'POST', body: { name: 'Act A' } })).data
+const actB = (await a('/api/library/folders', { method: 'POST', body: { name: 'Act B' } })).data
+const actC = (await a('/api/library/folders', { method: 'POST', body: { name: 'Act C' } })).data
+const upTo = async (name, text, f) => (await a('/api/documents', { method: 'POST', form: filesForm([[name, text]], f) })).data.results[0]
+const sceneA = await upTo('scene.md', '# Scene\n\nThe tide is out in Act A.', actA.id)
+const sceneB = await upTo('scene.md', '# Scene\n\nThe storm breaks in Act B.', actB.id)
+check('same name in another folder is a new document', [sceneB.status, sceneB.version, sceneB.document_id !== sceneA.document_id], ['imported', 1, true])
+check('the result says where it landed and where the other one is', [sceneB.folder, sceneB.same_name_in?.folder], ['Act B', 'Act A'])
+const sceneA2 = await upTo('scene.md', '# Scene\n\nThe tide is out in Act A, and back by night.', actA.id)
+check('same name in the same folder is the next version of that one', [sceneA2.version, sceneA2.folder], [2, 'Act A'])
+const sceneB2 = await upTo('scene.md', '# Scene\n\nThe storm breaks in Act B at dawn.', actB.id)
+check('the Act B file keeps its own version line', sceneB2.version, 2)
+const sceneDocB = (await a(`/api/documents/${sceneB2.document_id}`)).data
+check('the Act B document lists only its own versions', sceneDocB.versions.map(v => v.id), [sceneB2.document_id, sceneB.document_id])
+check('diff across the two same-named documents is refused', (await a(`/api/documents/${sceneB2.document_id}/diff?from=${sceneA.document_id}`)).status, 404)
+docs = (await a('/api/documents')).data
+check('the list has both, each in its folder, both called scene.md', docs.filter(d => d.name === 'scene.md').map(d => d.folder_id).sort(), [actA.id, actB.id].sort())
+check('move the Act A scene to Act C', (await a('/api/library/organise', { method: 'POST', body: { document_ids: [sceneA2.document_id], folder_id: actC.id } })).status, 200)
+const sceneA3 = await upTo('scene.md', '# Scene\n\nThe tide is out in Act C now.', actC.id)
+check('a moved document keeps its identity: the next upload where it is now is v3', [sceneA3.version, sceneA3.folder], [3, 'Act C'])
+check('…and its history runs v1 to v3', (await a(`/api/documents/${sceneA3.document_id}`)).data.versions.map(v => v.version), [3, 2, 1])
+check('moving a second scene.md into Act C is refused', (await a('/api/library/organise', { method: 'POST', body: { document_ids: [sceneB2.document_id], folder_id: actC.id } })).status, 409)
+const inner = (await a('/api/library/folders', { method: 'POST', body: { name: 'Inner', parent_id: actC.id } })).data
+const sceneInner = await upTo('scene.md', '# Scene\n\nA quiet scene inside Act C.', inner.id)
+check('a third scene.md in a subfolder is its own document', sceneInner.version, 1)
+check('deleting the subfolder would put two scene.md in Act C: refused', (await a(`/api/library/folders/${inner.id}`, { method: 'DELETE' })).status, 409)
+const sceneRoot = await upTo('scene.md', '# Scene\n\nOne more, not in a folder.')
+check('a scene.md not in a folder is its own document too', [sceneRoot.version, sceneRoot.folder], [1, null])
 
 // 6. Re-extract: only pending candidates, deduplicated.
 const stats0 = (await a('/api/stats')).data
@@ -175,7 +235,7 @@ const link = (await a('/api/team/invites', { method: 'POST', body: { role: 'view
 const v = await account('Vic')
 await v(`/api/invites/${link.token}/accept`, { method: 'POST' })
 await v(`/api/projects/${(await a('/api/me')).data.current.project.id}/switch`, { method: 'POST' })
-check('viewer reads the library', (await v('/api/library')).data.folders.length, 2)
+check('viewer reads the library', (await v('/api/library')).data.folders.length, 6)
 check('viewer reads a diff', (await v(`/api/documents/${s04v2.document_id}/diff?from=${s04.id}`)).status, 200)
 check('viewer: upload 403', (await v('/api/documents', { method: 'POST', form: filesForm([['v.md', '# V\n\nViewer text here.']]) })).status, 403)
 check('viewer: organise 403', (await v('/api/library/organise', { method: 'POST', body: { document_ids: [s04.id], kind: 'lore' } })).status, 403)
@@ -189,7 +249,7 @@ docs = (await a('/api/documents')).data
 check('its documents moved up to the parent folder', [row('S04.md').folder_id, row('lore-chord-stone.md').folder_id], [folder.id, folder.id])
 check('delete a tag', (await a(`/api/library/tags/${tag.id}`, { method: 'DELETE' })).data.documents, 3)
 docs = (await a('/api/documents')).data
-check('the label is gone, the documents stay', [row('note-1.md').tags.length, docs.length], [0, 13 + 5])
+check('the label is gone, the documents stay', [row('note-1.md').tags.length, docs.length], [0, 13 + 5 + 1 + 4])
 const ev2 = new Set((await a('/api/audit')).data.map(e => e.event_type))
 check('audit has folder.deleted and tag.deleted', ev2.has('folder.deleted') && ev2.has('tag.deleted'), true)
 console.log('\nlibrary probe: all checks passed')

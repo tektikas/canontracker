@@ -14,7 +14,7 @@ export default defineEventHandler((event) => {
   // Pair each run of removed passages with the added run right after it: those are edits, the rest are pure removals/additions.
   type Row = { op: 'same' | 'changed' | 'removed' | 'added', from?: PassageRow, to?: PassageRow, words?: ReturnType<typeof diffWords> }
   const rows: Row[] = []
-  const ops = diffSeq(a, b, (x, y) => x.text === y.text)
+  const ops = diffSeq(a, b, p => p.text)
   for (let k = 0; k < ops.length;) {
     const o = ops[k]!
     if (o.op === 'same') {

@@ -3,7 +3,7 @@ import { mkdirSync, rmSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-export const SCHEMA_VERSION = 11
+export const SCHEMA_VERSION = 12
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -36,8 +36,10 @@ create table if not exists api_tokens (
 
 -- Content. Every row belongs to one project; routes only ever read and write the caller's current project.
 -- origin: import (an uploaded file) | written (written in the app; each save is a new read-only version). created_by: who saved it.
+-- One row per version. filename: the document's key, shared by its versions and unique per document in the project. name: the
+-- file's own name; an upload is the next version of the document with that name in the folder it lands in (see importer.ts).
 create table if not exists documents (
-  id text primary key, title text not null, filename text not null, kind text not null,
+  id text primary key, title text not null, filename text not null, name text not null, kind text not null,
   sha256 text not null, version integer not null, content text not null, imported_at text not null,
   project_id text not null references projects(id), origin text not null default 'import', created_by text, folder_id text,
   unique (project_id, sha256)
@@ -216,7 +218,7 @@ export interface Fact {
 }
 
 export interface DocumentRow {
-  id: string, title: string, filename: string, kind: string, sha256: string, version: number, content: string, imported_at: string
+  id: string, title: string, filename: string, name: string, kind: string, sha256: string, version: number, content: string, imported_at: string
   origin: string, created_by: string | null, folder_id: string | null
 }
 export interface PassageRow { id: string, document_id: string, ordinal: number, start_line: number, end_line: number, text: string }

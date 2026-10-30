@@ -30,6 +30,12 @@ export function checkFolderName(name: string, parentId: string | null, except?: 
     .get(pid(), parentId, name, except ?? null)
   if (clash) throw createError({ statusCode: 409, statusMessage: 'NAME_TAKEN', message: `There is already a folder called “${name}” here.` })
 }
+/** Two files with one name can't share a folder: an upload there could not tell which one it is a new version of. */
+export function checkFileNames(docs: { name: string, filename: string }[], folderId: string | null) {
+  const there = useDb().prepare('select 1 from documents where project_id = ? and folder_id is ? and name = ? and filename != ?')
+  const clash = docs.find((d, i) => docs.findIndex(x => x.name === d.name) !== i) ?? docs.find(d => there.get(pid(), folderId, d.name, d.filename))
+  if (clash) throw createError({ statusCode: 409, statusMessage: 'NAME_TAKEN', message: `${folderPath(folderId) ?? 'The Library root'} would hold two files called ${clash.name}. Move one of them somewhere else first.` })
+}
 export function checkTagName(name: string, except?: string) {
   const clash = useDb().prepare('select 1 from tags where project_id = ? and lower(name) = lower(?) and id is not ?').get(pid(), name, except ?? null)
   if (clash) throw createError({ statusCode: 409, statusMessage: 'NAME_TAKEN', message: `There is already a tag called “${name}”.` })
