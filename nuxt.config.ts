@@ -9,6 +9,7 @@ export default defineNuxtConfig({
   app: {
     head: {
       title: 'Story Bible',
+      viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
       htmlAttrs: { lang: 'en' },
       meta: [{ name: 'description', content: 'Human-approved, source-cited narrative canon and change impact for game teams.' }],
       link: [

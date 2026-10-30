@@ -4,6 +4,7 @@ const { data: superseded } = await useFetch('/api/facts', { query: { status: 'su
 const route = useRoute()
 const editor = computed(() => canEdit(useMe().value))
 const router = useRouter()
+const fill = useFillAction()
 
 type Tab = 'facts' | 'graph' | 'entities' | 'timeline' | 'superseded'
 const tab = ref<Tab>(route.query.entity ? 'entities' : 'facts')
@@ -32,7 +33,8 @@ const wiki = computed(() => (entity.value ? lookup.value.byName.get(normName(ent
 const tabs = computed(() => [
   { value: 'facts' as Tab, label: 'Facts', count: canon.value?.length ?? 0 },
   { value: 'graph' as Tab, label: 'Graph' },
-  { value: 'entities' as Tab, label: 'Entities', count: entities.value.length },
+  // Names canon uses; the Entities section counts wiki pages, which include pages made by hand.
+  { value: 'entities' as Tab, label: 'Names', count: entities.value.length },
   { value: 'timeline' as Tab, label: 'Timeline' },
   { value: 'superseded' as Tab, label: 'Superseded', count: superseded.value?.length ?? 0 },
 ])
@@ -41,17 +43,18 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 </script>
 
 <template>
-  <UiPageHeader title="Canon" description="Only facts a person accepted. Every fact links to the exact passage it came from." />
+  <UiPageHeader title="Canon" :description="`${canon?.some(f => f.origin === 'sample') ? 'Facts a person accepted, plus the sample’s preloaded canon (marked).' : 'Only facts a person accepted.'} Every fact links to the exact passage it came from.`" />
 
-  <div class="tabwrap"><UiTabs v-model="tab" :items="tabs" /></div>
+  <UiTabs v-model="tab" :items="tabs" />
 
   <div v-if="tab === 'facts' || tab === 'timeline'" class="filter">
     <input v-model="filter" type="search" placeholder="Filter by character, place, word…" aria-label="Filter canon">
     <UiButton v-if="filter" @click="filter = ''">Clear</UiButton>
   </div>
 
-  <UiEmptyState v-if="!canon?.length && tab !== 'superseded'" title="No canon yet">
-    <template #actions><UiButton variant="primary" to="/review">Review candidates</UiButton></template>
+  <UiEmptyState v-if="!canon?.length && tab !== 'superseded'" title="No canon yet" icon="canon">
+    Canon holds only facts a person accepted. Accept candidates in Review, or select words in a source and add them as a fact.
+    <template #actions><UiButton variant="primary" :icon="fill.icon" :to="fill.to">{{ fill.label }}</UiButton></template>
   </UiEmptyState>
 
   <template v-else-if="tab === 'facts'">
@@ -82,7 +85,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
   </UiPanel>
 
   <UiPanel v-else-if="tab === 'timeline'" title="Story timeline" description="By story time, one lane per character. Day 1 starts at 00:00.">
-    <StoryTimeline v-if="filtered.some(f => f.t_from != null || f.t_to != null)" :facts="filtered" />
+    <StoryTimeline v-if="filtered.some(f => f.t_from != null || f.t_to != null)" :facts="filtered" :all-facts="canon!" />
     <p v-else class="muted">No timed canon facts{{ filter ? ' match this filter' : '' }}.</p>
   </UiPanel>
 
@@ -101,7 +104,6 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 </template>
 
 <style scoped>
-.tabwrap :deep(.tabs) { flex-wrap: wrap; overflow-x: visible; }
 .filter { display: flex; gap: var(--s-2); margin-bottom: var(--s-4); max-width: 420px; }
 .kind { margin-bottom: var(--s-5); }
 .kind h2 { text-transform: capitalize; }

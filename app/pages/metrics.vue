@@ -6,6 +6,9 @@ const { data: calls, refresh: refreshCalls } = await useFetch('/api/model-calls'
 const busy = ref(false)
 const error = ref('')
 const latest = computed(() => runs.value?.[0])
+// The gold set is Broken Tide's; elsewhere a run would only score a story it doesn't describe.
+const { data: docs } = await useFetch('/api/documents')
+const demo = computed(() => !!docs.value?.some(d => d.filename === 'lore-chord-stone.md'))
 
 async function run() {
   busy.value = true
@@ -38,7 +41,7 @@ const fmt = (iso: string) => new Date(iso).toLocaleString()
 <template>
   <UiPageHeader title="Measurements">
     <template #actions>
-      <UiButton v-if="editor" variant="primary" :loading="busy" :disabled="busy" @click="run">{{ busy ? 'Measuring…' : 'Run evaluation' }}</UiButton>
+      <UiButton v-if="editor && (demo || latest)" variant="primary" :loading="busy" :disabled="busy" @click="run">{{ busy ? 'Measuring…' : 'Run evaluation' }}</UiButton>
     </template>
     Targets from the MVP acceptance list, measured on the current data.
   </UiPageHeader>
@@ -50,8 +53,14 @@ const fmt = (iso: string) => new Date(iso).toLocaleString()
 
   <p v-if="error" class="notice bad" role="alert" style="margin-bottom: var(--s-4)">{{ error }}</p>
 
-  <UiEmptyState v-if="!latest" title="Not run yet" icon="metrics">
-    For a full run: load the demo set, review candidates, scan conflicts and decide A1, then run the evaluation.
+  <UiEmptyState v-if="!latest && demo" title="Not run yet" icon="metrics">
+    For a full run: review candidates, scan conflicts and decide A1, then run the evaluation. It scores the data as it is now.
+    <template v-if="editor" #actions><UiButton variant="primary" :loading="busy" @click="run">Run evaluation</UiButton></template>
+  </UiEmptyState>
+  <UiEmptyState v-else-if="!latest" title="Measured on the demo story" icon="metrics">
+    The targets are scored against a hand-labeled gold set for the Broken Tide demo, so this project has nothing to measure.
+    Load the demo into a project of its own to see a run.
+    <template #actions><UiButton variant="primary" icon="folder" to="/settings/projects">Open projects</UiButton></template>
   </UiEmptyState>
 
   <template v-else-if="s">

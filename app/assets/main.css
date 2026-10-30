@@ -203,6 +203,34 @@ code, .mono { font-family: var(--font-code); font-size: 0.85em; }
   .sidebar .icon-btn { display: none; }
 }
 
+/* Phones: bottom nav with the five core sections. --bottom-nav-h lets fixed and sticky things sit above it. */
+:root { --bottom-nav-h: 0px; }
+.bottom-nav { display: none; }
+@media (max-width: 720px) {
+  :root { --bottom-nav-h: calc(56px + env(safe-area-inset-bottom, 0px)); }
+  .shell { padding-bottom: calc(var(--s-7) + var(--bottom-nav-h)); }
+  .bottom-nav {
+    display: grid; grid-template-columns: repeat(5, 1fr);
+    position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
+    height: var(--bottom-nav-h); padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
+    background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--line);
+  }
+  .bottom-link {
+    display: grid; justify-items: center; align-content: center; gap: 2px; min-width: 0;
+    border: 0; background: none; padding: 0; font: 500 11px/1.2 var(--font-ui); color: var(--muted); text-decoration: none; cursor: pointer;
+  }
+  .bottom-link svg { color: var(--faint); }
+  .bottom-link.router-link-exact-active { color: var(--accent); font-weight: 600; }
+  .bottom-link.router-link-exact-active svg { color: var(--accent); }
+  .bottom-link:focus-visible { outline-offset: -4px; border-radius: var(--r-md); }
+  .bottom-icon { position: relative; display: grid; place-items: center; }
+  .bottom-badge { position: absolute; top: -5px; left: 14px; min-width: 18px; height: 16px; padding: 0 4px; border-radius: 8px; border: 1.5px solid var(--surface); font: 700 10px/13px var(--font-ui); text-align: center; font-variant-numeric: tabular-nums; }
+  .bottom-badge.accent { background: var(--accent); color: var(--accent-ink); }
+  .bottom-badge.bad { background: var(--bad); color: var(--raised); }
+  .bottom-badge.dot { top: -2px; left: 16px; min-width: 0; width: 10px; height: 10px; padding: 0; }
+}
+
 /* ---------- Page header ---------- */
 .page-head { display: flex; gap: var(--s-4); align-items: flex-end; justify-content: space-between; flex-wrap: wrap; padding: 0 0 var(--s-5); }
 .page-head > :first-child { min-width: 0; flex: 1 1 420px; }
@@ -331,6 +359,12 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .table-wrap { overflow-x: auto; }
 
 /* ---------- Tabs ---------- */
+/* UiTabs: one row that scrolls sideways when narrow; .more fades the right edge into the surface behind it. */
+.tabs-wrap { position: relative; margin-bottom: var(--s-4); --tabs-fade: var(--canvas); }
+.panel .tabs-wrap { --tabs-fade: var(--raised); }
+.tabs-wrap > .tabs { margin-bottom: 0; }
+.tabs-wrap::after { content: ""; position: absolute; top: 0; right: 0; bottom: 1px; width: 48px; pointer-events: none; background: linear-gradient(to right, transparent, var(--tabs-fade) 85%); opacity: 0; transition: opacity var(--dur-1) var(--ease); }
+.tabs-wrap.more::after { opacity: 1; }
 .tabs { display: flex; gap: var(--s-1); border-bottom: 1px solid var(--line); margin-bottom: var(--s-4); overflow-x: auto; scrollbar-width: none; }
 .tabs button { position: relative; background: none; border: 0; padding: 10px 12px; font: 500 var(--text-base) var(--font-ui); color: var(--muted); cursor: pointer; white-space: nowrap; }
 .tabs button:hover { color: var(--ink); }

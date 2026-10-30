@@ -5,6 +5,7 @@ const route = useRoute()
 const { data: pending, refresh } = await useFetch('/api/facts', { query: { status: 'pending' } })
 const { data: rejected, refresh: refreshRejected } = await useFetch('/api/facts', { query: { status: 'rejected' } })
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
+const fill = useFillAction()
 
 // Decisions made on this visit. They leave the queue at once; the refresh that follows confirms it from the server.
 const decided = reactive<Record<string, 'accepted' | 'rejected'>>({})
@@ -16,6 +17,8 @@ const reviewed = computed(() => Math.max(0, total.value - queue.value.length))
 const decidedNow = computed(() => Object.values(decided))
 
 const selectedId = ref(typeof route.query.fact === 'string' ? route.query.fact : undefined)
+// The guided tour opens a candidate by link while Review is already open.
+watch(() => route.query.fact, (v) => { if (typeof v === 'string') selectedId.value = v })
 const current = computed(() => queue.value.find(f => f.id === selectedId.value) ?? queue.value[0])
 const index = computed(() => (current.value ? queue.value.indexOf(current.value) : -1))
 const verified = (f: Record<string, any>) => f.evidence.some((e: any) => e.verified)
@@ -187,19 +190,23 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
   </p>
 
   <UiPanel v-if="!current">
-    <UiEmptyState :title="reviewed ? 'Queue done' : 'Nothing waiting for review'" icon="check">
+    <UiEmptyState :title="reviewed ? 'Queue done' : 'Nothing waiting for review'" :icon="reviewed ? 'check' : 'review'">
       <template v-if="decidedNow.length">You decided {{ decidedNow.length }} {{ decidedNow.length === 1 ? 'candidate' : 'candidates' }} on this visit: {{ decidedNow.filter(d => d === 'accepted').length }} accepted, {{ decidedNow.filter(d => d === 'rejected').length }} rejected.</template>
       <template v-else-if="reviewed">All {{ reviewed }} candidates have a decision.</template>
-      <template v-else>Import sources on Home and the model's candidates show up here. You can also select text in a source and send a fact here for someone to review.</template>
-      <template #actions>
+      <template v-else-if="stats?.documents">No candidates were proposed from this project’s sources. Select words in a source to add a fact, or send one here for someone to review.</template>
+      <template v-else>Add sources on Home and the model’s candidates show up here. You can also select text in a source and send a fact here for someone to review.</template>
+      <template v-if="reviewed || decidedNow.length || stats?.canon" #actions>
         <UiButton variant="primary" to="/canon" icon="canon">Browse canon</UiButton>
         <UiButton to="/conflicts" icon="conflicts">Check conflicts</UiButton>
+      </template>
+      <template v-else #actions>
+        <UiButton variant="primary" :icon="fill.icon" :to="fill.to">{{ fill.label }}</UiButton>
       </template>
     </UiEmptyState>
   </UiPanel>
 
   <div v-else class="split">
-    <section ref="panel" class="panel candidate" tabindex="-1" :aria-label="`Candidate ${index + 1} of ${queue.length}`">
+    <section ref="panel" class="panel candidate" data-tour="candidate" tabindex="-1" :aria-label="`Candidate ${index + 1} of ${queue.length}`">
       <header class="cand-head">
         <span class="cand-pos">Candidate {{ index + 1 }} <span class="faint">of {{ queue.length }}</span></span>
         <div class="row">
@@ -231,7 +238,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
         <SourceRef v-for="ev in current.evidence" :key="ev.id" :ev="ev" />
       </div>
 
-      <p v-if="!verified(current)" class="notice bad" :class="{ refused: error === BLOCKED }">
+      <p v-if="!verified(current)" class="notice bad" data-tour="blocked" :class="{ refused: error === BLOCKED }">
         <UiIcon name="conflicts" :size="16" />
         <span><b v-if="error === BLOCKED" role="alert">Accept refused. </b>The model's quote doesn't appear in the source, so this can't become canon. Reject it, or leave it pending until the source says it.</span>
       </p>
@@ -271,7 +278,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
       </form>
 
       <p v-else-if="!editor" class="small muted decision"><UiIcon name="lock" :size="14" /> View only. An editor, admin or owner decides on candidates.</p>
-      <div v-else class="row decision">
+      <div v-else class="row decision" data-tour="decide">
         <UiButton variant="primary" icon="check" :loading="busy" :disabled="!verified(current)" @click="decide('accept')">Accept <kbd>A</kbd></UiButton>
         <UiButton :disabled="busy || !verified(current)" @click="open('edit')">Edit &amp; accept <kbd>E</kbd></UiButton>
         <UiButton variant="danger" :disabled="busy" @click="open('reject')">Reject… <kbd>R</kbd></UiButton>

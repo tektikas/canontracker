@@ -2,11 +2,21 @@
 // Story timeline: a lane per subject, laid out by story time (minutes since Day 1 00:00).
 // Exact times are solid ink marks; approximate ones are hatched ochre bands with faded edges.
 type Fact = Record<string, any>
-const props = defineProps<{ facts: Fact[] }>()
+// allFacts: the unfiltered canon, so a filtered view still knows every name (verbs read right: "uses X on Arin").
+const props = defineProps<{ facts: Fact[], allFacts?: Fact[] }>()
 const editor = computed(() => canEdit(useMe().value))
 
-const PX_H = 11 // pixels per story hour
-const PX = PX_H / 60
+// Pixels per story hour: at least 11, more when the card is wide, so a short story fills it instead of half of it.
+const scroller = ref<HTMLElement>()
+const avail = ref(0)
+let ro: ResizeObserver | undefined
+onMounted(() => {
+  ro = new ResizeObserver(() => { avail.value = scroller.value?.clientWidth ?? 0 })
+  ro.observe(scroller.value!)
+})
+onBeforeUnmount(() => ro?.disconnect())
+const TAIL = 140 // room after the last hour for a label that starts late
+const pxH = computed(() => Math.max(11, Math.floor(((avail.value - 84 - TAIL) / (days.value * 24)) * 10) / 10))
 const FUZZ = 60 // minutes of visible fuzz around an approximate time
 const selectedId = ref<string | null>(null)
 
@@ -15,15 +25,17 @@ const days = computed(() => {
   const max = Math.max(0, ...timed.value.map(f => Math.max(f.t_from ?? 0, f.t_to ?? 0) + FUZZ))
   return Math.max(1, Math.ceil(max / 1440))
 })
-const width = computed(() => days.value * 24 * PX_H)
+// The axis, the card's width, or further when a label runs past the end: the grid fills the card and holds every label.
+const width = computed(() => Math.max(days.value * 24 * pxH.value, avail.value - 86, ...lanes.value.flatMap(l => l.items.map(i => i.end + 8))))
 
-const names = computed(() => new Set(props.facts.flatMap(f => [f.subject, f.object]).filter(Boolean)))
+const names = computed(() => new Set((props.allFacts ?? props.facts).flatMap(f => [f.subject, f.object]).filter(Boolean)))
 function label(f: Fact) {
   if (f.predicate === 'located_at') return `at ${f.object}`
   return factPhrase(f, names.value)
 }
 
 const lanes = computed(() => {
+  const PX = pxH.value / 60
   const bySubject = new Map<string, Fact[]>()
   for (const f of [...timed.value].sort((a, b) => (a.t_from ?? a.t_to) - (b.t_from ?? b.t_to))) {
     if (!bySubject.has(f.subject)) bySubject.set(f.subject, [])
@@ -49,7 +61,7 @@ const lanes = computed(() => {
       let row = rowEnds.findIndex(e => e + 6 <= left)
       if (row < 0) row = rowEnds.length
       rowEnds[row] = end
-      return { f, approx, openStart, left, w, row, text }
+      return { f, approx, openStart, left, w, row, text, end }
     })
     return { name, items, rows: rowEnds.length }
   })
@@ -72,14 +84,14 @@ const dayTicks = computed(() => Array.from({ length: days.value }, (_, i) => i +
       <span><i class="k approx" /> Approximate (fuzzy band)</span>
       <span class="faint">Scroll sideways; select an item for its sources.</span>
     </div>
-    <div class="scroller" tabindex="0" role="region" aria-label="Story timeline, scrolls sideways">
+    <div ref="scroller" class="scroller" tabindex="0" role="region" aria-label="Story timeline, scrolls sideways">
       <div class="inner" :style="{ width: `calc(var(--label-w) + ${width}px)` }">
         <div class="lane head">
           <div class="label" />
           <div class="track" :style="{ width: `${width}px` }">
-            <div v-for="d in dayTicks" :key="d" class="day" :style="{ left: `${(d - 1) * 24 * PX_H}px`, width: `${24 * PX_H}px` }">
+            <div v-for="d in dayTicks" :key="d" class="day" :style="{ left: `${(d - 1) * 24 * pxH}px`, width: `${24 * pxH}px` }">
               <strong>Day {{ d }}</strong>
-              <span v-for="h in [6, 12, 18]" :key="h" class="hour" :style="{ left: `${h * PX_H}px` }">{{ String(h).padStart(2, '0') }}:00</span>
+              <span v-for="h in [6, 12, 18]" :key="h" class="hour" :style="{ left: `${h * pxH}px` }">{{ String(h).padStart(2, '0') }}:00</span>
             </div>
           </div>
         </div>
@@ -126,7 +138,7 @@ const dayTicks = computed(() => Array.from({ length: days.value }, (_, i) => i +
 .lane { display: flex; border-top: 1px solid var(--line); }
 .lane.head { border-top: 0; background: var(--surface); }
 .label { position: sticky; left: 0; z-index: 3; flex: none; width: var(--label-w); padding: 10px var(--s-2); background: var(--surface); border-right: 1px solid var(--line-strong); font-size: var(--text-sm); font-weight: 600; overflow-wrap: anywhere; }
-.track { position: relative; flex: none; background-image: linear-gradient(to right, var(--line-strong) 1px, transparent 1px), linear-gradient(to right, var(--line) 1px, transparent 1px); background-size: calc(24 * v-bind('PX_H') * 1px) 100%, calc(6 * v-bind('PX_H') * 1px) 100%; }
+.track { position: relative; flex: none; background-image: linear-gradient(to right, var(--line-strong) 1px, transparent 1px), linear-gradient(to right, var(--line) 1px, transparent 1px); background-size: calc(24 * v-bind(pxH) * 1px) 100%, calc(6 * v-bind(pxH) * 1px) 100%; }
 .head .track { height: 40px; background-image: none; }
 .day { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line-strong); padding: 4px 6px; font-size: var(--text-xs); }
 .hour { position: absolute; top: 22px; transform: translateX(-50%); color: var(--faint); font-size: var(--text-xs); }

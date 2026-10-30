@@ -4,6 +4,7 @@ const me = useMe()
 const route = useRoute()
 const { data: list, refresh } = await useEntityList()
 const editable = computed(() => canEdit(me.value))
+const fill = useFillAction()
 
 const q = ref('')
 const kind = ref<EntityKind | ''>('')
@@ -83,7 +84,7 @@ async function create() {
     <UiEmptyState title="No entities yet" icon="entities">
       Pages appear here as you accept canon: every character, place and object a fact names gets one. You can also add your own.
       <template #actions>
-        <UiButton variant="primary" to="/review">Review candidates</UiButton>
+        <UiButton variant="primary" :icon="fill.icon" :to="fill.to">{{ fill.label }}</UiButton>
         <UiButton v-if="editable" icon="plus" @click="creating = true">New entity</UiButton>
       </template>
     </UiEmptyState>
@@ -95,7 +96,7 @@ async function create() {
         <UiIcon name="search" :size="16" />
         <input v-model="q" type="search" placeholder="Search names, aliases, summaries…" aria-label="Search entities">
       </label>
-      <div class="filters" role="group" aria-label="Filter by kind">
+      <div v-if="searched.length" class="filters" role="group" aria-label="Filter by kind">
         <button type="button" class="f" :aria-pressed="!kind" @click="kind = ''">All <span>{{ searched.length }}</span></button>
         <template v-for="k in ENTITY_KINDS" :key="k">
           <button v-if="count(k) || kind === k" type="button" class="f" :aria-pressed="kind === k" @click="kind = kind === k ? '' : k">
@@ -143,6 +144,10 @@ async function create() {
 .filters { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .f { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: var(--text-sm); color: var(--muted); background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-md); padding: 6px 12px; min-height: 34px; cursor: pointer; }
 .f span { color: var(--faint); }
+@media (max-width: 720px) {
+  .filters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--s-4)); padding: 0 var(--s-4); }
+  .f { flex: none; }
+}
 .f:hover { color: var(--ink); }
 .f[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
 .f[aria-pressed=true] span { color: inherit; opacity: .8; }
