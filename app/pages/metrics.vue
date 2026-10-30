@@ -74,10 +74,10 @@ const fmt = (iso: string) => new Date(iso).toLocaleString()
           <thead><tr><th>Measure</th><th>Target</th><th>Measured</th><th>Result</th></tr></thead>
           <tbody>
             <tr v-for="m in latest!.results" :key="m.key">
-              <td>{{ m.label }}<div v-if="m.note" class="small muted">{{ m.note }}</div></td>
-              <td class="mono small">{{ m.target }}</td>
-              <td class="mono small">{{ m.measured }}</td>
-              <td><UiBadge :tone="verdict(m.pass).tone" :dot="m.pass !== null">{{ verdict(m.pass).label }}</UiBadge></td>
+              <td class="measure">{{ m.label }}<div v-if="m.note" class="small muted">{{ m.note }}</div></td>
+              <td class="mono small" data-l="Target">{{ m.target }}</td>
+              <td class="mono small" data-l="Measured">{{ m.measured }}</td>
+              <td data-l="Result"><UiBadge :tone="verdict(m.pass).tone" :dot="m.pass !== null">{{ verdict(m.pass).label }}</UiBadge></td>
             </tr>
           </tbody>
         </table>
@@ -139,5 +139,17 @@ const fmt = (iso: string) => new Date(iso).toLocaleString()
 .score-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
 .runs { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
 .runs li { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); align-items: center; }
+@media (max-width: 500px) {
+  .score { padding: var(--s-4); }
+  .score-meta { display: block; line-height: 2; }
+  .score-meta .mono { overflow-wrap: anywhere; }
+  .measure { display: block; }
+  tr:has(.measure) { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s-1) var(--s-3); padding: var(--s-3) var(--s-4); }
+  tr:has(.measure) td { display: block; padding: 0; border: 0; }
+  tr:has(.measure) .measure { grid-column: 1 / -1; }
+  tr:has(.measure) td[data-l]::before { content: attr(data-l); display: block; font-size: var(--text-xs, 11px); color: var(--faint); font-family: inherit; }
+  tr:has(.measure) { border-top: 1px solid var(--line); }
+  thead:has(+ tbody .measure) { display: none; }
+}
 .empty-note { margin: 0; padding: var(--s-4); }
 </style>

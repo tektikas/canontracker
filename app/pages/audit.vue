@@ -20,7 +20,7 @@ function sentence(e: { event_type: string, actor: string, target_id: string, det
     case 'document.imported': return [`${who} imported ${d.filename}`, `${d.passages} passages, read-only`]
     case 'document.version_added': return [`${who} imported version ${d.version} of ${d.filename}`, `${d.passages} passages`]
     case 'citation.stale': return [`${d.filename} v${d.version} makes ${d.fact_ids?.length ?? 0} citation(s) stale`, 'Re-check the facts that cite it']
-    case 'candidate.created': return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Quote not found in source, blocked from review']
+    case 'candidate.created': return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
     case 'candidate.accepted': return [`${who} accepted a candidate: ${q(d.after?.statement)}`, because(d)]
     case 'candidate.corrected_and_accepted': return [`${who} corrected and accepted a candidate: ${q(d.after?.statement)}`, because(d)]
     case 'candidate.rejected': return [`${who} rejected a candidate: ${q(d.statement)}`, because(d)]
@@ -29,12 +29,12 @@ function sentence(e: { event_type: string, actor: string, target_id: string, det
     case 'conflict.false_positive': return [`${who} marked a conflict as a false alarm`, because(d)]
     case 'conflict.uncertain': return [`${who} marked a conflict as uncertain`, because(d)]
     case 'change.created': return [`${who} proposed a canon change: ${q(d.proposed)}`, d.before ? `Replaces ${q(d.before)}` : '']
-    case 'impact.completed': return [`Impact analysis found ${d.items} item(s) to review`, d.scenes?.length ? `Scenes: ${d.scenes.join(', ')}` : 'No impact found within 2 hops']
+    case 'impact.completed': return [`Impact analysis found ${d.items} item(s) to review`, d.scenes?.length ? `Scenes: ${d.scenes.join(', ')}` : d.items ? 'Scenes: none within 2 hops' : 'No impact found within 2 hops']
     case 'change.accepted': return [`${who} accepted a change proposal`, because(d)]
     case 'change.rejected': return [`${who} rejected a change proposal`, because(d)]
     case 'change.applied': return [`Canon updated: ${q(d.after)}`, d.before ? `Superseded ${q(d.before)}, kept in history` : '']
     case 'change.reverted': return [`${who} reverted a change, restoring ${q(d.restored)}`, because(d)]
-    case 'qa.asked': return [`${who} asked: ${q(d.question)}`, `Result: ${String(d.status).replace('_', ' ')}`]
+    case 'qa.asked': return [`${who} asked: ${q(d.question)}`, `Result: ${({ supported: 'Supported by canon', source_only: 'Related canon only', unknown: 'Unknown' } as Record<string, string>)[d.status] ?? d.status}`]
     case 'eval.completed': return [`${who} ran the evaluation`, `${d.passed} met, ${d.failed} missed`]
     case 'export.created': return [`${who} exported ${d.format?.toUpperCase()}`, d.items != null ? `${d.items} impact items` : d.events != null ? `${d.events} audit events` : '']
     case 'job.failed': return [`Extraction failed for ${d.filename ?? 'a document'}`, clip(d.error, 140)]
@@ -45,6 +45,15 @@ function sentence(e: { event_type: string, actor: string, target_id: string, det
 const TONE: Record<string, 'accent' | 'good' | 'bad' | 'warn' | 'pencil' | 'neutral'> = {
   candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad',
 }
+
+// Short ID plus a link where a page exists; pages have no per-item anchors, so links go to the list.
+function target(e: { event_type: string, target_type: string, target_id: string }) {
+  const t = e.target_type
+  const to = t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' ? '/conflicts' : t === 'change' ? '/changes'
+    : t === 'fact' ? (e.event_type.startsWith('candidate.') ? '/review' : '/canon') : ''
+  return { to, label: `${t} ${e.target_id.slice(0, 8)}` }
+}
+const hms = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour12: false })
 
 const day = (iso: string) => {
   const d = new Date(iso)
@@ -81,11 +90,15 @@ const groups = computed(() => {
       <h2>{{ g.day }}</h2>
       <ol class="events">
         <li v-for="e in g.items" :key="e.id">
-          <time class="mono small faint" :datetime="e.created_at">{{ new Date(e.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) }}</time>
+          <time class="mono small faint" :datetime="e.created_at">{{ hms(e.created_at) }}</time>
           <UiBadge :tone="TONE[e.event_type.split('.')[0]!] ?? 'neutral'" class="kind">{{ e.event_type.split('.')[0] }}</UiBadge>
           <div class="what">
             <div>{{ sentence(e)[0] }}</div>
             <div v-if="sentence(e)[1]" class="small muted">{{ sentence(e)[1] }}</div>
+            <div v-if="e.target_id" class="small faint mono">
+              <NuxtLink v-if="target(e).to" :to="target(e).to">{{ target(e).label }}</NuxtLink>
+              <template v-else>{{ target(e).label }}</template>
+            </div>
           </div>
         </li>
       </ol>
@@ -103,8 +116,9 @@ const groups = computed(() => {
 .day { margin-bottom: var(--s-5); }
 .day h2 { font-size: var(--text-sm); color: var(--muted); font-weight: 600; margin: 0 0 var(--s-2); }
 .events { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--raised); }
-.events li { display: grid; grid-template-columns: 78px 92px 1fr; gap: var(--s-3); align-items: start; padding: var(--s-3) var(--s-4); }
+.events li { display: grid; grid-template-columns: 84px 92px 1fr; gap: var(--s-3); align-items: start; padding: var(--s-3) var(--s-4); }
 .events li + li { border-top: 1px solid var(--line); }
+.events time { white-space: nowrap; }
 .kind { justify-self: start; }
 .what { min-width: 0; overflow-wrap: anywhere; }
 @media (max-width: 720px) {

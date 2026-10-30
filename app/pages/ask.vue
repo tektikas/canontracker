@@ -29,7 +29,7 @@ async function ask(q = question.value) {
 const STATUS = {
   supported: { tone: 'good', label: 'Supported by canon', text: 'Answered from accepted canon. Check the sources below.' },
   source_only: { tone: 'warn', label: 'Related canon only', text: 'The model is offline, so no answer was written. These accepted facts look related; read them yourself.' },
-  unknown: { tone: 'bad', label: 'Unknown', text: 'No accepted canon fact answers this. Nothing was guessed.' },
+  unknown: { tone: 'neutral', label: 'Unknown', text: 'No accepted canon fact answers this. Nothing was guessed.' },
 } as const
 const status = computed(() => result.value ? STATUS[result.value.status as keyof typeof STATUS] : null)
 </script>
@@ -86,7 +86,7 @@ const status = computed(() => result.value ? STATUS[result.value.status as keyof
 .verdict { border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--r-lg); background: var(--raised); padding: var(--s-4); display: grid; gap: var(--s-3); }
 .verdict.good { border-left-color: var(--good); }
 .verdict.warn { border-left-color: var(--warn); background: var(--warn-soft); }
-.verdict.bad { border-left-color: var(--bad); background: var(--bad-soft); }
+.verdict.neutral { border-left-color: var(--faint); border-left-style: dashed; background: var(--sunken); }
 .verdict-head { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-3); justify-content: space-between; align-items: center; }
 .verdict-text { margin: 0; max-width: 70ch; }
 .answer { margin: 0; }
