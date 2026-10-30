@@ -4,7 +4,14 @@ import type { IconName } from '~/components/ui/Icon.vue'
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
 const route = useRoute()
 const navOpen = ref(false)
+const navTrigger = ref<HTMLButtonElement>()
+const navClose = ref<HTMLButtonElement>()
 watch(() => route.fullPath, () => { navOpen.value = false })
+// Mobile drawer: the rest of the page is inert while it is open, so focus moves in and Tab stays inside.
+watch(navOpen, async (open) => {
+  await nextTick()
+  ;(open ? navClose : navTrigger).value?.focus()
+})
 
 interface NavLink { to: string, label: string, icon: IconName, count?: number, tone?: 'accent' | 'bad' }
 const groups = computed<{ label?: string, links: NavLink[] }[]>(() => [
@@ -32,8 +39,8 @@ const recorded = computed(() => stats.value?.model.mode === 'mock')
 
 <template>
   <div class="app" :class="{ 'nav-open': navOpen }" @keydown.esc="navOpen = false">
-    <header class="topbar">
-      <button class="icon-btn" type="button" aria-label="Open navigation" :aria-expanded="navOpen" aria-controls="sidebar" @click="navOpen = true">
+    <header class="topbar" :inert="navOpen">
+      <button ref="navTrigger" class="icon-btn" type="button" aria-label="Open navigation" :aria-expanded="navOpen" aria-controls="sidebar" @click="navOpen = true">
         <UiIcon name="menu" :size="20" />
       </button>
       <NuxtLink to="/" class="brand"><BrandMark />Story Bible</NuxtLink>
@@ -47,7 +54,7 @@ const recorded = computed(() => stats.value?.model.mode === 'mock')
     <aside id="sidebar" class="sidebar" aria-label="Sidebar">
       <div class="sidebar-head">
         <NuxtLink to="/" class="brand"><BrandMark />Story Bible</NuxtLink>
-        <button class="icon-btn" type="button" aria-label="Close navigation" @click="navOpen = false">
+        <button ref="navClose" class="icon-btn" type="button" aria-label="Close navigation" @click="navOpen = false">
           <UiIcon name="close" :size="20" />
         </button>
       </div>
@@ -72,7 +79,7 @@ const recorded = computed(() => stats.value?.model.mode === 'mock')
       </div>
     </aside>
 
-    <main class="shell">
+    <main class="shell" :inert="navOpen">
       <NuxtPage />
     </main>
   </div>

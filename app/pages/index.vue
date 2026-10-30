@@ -2,7 +2,9 @@
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
 const { data: docs, refresh: refreshDocs } = await useFetch('/api/documents')
 const { data: conflicts, refresh: refreshConflicts } = await useFetch('/api/conflicts')
-const { data: evals } = await useFetch('/api/eval')
+const { data: evals, refresh: refreshEvals } = await useFetch('/api/eval')
+// No scan record in the API: a scan in this session (set on /conflicts) counts until new sources arrive.
+const scanned = useState('conflicts-scanned', () => false)
 const busy = ref<'' | 'demo' | 'import'>('')
 const error = ref('')
 const results = ref<Record<string, any>[]>([])
@@ -13,7 +15,8 @@ async function run(kind: 'demo' | 'import', fn: () => Promise<{ results: Record<
   error.value = ''
   try {
     results.value = (await fn()).results
-    await Promise.all([refreshDocs(), refreshConflicts(), refreshNuxtData('stats')])
+    scanned.value = false
+    await Promise.all([refreshDocs(), refreshConflicts(), refreshEvals(), refreshNuxtData('stats')])
   } catch (e) {
     error.value = errorMessage(e)
   } finally {
@@ -47,25 +50,27 @@ const steps = computed(() => {
     { key: 'import', label: 'Import', to: '#sources', value: s.documents, caption: plural(s.documents, 'source'), done: s.documents > 0 },
     { key: 'review', label: 'Review', to: '/review', value: s.pending || null, caption: s.pending ? 'to review' : s.documents ? 'all reviewed' : 'nothing yet', done: s.documents > 0 && s.pending === 0 },
     { key: 'canon', label: 'Canon', to: '/canon', value: s.canon, caption: plural(s.canon, 'fact'), done: s.canon > 0 },
-    { key: 'conflicts', label: 'Conflicts', to: '/conflicts', value: found ? s.open_conflicts : null, caption: found ? 'open' : 'none found', done: found > 0 && s.open_conflicts === 0 },
+    { key: 'conflicts', label: 'Conflicts', to: '/conflicts', value: s.open_conflicts || null, caption: s.open_conflicts ? 'open' : found || scanned.value ? 'none open' : s.canon ? 'none open · scan to check' : 'nothing yet', done: s.canon > 0 && s.open_conflicts === 0 && (found > 0 || scanned.value), skip: s.canon > 0 && s.open_conflicts === 0 },
     { key: 'changes', label: 'Changes', to: '/changes', value: s.changes, caption: plural(s.changes, 'proposal'), done: s.changes > 0 },
     { key: 'metrics', label: 'Metrics', to: '/metrics', value: runs, caption: plural(runs, 'run'), done: runs > 0 },
   ]
 })
-const nextKey = computed(() => steps.value.find(s => !s.done)?.key ?? 'done')
+// `skip`: no open conflicts but no scan on record either. Shown neutrally, never recommended over the next real step.
+const nextKey = computed(() => steps.value.find(s => !s.done && !s.skip)?.key ?? 'done')
 
 const next = computed(() => {
   const s = stats.value
   switch (nextKey.value) {
     case 'import': return { title: 'Add your lore and scenes', text: 'Load the demo set or import Markdown and text files. Sources are stored read-only.' }
     case 'review': return { title: `Review ${s?.pending} ${plural(s?.pending ?? 0, 'candidate')}`, text: 'The model proposed these facts with a quote. Nothing becomes canon until you accept it.', to: '/review', action: 'Start review' }
-    case 'canon': return { title: 'Nothing is canon yet', text: 'Every candidate was rejected. Import more sources or check the rejected list.', to: '/review', action: 'Open review' }
-    case 'conflicts': return (s?.open_conflicts
-      ? { title: `Decide on ${s.open_conflicts} possible ${plural(s.open_conflicts, 'conflict')}`, text: 'Each one is a candidate for you to confirm or dismiss. Deciding never edits canon.', to: '/conflicts', action: 'Resolve conflicts' }
-      : { title: 'Check canon for conflicts', text: 'Scan accepted facts for timing, travel, relationship and world-rule conflicts.', to: '/conflicts', action: 'Scan canon' })
+    case 'canon': return s?.rejected
+      ? { title: 'Nothing is canon yet', text: 'Every candidate was rejected. Import more sources or check the rejected list.', to: '/review', action: 'Open review' }
+      : { title: 'Nothing is canon yet', text: 'No candidates were extracted. Check the import results, or import more sources.', to: '#sources', action: 'Add sources' }
+    // only reachable with open conflicts: zero open is `done` or `skip`
+    case 'conflicts': return { title: `Decide on ${s?.open_conflicts} possible ${plural(s?.open_conflicts ?? 0, 'conflict')}`, text: 'Each one is a candidate for you to confirm or dismiss. Deciding never edits canon.', to: '/conflicts', action: 'Resolve conflicts' }
     case 'changes': return { title: 'Propose a canon change', text: 'See which facts and scenes a change would touch, up to two hops away, before it reaches a build.', to: '/changes', action: 'Propose a change' }
     case 'metrics': return { title: 'Measure the run', text: 'Score extraction, conflicts and impact against the gold set.', to: '/metrics', action: 'Open metrics' }
-    default: return { title: 'Canon is up to date', text: 'Every step has data. Ask canon a question or check the audit log.', to: '/ask', action: 'Ask canon' }
+    default: return { title: 'Canon is up to date', text: 'Nothing is waiting on you. Ask canon a question or check the audit log.', to: '/ask', action: 'Ask canon' }
   }
 })
 </script>

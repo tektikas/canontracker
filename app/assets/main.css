@@ -10,8 +10,8 @@
   --quote-bg: #f1f4f7;
   /* Text */
   --ink: #17212e;
-  --muted: #566170;
-  --faint: #7f8a99;
+  --muted: #4b5563;
+  --faint: #5c6776; /* >= 4.5:1 on every surface, incl. --sunken */
   /* Lines */
   --line: #d6dbe2;
   --line-strong: #b8c0cb;
@@ -84,8 +84,8 @@
     --sunken: #0b0e12;
     --quote-bg: #121820;
     --ink: #e3e8ee;
-    --muted: #9aa5b3;
-    --faint: #6f7a88;
+    --muted: #a8b2bf;
+    --faint: #8a95a3;
     --line: #262e39;
     --line-strong: #364151;
     --accent: #84b2e6;

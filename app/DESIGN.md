@@ -15,7 +15,7 @@ All colors are CSS variables with a light set and a `prefers-color-scheme: dark`
 | Group | Tokens |
 | --- | --- |
 | Surfaces | `--canvas` (page), `--surface` (sidebar, table heads, sunk panels), `--raised` (panels, inputs), `--sunken` (hover, neutral badge), `--quote-bg` |
-| Text | `--ink`, `--muted` (secondary), `--faint` (meta, counts) |
+| Text | `--ink`, `--muted` (secondary), `--faint` (meta, counts). All three meet 4.5:1 on every surface in both themes; keep it that way when tuning. |
 | Lines | `--line`, `--line-strong` (inputs, buttons, dashed pencil) |
 | Meaning | `--accent` / `--accent-strong` / `--accent-soft` / `--accent-ink`, `--pencil` / `--pencil-soft`, `--good`, `--warn`, `--bad` (each with `-soft`) |
 | Type | `--font-ui` Instrument Sans, `--font-story` Literata, `--font-code` JetBrains Mono (hashes, triples, line numbers only). Sizes `--text-xs` 12 · `sm` 13 · `base` 14 (UI body) · `md` 16 (story text) · `lg` 19 · `xl` 24 · `2xl` 30 |
