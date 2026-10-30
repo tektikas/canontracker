@@ -17,6 +17,7 @@ const busy = ref(false)
 const error = ref('')
 const preview = (id: string) => $fetch(`/api/entities/${props.entity.id}/merge`, { method: 'POST', body: { into: id, preview: true } }) as Promise<{
   facts: { id: string, statement: string, status: string }[], aliases_added: string[], fields_filled: string[], summary_taken: boolean, notes_added: boolean, portrait: string
+  names_mapped: string[], conflicts_resolved: { id: string, rule: string, rationale: string }[], changes_stale: { id: string, proposed_statement: string }[]
 }>
 watch(into, async (id) => {
   plan.value = null
@@ -72,6 +73,13 @@ async function merge() {
           <li v-if="plan.notes_added">{{ entity.name }}’s {{ plan.summary_taken ? 'notes are' : 'summary and notes are' }} added to the end of {{ target.name }}’s notes.</li>
           <li v-if="plan.portrait === 'move'">{{ entity.name }}’s portrait moves over.</li>
           <li v-if="plan.portrait === 'discard'" class="warn-text">{{ target.name }} keeps its own portrait; {{ entity.name }}’s portrait is discarded.</li>
+          <li v-if="plan.conflicts_resolved.length">
+            <b>{{ counted(plan.conflicts_resolved.length, 'open conflict') }}</b> only exist{{ plan.conflicts_resolved.length === 1 ? 's' : '' }} because these were two pages, so {{ plan.conflicts_resolved.length === 1 ? 'it closes' : 'they close' }} as “resolved by merge”. The decision history stays.
+          </li>
+          <li v-if="plan.changes_stale.length" class="warn-text">
+            <b>{{ counted(plan.changes_stale.length, 'pending change proposal') }}</b> will need a fresh impact analysis before {{ plan.changes_stale.length === 1 ? 'it' : 'they' }} can be accepted.
+          </li>
+          <li>Later candidates that name <b>{{ plan.names_mapped.join(', ') }}</b> are offered to reviewers as {{ target.name }}, and saved that way when accepted.</li>
           <li>The audit log keeps a full copy of {{ entity.name }}’s page and every fact’s previous wording, so the merge can be traced and undone by hand.</li>
         </ul>
         <details v-if="plan.facts.length" class="moved">

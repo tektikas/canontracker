@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   requireStudioRole(project.studio_id, user.id, 'admin')
   const body = await readBody<{ name?: string, medium?: string }>(event)
   const name = body.name === undefined ? project.name : cleanName(body.name, 'project name')
-  if (body.medium !== undefined && !(body.medium in MEDIA)) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: `Medium must be one of ${Object.keys(MEDIA).join(', ')}.` })
+  if (body.medium !== undefined && !Object.hasOwn(MEDIA, body.medium)) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: `Medium must be one of ${Object.keys(MEDIA).join(', ')}.` })
   const medium = mediumOf(body.medium ?? project.medium)
   useDb().prepare('update projects set name = ?, medium = ? where id = ?').run(name, medium, project.id)
   return { id: project.id, name, medium }

@@ -3,7 +3,7 @@ import { mkdirSync, rmSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-const SCHEMA_VERSION = 4
+const SCHEMA_VERSION = 5
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -50,15 +50,17 @@ create table if not exists evidence (
   passage_id text, quote text not null, verified integer not null, support text not null default 'states', project_id text not null
 );
 -- origin: rule (deterministic code) | model (model-suggested, labeled as such)
+-- status: open | confirmed | false_positive | uncertain | resolved_by_merge (merge_audit_id = the entity.merged event)
 create table if not exists conflicts (
   id text primary key, left_fact_id text not null, right_fact_id text not null, rule text not null, origin text not null,
   model_id text, rationale text not null, confidence real not null, status text not null, pair_hash text not null unique,
-  created_at text not null, decided_at text, decision_rationale text, decided_by text, project_id text not null
+  created_at text not null, decided_at text, decision_rationale text, decided_by text, merge_audit_id text, project_id text not null
 );
 -- status: ready_for_review | applied | rejected | reverted
+-- impact_stale: set (JSON: the merge that outdated it) when a merge changed the impact; accept needs a fresh analysis first.
 create table if not exists changes (
   id text primary key, target_fact_id text not null, before_statement text not null, proposed_statement text not null,
-  rationale text not null, status text not null, impact text, new_fact_id text, reverted_fact_id text,
+  rationale text not null, status text not null, impact text, impact_stale text, new_fact_id text, reverted_fact_id text,
   created_at text not null, decided_at text, decision_rationale text, reverted_at text, revert_rationale text,
   decided_by text, reverted_by text, project_id text not null
 );
@@ -68,6 +70,12 @@ create table if not exists entities (
   id text primary key, name text not null, kind text not null, summary text not null default '', aliases text not null default '[]',
   fields text not null default '{}', notes text not null default '', portrait_type text, portrait_at text, origin text not null,
   created_at text not null, created_by text, updated_at text not null, updated_by text, project_id text not null
+);
+-- Identity decisions from merges: a name that was merged away maps to the page it was merged into. Applied when a later
+-- candidate naming it is accepted. Only merges write here; hand-typed aliases never feed analysis.
+create table if not exists entity_merges (
+  name_norm text not null, name text not null, entity_id text not null, audit_id text not null, merged_at text not null,
+  merged_by text not null, project_id text not null, primary key (project_id, name_norm)
 );
 create table if not exists audit_events (
   id text primary key, event_type text not null, target_type text not null, target_id text not null,
@@ -123,17 +131,31 @@ export function tx<T>(fn: () => T): T {
   }
 }
 
+// Runs fn and always rolls back: shows exactly what fn would write without writing it. Safe because node:sqlite is
+// synchronous, so no other request can run inside the transaction.
+export function dryRun<T>(fn: () => T): T {
+  const d = useDb()
+  d.exec('begin')
+  try {
+    return fn()
+  } finally {
+    d.exec('rollback')
+  }
+}
+
 // The actor is always the signed-in person making the request (set by server/middleware/access.ts).
 export function audit(eventType: string, targetType: string, targetId: string, detail: Record<string, unknown> = {}) {
   const { user, project } = access()
+  const id = newId('aud')
   useDb().prepare('insert into audit_events values (?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(newId('aud'), eventType, targetType, targetId, user.id, JSON.stringify(detail), now(), project.id)
+    .run(id, eventType, targetType, targetId, user.id, JSON.stringify(detail), now(), project.id)
+  return id
 }
 
 // Empties the current project only. Other projects and studios are untouched.
 export function resetData() {
   tx(() => {
-    for (const t of ['model_calls', 'eval_runs', 'audit_events', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities'])
+    for (const t of ['model_calls', 'eval_runs', 'audit_events', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })
@@ -155,11 +177,11 @@ export interface EvidenceRow {
 export interface ConflictRow {
   id: string, left_fact_id: string, right_fact_id: string, rule: string, origin: string, model_id: string | null, rationale: string
   confidence: number, status: string, pair_hash: string, created_at: string, decided_at: string | null, decision_rationale: string | null
-  decided_by: string | null, project_id: string
+  decided_by: string | null, merge_audit_id: string | null, project_id: string
 }
 export interface ChangeRow {
   id: string, target_fact_id: string, before_statement: string, proposed_statement: string, rationale: string, status: string
-  impact: string | null, new_fact_id: string | null, reverted_fact_id: string | null, created_at: string, decided_at: string | null
+  impact: string | null, impact_stale: string | null, new_fact_id: string | null, reverted_fact_id: string | null, created_at: string, decided_at: string | null
   decision_rationale: string | null, reverted_at: string | null, revert_rationale: string | null
   decided_by: string | null, reverted_by: string | null, project_id: string
 }

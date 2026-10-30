@@ -20,7 +20,7 @@ async function run(kind: 'demo' | 'import', fn: () => Promise<{ results: Record<
   try {
     results.value = (await fn()).results
     scanned.value = false
-    await Promise.all([refreshDocs(), refreshConflicts(), refreshEvals(), refreshNuxtData('stats')])
+    await Promise.all([refreshDocs(), refreshConflicts(), refreshEvals(), refreshNuxtData('stats'), refreshEntities()])
   } catch (e) {
     error.value = errorMessage(e)
   } finally {

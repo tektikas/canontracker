@@ -101,7 +101,7 @@ export function cleanFields(v: unknown, current: Record<string, string>) {
   if (!v || typeof v !== 'object' || Array.isArray(v)) throw fail(400, 'INVALID', 'Fields must be an object.')
   const out = { ...current }
   for (const [k, val] of Object.entries(v)) {
-    if (!(k in FIELD_LABEL)) throw fail(400, 'INVALID', `Unknown field ${k}.`)
+    if (!Object.hasOwn(FIELD_LABEL, k)) throw fail(400, 'INVALID', `Unknown field ${k}.`)
     const s = cleanText(val ?? '', FIELD_LABEL[k]!.label, 500)
     if (s) out[k] = s
     else delete out[k]
@@ -150,6 +150,84 @@ export function planMerge(src: EntityRow, dst: EntityRow) {
     apply: { aliases, fields, summary, notes, srcNames },
   }
 }
+
+// What a merge decides beyond the page itself, measured by running the real rules before and after the re-point:
+// open rule-based conflicts whose premise the merge removed close as "resolved by merge"; pending change proposals whose
+// impact the merge changed are marked stale; the merged names are remembered so later candidates follow the same identity.
+// Writes everything in the caller's transaction (the preview runs it in dryRun and rolls back).
+export function mergeEntities(src: EntityRow, dst: EntityRow, plan: ReturnType<typeof planMerge>) {
+  const d = useDb()
+  const by = access().user.id
+  const at = now()
+  const canon = () => d.prepare(`select * from facts where project_id = ? and status = 'canon'`).all(pid()) as unknown as Fact[]
+  const openConflicts = d.prepare(`select * from conflicts where project_id = ? and status = 'open' and origin = 'rule'`).all(pid()) as unknown as ConflictRow[]
+  const pending = d.prepare(`select * from changes where project_id = ? and status = 'ready_for_review'`).all(pid()) as unknown as ChangeRow[]
+  const holds = (c: ConflictRow, travel: Fact[]) => ruleHits(getFact(c.left_fact_id), getFact(c.right_fact_id), travel).some(h => h.rule === c.rule)
+  const impactKey = (c: ChangeRow) => analyzeImpact(c.target_fact_id).map(i => `${i.target_id}:${i.hop_count}`).sort().join(' ')
+
+  const travelBefore = canon().filter(isTravel)
+  const heldBefore = new Set(openConflicts.filter(c => holds(c, travelBefore)).map(c => c.id))
+  const impactBefore = new Map(pending.map(c => [c.id, impactKey(c)]))
+
+  const { apply } = plan
+  const repoint = (n: string | null) => (n && apply.srcNames.has(normName(n)) ? dst.name : n)
+  const upd = d.prepare('update facts set subject = ?, object = ? where id = ?')
+  for (const f of plan.facts) upd.run(repoint(f.subject), repoint(f.object), f.id)
+  d.prepare(`update entities set aliases = ?, fields = ?, summary = ?, notes = ?, updated_at = ?, updated_by = ? where id = ?`)
+    .run(JSON.stringify(apply.aliases), JSON.stringify(apply.fields), apply.summary, apply.notes, at, by, dst.id)
+  if (plan.portrait === 'move') d.prepare('update entities set portrait_type = ?, portrait_at = ? where id = ?').run(src.portrait_type, at, dst.id)
+  d.prepare('delete from entities where id = ?').run(src.id)
+
+  const travelAfter = canon().filter(isTravel)
+  const resolved = openConflicts.filter(c => heldBefore.has(c.id) && !holds(c, travelAfter))
+  const stale = pending.filter(c => impactKey(c) !== impactBefore.get(c.id))
+  // The page's name plus every name canon actually used for it; hand-typed aliases nobody cited stay editorial.
+  const mapped = new Map([[normName(src.name), src.name]])
+  for (const f of plan.facts) for (const n of [f.subject, f.object]) if (n && apply.srcNames.has(normName(n))) mapped.set(normName(n), n.trim())
+
+  // The before-values of every re-pointed fact and the full source page, so the merge can be traced and undone by hand.
+  const auditId = audit('entity.merged', 'entity', dst.id, {
+    from: snapshot(src), into: dst.name, aliases_added: plan.aliases_added, fields_filled: plan.fields_filled, portrait: plan.portrait,
+    facts: plan.facts.map(f => ({ id: f.id, subject: f.subject, object: f.object })),
+    names_mapped: [...mapped.values()], conflicts_resolved: resolved.map(c => c.id), changes_stale: stale.map(c => c.id),
+  })
+
+  const why = `${src.name} was merged into ${dst.name}, so this is no longer a conflict.`
+  for (const c of resolved) {
+    d.prepare(`update conflicts set status = 'resolved_by_merge', decided_at = ?, decision_rationale = ?, decided_by = ?, merge_audit_id = ? where id = ?`)
+      .run(at, why, by, auditId, c.id)
+    audit('conflict.resolved_by_merge', 'conflict', c.id, { rule: c.rule, from: src.name, into: dst.name, merge_audit_id: auditId })
+  }
+  const staleNote = JSON.stringify({ audit_id: auditId, from: src.name, into: dst.name, at })
+  for (const c of stale) {
+    d.prepare('update changes set impact_stale = ? where id = ?').run(staleNote, c.id)
+    audit('impact.stale', 'change', c.id, { from: src.name, into: dst.name, merge_audit_id: auditId })
+  }
+  const remember = d.prepare(`insert into entity_merges (name_norm, name, entity_id, audit_id, merged_at, merged_by, project_id) values (?, ?, ?, ?, ?, ?, ?)
+    on conflict (project_id, name_norm) do update set name = excluded.name, entity_id = excluded.entity_id, audit_id = excluded.audit_id,
+    merged_at = excluded.merged_at, merged_by = excluded.merged_by`)
+  for (const [norm, name] of mapped) remember.run(norm, name, dst.id, auditId, at, by, pid())
+  // Names merged into src earlier now follow it into dst.
+  d.prepare('update entity_merges set entity_id = ?, audit_id = ?, merged_at = ?, merged_by = ? where project_id = ? and entity_id = ?').run(dst.id, auditId, at, by, pid(), src.id)
+
+  return {
+    audit_id: auditId, names_mapped: [...mapped.values()],
+    conflicts_resolved: resolved.map(c => ({ id: c.id, rule: c.rule, rationale: c.rationale })),
+    changes_stale: stale.map(c => ({ id: c.id, proposed_statement: c.proposed_statement })),
+  }
+}
+
+// The merge decision that maps `name` to another page, if one was made. Only merges write these; hand-typed aliases never do.
+export function mergedIdentity(name: string | null) {
+  if (!name) return null
+  const m = useDb().prepare(`select m.audit_id, m.merged_at, e.id entity_id, e.name into_name, u.name merged_by_name from entity_merges m
+    join entities e on e.id = m.entity_id left join users u on u.id = m.merged_by where m.project_id = ? and m.name_norm = ?`)
+    .get(pid(), normName(name)) as { audit_id: string, merged_at: string, entity_id: string, into_name: string, merged_by_name: string | null } | undefined
+  if (!m || normName(m.into_name) === normName(name)) return null
+  return { from: name, to: m.into_name, entity_id: m.entity_id, merged_at: m.merged_at, merged_by_name: m.merged_by_name, audit_id: m.audit_id }
+}
+export const identityOf = (f: { subject: string, object: string | null }) => (['subject', 'object'] as const)
+  .flatMap((role) => { const m = mergedIdentity(f[role]); return m ? [{ role, ...m }] : [] })
 
 export function savePortrait(id: string, data: Buffer) {
   mkdirSync(portraitDir(), { recursive: true })

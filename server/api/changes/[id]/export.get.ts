@@ -7,6 +7,7 @@ export default defineEventHandler((event) => {
   const items = JSON.parse(change.impact ?? '[]') as ImpactItem[]
   audit('export.created', 'change', id, { format, items: items.length })
   setHeader(event, 'content-disposition', `attachment; filename="impact-${id}.${format === 'md' ? 'md' : format}"`)
+  const stale = change.impact_stale ? 'Out of date: a merge changed what this may touch since the analysis ran. Re-run it before relying on this list.' : null
   const scope = { max_hops: 2, canonical_only: true, note: 'Items found within the scope; not a guarantee that nothing else is affected.' }
 
   if (format === 'csv') {
@@ -18,9 +19,9 @@ export default defineEventHandler((event) => {
   if (format === 'md') {
     setHeader(event, 'content-type', 'text/markdown; charset=utf-8')
     return [`# Impact manifest ${id}`, '', `**Before:** ${change.before_statement}`, '', `**Proposed:** ${change.proposed_statement}`, '',
-      `**Why:** ${change.rationale}`, '', `Status: ${change.status} · scope: accepted canon, max 2 hops. ${scope.note}`, '',
+      `**Why:** ${change.rationale}`, '', `Status: ${change.status} · scope: accepted canon, max 2 hops. ${scope.note}`, '', ...(stale ? [`**${stale}**`, ''] : []),
       '| Type | Item | Hops | Why | Confidence |', '|---|---|---|---|---|',
       ...items.map(i => `| ${i.target_type} | ${i.label.replaceAll('|', '\\|')} | ${i.hop_count} | ${i.rationale.replaceAll('|', '\\|')} | ${Math.round(i.confidence * 100)}% |`)].join('\n')
   }
-  return { change_id: id, status: change.status, before: change.before_statement, proposed: change.proposed_statement, rationale: change.rationale, scope, items }
+  return { change_id: id, status: change.status, before: change.before_statement, proposed: change.proposed_statement, rationale: change.rationale, scope, stale, items }
 })

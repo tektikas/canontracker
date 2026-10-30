@@ -66,6 +66,22 @@ async function decide(id: string, decision: 'accept' | 'reject' | 'revert') {
   refreshNuxtData('stats')
 }
 
+// A merge changed what a pending proposal may touch: the stored list is out of date until someone re-runs it.
+async function reanalyze(id: string) {
+  const s = state(id)
+  s.busy = true
+  s.error = ''
+  try {
+    await $fetch(`/api/changes/${id}/analyze`, { method: 'POST' })
+  } catch (e) {
+    s.error = errorMessage(e)
+    return
+  } finally {
+    s.busy = false
+  }
+  refresh()
+}
+
 const impacts = (c: Record<string, any>) => c.impact as any[]
 const scenes = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_type === 'scene')
 const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_type === 'fact')
@@ -107,7 +123,15 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
         <div class="small muted">Why: {{ c.rationale }}</div>
       </div>
 
-      <section class="impact">
+      <section class="impact" :class="{ stale: c.impact_stale }">
+        <div v-if="c.impact_stale && c.status === 'ready_for_review'" class="notice warn stale-note" role="status">
+          <UiIcon name="merge" :size="16" />
+          <span>
+            <b>Impact out of date.</b> {{ c.impact_stale.from }} was merged into {{ c.impact_stale.into }} after this analysis ran, so it may now touch other facts and scenes.
+            <NuxtLink :to="`/audit#${c.impact_stale.audit_id}`">See the merge</NuxtLink>
+          </span>
+          <UiButton v-if="editor" size="sm" :loading="state(c.id).busy" @click="reanalyze(c.id)">Re-run analysis</UiButton>
+        </div>
         <header class="spread">
           <div class="row"><UiBadge tone="pencil">Possible review impact</UiBadge><span class="small muted">{{ scenes(c).length }} scene{{ scenes(c).length === 1 ? '' : 's' }} to re-review</span></div>
           <div class="row small"><span class="muted">Export</span>
@@ -147,7 +171,7 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
         <div class="decide">
           <UiField label="3 · Decision rationale (required)" :error="state(c.id).error"><input v-model="state(c.id).rationale" type="text" placeholder="e.g. Impact list reviewed with the writers"></UiField>
           <div class="row">
-            <UiButton variant="primary" :disabled="state(c.id).busy || !state(c.id).rationale.trim()" @click="decide(c.id, 'accept')">Accept &amp; apply</UiButton>
+            <UiButton variant="primary" :disabled="state(c.id).busy || !state(c.id).rationale.trim() || !!c.impact_stale" :title="c.impact_stale ? 'Re-run the impact analysis first' : undefined" @click="decide(c.id, 'accept')">Accept &amp; apply</UiButton>
             <UiButton variant="danger" :disabled="state(c.id).busy || !state(c.id).rationale.trim()" @click="decide(c.id, 'reject')">Reject</UiButton>
           </div>
         </div>
@@ -181,6 +205,9 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
 .proposal.is-rejected, .proposal.is-reverted { border-left: 3px solid var(--line-strong); }
 .why { margin: 0; }
 .diff { display: grid; gap: var(--s-1); }
+.stale-note { align-items: center; flex-wrap: wrap; }
+.stale-note span { flex: 1 1 180px; }
+.impact.stale .items, .impact.stale .deps { opacity: .6; }
 .impact { border: 1px dashed var(--line-strong); border-radius: var(--r-md); padding: var(--s-3); display: grid; gap: var(--s-3); background: var(--surface); }
 .items { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
 .item { background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s-3); display: grid; gap: var(--s-2); min-width: 0; }

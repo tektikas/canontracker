@@ -64,7 +64,7 @@ export const MEDIA = {
   },
 } satisfies Record<string, { label: string, fields: Record<EntityKind, string[]> }>
 export type Medium = keyof typeof MEDIA
-export const mediumOf = (v: unknown): Medium => (typeof v === 'string' && v in MEDIA ? v as Medium : 'game')
+export const mediumOf = (v: unknown): Medium => (typeof v === 'string' && Object.hasOwn(MEDIA, v) ? v as Medium : 'game')
 
 // Whole-word, case-insensitive matcher for a set of names; longest first so "Leya Venn" wins over "Leya".
 export function mentionPattern(names: Iterable<string>) {
