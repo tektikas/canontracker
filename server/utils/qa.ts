@@ -4,7 +4,7 @@ const terms = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu)?.filter(t 
 const isTimeToken = (t: string) => t === 'day' || /^\d+$/.test(t)
 
 // Accepted canon only. No supporting facts -> unknown. Model offline -> sources only, never an invented answer.
-export async function askCanon(question: string, opts: { audit: boolean } = { audit: true }) {
+export async function askCanon(question: string, opts: { audit: boolean, retrievalOnly?: boolean } = { audit: true }) {
   const qTerms = [...new Set(terms(question))]
   const qWords = qTerms.filter(t => !isTimeToken(t))
   // ponytail: keyword overlap over canon facts; swap for FTS5 when canon grows past a few thousand facts
@@ -20,9 +20,12 @@ export async function askCanon(question: string, opts: { audit: boolean } = { au
   const model = modelInfo()
   const traceId = newId('trc')
 
+  let modelError: string | null = null
   let result: { status: 'supported' | 'source_only' | 'unknown', answer: string | null, cited: typeof scored[number]['fact'][] }
   if (!scored.length) {
     result = { status: 'unknown', answer: null, cited: [] }
+  } else if (opts.retrievalOnly) {
+    result = { status: 'source_only', answer: null, cited: scored.map(s => s.fact) }
   } else {
     try {
       const { answer, factIds } = await answerFromCanon(question, traceId, scored.map(s => s.fact))
@@ -30,11 +33,12 @@ export async function askCanon(question: string, opts: { audit: boolean } = { au
       result = answer && cited.length ? { status: 'supported', answer, cited }
         : model.mode === 'mock' ? { status: 'source_only', answer: null, cited: scored.map(s => s.fact) }
         : { status: 'unknown', answer: null, cited: [] }
-    } catch {
+    } catch (e) {
+      modelError = (e as Error).message
       result = { status: 'source_only', answer: null, cited: scored.map(s => s.fact) }
     }
   }
   if (opts.audit)
     audit('qa.asked', 'question', traceId, { question, status: result.status, fact_ids: result.cited.map(f => f.id), model_id: model.id })
-  return { question, ...result, model, trace_id: traceId }
+  return { question, ...result, model, trace_id: traceId, model_error: modelError }
 }

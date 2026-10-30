@@ -5,7 +5,6 @@ const route = useRoute()
 const { data: pending, refresh } = await useFetch('/api/facts', { query: { status: 'pending' } })
 const { data: rejected, refresh: refreshRejected } = await useFetch('/api/facts', { query: { status: 'rejected' } })
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
-const recorded = computed(() => stats.value?.model.mode === 'mock')
 
 // Decisions made on this visit. They leave the queue at once; the refresh that follows confirms it from the server.
 const decided = reactive<Record<string, 'accepted' | 'rejected'>>({})
@@ -194,10 +193,10 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
           <UiBadge :tone="lowConfidence(current) ? 'warn' : 'neutral'" :title="lowConfidence(current) ? 'Low model confidence: read the source closely' : 'Model confidence'">
             {{ percent(current.confidence) }} confidence
           </UiBadge>
-          <UiBadge v-if="recorded" tone="warn" title="Replayed from a recorded extraction, not a live model call">Recorded run</UiBadge>
+          <UiBadge v-if="isRecordedModel(current.model_id)" tone="warn" title="Replayed from a recorded extraction, not a live model call">Recorded demo run</UiBadge>
         </div>
       </header>
-      <p class="small faint model">Proposed by <span class="mono">{{ current.model_id }}</span></p>
+      <p class="small faint model">Proposed by {{ modelLabel(current.model_id) }}</p>
 
       <FactSummary v-if="mode !== 'edit'" :fact="current" />
 
