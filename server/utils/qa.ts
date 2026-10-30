@@ -20,6 +20,7 @@ export async function askCanon(question: string, opts: { audit: boolean } = { au
   const model = modelInfo()
   const traceId = newId('trc')
 
+  let modelError: string | null = null
   let result: { status: 'supported' | 'source_only' | 'unknown', answer: string | null, cited: typeof scored[number]['fact'][] }
   if (!scored.length) {
     result = { status: 'unknown', answer: null, cited: [] }
@@ -30,11 +31,12 @@ export async function askCanon(question: string, opts: { audit: boolean } = { au
       result = answer && cited.length ? { status: 'supported', answer, cited }
         : model.mode === 'mock' ? { status: 'source_only', answer: null, cited: scored.map(s => s.fact) }
         : { status: 'unknown', answer: null, cited: [] }
-    } catch {
+    } catch (e) {
+      modelError = (e as Error).message
       result = { status: 'source_only', answer: null, cited: scored.map(s => s.fact) }
     }
   }
   if (opts.audit)
     audit('qa.asked', 'question', traceId, { question, status: result.status, fact_ids: result.cited.map(f => f.id), model_id: model.id })
-  return { question, ...result, model, trace_id: traceId }
+  return { question, ...result, model, trace_id: traceId, model_error: modelError }
 }

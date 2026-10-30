@@ -2,7 +2,7 @@
 // Public landing page. Every example is real content from the Broken Tide demo, and the model note says what this instance actually runs.
 useHead({ title: 'Story Bible · Narrative canon and impact QA for game teams' })
 const me = useMe()
-const recorded = computed(() => me.value?.model.mode !== 'llama')
+const recorded = computed(() => me.value?.model.mode !== 'meta')
 
 const STEPS = [
   { title: 'Import', text: 'Bring lore docs and scene scripts as Markdown or text. Sources are hashed, versioned and never edited.' },
@@ -117,7 +117,7 @@ const TEAM = [
           <div>
             <h3>About the model</h3>
             <p v-if="recorded">
-              Story Bible is built on Meta Llama through the Llama API. This instance runs in <b>recorded mode</b>: extraction and model checks
+              Story Bible is built on the Meta Model API (Muse Spark). This instance runs in <b>recorded mode</b>: extraction and model checks
               replay a recorded run of the Broken Tide demo instead of calling the model live, and the app labels every recorded result as recorded.
               Your own files import and work normally, but get no model candidates until a live model is connected.
             </p>

@@ -20,9 +20,9 @@ export default defineNuxtConfig({
     },
   },
   runtimeConfig: {
-    modelMode: 'mock', // NUXT_MODEL_MODE=llama to call the Meta Llama API
-    modelId: '', // NUXT_MODEL_ID
-    llamaApiKey: '', // NUXT_LLAMA_API_KEY (LLM|<app_id>|<token>)
-    llamaBaseUrl: 'https://api.llama.com/compat/v1',
+    modelMode: 'mock', // NUXT_MODEL_MODE=meta to call the Meta Model API
+    modelId: 'muse-spark-1.3', // NUXT_MODEL_ID
+    metaApiKey: '', // NUXT_META_API_KEY, used as stored in pass
+    metaBaseUrl: 'https://api.meta.ai/v1',
   },
 })
