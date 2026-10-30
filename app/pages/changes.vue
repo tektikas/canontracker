@@ -11,7 +11,8 @@ const proposed = ref('')
 const rationale = ref('')
 const busy = ref(false)
 const error = ref('')
-watch(target, (t) => { proposed.value = t?.statement ?? '' }, { immediate: true })
+// The new wording starts empty, with the current wording shown above it; "Start from current wording" copies it in for a small edit.
+watch(target, () => { proposed.value = '' })
 
 const ui = reactive<Record<string, { rationale: string, error: string, busy: boolean }>>({})
 const state = (id: string) => (ui[id] ??= { rationale: '', error: '', busy: false })
@@ -100,11 +101,14 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
       </UiField>
       <template v-if="target">
         <div class="current"><span class="small muted">Current wording</span><div class="statement">{{ target.statement }}</div></div>
-        <UiField label="Proposed statement"><textarea v-model="proposed" rows="2" /></UiField>
+        <UiField label="New wording">
+          <textarea v-model="proposed" rows="2" placeholder="Write the fact as it should read" />
+        </UiField>
+        <div v-if="!proposed.trim()"><UiButton size="sm" @click="proposed = target.statement">Start from current wording</UiButton></div>
         <UiField label="Why (required)"><input v-model="rationale" type="text" placeholder="e.g. Make the memory rule conditional"></UiField>
       </template>
       <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
-      <div><UiButton variant="primary" type="submit" :loading="busy" :disabled="!target || !rationale.trim()">{{ busy ? 'Analyzing…' : 'Analyze impact' }}</UiButton></div>
+      <div><UiButton variant="primary" type="submit" :loading="busy" :disabled="!target || !proposed.trim() || !rationale.trim()">{{ busy ? 'Analyzing…' : 'Analyze impact' }}</UiButton></div>
     </form>
   </UiPanel>
 

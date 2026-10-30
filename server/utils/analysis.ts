@@ -87,6 +87,8 @@ export async function scanConflicts() {
       modelError = (e as Error).message
     }
   }
+  // A scan that finds nothing is still a result: Conflicts says when canon was last checked and how much of it.
+  audit('conflict.scan', 'project', pid(), { facts: facts.length, created, model_error: modelError })
   return { created, model_error: modelError }
 }
 

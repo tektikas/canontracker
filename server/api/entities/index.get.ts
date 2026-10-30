@@ -5,10 +5,12 @@ export default defineEventHandler(() => {
   const counts = new Map<string, number>()
   for (const f of facts) for (const n of new Set([normName(f.subject), normName(f.object)])) if (n) counts.set(n, (counts.get(n) ?? 0) + 1)
   return listEntities().map((e) => {
-    const names = new Set(namesOf(e).map(normName))
+    const all = namesOf(e)
+    const names = new Set(all.map(normName))
     return {
       id: e.id, name: e.name, kind: e.kind, summary: e.summary, aliases: aliasesOf(e), portrait: portraitUrl(e), origin: e.origin, updated_at: e.updated_at,
-      facts: [...names].reduce((n, k) => n + (counts.get(k) ?? 0), 0),
+      // Every name that links here (title, aliases, analysis name, merged names), for read-time mention links.
+      names: all, facts: [...names].reduce((n, k) => n + (counts.get(k) ?? 0), 0),
     }
   })
 })

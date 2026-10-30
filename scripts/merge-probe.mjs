@@ -142,6 +142,15 @@ check('no page re-filed for Lighthouse', (await a('/api/entities')).data.some(e 
 // analysis name and every name merged into it before moves along; titles and hand-typed aliases play no part.
 check('remove the Causeway alias', (await a(`/api/entities/${causeway.id}`, { method: 'PATCH', body: { aliases: [] } })).status, 200)
 check('no page re-filed for Causeway', (await a('/api/entities')).data.filter(e => e.name === 'Causeway').length, 0)
+// Client lookups (c11q #2, #3): after rename + alias removal the page still links under its analysis name and merged names;
+// merged names are reported apart from hand aliases.
+const listed = (await a('/api/entities')).data.find(e => e.id === causeway.id)
+check('list names keep the analysis name and the merged name', ['Causeway', 'Lighthouse'].every(n => listed.names.includes(n)), true)
+const pageNow = (await a(`/api/entities/${causeway.id}`)).data
+check('page lists Lighthouse as merged from, not as a hand alias', `${pageNow.merged_from.join()}|${pageNow.aliases.includes('Lighthouse')}`, 'Lighthouse|false')
+check('page reports its analysis name', pageNow.analysis_name, 'Causeway')
+const stats = (await a('/api/stats')).data
+check('stats report the last scan over current canon', stats.last_scan?.facts, stats.canon)
 const market = (await a('/api/entities')).data.find(e => e.name === 'Salt Market')
 const remerge = await a(`/api/entities/${causeway.id}/merge`, { method: 'POST', body: { into: market.id } })
 check('re-merge into Salt Market', remerge.status, 200)

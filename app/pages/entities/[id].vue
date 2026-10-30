@@ -5,6 +5,16 @@ const me = useMe()
 const { data: e, error: loadError, refresh } = await useFetch(() => `/api/entities/${route.params.id}`)
 useHead(() => ({ title: `${e.value?.name ?? 'Entity'} · Story Bible` }))
 const editable = computed(() => canEdit(me.value))
+const manager = computed(() => canManage(me.value))
+
+// Hand-typed aliases are edited here; names a merge mapped to this page are shown apart, and the name canon uses for it
+// when neither the title nor an alias still says it.
+const isMerged = (n: string) => !!e.value?.merged_from.some(m => normName(m) === normName(n))
+const handAliases = computed(() => e.value?.aliases.filter(a => !isMerged(a)) ?? [])
+const canonName = computed(() => {
+  const v = e.value
+  return v && ![v.name, ...v.aliases, ...v.merged_from].some(n => normName(n) === normName(v.analysis_name)) ? v.analysis_name : ''
+})
 
 // Tabs live in the URL so a writer can link straight to a character's relationships.
 const TABS = ['story', 'timeline', 'relationships', 'appearances', 'notes'] as const
@@ -48,7 +58,7 @@ const saving = ref(false)
 const saveError = ref('')
 function edit(s: Section) {
   if (!e.value) return
-  Object.assign(draft, { name: e.value.name, kind: e.value.kind, aliases: [...e.value.aliases], alias: '', summary: e.value.summary, fields: { ...e.value.fields }, notes: e.value.notes })
+  Object.assign(draft, { name: e.value.name, kind: e.value.kind, aliases: [...handAliases.value], alias: '', summary: e.value.summary, fields: { ...e.value.fields }, notes: e.value.notes })
   for (const k of fieldKeys.value) draft.fields[k] ??= ''
   saveError.value = ''
   editing.value = s
@@ -143,13 +153,25 @@ async function remove() {
     deleting.value = false
   }
 }
+// Tabs scroll sideways on narrow screens; a fade on the right says there are more.
+const tabScroller = ref<HTMLElement>()
+const moreTabs = ref(false)
+function tabOverflow() {
+  const el = tabScroller.value?.firstElementChild as HTMLElement | undefined
+  moreTabs.value = !!el && el.scrollLeft + el.clientWidth < el.scrollWidth - 2
+}
+onMounted(() => {
+  tabOverflow()
+  window.addEventListener('resize', tabOverflow)
+})
+onBeforeUnmount(() => window.removeEventListener('resize', tabOverflow))
 watch(() => route.params.id, () => {
   editing.value = ''
   panel.value = ''
 })
 
 // Appearances: this entity's own names marked inside each passage.
-const ownPattern = computed(() => (e.value ? mentionPattern([e.value.name, ...e.value.aliases]) : null))
+const ownPattern = computed(() => (e.value ? mentionPattern(e.value.names) : null))
 function marked(text: string) {
   const re = ownPattern.value
   if (!re) return [{ text, hit: false }]
@@ -192,6 +214,7 @@ const ago = (iso: string) => {
           <UiButton size="sm" icon="image" :loading="uploading" @click="fileInput?.click()">{{ e.portrait ? 'Replace' : 'Add portrait' }}</UiButton>
           <UiButton v-if="e.portrait" size="sm" variant="ghost" :disabled="uploading" @click="removePortrait">Remove</UiButton>
         </div>
+        <p v-if="portraitError" class="portrait-error" role="alert">{{ portraitError }}</p>
       </div>
       <div class="ident">
         <div class="row">
@@ -199,12 +222,15 @@ const ago = (iso: string) => {
           <UiBadge v-if="e.origin === 'canon'" title="Story Bible made this page because accepted canon names it. The kind is a guess; change it if it's wrong.">From canon</UiBadge>
         </div>
         <h1>{{ e.name }}</h1>
-        <p v-if="e.aliases.length" class="aliases">Also known as {{ e.aliases.join(', ') }}</p>
+        <p v-if="handAliases.length" class="aliases">Also known as {{ handAliases.join(', ') }}</p>
+        <p v-if="e.merged_from.length" class="merged small" title="A merge decided these are the same. Canon and mentions under these names link here.">
+          <UiIcon name="merge" :size="14" />Merged from {{ e.merged_from.join(', ') }}
+        </p>
+        <p v-if="canonName" class="merged small" title="The name accepted canon uses for this page. Mentions of it link here.">Canon calls it {{ canonName }}</p>
         <p class="meta small faint">
-          {{ counted(facts.length, 'canon fact') }} · in {{ counted(e.appearances.length, 'source') }}
+          {{ counted(facts.length, 'canon fact') }} · {{ e.appearances.length ? `appears in ${counted(e.appearances.length, 'document')}` : 'not mentioned in any source' }}
           <template v-if="e.updated_by"> · edited by {{ e.updated_by }} {{ ago(e.updated_at) }}</template>
         </p>
-        <p v-if="portraitError" class="field-error" role="alert">{{ portraitError }}</p>
       </div>
       <div v-if="editable" class="actions">
         <UiButton icon="review" @click="edit('details')">Edit</UiButton>
@@ -240,6 +266,9 @@ const ago = (iso: string) => {
             <UiButton size="sm" :disabled="!draft.alias.trim()" @click="addAlias">Add</UiButton>
           </div>
           <span class="field-hint">Other names canon or your scripts use. Mentions of them link here.</span>
+          <p v-if="e.merged_from.length" class="small muted merged-note">
+            <UiIcon name="merge" :size="14" /><span>Merged from <b>{{ e.merged_from.join(', ') }}</b>. A merge keeps these, so canon and mentions under them keep linking here.</span>
+          </p>
         </div>
         <p v-if="saveError" class="notice bad" role="alert">{{ saveError }}</p>
         <div class="row">
@@ -274,7 +303,9 @@ const ago = (iso: string) => {
       </div>
     </UiPanel>
 
-    <UiTabs v-model="tab" :items="tabs" class="page-tabs" />
+    <div ref="tabScroller" class="tab-scroller" :class="{ more: moreTabs }" @scroll.capture="tabOverflow">
+      <UiTabs v-model="tab" :items="tabs" />
+    </div>
 
     <!-- Story -->
     <div v-if="tab === 'story'" class="story-grid">
@@ -344,7 +375,10 @@ const ago = (iso: string) => {
             <dd v-else class="faint">—</dd>
           </div>
         </dl>
-        <p class="small faint medium">Fields for a {{ MEDIA[e.medium].label.toLowerCase() }} project. <NuxtLink to="/settings/projects">Change medium</NuxtLink></p>
+        <div class="medium">
+          <span class="small faint">Fields for a {{ MEDIA[e.medium].label.toLowerCase() }} project.</span>
+          <UiButton v-if="manager" size="sm" icon="settings" to="/settings/projects">Change medium</UiButton>
+        </div>
       </UiPanel>
     </div>
 
@@ -362,10 +396,10 @@ const ago = (iso: string) => {
     <!-- Appearances -->
     <template v-else-if="tab === 'appearances'">
       <UiEmptyState v-if="!e.appearances.length" title="Not mentioned in any source" icon="file">
-        No passage in the latest version of your sources mentions {{ e.name }}{{ e.aliases.length ? ' or its aliases' : '' }}.
+        No passage in the latest version of your sources mentions {{ e.name }}{{ e.names.length > 1 ? ' or its other names' : '' }}.
       </UiEmptyState>
       <div v-else class="stack apps">
-        <p class="small muted intro">Passages in your sources that mention {{ e.name }}{{ e.aliases.length ? ' or its aliases' : '' }}, found by name when you open this page. Open one to read it in place.</p>
+        <p class="small muted intro">Passages in your sources that mention {{ e.name }}{{ e.names.length > 1 ? ' or its other names' : '' }}, found by name when you open this page. Open one to read it in place.</p>
         <UiPanel v-for="d in e.appearances" :key="d.id" flush>
           <header class="app-head">
             <UiIcon name="file" :size="16" />
@@ -421,6 +455,11 @@ const ago = (iso: string) => {
 .ident h1 { margin: var(--s-1) 0 0; font-size: var(--text-2xl); line-height: 1.2; overflow-wrap: anywhere; }
 .ident .chip { gap: 5px; }
 .aliases { margin: 0; color: var(--muted); }
+.merged { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--muted); }
+.merged svg { flex: none; color: var(--faint); }
+.merged-note { margin: 0; display: flex; gap: 6px; align-items: flex-start; }
+.merged-note svg { flex: none; margin-top: 3px; color: var(--faint); }
+.portrait-error { margin: 0; max-width: 200px; font-size: var(--text-sm); font-weight: 500; color: var(--bad); text-align: center; }
 .meta { margin: 0; }
 .actions { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 .gap { margin-bottom: var(--s-5); }
@@ -435,7 +474,10 @@ const ago = (iso: string) => {
 .danger-panel { border-color: color-mix(in srgb, var(--bad) 35%, var(--line)); }
 .panel-title { margin: 0; font-size: var(--text-md); }
 .danger-panel p { margin: 0; max-width: 64ch; }
-.page-tabs { margin-bottom: var(--s-5); flex-wrap: wrap; overflow-x: visible; }
+.tab-scroller { position: relative; margin-bottom: var(--s-5); }
+.tab-scroller .tabs { margin-bottom: 0; }
+.tab-scroller::after { content: ""; position: absolute; top: 0; right: 0; bottom: 1px; width: 48px; pointer-events: none; background: linear-gradient(to right, transparent, var(--canvas) 85%); opacity: 0; transition: opacity var(--dur-1) var(--ease); }
+.tab-scroller.more::after { opacity: 1; }
 .story-grid { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: var(--s-4); align-items: start; }
 .main-col { gap: var(--s-4); }
 .summary { margin: 0; font-size: var(--text-md); line-height: 1.6; max-width: 68ch; white-space: pre-line; }
@@ -450,7 +492,8 @@ const ago = (iso: string) => {
 .fields { margin: 0; display: grid; gap: var(--s-3); }
 .fields dt { font-size: var(--text-xs); font-weight: 600; color: var(--faint); }
 .fields dd { margin: 2px 0 0; white-space: pre-line; overflow-wrap: anywhere; }
-.medium { margin: var(--s-4) 0 0; padding-top: var(--s-3); border-top: 1px solid var(--line); }
+.medium { display: grid; justify-items: start; gap: var(--s-2); margin: var(--s-4) 0 0; padding-top: var(--s-3); border-top: 1px solid var(--line); }
+.medium .btn { white-space: nowrap; }
 .intro { margin: 0; max-width: 72ch; }
 .app-head { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); background: var(--surface); }
 .app-head svg { color: var(--muted); }
@@ -476,6 +519,7 @@ const ago = (iso: string) => {
 @media (max-width: 720px) {
   .hero { gap: var(--s-3) var(--s-4); }
   .portrait { justify-items: start; }
+  .portrait-error { text-align: left; }
   .ident h1 { font-size: var(--text-xl); }
   .details-row { grid-template-columns: 1fr; }
   .p-link { grid-template-columns: 30px 1fr; gap: var(--s-2); padding: var(--s-3); }

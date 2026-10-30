@@ -27,6 +27,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'candidate.corrected_and_accepted': return [`${who} corrected and accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
     case 'candidate.rejected': return [`${who} rejected a candidate: ${q(d.statement)}`, because(d)]
     case 'conflict.detected': return [`Scan found a possible conflict (${String(d.rule).replaceAll('_', ' ').toLowerCase()})`, 'Awaiting a human decision']
+    case 'conflict.scan': return [`${who} scanned canon for conflicts`, `${d.facts} canon facts checked, ${d.created} new ${d.created === 1 ? 'candidate' : 'candidates'}${d.model_error ? ' · world-rule check failed' : ''}`]
     case 'conflict.confirmed': return [`${who} confirmed a conflict`, because(d)]
     case 'conflict.false_positive': return [`${who} marked a conflict as a false alarm`, because(d)]
     case 'conflict.uncertain': return [`${who} marked a conflict as uncertain`, because(d)]
@@ -65,7 +66,7 @@ const TONE: Record<string, 'accent' | 'good' | 'bad' | 'warn' | 'pencil' | 'neut
 // Short ID plus a link where a page exists; pages have no per-item anchors, so links go to the list.
 function target(e: { event_type: string, target_type: string, target_id: string }) {
   const t = e.target_type
-  const to = t === 'entity' ? (e.event_type === 'entity.deleted' ? '' : `/entities/${e.target_id}`) : t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' ? '/conflicts' : t === 'change' ? '/changes'
+  const to = t === 'entity' ? (e.event_type === 'entity.deleted' ? '' : `/entities/${e.target_id}`) : t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' || e.event_type === 'conflict.scan' ? '/conflicts' : t === 'change' ? '/changes'
     : t === 'fact' ? (e.event_type.startsWith('candidate.') ? '/review' : '/canon') : ''
   // Ids already carry a type prefix ("fact_d0e…", "trc_e02c…"): drop it and label the thing in words.
   const short = e.target_id.replace(/^[a-z]+_/, '').slice(0, 6)

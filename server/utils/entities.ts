@@ -13,8 +13,11 @@ export const aliasesOf = (e: EntityRow) => JSON.parse(e.aliases) as string[]
 export const fieldsOf = (e: EntityRow) => JSON.parse(e.fields) as Record<string, string>
 // The name analysis knows a page by. Stored once and never recalculated; a hand-made page nothing has pinned yet uses its title.
 export const analysisName = (e: EntityRow) => e.analysis_name ?? e.name
-// Every name that links to the page: title, aliases and the analysis name (which a rename or alias edit may have dropped).
-export const namesOf = (e: EntityRow) => [...new Map([e.name, ...aliasesOf(e), analysisName(e)].map(n => [normName(n), n])).values()]
+// Names merged into this page: a merge decision made them this entity's, so they link here like aliases but aren't edited as such.
+export const mergedFrom = (e: EntityRow) => mergeRows()
+  .filter(m => normName(m.canonical) === normName(analysisName(e)) && m.name_norm !== normName(analysisName(e))).map(m => m.name)
+// Every name that links to the page: title, aliases, the analysis name (which a rename or alias edit may have dropped) and merged names.
+export const namesOf = (e: EntityRow) => [...new Map([e.name, ...aliasesOf(e), analysisName(e), ...mergedFrom(e)].map(n => [normName(n), n])).values()]
 export const portraitUrl = (e: EntityRow) => (e.portrait_type ? `/api/entities/${e.id}/portrait?v=${encodeURIComponent(e.portrait_at ?? '')}` : null)
 
 export const portraitDir = () => join('.data', 'portraits', pid())
@@ -137,7 +140,8 @@ export const snapshot = (e: EntityRow) => ({
 })
 
 // Merging `src` into `dst`: canon and pending facts naming src's analysis name, or a name merged into src earlier, are
-// re-pointed at dst's analysis name (titles and hand-typed aliases never decide this); src's names become dst aliases;
+// re-pointed at dst's analysis name (titles and hand-typed aliases never decide this); those names become dst's merged names
+// and src's other names (title, hand aliases) become dst aliases;
 // empty dst fields are filled from src; src's summary and notes are appended to dst's notes. Rejected and superseded facts
 // keep their original wording as history (the new aliases still link them to dst).
 export function planMerge(src: EntityRow, dst: EntityRow) {
@@ -151,8 +155,9 @@ export function planMerge(src: EntityRow, dst: EntityRow) {
     .filter(f => moved.has(normName(f.subject)) || moved.has(normName(f.object)))
   const aliases = [...aliasesOf(dst)]
   const added: string[] = []
+  // Names the merge maps (src's analysis name and names merged into it) link to dst as merged names, not hand aliases.
   for (const n of namesOf(src)) {
-    if (normName(n) === normName(dst.name) || aliases.some(a => normName(a) === normName(n))) continue
+    if (moved.has(normName(n)) || normName(n) === normName(dst.name) || aliases.some(a => normName(a) === normName(n))) continue
     aliases.push(n)
     added.push(n)
   }
@@ -167,6 +172,8 @@ export function planMerge(src: EntityRow, dst: EntityRow) {
   return {
     source: { id: src.id, name: src.name, kind: src.kind },
     target: { id: dst.id, name: dst.name, kind: dst.kind }, canonical,
+    // Both pages carrying their own canon is a sign they may be two different things; the preview warns about it.
+    source_canon: facts.filter(f => f.status === 'canon').length, target_canon: factsAbout(dst).length,
     facts, aliases_added: added, fields_filled: filled, summary_taken: !dst.summary && !!src.summary, notes_added: !!carried, portrait,
     apply: { aliases, fields, summary, notes, moved },
   }

@@ -2,6 +2,8 @@
 // Viewers read only; the server refuses their writes too (server/middleware/access.ts).
 const editor = computed(() => canEdit(useMe().value))
 const { data: conflicts, refresh } = await useFetch('/api/conflicts')
+const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
+const since = (iso: string) => new Date(iso).toLocaleString('en', { dateStyle: 'medium', timeStyle: 'short' })
 const scanning = ref(false)
 const scanMsg = ref('')
 const scanError = ref('')
@@ -70,8 +72,17 @@ async function decide(id: string, decision: string) {
   <p v-if="scanMsg" class="notice info" role="status">{{ scanMsg }}</p>
   <p v-if="scanError" class="notice warn" role="alert">{{ scanError }}</p>
 
-  <UiEmptyState v-if="!conflicts?.length" title="No conflict candidates yet" icon="conflicts">
-    Accept some canon, then scan.
+  <UiEmptyState v-if="!conflicts?.length && !stats?.canon" title="No canon to check yet" icon="conflicts">
+    Conflicts are found in accepted canon. Accept candidates in Review, then scan.
+    <template #actions><UiButton variant="primary" to="/review">Review candidates</UiButton></template>
+  </UiEmptyState>
+  <UiEmptyState v-else-if="!conflicts?.length && stats?.last_scan" title="No conflicts found" icon="check">
+    The last scan checked {{ counted(stats.last_scan.facts, 'canon fact') }} on {{ since(stats.last_scan.at) }}.
+    <template v-if="stats.canon !== stats.last_scan.facts">Canon has {{ stats.canon }} facts now; scan again to check them.</template>
+    <template v-if="editor" #actions><UiButton :loading="scanning" @click="scan">Scan again</UiButton></template>
+  </UiEmptyState>
+  <UiEmptyState v-else-if="!conflicts?.length" title="Not scanned yet" icon="conflicts">
+    Scan {{ counted(stats?.canon ?? 0, 'canon fact') }} for timing, travel and relationship conflicts.
     <template v-if="editor" #actions><UiButton variant="primary" :loading="scanning" @click="scan">Scan canon</UiButton></template>
   </UiEmptyState>
 

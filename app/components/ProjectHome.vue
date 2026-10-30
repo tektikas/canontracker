@@ -69,13 +69,18 @@ const next = computed(() => {
     case 'import': return editor.value
       ? { title: 'Add your lore and scenes', text: admin.value ? 'Load the demo set or import Markdown and text files. Sources are stored read-only.' : 'Import Markdown and text files. Sources are stored read-only.' }
       : { title: 'No sources yet', text: 'An editor on your team imports lore and scenes. You will see them here as soon as they do.' }
-    case 'review': return { title: `Review ${s?.pending} ${plural(s?.pending ?? 0, 'candidate')}`, text: 'The model proposed these facts with a quote. Nothing becomes canon until you accept it.', to: '/review', action: 'Start review' }
+    case 'review': return editor.value
+      ? { title: `Review ${s?.pending} ${plural(s?.pending ?? 0, 'candidate')}`, text: 'The model proposed these facts with a quote. Nothing becomes canon until you accept it.', to: '/review', action: 'Start review' }
+      : { title: `${s?.pending} ${plural(s?.pending ?? 0, 'candidate')} waiting for review`, text: 'The model proposed these facts with a quote. An editor on your team decides which become canon.', to: '/review', action: 'See candidates' }
     case 'canon': return s?.rejected
       ? { title: 'Nothing is canon yet', text: 'Every candidate was rejected. Import more sources or check the rejected list.', to: '/review', action: 'Open review' }
       : { title: 'Nothing is canon yet', text: 'No candidates were extracted. Check the import results, or import more sources.', to: '#sources', action: 'Add sources' }
     // only reachable with open conflicts: zero open is `done` or `skip`
-    case 'conflicts': return { title: `Decide on ${s?.open_conflicts} possible ${plural(s?.open_conflicts ?? 0, 'conflict')}`, text: 'Each one is a candidate for you to confirm or dismiss. Deciding never edits canon.', to: '/conflicts', action: 'Resolve conflicts' }
-    case 'changes': return { title: 'Propose a canon change', text: 'See which facts and scenes a change would touch, up to two hops away, before it reaches a build.', to: '/changes', action: 'Propose a change' }
+    case 'conflicts': return editor.value
+      ? { title: `Decide on ${s?.open_conflicts} possible ${plural(s?.open_conflicts ?? 0, 'conflict')}`, text: 'Each one is a candidate for you to confirm or dismiss. Deciding never edits canon.', to: '/conflicts', action: 'Resolve conflicts' }
+      : { title: `${s?.open_conflicts} possible ${plural(s?.open_conflicts ?? 0, 'conflict')} open`, text: 'An editor on your team confirms or dismisses each one. Deciding never edits canon.', to: '/conflicts', action: 'View conflicts' }
+    case 'changes': if (!editor.value) return { title: 'No change proposals yet', text: 'When an editor proposes a canon change, its impact shows up on Changes. Meanwhile, ask canon a question.', to: '/ask', action: 'Ask canon' }
+      return { title: 'Propose a canon change', text: 'See which facts and scenes a change would touch, up to two hops away, before it reaches a build.', to: '/changes', action: 'Propose a change' }
     case 'metrics': return { title: 'Measure the run', text: 'Score extraction, conflicts and impact against the gold set.', to: '/metrics', action: 'Open metrics' }
     default: return { title: 'Canon is up to date', text: 'Nothing is waiting on you. Ask canon a question or check the audit log.', to: '/ask', action: 'Ask canon' }
   }

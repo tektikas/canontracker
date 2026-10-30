@@ -2,7 +2,7 @@
 // Everything canon links this entity to, grouped the way a writer thinks about it (family, allies, places…).
 // Each line opens to the facts behind it, with their sources. Grouping is presentation only; the facts are unchanged.
 type Fact = Record<string, any>
-const props = defineProps<{ entity: { name: string, aliases: string[], facts: Fact[] }, editable?: boolean }>()
+const props = defineProps<{ entity: { name: string, names: string[], facts: Fact[] }, editable?: boolean }>()
 const lookup = useEntityLookup()
 
 const GROUPS = [
@@ -29,7 +29,7 @@ function groupOf(predicate: string, otherKind: string | undefined): Group {
   return 'other'
 }
 
-const names = computed(() => new Set([props.entity.name, ...props.entity.aliases].map(normName)))
+const names = computed(() => new Set(props.entity.names.map(normName)))
 const known = computed(() => props.entity.facts.flatMap(f => [f.subject, f.object]).filter(Boolean))
 const groups = computed(() => {
   const rows = new Map<string, { group: Group, subject: string, object: string, label: string, mine: 'subject' | 'object', facts: Fact[] }>()

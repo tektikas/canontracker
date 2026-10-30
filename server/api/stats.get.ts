@@ -2,6 +2,10 @@ export default defineEventHandler(() => {
   const db = useDb()
   // every query below filters on the current project
   const count = (sql: string) => (db.prepare(sql).get(pid()) as { n: number }).n
+  const lastScan = () => {
+    const r = db.prepare(`select created_at, detail from audit_events where project_id = ? and event_type = 'conflict.scan' order by rowid desc limit 1`).get(pid()) as { created_at: string, detail: string } | undefined
+    return r ? { at: r.created_at, facts: (JSON.parse(r.detail) as { facts: number }).facts } : null
+  }
   return {
     model: modelInfo(),
     data_model_id: dataModelIds(),
@@ -13,5 +17,6 @@ export default defineEventHandler(() => {
     open_conflicts: count(`select count(*) n from conflicts where project_id = ? and status = 'open'`),
     changes: count('select count(*) n from changes where project_id = ?'),
     audit_events: count('select count(*) n from audit_events where project_id = ?'),
+    last_scan: lastScan(),
   }
 })

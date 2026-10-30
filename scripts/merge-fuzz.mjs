@@ -1,14 +1,18 @@
 // Seeded random merge-identity sequence against a running server:
-//   node scripts/merge-fuzz.mjs <baseUrl> <path to the server's .data/storybible.db> [seed] [steps]
-// Loads the demo into a throwaway account, then renames pages, adds/removes aliases, merges, re-imports scenes and accepts
-// candidates in random order. After every step it asserts that analysis follows the merge decisions and nothing else:
-// canon never names a merged-away name, every mapping points at a live entity's analysis name, analysis names never change,
+//   node scripts/merge-fuzz.mjs <baseUrl> <path to the server's .data/storybible.db> [seed] [steps] [--uncapped]
+// Loads the demo into a throwaway account, then creates/deletes pages by hand, renames pages, adds/removes aliases, merges,
+// re-imports scenes and accepts candidates in random order. --uncapped lets merges run until one page is left (by default
+// they stop at 5). After every step it asserts that analysis follows the merge decisions and nothing else:
+// canon never names a merged-away name, every mapping is terminal (its target is a live entity's analysis name, or a
+// canonical name whose page was deleted, which then stays as it is until a merge moves it), analysis names never change,
 // a scan raises no location conflict between two names of one identity, and travel-rule impact reaches every fact of its
 // identities. The database is opened read-only to see entity_merges and analysis_name, which no route exposes.
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 
-const [base = 'http://localhost:3000', dbPath = '.data/storybible.db', seedArg, stepsArg] = process.argv.slice(2)
+const argv = process.argv.slice(2)
+const uncapped = argv.includes('--uncapped')
+const [base = 'http://localhost:3000', dbPath = '.data/storybible.db', seedArg, stepsArg] = argv.filter(a => a !== '--uncapped')
 const seed = Number(seedArg ?? Date.now() % 1e9)
 const steps = Number(stepsArg ?? 200)
 const run = `${seed.toString(36)}-${Date.now().toString(36)}`
@@ -62,9 +66,14 @@ async function checkInvariants(step, action) {
   // Mappings are terminal and point at a live entity's analysis name.
   const identities = new Map(ents.map(e => [norm(e.analysis_name ?? e.name), e]))
   assert.equal(identities.size, ents.length, 'two pages share one analysis name')
+  // A target without a live page is allowed only after that page was deleted (the mapping table is then unchanged, checked
+  // below); canon must not name the target under some other page's identity.
   for (const [from, to] of m) {
     assert.ok(!m.has(norm(to)), `mapping ${from} → ${to} points at a merged-away name`)
-    assert.ok(identities.has(norm(to)), `mapping ${from} → ${to} points at no live identity`)
+    if (!identities.has(norm(to))) {
+      for (const e of ents) for (const n of [e.name, ...JSON.parse(e.aliases)])
+        assert.ok(norm(n) !== norm(to) || norm(e.analysis_name ?? e.name) === norm(to), `mapping target "${to}" has no page but is a name of ${e.name}`)
+    }
   }
   for (const id of identities.keys()) assert.ok(!m.has(id), `live identity "${id}" is also mapped away`)
   // Mappings only change on a merge; a stored analysis name never changes.
@@ -73,6 +82,15 @@ async function checkInvariants(step, action) {
   for (const e of ents) {
     if (pinned.has(e.id)) assert.equal(e.analysis_name, pinned.get(e.id), `analysis name of ${e.id} changed`)
     else if (e.analysis_name !== null) pinned.set(e.id, e.analysis_name)
+  }
+  // Client lookups (mentions, relationships) get every linking name: the analysis name and the names merged into it.
+  const listed = new Map((await api('/api/entities')).data.map(e => [e.id, new Set(e.names.map(norm))]))
+  for (const e of entityRows()) {
+    const names = listed.get(e.id)
+    if (!names) continue // filed by this very list call
+    const id = norm(e.analysis_name ?? e.name)
+    assert.ok(names.has(id), `list names of ${e.name} miss its analysis name "${id}"`)
+    for (const [from, to] of m) if (norm(to) === id) assert.ok(names.has(from), `list names of ${e.name} miss merged name "${from}"`)
   }
   // A scan raises no location conflict between two names of one identity.
   ok(await api('/api/conflicts/scan', { method: 'POST' }), 'scan')
@@ -104,9 +122,18 @@ const actions = {
     aliases.splice(Math.floor(rand() * aliases.length), 1)
     return ok(await api(`/api/entities/${e.id}`, { method: 'PATCH', body: { aliases } }), `unalias ${e.name}`, [200, 409])
   },
+  async create() {
+    const name = rand() < 0.4 ? pick([...lastMerges.keys(), ...lastMerges.values(), ...entityRows().map(x => x.name)]) : `Hand ${Math.floor(rand() * 1e6)}`
+    return ok(await api('/api/entities', { method: 'POST', body: { name, kind: pick(['character', 'location', 'item', 'faction', 'other']) } }), `create ${name}`, [200, 409])
+  },
+  async remove() {
+    const e = pick(entityRows())
+    if (!e) return { status: 'skip' }
+    return ok(await api(`/api/entities/${e.id}`, { method: 'DELETE' }), `delete ${e.name}`, [200, 409])
+  },
   async merge() {
     const ents = entityRows()
-    if (ents.length <= 5) return { status: 'skip' } // keep a few identities apart so conflicts and impact stay meaningful
+    if (ents.length <= (uncapped ? 1 : 5)) return { status: 'skip' } // by default keep a few identities apart so conflicts and impact stay meaningful
     // Mostly places, so conflicts and travel impact are at stake.
     const places = new Set(q(`select object from facts where project_id = ? and status = 'canon' and predicate in ('located_at', 'travel_time')`, project.id).map(f => norm(f.object)))
     const pool = rand() < 0.7 ? ents.filter(e => places.has(norm(e.analysis_name ?? e.name))) : ents
@@ -129,7 +156,7 @@ const actions = {
     return ok(await api(`/api/facts/${f.id}/review`, { method: 'POST', body: { decision: 'accept' } }), `accept ${f.statement}`)
   },
 }
-const weights = [['rename', 3], ['addAlias', 2], ['removeAlias', 2], ['merge', 3], ['reimport', 2], ['accept', 3]]
+const weights = [['rename', 3], ['addAlias', 2], ['removeAlias', 2], ['create', 2], ['remove', 2], ['merge', 3], ['reimport', 2], ['accept', 3]]
 const total = weights.reduce((a, [, w]) => a + w, 0)
 
 let step = 0
@@ -151,4 +178,4 @@ try {
 }
 console.log(Object.entries(counts).sort().map(([k, v]) => `${k}: ${v}`).join(', '))
 console.log(`merges recorded: ${lastMerges.size}; entities left: ${entityRows().length}`)
-console.log(`all ${steps} steps passed, seed ${seed}`)
+console.log(`all ${steps} steps passed, seed ${seed}${uncapped ? ' (uncapped)' : ''}`)
