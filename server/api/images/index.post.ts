@@ -14,14 +14,26 @@ export default defineEventHandler(async (event) => {
   if (!Number.isInteger(n) || n < 1 || n > 4) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: 'Make 1 to 4 images at a time.' })
 
   const sent = composeImagePrompt(prompt, style, access().project.art_style)
-  const results = await generateImages(sent, n, target)
+  const { images: results } = await generateImages(sent, n, target)
+  // Generation takes a while: the page may have been deleted, merged away or reset meanwhile. Check again; from here to the
+  // end nothing awaits, so no other request can change the target before the rows are in.
+  try {
+    imageTarget(target.type, target.id)
+  } catch {
+    throw createError({ statusCode: 409, statusMessage: 'TARGET_GONE', message: `“${target.name}” was deleted, merged or reset while the image was being made. Nothing was saved.` })
+  }
   const at = now()
   const ids = results.map(() => newId('img'))
-  results.forEach((r, i) => savePortrait(ids[i]!, r.bytes))
-  tx(() => {
-    const insert = useDb().prepare('insert into images values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?)')
-    results.forEach((r, i) => insert.run(ids[i]!, target.type, target.id, sent, style, model.id, r.type, r.bytes.length, at, access().user.id, pid()))
-    audit('image.generated', target.type, target.id, { name: target.name, images: ids, model: model.id, style, prompt: sent })
-  })
+  try {
+    results.forEach((r, i) => savePortrait(ids[i]!, r.bytes))
+    tx(() => {
+      const insert = useDb().prepare('insert into images values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?)')
+      results.forEach((r, i) => insert.run(ids[i]!, target.type, target.id, sent, style, model.id, r.type, r.bytes.length, at, access().user.id, pid()))
+      audit('image.generated', target.type, target.id, { name: target.name, images: ids, model: model.id, style, prompt: sent })
+    })
+  } catch (e) {
+    ids.forEach(removePortrait)
+    throw e
+  }
   return listImages(target.type, target.id).filter(i => ids.includes(i.id))
 })

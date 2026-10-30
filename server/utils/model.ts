@@ -134,31 +134,54 @@ Only list facts that cannot be true if the rule holds as written. Being related 
 }
 
 // Muse Image via the OpenAI-style images endpoint. The success shape is not documented yet, so both data[].b64_json and
-// data[].url are accepted; URLs are downloaded and stored, never hot-linked. Anything that isn't a raster image fails loudly.
+// data[].url are accepted; URLs are downloaded (safely, see downloadImage) and stored, never hot-linked. Anything that isn't
+// a raster image fails loudly. One deadline covers the API call, its body and every download.
 const MAX_IMAGE_BYTES = 20_000_000
+const MAX_B64_CHARS = Math.ceil(MAX_IMAGE_BYTES / 3) * 4
+const MAX_API_BYTES = 4 * (MAX_B64_CHARS + 1024) + 65_536
+const IMAGE_DEADLINE_MS = 150_000
 export function generateImages(prompt: string, n: number, target: { type: string, id: string }) {
   const { metaBaseUrl, imageModelId } = useRuntimeConfig()
   const bad = (why: string) => createError({ statusCode: 502, statusMessage: 'MODEL_BAD_OUTPUT', message: `Image generation failed: ${why}. No image was saved.` })
   return traced('image', target, [target.id], async () => {
-    const res = await $fetch<{ data?: { b64_json?: string, url?: string }[] }>(`${metaBaseUrl}/images/generations`, {
-      method: 'POST',
-      timeout: 120_000,
-      headers: { Authorization: `Bearer ${apiKey()}` },
-      body: { model: imageModelId, prompt, n },
-    }).catch((e) => { throw apiFailure(e, 'Image generation failed', 'No image was saved.') })
-    if (!Array.isArray(res?.data) || !res.data.length) throw bad('Muse Image returned no images')
-    return Promise.all(res.data.map(async (d) => {
-      let bytes: Buffer
-      if (typeof d?.b64_json === 'string') bytes = Buffer.from(d.b64_json, 'base64')
-      else if (typeof d?.url === 'string' && /^https?:\/\//.test(d.url)) {
-        const raw = await $fetch<ArrayBuffer>(d.url, { responseType: 'arrayBuffer', timeout: 60_000 })
-          .catch((e) => { throw bad(`could not download the image (${e.statusCode ?? e.message})`) })
-        bytes = Buffer.from(raw)
-      } else throw bad('the response had neither b64_json nor a URL')
-      if (bytes.length > MAX_IMAGE_BYTES) throw bad('the image is larger than 20 MB')
-      const type = imageType(bytes)
-      if (!type) throw bad('the response was not a PNG, JPEG, WebP or GIF image')
-      return { bytes, type }
-    }))
-  }, r => plural(r.length, 'image'), imageModelId)
+    const deadline = new AbortController()
+    const timer = setTimeout(() => deadline.abort(new DOMException('Image generation timed out', 'TimeoutError')), IMAGE_DEADLINE_MS)
+    const timedOut = () => deadline.signal.aborted
+    try {
+      const res = await fetchCapped(`${metaBaseUrl}/images/generations`, {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${apiKey()}`, 'content-type': 'application/json' },
+        body: JSON.stringify({ model: imageModelId, prompt, n }),
+      }, MAX_API_BYTES, deadline.signal).catch((e) => {
+        if (e instanceof FetchRefused) throw bad(e.message)
+        throw apiFailure(timedOut() ? { name: 'TimeoutError', message: 'timeout' } : e, 'Image generation failed', 'No image was saved.')
+      })
+      let json: { data?: { b64_json?: unknown, url?: unknown }[], error?: { code?: string, message?: string }, detail?: string } | null = null
+      try {
+        json = JSON.parse(res.body.toString('utf8'))
+      } catch { /* judged below */ }
+      if (res.status < 200 || res.status >= 300)
+        throw apiFailure({ statusCode: res.status, data: json ?? undefined, message: `HTTP ${res.status}` }, 'Image generation failed', 'No image was saved.')
+      if (!json) throw bad('Muse Image did not return JSON')
+      if (!Array.isArray(json.data) || !json.data.length) throw bad('Muse Image returned no images')
+      const images = await Promise.all(json.data.slice(0, n).map(async (d) => {
+        let bytes: Buffer
+        if (typeof d?.b64_json === 'string') {
+          if (d.b64_json.length > MAX_B64_CHARS) throw bad('the image is larger than 20 MB')
+          bytes = Buffer.from(d.b64_json, 'base64')
+        } else if (typeof d?.url === 'string') {
+          bytes = await downloadImage(d.url, MAX_IMAGE_BYTES, deadline.signal).catch((e) => {
+            throw bad(timedOut() ? 'the image download timed out' : `could not download the image (${e.message})`)
+          })
+        } else throw bad('the response had neither b64_json nor a URL')
+        const type = imageType(bytes)
+        if (!type) throw bad('the response was not a PNG, JPEG, WebP or GIF image')
+        return { bytes, type }
+      }))
+      return { images, extra: json.data.length - images.length }
+    } finally {
+      clearTimeout(timer)
+      deadline.abort() // stops any download still running after a sibling failed
+    }
+  }, r => `${plural(r.images.length, 'image')}${r.extra > 0 ? ` (Muse Image returned ${r.extra} more than asked; not kept)` : ''}`, imageModelId)
 }

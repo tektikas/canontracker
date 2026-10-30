@@ -1,8 +1,11 @@
 // QA ONLY. A local stand-in for POST /images/generations so the success path can be tested without a funded key:
 //   node scripts/image-stub.mjs 3531
 //   NUXT_MODEL_MODE=meta NUXT_META_API_KEY=stub NUXT_META_BASE_URL=http://localhost:3531 pnpm dev
-// Returns obvious test-pattern PNGs (not real model output). Prompt "stub:url" answers with data[].url, "stub:402" with
-// billing_not_configured, "stub:junk" with a non-image payload. Chat calls (demo load in meta mode) replay the recorded
+// Returns obvious test-pattern PNGs (not real model output). Prompt markers: "stub:url" answers with a public https
+// data[].url (httpbingo.org test PNG, needs internet), "stub:loopback" with an https URL on this machine (must be refused),
+// "stub:redirect" with a public redirect to this machine (must be refused), "stub:402" with billing_not_configured,
+// "stub:junk" with a non-image payload, "stub:many" with 6 images whatever n is, "stub:big" with a 30 MB body,
+// "stub:slow" waits 6 s before answering, "stub:trickle" sends headers and then one byte a second for 10 minutes. Chat calls (demo load in meta mode) replay the recorded
 // Broken Tide extraction so a test project has candidates; rule checks and answers come back empty.
 import { createServer } from 'node:http'
 import { readFileSync, readdirSync } from 'node:fs'
@@ -53,10 +56,18 @@ createServer((req, res) => {
     if (unknown.length) return send(400, { error: { code: 'unknown_parameter', message: `unknown parameter: ${unknown[0]}` } })
     if (body.prompt?.includes('stub:402')) return send(402, { error: { code: 'billing_not_configured', message: 'Billing is not configured.' } })
     if (body.prompt?.includes('stub:junk')) return send(200, { data: [{ b64_json: Buffer.from('not an image').toString('base64') }] })
-    const n = Math.max(1, Math.min(4, body.n ?? 1))
-    const data = Array.from({ length: n }, (_, i) => body.prompt?.includes('stub:url')
-      ? { url: `http://localhost:${port}/files/${i}` }
+    if (body.prompt?.includes('stub:big')) return send(200, `{"data":[{"b64_json":"${'A'.repeat(30_000_000)}"}]}`, 'text/plain')
+    if (body.prompt?.includes('stub:trickle')) {
+      res.writeHead(200, { 'content-type': 'application/json' })
+      const t = setInterval(() => res.write(' '), 1000)
+      return res.on('close', () => clearInterval(t))
+    }
+    const n = body.prompt?.includes('stub:many') ? 6 : Math.max(1, Math.min(4, body.n ?? 1))
+    const local = `https://127.0.0.1:${port}/files/0`
+    const data = Array.from({ length: n }, (_, i) => body.prompt?.includes('stub:url') ? { url: 'https://httpbingo.org/image/png' }
+      : body.prompt?.includes('stub:loopback') ? { url: local }
+      : body.prompt?.includes('stub:redirect') ? { url: `https://postman-echo.com/redirect-to?url=${encodeURIComponent(local)}` }
       : { b64_json: png(i).toString('base64') })
-    setTimeout(() => send(200, { created: Math.floor(Date.now() / 1000), data }), 1500)
+    setTimeout(() => send(200, { created: Math.floor(Date.now() / 1000), data }), body.prompt?.includes('stub:slow') ? 6000 : 1500)
   })
 }).listen(port, () => console.log(`image stub on http://localhost:${port}`))

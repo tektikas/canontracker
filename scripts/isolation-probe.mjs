@@ -1,8 +1,13 @@
-// Studio isolation + role probe against a running dev server: node scripts/isolation-probe.mjs [baseUrl]
+// Studio isolation + role probe against a running dev server: node scripts/isolation-probe.mjs [baseUrl] [dataDir]
 // Creates throwaway accounts (unique emails per run) and asserts that one studio can't read or write another's data.
+// With dataDir (the server's .data folder, read only) the image checks also look at stored rows and files.
 import assert from 'node:assert/strict'
+import { existsSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
+const dataDir = process.argv[3]
 const run = Date.now().toString(36)
 
 function client() {
@@ -50,6 +55,34 @@ if (imgA) {
   check('A generates an image', gen.status, 200)
   check('A reads own generated image', (await a(`/api/images/${imgA.id}`)).status, 200)
   check('A applies it as portrait', (await a(`/api/images/${imgA.id}/apply`, { method: 'POST' })).status, 200)
+
+  // Limits on what the image model sends back (prompt markers handled by scripts/image-stub.mjs).
+  const genFor = (id, prompt, n = 1) => a('/api/images', { method: 'POST', body: { target_type: 'entity', target_id: id, prompt, style: 'none', n } })
+  const many = await genFor(entA.id, 'stub:many')
+  check('n=1 with 6 returned keeps 1', `${many.status} ${many.data.length}`, '200 1')
+  check('model call says the extra images were not kept', /^1 image \(Muse Image returned 5 more/.test((await a('/api/model-calls')).data[0].output_summary), true)
+  for (const [marker, label, pattern] of [['stub:loopback', 'loopback image URL refused', /private network/], ['stub:redirect', 'redirect to loopback refused', /private network/],
+    ['stub:big', 'oversize API body refused', /larger than/], ['stub:junk', 'non-image payload refused', /not a PNG/]]) {
+    const r = await genFor(entA.id, marker)
+    check(label, r.status === 502 && pattern.test(r.data.message), true)
+  }
+  // The page is deleted while its image is being made: nothing may be saved for it.
+  const projAId = (await a('/api/me')).data.current.project.id
+  const files = () => (dataDir && existsSync(join(dataDir, 'portraits', projAId)) ? readdirSync(join(dataDir, 'portraits', projAId)).length : null)
+  const gone = (await a('/api/entities', { method: 'POST', body: { name: 'Probe Vanishing', kind: 'character' } })).data
+  const before = files()
+  const pending = genFor(gone.id, 'stub:slow')
+  await new Promise(r => setTimeout(r, 1500))
+  check('page deleted during generation', (await a(`/api/entities/${gone.id}`, { method: 'DELETE' })).status, 200)
+  const late = await pending
+  check('generation for a deleted page is refused', `${late.status} ${late.data.statusMessage}`, '409 TARGET_GONE')
+  check('no image.generated audit for the deleted page', (await a('/api/audit')).data.some(x => x.event_type === 'image.generated' && x.target_id === gone.id), false)
+  if (dataDir) {
+    const db = new DatabaseSync(join(dataDir, 'storybible.db'), { readOnly: true })
+    check('no image row for the deleted page', db.prepare('select count(*) n from images where target_id = ?').get(gone.id).n, 0)
+    db.close()
+    check('no image file left behind', files(), before)
+  }
 } else {
   check('Mock-mode server refuses generation', `${gen.status} ${gen.data.statusMessage}`, '409 IMAGE_MODEL_OFFLINE')
   console.log('note: cross-studio generated-image checks need a server on the image stub (see scripts/image-stub.mjs)')
