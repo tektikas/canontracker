@@ -42,6 +42,19 @@ check('A uploads a portrait', (await a(`/api/entities/${entA.id}/portrait`, { me
 check('A reads own portrait', (await a(`/api/entities/${entA.id}/portrait`)).status, 200)
 const entA2 = (await a('/api/entities', { method: 'POST', body: { name: 'Probe Keeper Dup', kind: 'character' } })).data
 
+// Generated images need the live image model. Against a mock-mode server the route must refuse plainly (409); run the
+// probe against a server pointed at scripts/image-stub.mjs to cover the cross-studio image checks.
+const gen = await a('/api/images', { method: 'POST', body: { target_type: 'entity', target_id: entA.id, prompt: 'Probe portrait', style: 'none', n: 1 } })
+const imgA = gen.status === 200 ? gen.data[0] : null
+if (imgA) {
+  check('A generates an image', gen.status, 200)
+  check('A reads own generated image', (await a(`/api/images/${imgA.id}`)).status, 200)
+  check('A applies it as portrait', (await a(`/api/images/${imgA.id}/apply`, { method: 'POST' })).status, 200)
+} else {
+  check('Mock-mode server refuses generation', `${gen.status} ${gen.data.statusMessage}`, '409 IMAGE_MODEL_OFFLINE')
+  console.log('note: cross-studio generated-image checks need a server on the image stub (see scripts/image-stub.mjs)')
+}
+
 const b = await account('Bo')
 check('B with no project is refused content', (await b('/api/facts?status=pending')).status, 409)
 const studioB = (await b('/api/studios', { method: 'POST', body: { name: 'Other Studio' } })).data
@@ -54,6 +67,13 @@ check('B gets 404 on A’s portrait', (await b(`/api/entities/${entA.id}/portrai
 check('B gets 404 editing A’s entity', (await b(`/api/entities/${entA.id}`, { method: 'PATCH', body: { summary: 'x' } })).status, 404)
 check('B gets 404 merging into A’s entity', (await b(`/api/entities/${entA2.id}/merge`, { method: 'POST', body: { into: entA.id } })).status, 404)
 check('B sees none of A’s entities', (await b('/api/entities')).data.length, 0)
+check('B gets 404 listing A’s entity images', (await b(`/api/images?target_type=entity&target_id=${entA.id}`)).status, 404)
+check('B gets 404 generating for A’s entity', (await b('/api/images', { method: 'POST', body: { target_type: 'entity', target_id: entA.id, prompt: 'x', n: 1 } })).status, 404)
+if (imgA) {
+  check('B gets 404 on A’s generated image', (await b(`/api/images/${imgA.id}`)).status, 404)
+  check('B gets 404 applying A’s generated image', (await b(`/api/images/${imgA.id}/apply`, { method: 'POST' })).status, 404)
+  check('B gets 404 discarding A’s generated image', (await b(`/api/images/${imgA.id}`, { method: 'DELETE' })).status, 404)
+}
 const projA = (await a('/api/me')).data.current.project.id
 check('B gets 404 switching into A’s project', (await b(`/api/projects/${projA}/switch`, { method: 'POST' })).status, 404)
 check('Signed-out caller gets 401', (await client()('/api/stats')).status, 401)
@@ -70,6 +90,12 @@ check('Viewer gets 403 on entity create', (await v('/api/entities', { method: 'P
 check('Viewer gets 403 on entity merge', (await v(`/api/entities/${entA2.id}/merge`, { method: 'POST', body: { into: entA.id } })).status, 403)
 check('Viewer gets 403 on portrait upload', (await v(`/api/entities/${entA.id}/portrait`, { method: 'POST', form: portraitForm() })).status, 403)
 check('Viewer gets 403 on entity delete', (await v(`/api/entities/${entA2.id}`, { method: 'DELETE' })).status, 403)
+check('Viewer gets 403 on generate', (await v('/api/images', { method: 'POST', body: { target_type: 'entity', target_id: entA.id, prompt: 'x', n: 1 } })).status, 403)
+check('Viewer can list images', (await v(`/api/images?target_type=entity&target_id=${entA.id}`)).status, 200)
+if (imgA) {
+  check('Viewer can see a generated image', (await v(`/api/images/${imgA.id}`)).status, 200)
+  check('Viewer gets 403 applying an image', (await v(`/api/images/${imgA.id}/apply`, { method: 'POST' })).status, 403)
+}
 check('Used invite link is refused', (await b(`/api/invites/${viewerLink.token}/accept`, { method: 'POST' })).status, 410)
 
 const editorLink = (await a('/api/team/invites', { method: 'POST', body: { role: 'editor', days: 1 } })).data

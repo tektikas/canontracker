@@ -126,6 +126,11 @@ async function removePortrait() {
   }
 }
 
+// Generated portraits come from the dialog; it keeps every image with its prompt so an older one can be picked again.
+const generator = ref<{ open: () => void }>()
+const portraitChanged = () => Promise.all([refresh(), refreshEntities()])
+const madeOn = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })
+
 // Merge and delete open a panel under the header.
 const panel = ref<'' | 'merge' | 'delete'>('')
 const inUse = computed(() => facts.value.length + (e.value?.pending ?? 0))
@@ -189,9 +194,11 @@ const ago = (iso: string) => {
         <EntityAvatar :entity="e" :size="104" />
         <div v-if="editable" class="portrait-actions">
           <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden @change="upload">
-          <UiButton size="sm" icon="image" :loading="uploading" @click="fileInput?.click()">{{ e.portrait ? 'Replace' : 'Add portrait' }}</UiButton>
+          <UiButton size="sm" icon="upload" :loading="uploading" @click="fileInput?.click()">{{ e.portrait ? 'Replace' : 'Upload' }}</UiButton>
+          <UiButton size="sm" icon="image" :disabled="uploading" @click="generator?.open()">Generate</UiButton>
           <UiButton v-if="e.portrait" size="sm" variant="ghost" :disabled="uploading" @click="removePortrait">Remove</UiButton>
         </div>
+        <ImageGenerator v-if="editable" :id="e.id" ref="generator" type="entity" apply-label="Set as portrait" @changed="portraitChanged" />
       </div>
       <div class="ident">
         <div class="row">
@@ -204,6 +211,10 @@ const ago = (iso: string) => {
           {{ counted(facts.length, 'canon fact') }} · in {{ counted(e.appearances.length, 'source') }}
           <template v-if="e.updated_by"> · edited by {{ e.updated_by }} {{ ago(e.updated_at) }}</template>
         </p>
+        <details v-if="e.portrait_image" class="gen-note small">
+          <summary><UiBadge tone="pencil">Generated with Muse Image</UiBadge> Portrait by {{ e.portrait_image.created_by_name ?? 'unknown' }}, {{ madeOn(e.portrait_image.created_at) }}</summary>
+          <p>{{ e.portrait_image.prompt }}</p>
+        </details>
         <p v-if="portraitError" class="field-error" role="alert">{{ portraitError }}</p>
       </div>
       <div v-if="editable" class="actions">
@@ -422,6 +433,9 @@ const ago = (iso: string) => {
 .ident .chip { gap: 5px; }
 .aliases { margin: 0; color: var(--muted); }
 .meta { margin: 0; }
+.gen-note { margin-top: var(--s-1); max-width: 70ch; }
+.gen-note summary { display: flex; flex-wrap: wrap; gap: 4px var(--s-2); align-items: center; cursor: pointer; color: var(--muted); }
+.gen-note p { margin: var(--s-2) 0 0; padding: var(--s-2) var(--s-3); border-left: 2px solid var(--line-strong); white-space: pre-line; color: var(--muted); overflow-wrap: anywhere; }
 .actions { display: flex; gap: var(--s-2); flex-wrap: wrap; }
 .gap { margin-bottom: var(--s-5); }
 .details-row { display: grid; grid-template-columns: 1fr 180px; gap: var(--s-3); max-width: 640px; }

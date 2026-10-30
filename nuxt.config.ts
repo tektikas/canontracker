@@ -22,7 +22,8 @@ export default defineNuxtConfig({
   runtimeConfig: {
     modelMode: 'mock', // NUXT_MODEL_MODE=meta to call the Meta Model API
     modelId: 'muse-spark-1.3', // NUXT_MODEL_ID
+    imageModelId: 'muse-image-1.0', // NUXT_IMAGE_MODEL_ID
     metaApiKey: '', // NUXT_META_API_KEY, used as stored in pass
-    metaBaseUrl: 'https://api.meta.ai/v1',
+    metaBaseUrl: 'https://api.meta.ai/v1', // NUXT_META_BASE_URL
   },
 })

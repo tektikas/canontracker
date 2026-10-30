@@ -14,6 +14,9 @@ export default defineEventHandler(async (event) => {
     d.prepare(`update entities set aliases = ?, fields = ?, summary = ?, notes = ?, updated_at = ?, updated_by = ? where id = ?`)
       .run(JSON.stringify(apply.aliases), JSON.stringify(apply.fields), apply.summary, apply.notes, now(), access().user.id, dst.id)
     if (plan.portrait === 'move') d.prepare('update entities set portrait_type = ?, portrait_at = ? where id = ?').run(src.portrait_type, now(), dst.id)
+    // Generated images follow the page; the source's portrait marker only survives if its portrait moves.
+    if (plan.portrait !== 'move') clearApplied('entity', src.id)
+    d.prepare(`update images set target_id = ? where project_id = ? and target_type = 'entity' and target_id = ?`).run(dst.id, pid(), src.id)
     d.prepare('delete from entities where id = ?').run(src.id)
     // The before-values of every re-pointed fact and the full source page, so the merge can be traced and undone by hand.
     audit('entity.merged', 'entity', dst.id, {
