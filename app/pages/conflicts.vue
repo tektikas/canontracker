@@ -3,6 +3,7 @@ const { data: conflicts, refresh } = await useFetch('/api/conflicts')
 const scanning = ref(false)
 const scanMsg = ref('')
 const scanError = ref('')
+const scanned = useState('conflicts-scanned', () => false) // read by Home's workflow rail
 const ui = reactive<Record<string, { rationale: string, error: string, busy: boolean }>>({})
 const state = (id: string) => (ui[id] ??= { rationale: '', error: '', busy: false })
 
@@ -24,6 +25,7 @@ async function scan() {
   scanning.value = true
   try {
     const r = await $fetch('/api/conflicts/scan', { method: 'POST' })
+    scanned.value = true
     scanMsg.value = r.created ? `${r.created} new conflict candidate${r.created > 1 ? 's' : ''}.` : 'Scan ran: no new conflict candidates.'
     scanError.value = r.model_error ? `Rule-based checks ran, but the model-assisted world-rule check failed: ${r.model_error}` : ''
     await Promise.all([refresh(), refreshNuxtData('stats')])

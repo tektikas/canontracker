@@ -3,17 +3,26 @@ defineProps<{ ev: Record<string, any> }>()
 </script>
 
 <template>
-  <div class="stack" style="gap: 4px">
+  <figure class="source">
     <blockquote class="quote" :class="{ unverified: !ev.verified, prior: ev.support === 'prior_source' }">{{ ev.quote }}</blockquote>
-    <div class="row small muted">
-      <NuxtLink v-if="ev.passage_id" :to="`/documents/${ev.document_id}#${ev.passage_id}`">
-        {{ ev.document_title }} · v{{ ev.document_version }} · L{{ ev.start_line }}<template v-if="ev.end_line !== ev.start_line">–{{ ev.end_line }}</template>
+    <figcaption class="source-meta">
+      <NuxtLink v-if="ev.passage_id" :to="`/documents/${ev.document_id}#${ev.passage_id}`" class="source-link">
+        <UiIcon name="file" :size="14" />{{ ev.document_title }}
+        <span class="faint">v{{ ev.document_version }}, line {{ ev.start_line }}<template v-if="ev.end_line !== ev.start_line">–{{ ev.end_line }}</template></span>
       </NuxtLink>
-      <NuxtLink v-else :to="`/documents/${ev.document_id}`">{{ ev.document_title }}</NuxtLink>
-      <span v-if="!ev.verified" class="chip bad">Quote not found in source</span>
-      <span v-else-if="ev.support === 'prior_source'" class="chip">Prior source (wording changed)</span>
-      <span v-else class="chip good">Verbatim match</span>
-      <span v-if="ev.latest_version > ev.document_version" class="chip warn" :title="`Cites v${ev.document_version}; the source now has v${ev.latest_version}. Re-check before relying on it.`">Stale: source now v{{ ev.latest_version }}</span>
-    </div>
-  </div>
+      <NuxtLink v-else :to="`/documents/${ev.document_id}`" class="source-link"><UiIcon name="file" :size="14" />{{ ev.document_title }}</NuxtLink>
+      <UiBadge v-if="!ev.verified" tone="bad" dot>Quote not found in source</UiBadge>
+      <UiBadge v-else-if="ev.support === 'prior_source'" tone="pencil">Prior source, wording changed</UiBadge>
+      <UiBadge v-else tone="good" dot>Verbatim match</UiBadge>
+      <UiBadge v-if="ev.latest_version > ev.document_version" tone="warn" :title="`Cites v${ev.document_version}; the source now has v${ev.latest_version}. Re-check before relying on it.`">Stale: source now v{{ ev.latest_version }}</UiBadge>
+    </figcaption>
+  </figure>
 </template>
+
+<style scoped>
+.source { margin: 0; display: grid; gap: 6px; min-width: 0; }
+.source-meta { display: flex; flex-wrap: wrap; gap: 6px 10px; align-items: center; font-size: var(--text-sm); }
+.source-link { display: inline-flex; align-items: center; gap: 6px; color: var(--ink); text-decoration: none; font-weight: 500; overflow-wrap: anywhere; }
+.source-link:hover { color: var(--accent); }
+.source-link .faint { font-weight: 400; }
+</style>
