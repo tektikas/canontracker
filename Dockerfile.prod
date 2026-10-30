@@ -5,10 +5,9 @@
 FROM node:24-alpine AS build
 WORKDIR /app
 ENV COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-# package.json has no packageManager field (mise uses pnpm latest); pin the build here
-ARG PNPM_VERSION=12.16.1
-RUN corepack enable && corepack prepare pnpm@${PNPM_VERSION} --activate
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+# corepack reads the pnpm version from package.json "packageManager" (single pin)
+RUN corepack enable && corepack install
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm fetch
 COPY . .
 RUN --mount=type=cache,id=pnpm,target=/root/.local/share/pnpm/store pnpm install --frozen-lockfile --offline
