@@ -149,7 +149,9 @@ watch(() => current.value?.id, async () => {
 // Source passage for the split view.
 const source = computed(() => current.value?.evidence[evIndex.value] ?? current.value?.evidence[0])
 const docId = computed(() => source.value?.document_id as string | undefined)
-const { data: doc } = await useAsyncData('review-source', () => (docId.value ? $fetch(`/api/documents/${docId.value}`) : Promise.resolve(null)), { watch: [docId] })
+// useRequestFetch forwards the session cookie during SSR; a bare $fetch there is signed out and the panel would hydrate empty.
+const reqFetch = useRequestFetch()
+const { data: doc } = await useAsyncData('review-source', () => (docId.value ? reqFetch(`/api/documents/${docId.value}`) : Promise.resolve(null)), { watch: [docId] })
 const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.value : null)
 </script>
 
@@ -338,6 +340,7 @@ kbd {
 .source-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-2); flex-wrap: wrap; padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); background: var(--surface); }
 .source-title { display: flex; align-items: center; gap: var(--s-2); min-width: 0; font-size: var(--text-sm); }
 .source-title b { overflow-wrap: anywhere; }
+.source-title .faint { white-space: nowrap; }
 .source-body { flex: 1; min-height: 0; padding: var(--s-3); }
 .loading { margin: 0; }
 
@@ -365,6 +368,9 @@ kbd {
   .source-body { max-height: 45vh; }
 }
 @media (max-width: 720px) {
+  .source-head { flex-wrap: nowrap; }
+  .source-title { flex: 1; }
+  .source-head .row { flex: none; }
   .triple-fields { grid-template-columns: 1fr; }
   .queue-item { padding: 8px var(--s-4); min-height: 42px; }
   .progress { min-width: 0; width: 100%; }

@@ -30,14 +30,20 @@ async function createInvite() {
 }
 
 const copied = ref('')
+const copyFailed = ref('')
 async function copy(text: string, key: string) {
   try {
     await navigator.clipboard.writeText(text)
     copied.value = key
+    copyFailed.value = ''
     setTimeout(() => { if (copied.value === key) copied.value = '' }, 2000)
   } catch {
     // Clipboard blocked (e.g. insecure origin): select the text so it can be copied by hand.
+    // Invite rows keep their link in a hidden input; showing it (copyFailed === key) lets the user copy by hand.
+    copyFailed.value = key
+    await nextTick()
     const input = document.getElementById(`link-${key}`) as HTMLInputElement | null
+    input?.focus()
     input?.select()
   }
 }
@@ -69,6 +75,7 @@ function remove(m: { id: string, name: string }) {
   if (!confirm(self ? `Leave ${team.value?.studio.name}? You'll lose access to its projects.` : `Remove ${m.name} from ${team.value?.studio.name}? Their past decisions stay in the audit log.`)) return
   memberAction(m.id, async () => {
     await $fetch(`/api/team/${m.id}`, { method: 'DELETE' })
+    if (self) rememberLeft(team.value!.studio.name)
     if (self) reloadNuxtApp({ path: '/', force: true })
   })
 }
@@ -114,6 +121,7 @@ const fullDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { 
           <input id="link-new" :value="created.url" type="text" readonly class="mono" aria-label="Invite link" @focus="($event.target as HTMLInputElement).select()">
           <UiButton :variant="copied === 'new' ? 'good' : 'primary'" :icon="copied === 'new' ? 'check' : 'copy'" @click="copy(created.url, 'new')">{{ copied === 'new' ? 'Copied' : 'Copy link' }}</UiButton>
         </div>
+        <p v-if="copyFailed === 'new'" class="small field-error" role="alert">Couldn’t copy. The link is selected; press Ctrl+C.</p>
         <p class="small muted">Story Bible doesn’t send email yet. Paste this link to your teammate yourself, in chat or email. It works once.</p>
       </div>
     </UiPanel>
@@ -167,7 +175,8 @@ const fullDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { 
             <div v-if="rowError[i.id]" class="field-error" role="alert">{{ rowError[i.id] }}</div>
           </div>
           <div class="row">
-            <input :id="`link-${i.id}`" :value="linkFor(i.token)" type="text" readonly class="sr-only" tabindex="-1" aria-hidden="true">
+            <input :id="`link-${i.id}`" :value="linkFor(i.token)" type="text" readonly :class="copyFailed === i.id ? 'mono link-open' : 'sr-only'" :tabindex="copyFailed === i.id ? 0 : -1" :aria-hidden="copyFailed === i.id ? undefined : 'true'" aria-label="Invite link">
+            <span v-if="copyFailed === i.id" class="small field-error" role="alert">Couldn’t copy. The link is selected; press Ctrl+C.</span>
             <UiButton size="sm" :variant="copied === i.id ? 'good' : 'secondary'" :icon="copied === i.id ? 'check' : 'copy'" @click="copy(linkFor(i.token), i.id)">{{ copied === i.id ? 'Copied' : 'Copy link' }}</UiButton>
             <UiButton size="sm" variant="danger" :loading="rowBusy === i.id" @click="revoke(i.id)">Revoke</UiButton>
           </div>
@@ -194,6 +203,7 @@ const fullDate = (iso: string) => new Date(iso).toLocaleDateString(undefined, { 
 .created { display: grid; gap: var(--s-2); margin-top: var(--s-4); padding: var(--s-4); border: 1px solid color-mix(in srgb, var(--good) 35%, var(--line)); border-radius: var(--r-md); background: var(--good-soft); }
 .created p { margin: 0; }
 .link-row { display: flex; gap: var(--s-2); }
+.link-open { flex: 1 1 100%; font-size: var(--text-sm); }
 .link-row input { flex: 1; min-width: 0; font-size: var(--text-sm); }
 
 .person { display: flex; gap: var(--s-3); align-items: center; }

@@ -194,7 +194,6 @@ const TEAM = [
 .steps h3, .cards h3 { margin: 0; font-size: var(--text-md); }
 .steps p, .cards p { margin: 0; color: var(--muted); }
 .step-n { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed var(--pencil); color: var(--pencil); font-size: var(--text-xs); font-weight: 600; }
-.steps li:last-child .step-n { border: 0; background: var(--accent); color: var(--accent-ink); }
 
 .cards { display: grid; gap: var(--s-4); }
 .cards.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }

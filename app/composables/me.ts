@@ -46,6 +46,18 @@ export async function openProject(id: string, path = '/') {
   reloadNuxtApp({ path, force: true })
 }
 
+// Leaving a studio reloads the app; the name rides along in sessionStorage so the next page can say what happened.
+const LEFT_KEY = 'sb-left-studio'
+export const rememberLeft = (studio: string) => sessionStorage.setItem(LEFT_KEY, studio)
+export function useLeftNotice() {
+  const left = ref('')
+  onMounted(() => {
+    left.value = sessionStorage.getItem(LEFT_KEY) ?? ''
+    sessionStorage.removeItem(LEFT_KEY)
+  })
+  return left
+}
+
 export async function logOut() {
   await $fetch('/api/_auth/session', { method: 'DELETE' })
   reloadNuxtApp({ path: '/', force: true })

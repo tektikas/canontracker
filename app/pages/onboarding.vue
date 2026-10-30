@@ -4,6 +4,7 @@
 definePageMeta({ layout: 'auth' })
 useHead({ title: 'Set up your studio · Story Bible' })
 const me = useMe()
+const left = useLeftNotice()
 const firstName = computed(() => me.value?.user?.name.split(' ')[0] ?? 'My')
 const adminStudio = computed(() => me.value?.studios.find(s => s.role === 'owner' || s.role === 'admin'))
 
@@ -55,6 +56,7 @@ const tryDemo = () => run('demo', async () => {
 
 <template>
   <div class="onboard" :class="{ wide: step === 'start' }">
+    <p v-if="left" class="notice info" role="status">You left {{ left }}, so you’re not in a studio right now. Create your own below, or ask for a new invite link.</p>
     <ol v-if="step !== 'waiting'" class="steps" aria-label="Setup progress">
       <li v-for="(s, i) in STEPS" :key="s.key" :class="{ done: i < stepIndex, now: i === stepIndex }" :aria-current="i === stepIndex ? 'step' : undefined">
         <span class="marker"><UiIcon v-if="i < stepIndex" name="check" :size="12" /><template v-else>{{ i + 1 }}</template></span>
@@ -130,6 +132,7 @@ const tryDemo = () => run('demo', async () => {
 </template>
 
 <style scoped>
+.onboard > .notice { margin-bottom: var(--s-5); }
 .onboard.wide { max-width: 720px !important; }
 .onboard h1 { margin-bottom: var(--s-1); }
 .onboard .stack { gap: var(--s-5); }
