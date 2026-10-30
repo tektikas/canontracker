@@ -236,8 +236,10 @@ export interface DocumentRow {
 }
 export interface PassageRow { id: string, document_id: string, ordinal: number, start_line: number, end_line: number, text: string }
 export interface EvidenceRow {
+  // document_filename: the file's own name; document_folder: the folder it is in now (null: the Library root). document_key: the
+  // document's identity (documents.filename), for matching only; never shown, since it can carry an older folder.
   id: string, passage_id: string | null, quote: string, verified: number, support: string, document_id: string, document_filename: string
-  document_title: string, document_kind: string, document_version: number, latest_version: number, start_line: number | null, end_line: number | null
+  document_key: string, document_folder: string | null, document_title: string, document_kind: string, document_version: number, latest_version: number, start_line: number | null, end_line: number | null
 }
 export interface ConflictRow {
   id: string, left_fact_id: string, right_fact_id: string, rule: string, origin: string, model_id: string | null, rationale: string
@@ -284,12 +286,19 @@ export function listFacts(where = '1 = 1', ...params: (string | number)[]) {
       (select name from api_tokens t where t.id = f.proposed_by_token) agent_name, (select name from users u where u.id = f.proposed_by_user) proposed_by_name from facts f
     where f.project_id = ? and (${where}) order by f.rowid`).all(pid(), ...params) as unknown as (Fact & { decided_by_name: string | null, created_by_name: string | null, agent_name: string | null, proposed_by_name: string | null })[]
   const ev = d.prepare(`
-    select e.id, e.passage_id, e.quote, e.verified, e.support, e.document_id, doc.filename document_filename,
+    select e.id, e.passage_id, e.quote, e.verified, e.support, e.document_id, doc.name document_filename, doc.filename document_key, doc.folder_id,
       doc.title document_title, doc.kind document_kind, doc.version document_version, p.start_line, p.end_line,
       (select max(d2.version) from documents d2 where d2.filename = doc.filename and d2.project_id = doc.project_id) latest_version
     from evidence e join documents doc on doc.id = e.document_id left join passages p on p.id = e.passage_id
     where e.fact_id = ? order by e.rowid`)
-  return facts.map(f => ({ ...f, evidence: ev.all(f.id) as unknown as EvidenceRow[] }))
+  const folders = new Map<string, string | null>()
+  const folderOf = (id: string | null) => {
+    if (!id) return null
+    if (!folders.has(id)) folders.set(id, folderPath(id))
+    return folders.get(id)!
+  }
+  return facts.map(f => ({ ...f, evidence: (ev.all(f.id) as unknown as (EvidenceRow & { folder_id: string | null })[])
+    .map(({ folder_id, ...e }) => ({ ...e, document_folder: folderOf(folder_id) }) as EvidenceRow) }))
 }
 
 export const normEntity = (s: string | null | undefined) => s?.trim().toLowerCase() || null

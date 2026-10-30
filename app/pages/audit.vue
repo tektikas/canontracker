@@ -13,6 +13,8 @@ const clip = (v: unknown, n = 90) => {
 const q = (v: unknown) => (v ? `“${clip(v)}”` : '')
 const identity = (d: Record<string, any>) => (d.identity ?? []).map((i: any) => `${i.from} saved as ${i.to} (merged page)`).join(', ')
 const SAMPLE_NAME: Record<string, string> = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample' }
+// Audit details carry the file's own name and the folder it was in then (null: the Library root), never the internal key.
+const inFolder = (d: Record<string, any>) => (d.folder ? ` in ${d.folder}` : '')
 const because = (d: Record<string, any>) => (d.rationale ? `Reason: ${clip(d.rationale, 140)}` : '')
 
 // One plain sentence per event type; unknown types fall back to the raw event name.
@@ -20,16 +22,18 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
   const d = e.detail
   const who = e.actor_name
   switch (e.event_type) {
-    case 'document.imported': return [`${who} imported ${d.filename}`, `${d.passages} passages, read-only`]
-    case 'document.version_added': return [`${who} imported version ${d.version} of ${d.filename}`, `${d.passages} passages`]
+    case 'document.imported': return [`${who} imported ${d.filename}${inFolder(d)}`, `${d.passages} passages, read-only`]
+    case 'document.version_added': return [`${who} imported version ${d.version} of ${d.filename}${inFolder(d)}`, `${d.passages} passages`]
     case 'document.written': return [`${who} wrote ${d.title ?? d.filename} in Story Bible`, `${d.passages} passages, read-only once saved`]
     case 'document.version_written': return [`${who} saved version ${d.version} of ${d.title ?? d.filename}`, `${d.passages} passages · earlier versions are kept`]
-    case 'citation.stale': return [`${d.filename} v${d.version} makes ${d.fact_ids?.length ?? 0} citation(s) stale`, 'Re-check the facts that cite it']
+    case 'citation.stale': return [`${d.filename}${inFolder(d)} v${d.version} makes ${d.fact_ids?.length ?? 0} citation(s) stale`, 'Re-check the facts that cite it']
     case 'candidate.created':
       if (d.via === 'mcp') return [`Agent “${d.token_name}” proposed a candidate for ${who}`, 'Quote found in source · waiting for a human decision']
       return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
     case 'candidate.accepted': return [`${who} accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
     case 'candidate.corrected_and_accepted': return [`${who} corrected and accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
+    case 'candidate.evidence_moved': return [`A pending candidate now cites ${d.filename}${inFolder(d)} v${d.to?.version}${d.to?.line ? `, line ${d.to.line}` : ''}`,
+      `Its quote appears exactly once in the new version (was v${d.from?.version}${d.from?.line ? `, line ${d.from.line}` : ''}): ${q(d.quote)} · still waiting for a human decision`]
     case 'candidate.accept_refused': return [`${who} tried to accept a candidate; it was refused`, 'Quote not found verbatim in the source']
     case 'fact.authored': return [d.to === 'canon' ? `${who} added a fact to canon: ${q(d.statement)}` : `${who} sent a fact to review: ${q(d.statement)}`,
       [`From the source: ${q(d.quote)}`, d.to === 'canon' ? 'Added by hand, a person’s decision' : 'Waiting for a human decision', identity(d)].filter(Boolean).join(' · ')]
@@ -78,7 +82,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'image.cover_removed': return [`${who} removed ${d.name ? `${d.name}’s` : 'a document’s'} cover`, 'The image stays in its history']
     case 'folder.created': return [`${who} created the folder ${d.parent ? `${d.parent} / ` : ''}${d.name}`, 'Library label · sources unchanged']
     case 'folder.renamed': return [`${who} renamed the folder ${d.from} to ${d.to}`, 'Library label · sources unchanged']
-    case 'folder.deleted': return [`${who} deleted the folder ${d.name}`, `${d.documents ? `${d.documents} document${d.documents === 1 ? '' : 's'} moved to ${d.to ?? 'no folder'}` : 'It was empty'}${d.subfolders ? ` · ${d.subfolders} subfolder${d.subfolders === 1 ? '' : 's'} moved up` : ''} · nothing deleted`]
+    case 'folder.deleted': return [`${who} deleted the folder ${d.name}`, `${d.documents ? `${d.documents} document${d.documents === 1 ? '' : 's'} moved to ${d.to ?? 'the Library root'}` : 'It was empty'}${d.subfolders ? ` · ${d.subfolders} subfolder${d.subfolders === 1 ? '' : 's'} moved up` : ''} · nothing deleted`]
     case 'tag.created': return [`${who} created the tag “${d.name}”`, 'Library label · sources unchanged']
     case 'tag.updated': return [d.from?.name !== d.to?.name ? `${who} renamed the tag “${d.from?.name}” to “${d.to?.name}”` : `${who} recoloured the tag “${d.to?.name}”`, 'Library label · sources unchanged']
     case 'tag.deleted': return [`${who} deleted the tag “${d.name}”`, d.documents ? `Removed from ${d.documents} document${d.documents === 1 ? '' : 's'} · nothing deleted` : 'It was on no documents']

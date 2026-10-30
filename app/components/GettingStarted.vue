@@ -19,7 +19,7 @@ const items = computed(() => {
   const reviewed = s.canon - s.authored_canon + s.rejected
   const nothingToReview = s.documents > 0 && !s.pending && !reviewed
   return [
-    { key: 'sources', label: admin.value ? 'Load the demo or add a document' : 'Add a document', to: s.documents ? '#sources' : '#workflow', done: s.documents > 0,
+    { key: 'sources', label: admin.value ? 'Load the demo or add a document' : 'Add a document', to: s.documents ? '/library' : '#workflow', done: s.documents > 0,
       hint: s.documents ? `${counted(s.documents, 'source')} in this project` : 'Import files, write one here, or try the demo story' },
     // Nothing proposed is not a review done: the step reads as not applicable and leaves the count.
     { key: 'review', label: nothingToReview ? 'Nothing to review in this project' : 'Review a candidate', to: '/review', done: reviewed > 0, na: nothingToReview,

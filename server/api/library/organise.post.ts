@@ -6,7 +6,7 @@ export default defineEventHandler(async (event) => {
   const body = await readBody<Body>(event)
   const docs = latestOf(body.document_ids)
   const db = useDb()
-  const detail: Record<string, unknown> = { documents: docs.map(d => ({ id: d.id, filename: d.filename, title: d.title })) }
+  const detail: Record<string, unknown> = { documents: docs.map(d => ({ id: d.id, filename: d.name, title: d.title })) }
   const sets: string[] = []
   const args: (string | null)[] = []
 

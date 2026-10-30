@@ -13,7 +13,7 @@ function present(f: FullFact) {
     id: f.id, statement: f.statement, kind: f.kind, subject: f.subject, predicate: f.predicate, object: f.object, value: f.value,
     time: f.time_label, version: f.version,
     evidence: f.evidence.filter(e => e.verified).map(e => ({
-      quote: e.quote, document_id: e.document_id, file: e.document_filename, title: e.document_title, document_version: e.document_version,
+      quote: e.quote, document_id: e.document_id, file: e.document_filename, folder: e.document_folder, title: e.document_title, document_version: e.document_version,
       lines: e.start_line == null ? null : `${e.start_line}-${e.end_line}`, passage_id: e.passage_id, support: e.support, stale: e.latest_version > e.document_version,
     })),
   }
@@ -130,7 +130,7 @@ export function buildMcpServer(token: { id: string, name: string }) {
   server.registerTool('sb_propose_candidate', {
     description: 'Propose a NEW fact for human review. It becomes a pending candidate in the review queue, marked as proposed by this agent; it is NOT canon until a person accepts it. The quote must appear verbatim (exact characters) in a passage of an imported document, or the proposal is refused and nothing is stored. Requires editor role or above.',
     inputSchema: {
-      document: z.string().describe('Imported document id or filename (latest version) that contains the quote'),
+      document: z.string().describe('Imported document id, or its file name (latest version) when only one document has that name'),
       quote: z.string().min(1).describe('Exact text copied from the document'),
       statement: z.string().min(1).describe('The fact as one plain sentence'),
       kind: z.enum(['character', 'claim', 'event', 'relationship', 'rule']),
@@ -149,11 +149,14 @@ export function buildMcpServer(token: { id: string, name: string }) {
       return refuse(code, message)
     }
     if (!atLeast(a.role, 'editor')) return refuse('FORBIDDEN', `This token acts as ${a.user.name} (${a.role}); viewers cannot propose candidates.`)
-    const doc = (db.prepare('select id, filename from documents where project_id = ? and id = ?').get(pid(), p.document)
-      ?? db.prepare('select id, filename from documents where project_id = ? and filename = ? order by version desc').get(pid(), p.document)) as { id: string, filename: string } | undefined
+    // By id, else by file name: the latest version of the one document with that name (two folders can hold the same name).
+    const named = db.prepare('select distinct filename from documents where project_id = ? and name = ?').all(pid(), p.document) as { filename: string }[]
+    if (named.length > 1) return refuse('DOCUMENT_AMBIGUOUS', `${named.length} documents are called "${p.document}" (in different folders). Pass the document_id instead.`)
+    const doc = (db.prepare('select id, name from documents where project_id = ? and id = ?').get(pid(), p.document)
+      ?? db.prepare('select id, name from documents where project_id = ? and filename = ? order by version desc').get(pid(), named[0]?.filename ?? '')) as { id: string, name: string } | undefined
     if (!doc) return refuse('DOCUMENT_NOT_FOUND', `No imported document "${p.document}" in this project. Candidates must cite an imported document.`)
     const match = findQuotePassage(db.prepare('select id, text from passages where document_id = ? order by ordinal').all(doc.id) as { id: string, text: string }[], p.quote)
-    if (!match) return denied('QUOTE_NOT_VERBATIM', `The quote was blank, too short (min ${MIN_QUOTE_CHARS} characters) or not found verbatim in ${doc.filename}. Copy the exact text; nothing was stored.`)
+    if (!match) return denied('QUOTE_NOT_VERBATIM', `The quote was blank, too short (min ${MIN_QUOTE_CHARS} characters) or not found verbatim in ${doc.name}. Copy the exact text; nothing was stored.`)
     const tFrom = p.time_from ? parseStoryTime(p.time_from) : null
     const tTo = p.time_to ? parseStoryTime(p.time_to) : null
     if ((p.time_from && tFrom == null) || (p.time_to && tTo == null)) return refuse('BAD_TIME', 'Story time must look like "D2 14:30".')

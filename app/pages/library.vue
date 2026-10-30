@@ -71,7 +71,7 @@ function clearFilters() {
 const staleTotal = computed(() => docs.value.reduce((n, d) => n + d.stale_facts, 0))
 const versionsTotal = computed(() => docs.value.reduce((n, d) => n + d.version, 0))
 const currentFolder = computed(() => (folderSel.value && folderSel.value !== 'none' && folderById.value.get(folderSel.value) ? { id: folderSel.value, label: folderPath(folderSel.value) } : null))
-const viewTitle = computed(() => folderSel.value === 'none' ? 'Not in a folder' : currentFolder.value?.label ?? 'All documents')
+const viewTitle = computed(() => folderSel.value === 'none' ? 'Library root' : currentFolder.value?.label ?? 'All documents')
 
 // Selection and bulk actions.
 const selected = ref<Set<string>>(new Set())
@@ -171,7 +171,7 @@ async function saveEdit() {
 }
 function deleteFolder(f: Folder) {
   const n = folderCount(f.id)
-  const to = f.parent_id ? folderPath(f.parent_id) : 'no folder'
+  const to = f.parent_id ? folderPath(f.parent_id) : 'the Library root'
   if (!confirm(`Delete the folder “${folderPath(f.id)}”?${n ? ` Its ${nDocs(n)} move to ${to}.` : ''} No documents are deleted.`)) return
   call(() => $fetch(`/api/library/folders/${f.id}`, { method: 'DELETE' })).then((ok) => {
     if (ok && folderSel.value === f.id) folderSel.value = f.parent_id ?? ''
@@ -214,7 +214,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
           </div>
           <ul class="side-list" role="list">
             <li><button type="button" class="side-item" :class="{ on: !folderSel }" @click="folderSel = ''"><UiIcon name="library" :size="16" /><span class="name">All documents</span><span class="n">{{ docs.length }}</span></button></li>
-            <li><button type="button" class="side-item" :class="{ on: folderSel === 'none' }" @click="pickFolder('none')"><UiIcon name="file" :size="16" /><span class="name">Not in a folder</span><span class="n">{{ docs.filter(d => !d.folder_id).length }}</span></button></li>
+            <li><button type="button" class="side-item" :class="{ on: folderSel === 'none' }" @click="pickFolder('none')"><UiIcon name="file" :size="16" /><span class="name">Library root</span><span class="n">{{ docs.filter(d => !d.folder_id).length }}</span></button></li>
             <template v-for="f in tops" :key="f.id">
               <li v-for="(x, depth) in [f, ...childrenOf(f.id)]" :key="x.id" :class="{ sub: depth > 0 }">
                 <form v-if="editing?.kind === 'folder-rename' && editing.id === x.id" class="side-form" @submit.prevent="saveEdit">
@@ -304,7 +304,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
           </label>
           <select v-model="folderSel" class="only-sm" aria-label="Folder">
             <option value="">All folders</option>
-            <option value="none">Not in a folder</option>
+            <option value="none">Library root</option>
             <template v-for="f in tops" :key="f.id">
               <option :value="f.id">{{ f.name }}</option>
               <option v-for="c in childrenOf(f.id)" :key="c.id" :value="c.id">{{ f.name }} / {{ c.name }}</option>
@@ -326,7 +326,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
           <UiMenu label="Move to folder" class="bar-menu">
             <template #trigger><UiIcon name="folder" :size="16" />Move to</template>
             <template #default="{ close }">
-              <button type="button" class="menu-item" @click="close(); moveTo(null)"><UiIcon name="file" :size="16" />No folder</button>
+              <button type="button" class="menu-item" @click="close(); moveTo(null)"><UiIcon name="file" :size="16" />Library root</button>
               <template v-for="f in tops" :key="f.id">
                 <button type="button" class="menu-item" @click="close(); moveTo(f.id)"><UiIcon name="folder" :size="16" />{{ f.name }}</button>
                 <button v-for="c in childrenOf(f.id)" :key="c.id" type="button" class="menu-item indent" @click="close(); moveTo(c.id)"><UiIcon name="folder" :size="16" />{{ c.name }}</button>

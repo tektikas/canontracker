@@ -3,7 +3,9 @@
 // becomes a new version and unchanged text is skipped, folders/tags/kind/title never touch a document's text or hash,
 // a version diff names the changed passages and the canon citing them (also in a 2,002-passage document), re-extract only adds
 // pending candidates and skips what the project already has, an upload skips candidates already decided, a version is matched
-// by name within its folder (moves keep identity), and another studio gets 404 while a viewer gets 403.
+// by name within its folder (moves keep identity), a new version carries pending candidates whose quote appears exactly once
+// (never canon), audit/MCP/source refs show the file name and current folder (never the internal key), and another studio gets
+// 404 while a viewer gets 403.
 import assert from 'node:assert/strict'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
@@ -23,6 +25,7 @@ function client() {
   }
   return call
 }
+const count = (text, q) => text.split(q).length - 1
 const check = (label, actual, expected) => { assert.deepEqual(actual, expected, label); console.log(`ok  ${label} (${JSON.stringify(actual).slice(0, 80)})`) }
 async function account(name) {
   const c = client()
@@ -37,6 +40,7 @@ const filesForm = (files, folder) => {
 }
 
 const a = await account('Ada')
+const upTo0 = async (name, text, f) => (await a('/api/documents', { method: 'POST', form: filesForm([[name, text]], f) })).data.results[0]
 const studio = (await a('/api/studios', { method: 'POST', body: { name: 'Library Studio' } })).data
 await a('/api/projects', { method: 'POST', body: { name: 'Broken Tide', studio_id: studio.id } })
 check('demo set loads', (await a('/api/demo/load', { method: 'POST' })).status, 200)
@@ -114,6 +118,19 @@ check('S04 v2 imported', s04v2.version, 2)
 // one are already in the project, so nothing new waits for review.
 check('S04 v2 adds no candidate the project already has', [s04v2.candidates, s04v2.skipped], [0, 2])
 check('the accepted candidate does not come back as pending', (await a('/api/facts?status=pending')).data.filter(f => f.statement === cand.statement).length, 0)
+// Pending evidence follows the new version when its quote appears exactly once there (lead c18r2 ruling b); canon never moves.
+const pendingS04 = pending.filter(f => f.id !== cand.id && f.evidence.some(e => e.document_id === s04.id && e.verified))
+const follows = pendingS04.filter(f => count(text, f.evidence[0].quote) === 1).map(f => f.id)
+check('S04 has pending candidates whose quote is still there once', follows.length > 0, true)
+check('the upload says how many pending candidates now cite v2', s04v2.evidence_moved, follows.length)
+const afterS04 = new Map((await a('/api/facts?status=pending')).data.map(f => [f.id, f]))
+check('those candidates cite v2, the passage with their quote', pendingS04.map(f => afterS04.get(f.id).evidence.map(e => [e.document_id === s04v2.document_id, e.verified, e.quote])),
+  pendingS04.map(f => f.evidence.map(e => [follows.includes(f.id), 1, e.quote])))
+check('they keep their origin and model', pendingS04.map(f => [afterS04.get(f.id).origin, afterS04.get(f.id).model_id]), pendingS04.map(f => [f.origin, f.model_id]))
+const canonS04 = (await a('/api/facts?status=canon')).data.find(f => f.id === cand.id)
+check('the accepted (canon) citation stays on v1, stale', [canonS04.evidence[0].document_id, canonS04.evidence[0].latest_version], [s04.id, 2])
+const moved = (await a('/api/audit')).data.filter(e => e.event_type === 'candidate.evidence_moved' && e.target_id === follows[0])
+check('the audit records where the quote was and where it is now', moved.map(e => [e.detail.filename, e.detail.from.version, e.detail.to.version, e.detail.to.document_id]), [['S04.md', 1, 2, s04v2.document_id]])
 check('v2 keeps the folder, tags and kind', [(await a(`/api/documents/${s04v2.document_id}`)).data.folder?.id, (await a(`/api/documents/${s04v2.document_id}`)).data.tags.length], [sub.id, 2])
 const diff = (await a(`/api/documents/${s04v2.document_id}/diff?from=${s04.id}`)).data
 const changedRow = diff.rows.find(r => r.op === 'changed' && r.from.id === cited.id)
@@ -122,6 +139,20 @@ check('word diff shows exactly the added words', changedRow.words.filter(w => w.
 check('every other passage is unchanged', [diff.counts.same, diff.counts.removed, diff.counts.added], [s04v1.passages.length - 1, 0, 0])
 check('the changed passage lists the canon fact citing it', changedRow.facts.map(f => f.id), [cand.id])
 check('re-check count', diff.recheck, 1)
+const n4 = docs.find(d => d.filename === 'note-4.md')
+await upTo0('note-4.md', '# Note 4\n\nThe tide turns on day 4.\n\nKeeper 4 lights the lamp.\n\nThe gulls circle the north wall.', folder.id)
+const n4v1 = (await a('/api/documents')).data.find(d => d.name === 'note-4.md')
+const fact4 = async (to, quote) => (await a('/api/facts', { method: 'POST', body: { to, document_id: n4v1.id, quote, kind: 'claim', subject: 'Note 4', predicate: 'says', statement: `${quote} (${to}, ${run}).` } })).data
+const pAmb = await fact4('review', 'The tide turns on day 4')
+const pGone = await fact4('review', 'Keeper 4 lights the lamp')
+const pOnce = await fact4('review', 'The gulls circle the north wall')
+const cOnce = await fact4('canon', 'The gulls circle the north')
+check('pending and canon facts on note-4', [pAmb.status, pGone.status, pOnce.status, cOnce.status], ['pending', 'pending', 'pending', 'canon'])
+const n4v2 = await upTo0('note-4.md', '# Note 4\n\nThe tide turns on day 4.\n\nThe tide turns on day 4, again.\n\nThe gulls circle the north wall at noon.', folder.id)
+check('only the quote found exactly once moves', n4v2.evidence_moved, 1)
+const cites = async (status, id) => (await a(`/api/facts?status=${status}`)).data.find(f => f.id === id).evidence[0].document_id
+check('once: now cites v2; twice: stays (ambiguous); gone: stays; canon: stays', [await cites('pending', pOnce.id), await cites('pending', pAmb.id), await cites('pending', pGone.id), await cites('canon', cOnce.id)],
+  [n4v2.document_id, n4v1.id, n4v1.id, n4v1.id])
 const n2 = docs.find(d => d.filename === 'note-2.md')
 const n2v2 = (await a('/api/documents', { method: 'POST', form: filesForm([['note-2.md', '# Note 2\n\nKeeper 2 lights the lamp.\n\nA new closing line.']], folder.id) })).data.results[0]
 const d2 = (await a(`/api/documents/${n2v2.document_id}/diff?from=${n2.id}`)).data
@@ -183,6 +214,17 @@ check('the list has both, each in its folder, both called scene.md', docs.filter
 check('move the Act A scene to Act C', (await a('/api/library/organise', { method: 'POST', body: { document_ids: [sceneA2.document_id], folder_id: actC.id } })).status, 200)
 const sceneA3 = await upTo('scene.md', '# Scene\n\nThe tide is out in Act C now.', actC.id)
 check('a moved document keeps its identity: the next upload where it is now is v3', [sceneA3.version, sceneA3.folder], [3, 'Act C'])
+// The key of the Act B scene carries a folder ("Act B/scene.md"); it is identity only. Move it and nothing shows the old folder.
+check('move the Act B scene to a new folder', (await a('/api/library/organise', { method: 'POST', body: { document_ids: [sceneB2.document_id], folder_id: (await a('/api/library/folders', { method: 'POST', body: { name: 'Act D' } })).data.id } })).status, 200)
+const sceneBDoc = (await a(`/api/documents/${sceneB2.document_id}`)).data
+const factB = (await a('/api/facts', { method: 'POST', body: { to: 'canon', document_id: sceneB2.document_id, quote: 'The storm breaks in Act B', kind: 'claim', subject: 'Storm', predicate: 'breaks', statement: `The storm breaks in Act B (${run}).` } })).data
+const evB = (await a('/api/facts?status=canon')).data.find(f => f.id === factB.id).evidence[0]
+check('a source ref shows the file name and the folder it is in now', [evB.document_filename, evB.document_folder], ['scene.md', 'Act D'])
+const sceneB3 = await upTo('scene.md', '# Scene\n\nThe storm breaks in Act B at dusk.', sceneBDoc.folder.id)
+check('its next upload lands in Act D as v3', [sceneB3.version, sceneB3.folder], [3, 'Act D'])
+const leak = (await a('/api/audit')).data.filter(e => JSON.stringify(e.detail).includes('Act B/'))
+check('no audit event shows the internal key', leak.map(e => e.event_type), [])
+check('the audit names the file and its folder', (await a('/api/audit')).data.filter(e => e.target_id === sceneB3.document_id && e.event_type === 'document.version_added').map(e => [e.detail.filename, e.detail.folder]), [['scene.md', 'Act D']])
 check('…and its history runs v1 to v3', (await a(`/api/documents/${sceneA3.document_id}`)).data.versions.map(v => v.version), [3, 2, 1])
 check('moving a second scene.md into Act C is refused', (await a('/api/library/organise', { method: 'POST', body: { document_ids: [sceneB2.document_id], folder_id: actC.id } })).status, 409)
 const inner = (await a('/api/library/folders', { method: 'POST', body: { name: 'Inner', parent_id: actC.id } })).data
@@ -235,7 +277,7 @@ const link = (await a('/api/team/invites', { method: 'POST', body: { role: 'view
 const v = await account('Vic')
 await v(`/api/invites/${link.token}/accept`, { method: 'POST' })
 await v(`/api/projects/${(await a('/api/me')).data.current.project.id}/switch`, { method: 'POST' })
-check('viewer reads the library', (await v('/api/library')).data.folders.length, 6)
+check('viewer reads the library', (await v('/api/library')).data.folders.length, 7)
 check('viewer reads a diff', (await v(`/api/documents/${s04v2.document_id}/diff?from=${s04.id}`)).status, 200)
 check('viewer: upload 403', (await v('/api/documents', { method: 'POST', form: filesForm([['v.md', '# V\n\nViewer text here.']]) })).status, 403)
 check('viewer: organise 403', (await v('/api/library/organise', { method: 'POST', body: { document_ids: [s04.id], kind: 'lore' } })).status, 403)

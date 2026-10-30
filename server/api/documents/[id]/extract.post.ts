@@ -13,12 +13,12 @@ export default defineEventHandler(async (event) => {
   try {
     const r = await extractInto({ id: latest.id, filename: latest.filename, title: latest.title, content: latest.content }, passages, true)
     audit('document.reextracted', 'document', latest.id, {
-      filename: latest.filename, title: latest.title, version: latest.version, model_id: model.id,
+      filename: latest.name, folder: folderPath(latest.folder_id), title: latest.title, version: latest.version, model_id: model.id,
       proposed: r.proposed, created: r.created, unverified: r.unverified, skipped: r.skipped_by_status,
     })
     return { document_id: latest.id, version: latest.version, mode: model.mode, model_label: model.label, recorded_covers: recordedCovers, ...r, model: undefined }
   } catch (e) {
-    audit('job.failed', 'document', latest.id, { step: 're-extraction', filename: latest.filename, error: (e as Error).message })
+    audit('job.failed', 'document', latest.id, { step: 're-extraction', filename: latest.name, error: (e as Error).message })
     throw createError({ statusCode: 502, statusMessage: 'EXTRACTION_FAILED', message: `Extraction failed: ${(e as Error).message} Nothing was added.` })
   }
 })

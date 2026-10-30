@@ -65,23 +65,28 @@ export async function importDocument(filename: string, content: string, written?
   const passages = splitPassages(content).map(p => ({ ...p, id: newId('psg') }))
   if (!passages.length) throw createError({ statusCode: 422, statusMessage: 'EMPTY_DOCUMENT', message: `${filename} has no text.` })
 
+  // The key is identity only (it can carry the folder the first upload landed in); audit and results show the name and folder.
+  const name = prev?.name ?? filename
+  const where = folderPath(folder)
   let staleFacts = 0
+  let evidenceMoved = 0
   tx(() => {
     db.prepare(`insert into documents (id, title, filename, name, kind, sha256, version, content, imported_at, project_id, origin, created_by, folder_id)
-      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, title, key, prev?.name ?? filename, kind, sha256, version, content, now(), projectId, written ? 'written' : 'import', access().user.id, folder)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, title, key, name, kind, sha256, version, content, now(), projectId, written ? 'written' : 'import', access().user.id, folder)
     // A written version may carry a new title or kind: the labels are per document, so earlier versions follow.
     if (prev && (prev.title !== title || prev.kind !== kind))
       db.prepare('update documents set title = ?, kind = ? where project_id = ? and filename = ?').run(title, kind, projectId, key)
     const ins = db.prepare('insert into passages values (?, ?, ?, ?, ?, ?, ?)')
     for (const p of passages) ins.run(p.id, documentId, p.ordinal, p.start_line, p.end_line, p.text, projectId)
     const event = written ? (version > 1 ? 'document.version_written' : 'document.written') : (version > 1 ? 'document.version_added' : 'document.imported')
-    audit(event, 'document', documentId, { filename: key, title, kind, version, sha256, passages: passages.length, folder: folderPath(folder) })
+    audit(event, 'document', documentId, { filename: name, title, kind, version, sha256, passages: passages.length, folder: where })
     // Old citations are not silently moved to the new version; they are flagged stale until someone reviews them.
     if (version > 1) {
       const stale = db.prepare(`select distinct f.id from facts f join evidence e on e.fact_id = f.id join documents d on d.id = e.document_id
         where f.project_id = ? and f.status = 'canon' and d.filename = ? and d.version < ?`).all(projectId, key, version) as { id: string }[]
       staleFacts = stale.length
-      if (stale.length) audit('citation.stale', 'document', documentId, { filename: key, version, fact_ids: stale.map(s => s.id) })
+      if (stale.length) audit('citation.stale', 'document', documentId, { filename: name, folder: where, version, fact_ids: stale.map(s => s.id) })
+      evidenceMoved = movePendingEvidence(key, documentId, version, passages, { name, folder: where })
     }
   })
 
@@ -96,9 +101,38 @@ export async function importDocument(filename: string, content: string, written?
   }
 
   return {
-    filename, title, status: 'imported' as const, document_id: documentId, version, folder: folderPath(folder), same_name_in: sameNameIn, passages: passages.length, stale_facts: staleFacts,
+    filename, title, status: 'imported' as const, document_id: documentId, version, folder: where, same_name_in: sameNameIn, passages: passages.length, stale_facts: staleFacts, evidence_moved: evidenceMoved,
     candidates: extraction?.created ?? 0, unverified: extraction?.unverified ?? 0, skipped: extraction?.skipped ?? 0, extraction_error: extractionError,
   }
+}
+
+// A new version: a PENDING candidate's quote that appears exactly once in it now cites that passage, so nobody re-reviews an
+// unrelated edit. The candidate keeps its origin and proposer; the audit keeps where the quote was. A quote that is gone or
+// appears more than once stays on the old version (stale). Canon evidence never moves: a person re-checks it.
+function movePendingEvidence(key: string, documentId: string, version: number, passages: { id: string, text: string, start_line: number }[], doc: { name: string, folder: string | null }) {
+  const db = useDb()
+  const rows = db.prepare(`select e.id, e.fact_id, e.quote, e.document_id, e.passage_id, d.version, p.start_line from evidence e
+    join facts f on f.id = e.fact_id join documents d on d.id = e.document_id left join passages p on p.id = e.passage_id
+    where f.project_id = ? and f.status = 'pending' and e.verified = 1 and d.filename = ? and d.version < ?`).all(pid(), key, version) as { id: string, fact_id: string, quote: string, document_id: string, passage_id: string, version: number, start_line: number | null }[]
+  const occurrences = (text: string, q: string) => {
+    let n = 0
+    for (let i = text.indexOf(q); i !== -1; i = text.indexOf(q, i + 1)) n++
+    return n
+  }
+  const move = db.prepare('update evidence set document_id = ?, passage_id = ? where id = ?')
+  let moved = 0
+  for (const r of rows) {
+    const hits = passages.filter(p => isVerbatimQuote(p.text, r.quote))
+    if (hits.length !== 1 || occurrences(hits[0]!.text, r.quote) !== 1) continue
+    move.run(documentId, hits[0]!.id, r.id)
+    audit('candidate.evidence_moved', 'fact', r.fact_id, {
+      filename: doc.name, folder: doc.folder, quote: r.quote,
+      from: { document_id: r.document_id, version: r.version, passage_id: r.passage_id, line: r.start_line },
+      to: { document_id: documentId, version, passage_id: hits[0]!.id, line: hits[0]!.start_line },
+    })
+    moved++
+  }
+  return moved
 }
 
 // What the project already has (any status: pending, canon, rejected or superseded, so a decision a person made stands):

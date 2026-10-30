@@ -1,7 +1,8 @@
 <script setup lang="ts">
 // Drop files anywhere on the page (or pick them) to add them to the Library. One request per file, in order, so each row
 // shows its own progress and result; one bad file never stops the others. Editors only: the parent leaves it out for viewers.
-// `folder`: where the files land (null: not in a folder). A file is a new version of the document with its name in that folder.
+// `folder`: where the files land (null: the Library root). A file is a new version of the document with its exact name in that
+// folder, and only there: a file with the same name elsewhere stays a separate document.
 const props = defineProps<{ folder?: { id: string, label: string } | null }>()
 const emit = defineEmits<{ uploaded: [] }>()
 const { data: stats } = useNuxtData<{ model: { mode: string } }>('stats')
@@ -9,7 +10,7 @@ const recorded = computed(() => stats.value?.model.mode === 'mock')
 
 interface Item {
   key: number, name: string, size: number, state: 'queued' | 'uploading' | 'done' | 'error', error?: string
-  result?: { status: string, document_id?: string, version?: number, folder?: string | null, same_name_in?: { folder: string | null } | null, passages?: number, candidates?: number, skipped?: number, stale_facts?: number, extraction_error?: string | null, same_as?: { filename: string, title: string, version: number }, error?: string }
+  result?: { status: string, document_id?: string, version?: number, folder?: string | null, same_name_in?: { folder: string | null } | null, passages?: number, candidates?: number, skipped?: number, stale_facts?: number, evidence_moved?: number, extraction_error?: string | null, same_as?: { filename: string, title: string, version: number }, error?: string }
 }
 const items = ref<Item[]>([])
 const busy = computed(() => items.value.some(i => i.state === 'queued' || i.state === 'uploading'))
@@ -105,6 +106,7 @@ onBeforeUnmount(() => {
   window.removeEventListener('drop', onDrop)
 })
 
+const place = (folder?: string | null) => (folder ? `“${folder}”` : 'the Library root')
 const kb = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1e3))} KB`)
 const done = computed(() => items.value.filter(i => i.state === 'done' || i.state === 'error').length)
 const summary = computed(() => {
@@ -116,10 +118,11 @@ const summary = computed(() => {
   return [added && `${added} added`, versions && counted(versions, 'new version'), skipped && `${skipped} unchanged`, failed && `${failed} failed`].filter(Boolean).join(' · ')
 })
 const candidates = computed(() => items.value.reduce((n, i) => n + (i.result?.candidates ?? 0), 0))
+// The recorded-run note is for files it has no output for: a demo file whose candidates were all skipped is not one.
 // While a batch runs every file shows; afterwards the list folds to the failures, the rest behind "Show all".
 const expanded = ref(false)
 const rows = computed(() => (busy.value || expanded.value ? items.value : items.value.filter(i => i.state === 'error')))
-const noRecorded = computed(() => recorded.value && items.value.some(i => i.result?.status === 'imported') && items.value.every(i => i.result?.status !== 'imported' || !i.result.candidates))
+const noRecorded = computed(() => recorded.value && items.value.some(i => i.result?.status === 'imported' && !i.result.candidates && !i.result.skipped))
 const clear = () => { items.value = items.value.filter(i => i.state === 'queued' || i.state === 'uploading') }
 </script>
 
@@ -131,7 +134,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
       <div class="drop-card">
         <UiIcon name="upload" :size="28" />
         <b>Drop to add {{ folder ? `to ${folder.label}` : 'to the Library' }}</b>
-        <span>Markdown or plain text, up to 1 MB each. A file with the same name as one {{ folder ? `in ${folder.label}` : 'not in a folder' }} becomes its next version.</span>
+        <span>Markdown or plain text, up to 1 MB each. A file with the same name as one {{ folder ? `in ${folder.label}` : 'in the Library root' }} becomes its next version.</span>
       </div>
     </div>
   </Teleport>
@@ -167,10 +170,11 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
               Same text as {{ i.result.same_as?.filename === i.name ? '' : `${i.result.same_as?.title} ` }}v{{ i.result.same_as?.version }}, skipped.
             </template>
             <template v-else-if="i.result">
-              <b>{{ i.result.version === 1 ? 'Added' : `New version v${i.result.version}` }}</b>
-              · {{ i.result.folder ? `in ${i.result.folder}` : 'not in a folder' }}<template v-if="i.result.same_name_in"> · the other {{ i.name }} is {{ i.result.same_name_in.folder ? `in ${i.result.same_name_in.folder}` : 'not in a folder' }}</template>
+              <b>{{ i.result.version === 1 ? `Added to ${place(i.result.folder)}` : `New version v${i.result.version} of ${i.name} in ${place(i.result.folder)}` }}</b>
+              <template v-if="i.result.same_name_in"> · a separate document: the {{ i.name }} {{ i.result.same_name_in.folder ? `in ${i.result.same_name_in.folder}` : 'in the Library root' }} is unchanged</template>
               · {{ counted(i.result.passages ?? 0, 'passage') }}
               · {{ counted(i.result.candidates ?? 0, 'candidate') }}<template v-if="i.result.skipped"> ({{ i.result.skipped }} already in the project)</template>
+              <template v-if="i.result.evidence_moved"> · {{ counted(i.result.evidence_moved, 'pending candidate') }} now {{ i.result.evidence_moved === 1 ? 'cites' : 'cite' }} v{{ i.result.version }}</template>
               <template v-if="i.result.stale_facts">
                 · <NuxtLink :to="`/documents/${i.result.document_id}/history`" class="warn-text">{{ counted(i.result.stale_facts, 'canon fact') }} to re-check</NuxtLink>
               </template>

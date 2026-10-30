@@ -7,7 +7,7 @@ const { data: doc, error, refresh } = await useFetch(() => `/api/documents/${rou
 const active = computed(() => route.hash.slice(1))
 const lineOf = (ev: Record<string, any>) => `Line ${ev.start_line}${ev.end_line !== ev.start_line ? `–${ev.end_line}` : ''}`
 // Evidence from this document, any version. One that cites another version is shown as such, never as this text.
-const here = (f: Record<string, any>) => f.evidence.filter((ev: any) => ev.document_filename === doc.value?.filename)
+const here = (f: Record<string, any>) => f.evidence.filter((ev: any) => ev.document_key === doc.value?.filename)
 const activeQuote = computed(() => doc.value?.facts.flatMap(f => f.evidence).find(ev => ev.verified && ev.passage_id === active.value)?.quote)
 const latest = computed(() => !doc.value || doc.value.latest.id === doc.value.id)
 // Facts and notes are only added to the latest version: an older one is already superseded.

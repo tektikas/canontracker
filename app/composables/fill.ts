@@ -14,6 +14,6 @@ export function useFillAction() {
     if (!canEdit(me.value)) return { label: 'Go to Home', to: '/', icon: 'home' }
     if (!s?.documents) return { label: 'Add sources', to: '/', icon: 'upload' }
     if (s.pending) return { label: 'Review candidates', to: '/review', icon: 'review' }
-    return { label: 'Add facts from a source', to: '/#sources', icon: 'file' }
+    return { label: 'Add facts from a source', to: '/library', icon: 'file' }
   })
 }
