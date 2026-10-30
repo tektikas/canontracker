@@ -94,7 +94,7 @@ const next = computed(() => {
     </template>
   </UiPageHeader>
 
-  <p v-if="stats?.model.mode === 'mock'" class="notice warn home-notice">
+  <p v-if="['recorded', 'mixed'].includes(provenance(stats?.data_model_id).kind)" class="notice warn home-notice">
     <span><b>Recorded run.</b> Candidates and model checks are replayed from a recorded extraction, not a live model call.</span>
   </p>
 

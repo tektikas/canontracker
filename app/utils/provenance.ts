@@ -1,0 +1,15 @@
+// Provenance comes from the stored model_id of the data itself, never from the current runtime mode.
+// A stored id is one model id, or several joined with ' + ' (evaluations over mixed data); '' means no model output.
+export const isRecordedModel = (id: string | null | undefined) => !!id?.startsWith('mock:')
+
+export const modelLabel = (id: string | null | undefined) =>
+  !id ? 'No model output' : isRecordedModel(id) ? 'Recorded demo run' : `${id === 'muse-spark-1.3' ? 'Muse Spark 1.3' : id} via Meta Model API`
+
+export function provenance(id: string | null | undefined): { kind: 'recorded' | 'live' | 'mixed' | 'none', label: string } {
+  const parts = (id ?? '').split(' + ').filter(Boolean)
+  if (!parts.length) return { kind: 'none', label: 'No model output' }
+  const rec = parts.filter(isRecordedModel).length
+  if (rec === parts.length) return { kind: 'recorded', label: 'Recorded demo run' }
+  if (rec === 0) return { kind: 'live', label: parts.map(modelLabel).join(' + ') }
+  return { kind: 'mixed', label: 'Mixed: recorded demo run + live model' }
+}
