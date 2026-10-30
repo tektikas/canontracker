@@ -21,73 +21,123 @@ async function run() {
   refreshNuxtData('stats')
 }
 
-const verdict = (pass: boolean | null) => pass === null ? { cls: '', label: 'info' } : pass ? { cls: 'good', label: 'met' } : { cls: 'bad', label: 'missed' }
-const tally = (results: { pass: boolean | null }[]) => `${results.filter(r => r.pass).length}/${results.filter(r => r.pass !== null).length} met`
+type Tone = 'good' | 'bad' | 'neutral'
+const verdict = (pass: boolean | null): { tone: Tone, label: string } => pass === null ? { tone: 'neutral', label: 'Info' } : pass ? { tone: 'good', label: 'Met' } : { tone: 'bad', label: 'Missed' }
+const score = (results: { pass: boolean | null }[]) => ({
+  met: results.filter(r => r.pass === true).length,
+  missed: results.filter(r => r.pass === false).length,
+  info: results.filter(r => r.pass === null).length,
+})
+const s = computed(() => latest.value ? score(latest.value.results) : null)
+const isRecorded = (modelId: string) => modelId.startsWith('mock:')
+const fmt = (iso: string) => new Date(iso).toLocaleString()
 </script>
 
 <template>
-  <div class="page-head spread">
-    <div>
-      <h1>Measurements</h1>
-      <p>Targets from the MVP acceptance list, measured on the current data against a hand-labeled gold set for Broken Tide. A small synthetic set checks that the system behaves as designed; it is not evidence of real-world accuracy.</p>
-    </div>
-    <button class="btn primary" :disabled="busy" @click="run">{{ busy ? 'Measuring…' : 'Run evaluation' }}</button>
-  </div>
+  <UiPageHeader title="Measurements">
+    <template #actions>
+      <UiButton variant="primary" :loading="busy" :disabled="busy" @click="run">{{ busy ? 'Measuring…' : 'Run evaluation' }}</UiButton>
+    </template>
+    Targets from the MVP acceptance list, measured on the current data.
+  </UiPageHeader>
 
-  <p v-if="error" class="notice bad" role="alert" style="margin-bottom: 14px">{{ error }}</p>
+  <p class="notice info caveat">
+    <UiIcon name="metrics" :size="16" />
+    <span>The gold set is small, hand-labeled and synthetic (Broken Tide). It checks that the system behaves as designed; it is not evidence of real-world accuracy.</span>
+  </p>
 
-  <div v-if="!latest" class="card empty">
-    Not run yet. For a full run: load the demo set, review candidates, scan conflicts and decide A1, then run the evaluation.
-  </div>
+  <p v-if="error" class="notice bad" role="alert" style="margin-bottom: var(--s-4)">{{ error }}</p>
 
-  <section v-else class="card stack" style="margin-bottom: 24px">
-    <div class="spread">
-      <h2 style="margin: 0">Latest run · {{ tally(latest.results) }}</h2>
-      <span class="small muted">{{ new Date(latest.created_at).toLocaleString() }} · dataset <span class="mono">{{ latest.dataset }}</span> · model <span class="mono">{{ latest.model_id }}</span></span>
-    </div>
-    <div class="table-wrap">
-      <table>
-        <thead><tr><th>Measure</th><th>Target</th><th>Measured</th><th>Result</th></tr></thead>
-        <tbody>
-          <tr v-for="m in latest.results" :key="m.key">
-            <td>{{ m.label }}<div v-if="m.note" class="small muted">{{ m.note }}</div></td>
-            <td class="mono small">{{ m.target }}</td>
-            <td class="mono small">{{ m.measured }}</td>
-            <td><span class="chip" :class="verdict(m.pass).cls">{{ verdict(m.pass).label }}</span></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
+  <UiEmptyState v-if="!latest" title="Not run yet" icon="metrics">
+    For a full run: load the demo set, review candidates, scan conflicts and decide A1, then run the evaluation.
+  </UiEmptyState>
 
-  <section v-if="runs && runs.length > 1" class="card" style="margin-bottom: 24px">
-    <h2>Earlier runs</h2>
-    <ul class="small">
-      <li v-for="r in runs.slice(1)" :key="r.id">{{ new Date(r.created_at).toLocaleString() }} · {{ tally(r.results) }} · <span class="mono">{{ r.model_id }}</span></li>
-    </ul>
-  </section>
+  <template v-else-if="s">
+    <section class="score" aria-label="Latest run summary">
+      <div class="score-main">
+        <span class="score-num"><b>{{ s.met }}</b> of {{ s.met + s.missed }}</span>
+        <span class="score-label">targets met<template v-if="s.missed"> · <span class="missed">{{ s.missed }} missed</span></template><template v-if="s.info"> · {{ s.info }} info</template></span>
+      </div>
+      <div class="bar" role="img" :aria-label="`${s.met} met, ${s.missed} missed, ${s.info} info`">
+        <i v-for="(r, i) in latest!.results" :key="i" :class="verdict(r.pass).tone" />
+      </div>
+      <div class="score-meta small muted">
+        {{ fmt(latest!.created_at) }} · dataset <span class="mono">{{ latest!.dataset }}</span> ·
+        <UiBadge :tone="isRecorded(latest!.model_id) ? 'warn' : 'good'" dot>{{ isRecorded(latest!.model_id) ? 'Recorded run' : 'Live model' }}</UiBadge>
+        <span class="mono">{{ latest!.model_id }}</span>
+      </div>
+    </section>
 
-  <section class="card stack">
-    <h2 style="margin: 0">Model calls</h2>
-    <p class="small muted" style="margin: 0">Every model call: what it was for, which sources it saw, how long it took. Prompts, keys and full documents are not stored.</p>
-    <div v-if="!calls?.length" class="empty">No model calls yet.</div>
+    <UiPanel flush title="Latest run" class="gap">
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Measure</th><th>Target</th><th>Measured</th><th>Result</th></tr></thead>
+          <tbody>
+            <tr v-for="m in latest!.results" :key="m.key">
+              <td>{{ m.label }}<div v-if="m.note" class="small muted">{{ m.note }}</div></td>
+              <td class="mono small">{{ m.target }}</td>
+              <td class="mono small">{{ m.measured }}</td>
+              <td><UiBadge :tone="verdict(m.pass).tone" :dot="m.pass !== null">{{ verdict(m.pass).label }}</UiBadge></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </UiPanel>
+
+    <UiPanel v-if="runs && runs.length > 1" title="Earlier runs" class="gap">
+      <ul class="runs small">
+        <li v-for="r in runs.slice(1)" :key="r.id">
+          <span>{{ fmt(r.created_at) }}</span>
+          <b>{{ score(r.results).met }} met · {{ score(r.results).missed }} missed</b>
+          <UiBadge :tone="isRecorded(r.model_id) ? 'warn' : 'good'">{{ isRecorded(r.model_id) ? 'Recorded' : 'Live' }}</UiBadge>
+        </li>
+      </ul>
+    </UiPanel>
+  </template>
+
+  <UiPanel flush title="Model calls" description="Every model call: what it was for, which sources it saw, how long it took. Prompts, keys and full documents are not stored." class="gap">
+    <p v-if="!calls?.length" class="empty-note muted">No model calls yet.</p>
     <div v-else class="table-wrap">
       <table>
-        <thead><tr><th>Time</th><th>Purpose</th><th>Model · prompt</th><th>Inputs</th><th>Result</th><th>Latency</th></tr></thead>
+        <thead><tr><th>Time</th><th>Purpose</th><th>Model · prompt</th><th class="hide-sm">Inputs</th><th>Result</th><th class="hide-sm">Latency</th></tr></thead>
         <tbody>
           <tr v-for="c in calls" :key="c.id">
-            <td class="mono small" style="white-space: nowrap">{{ new Date(c.created_at).toLocaleTimeString() }}</td>
-            <td><span class="chip accent">{{ c.purpose.replace('_', ' ') }}</span></td>
-            <td class="mono small">{{ c.model_id }}<div class="muted">{{ c.prompt_version }}</div></td>
-            <td class="small">{{ c.input_refs.length }} {{ c.target_type === 'document' ? 'document' : 'facts' }}</td>
+            <td class="mono small nowrap">{{ new Date(c.created_at).toLocaleTimeString() }}</td>
+            <td><UiBadge tone="accent">{{ c.purpose.replace('_', ' ') }}</UiBadge></td>
+            <td>
+              <UiBadge :tone="isRecorded(c.model_id) ? 'warn' : 'good'" dot>{{ isRecorded(c.model_id) ? 'Recorded' : 'Live' }}</UiBadge>
+              <div class="mono small muted">{{ c.model_id }} · {{ c.prompt_version }}</div>
+            </td>
+            <td class="small hide-sm">{{ c.input_refs.length }} {{ c.target_type === 'document' ? 'document' : 'facts' }}</td>
             <td class="small">
               <span v-if="c.status === 'ok'">{{ c.output_summary }}</span>
-              <span v-else class="chip bad" :title="c.error ?? ''">failed</span>
+              <UiBadge v-else tone="bad" :title="c.error ?? ''">Failed</UiBadge>
+              <div v-if="c.status !== 'ok' && c.error" class="small muted">{{ c.error }}</div>
             </td>
-            <td class="mono small">{{ c.latency_ms }} ms</td>
+            <td class="mono small hide-sm nowrap">{{ c.latency_ms }} ms</td>
           </tr>
         </tbody>
       </table>
     </div>
-  </section>
+  </UiPanel>
 </template>
+
+<style scoped>
+.caveat { margin-bottom: var(--s-5); align-items: center; }
+.gap { margin-top: var(--s-5); }
+.nowrap { white-space: nowrap; }
+.score { border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--raised); padding: var(--s-5); display: grid; gap: var(--s-4); }
+.score-main { display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--s-2) var(--s-4); }
+.score-num { font-size: var(--text-xl); }
+.score-num b { font-size: var(--text-2xl); font-weight: 600; }
+.score-label { color: var(--muted); }
+.missed { color: var(--bad); font-weight: 600; }
+.bar { display: flex; gap: 3px; }
+.bar i { flex: 1; height: 10px; border-radius: 2px; background: var(--line-strong); }
+.bar i.good { background: var(--good); }
+.bar i.bad { background: var(--bad); }
+.score-meta { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.runs { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.runs li { display: flex; flex-wrap: wrap; gap: var(--s-1) var(--s-3); align-items: center; }
+.empty-note { margin: 0; padding: var(--s-4); }
+</style>
