@@ -28,7 +28,7 @@ export const appliedImage = (type: ImageTarget, id: string) => listImages(type, 
 
 // A person picks this image as the entity's portrait or the document's cover. Editorial only; canon is untouched.
 // The portrait keeps its own copy of the bytes, so the entity index, hover cards and merges read it as before.
-export function applyImage(i: ImageRow, target: { name: string, noun: string }) {
+export function applyImage(i: ImageRow, target: { name: string, noun: string }, restored = false) {
   const data = readPortrait(i.id)
   if (!data) throw createError({ statusCode: 404, statusMessage: 'NOT_FOUND', message: 'Image file is missing.' })
   const at = now()
@@ -39,7 +39,7 @@ export function applyImage(i: ImageRow, target: { name: string, noun: string }) 
       useDb().prepare('update entities set portrait_type = ?, portrait_at = ?, updated_at = ?, updated_by = ? where id = ?').run(i.mime, at, at, access().user.id, i.target_id)
     clearApplied(i.target_type, i.target_id)
     useDb().prepare('update images set applied_at = ? where id = ?').run(at, i.id)
-    audit('image.applied', i.target_type, i.target_id, { name: target.name, image: i.id, as: target.noun, source: i.source, replaced })
+    audit('image.applied', i.target_type, i.target_id, { name: target.name, image: i.id, as: target.noun, source: i.source, replaced, ...(restored && { restored }) })
   })
   return at
 }

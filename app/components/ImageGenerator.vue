@@ -49,6 +49,8 @@ const backdrop = (ev: MouseEvent) => { if (ev.target === dlg.value) close() }
 const noun = computed(() => data.value?.target.noun ?? imageNoun(props.type))
 const title = computed(() => !data.value ? 'Generate an image' : noun.value === 'image' ? `Generate an image of ${data.value.target.name}` : `Generate a ${noun.value} for ${data.value.target.name}`)
 const live = computed(() => !!data.value?.model.live)
+// Canon had nothing drawable to add: the draft is just the opening line.
+const bare = computed(() => live.value && prompt.value === data.value?.target.suggestion && prompt.value.split('\n').filter(Boolean).length <= 1)
 const sent = computed(() => composeImagePrompt(prompt.value, style.value, data.value?.art_style ?? ''))
 
 // The server's message is exact but technical; lead with a sentence a writer can act on and keep the rest under "Details".
@@ -121,6 +123,7 @@ function uploadInstead() {
             <UiField label="Prompt" hint="Drafted from accepted canon and your page’s own fields. Edit it freely; canon doesn’t change.">
               <textarea v-model="prompt" rows="7" maxlength="2000" />
             </UiField>
+            <p v-if="bare" class="small muted bare">Describe it: what it looks like, the light, the mood. Only a name and kind are known so far.</p>
             <button type="button" class="linkish small" :style="{ visibility: prompt !== data.target.suggestion ? 'visible' : 'hidden' }" :tabindex="prompt !== data.target.suggestion ? 0 : -1" @click="prompt = data.target.suggestion">Start again from canon</button>
 
             <div class="group" role="radiogroup" aria-label="Style preset">
@@ -179,7 +182,7 @@ function uploadInstead() {
 
         <section ref="results" class="gen-results" aria-label="Images">
           <h3 class="small">Images for {{ data.target.name }} <span class="faint">· {{ data.images.length }}</span></h3>
-          <ImageHistory ref="history" v-model:images="data.images" :type="type" :id="id" :name="data.target.name" :noun="noun" editable :generating="generating ? count : 0" :fresh="fresh" @changed="emit('changed')" />
+          <ImageHistory ref="history" v-model:images="data.images" :type="type" :id="id" :name="data.target.name" :noun="noun" editable :generating="generating ? count : 0" :fresh="fresh" @changed="genError = null; emit('changed')" />
         </section>
       </div>
       <div v-else class="pad"><span class="spinner" aria-label="Loading" /></div>
@@ -201,7 +204,8 @@ function uploadInstead() {
 .gen-form, .gen-results { overflow-y: auto; }
 .gen-form { padding: var(--s-5); border-right: 1px solid var(--line); gap: var(--s-4); align-content: start; }
 fieldset { border: 0; margin: 0; padding: 0; min-width: 0; gap: var(--s-4); }
-fieldset:disabled textarea { background: var(--surface); color: var(--muted); }
+fieldset:disabled textarea { background: var(--sunken); color: var(--muted); border-style: dashed; cursor: not-allowed; resize: none; }
+.bare { margin: calc(-1 * var(--s-2)) 0 0; }
 .gen-actions { position: sticky; bottom: calc(-1 * var(--s-5)); z-index: 1; display: grid; gap: var(--s-2); margin: 0 calc(-1 * var(--s-5)) calc(-1 * var(--s-5)); padding: var(--s-3) var(--s-5) var(--s-4); background: var(--raised); border-top: 1px solid var(--line); }
 .tight { gap: var(--s-1); }
 .notice details p { margin: var(--s-1) 0 0; overflow-wrap: anywhere; }

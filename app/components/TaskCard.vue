@@ -40,7 +40,7 @@ const pick = (e: Event) => (e.target as HTMLInputElement | HTMLSelectElement).va
       <UiBadge :tone="meta.tone as any" :dot="!closed && task.status !== 'done'">{{ meta.label }}</UiBadge>
       <UiBadge v-if="overdue" tone="bad">Overdue</UiBadge>
       <span v-if="task.due_date && !overdue" class="small muted">Due {{ shortDate(task.due_date) }}</span>
-      <span class="small faint right">{{ task.assignee_name ? `Assigned to ${task.assignee_name}` : 'Unassigned' }}</span>
+      <span class="small faint right">{{ task.assignee_name ? `Assigned to ${task.assignee_name}${task.assignee_former ? ' (former member)' : ''}` : 'Unassigned' }}</span>
     </div>
     <NuxtLink :to="`/documents/${task.document_id}${task.passage_id ? `#${task.passage_id}` : ''}`" class="scene">
       <UiIcon name="file" :size="14" />{{ task.document_title }} <span class="faint small">v{{ task.document_version }}{{ line }}</span>
@@ -67,6 +67,7 @@ const pick = (e: Event) => (e.target as HTMLInputElement | HTMLSelectElement).va
       <label><span class="small muted">Assignee</span>
         <select :value="task.assignee_id ?? ''" :disabled="busy" @change="save({ assignee_id: pick($event) })">
           <option value="">Unassigned</option>
+          <option v-if="task.assignee_former" :value="task.assignee_id" disabled>{{ task.assignee_name }} (former member)</option>
           <option v-for="m in members" :key="m.id" :value="m.id">{{ m.name }}</option>
         </select>
       </label>

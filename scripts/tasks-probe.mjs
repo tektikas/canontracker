@@ -84,6 +84,12 @@ check('other project sees no tasks', (await b('/api/tasks')).data, [])
 check('other project cannot patch: 404', (await b(`/api/tasks/${t0.id}`, { method: 'PATCH', body: { status: 'done' } })).status, 404)
 check('other project stats show none', (await b('/api/stats')).data.open_tasks, 0)
 
+// A task assigned to someone who then leaves the studio is flagged as such, not shown as a plain assignee.
+const viewerId = (await v('/api/me')).data.user.id
+check('assign a done task to the viewer (a member)', (await a(`/api/tasks/${tasks[1].id}`, { method: 'PATCH', body: { assignee_id: viewerId } })).data.assignee_former, 0)
+check('member removed', (await a(`/api/team/${viewerId}`, { method: 'DELETE' })).status, 200)
+check('former member flagged', (await a('/api/tasks')).data.find(t => t.id === tasks[1].id).assignee_former, 1)
+
 // Revert closes the unfinished tasks, keeps the finished ones and every row.
 check('revert', (await a(`/api/changes/${ch.id}/revert`, { method: 'POST', body: { rationale: 'Playtest preferred the old rule' } })).data.status, 'reverted')
 const after = (await a('/api/tasks')).data
@@ -91,6 +97,8 @@ check('revert keeps every task', after.length, 4)
 check('unfinished became not_needed; done and won’t fix stayed', after.map(t => [t.id, t.status]).sort(), [[t0.id, 'not_needed'], [tasks[1].id, 'done'], [tasks[2].id, 'wont_fix'], [tasks[3].id, 'not_needed']].sort())
 check('the in-progress task keeps its assignee and comment', [after.find(t => t.id === t0.id).assignee_id, after.find(t => t.id === t0.id).comment], [me.id, 'Checking the rule wording'])
 check('a closed task can’t be edited: 409', (await a(`/api/tasks/${t0.id}`, { method: 'PATCH', body: { status: 'open' } })).status, 409)
+check('a done task of a reverted change can’t be reopened: 409', (await a(`/api/tasks/${tasks[1].id}`, { method: 'PATCH', body: { status: 'open' } })).status, 409)
+check('…but can still be commented on', (await a(`/api/tasks/${tasks[1].id}`, { method: 'PATCH', body: { comment: 'Kept for the record' } })).status, 200)
 check('stats open tasks is 0', (await a('/api/stats')).data.open_tasks, 0)
 
 const audit = (await a('/api/audit')).data.map(e => e.event_type)

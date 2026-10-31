@@ -19,7 +19,17 @@ function snippet(text: string, words: string[]) {
   return `${from ? '…' : ''}${flat.slice(from, from + SNIP)}${from + SNIP < flat.length ? '…' : ''}`
 }
 
+// ponytail: per-process, per-user sliding window; the palette sends ≤ ~8 requests/s while typing, the cap is 20/s. Use a shared store if the app ever runs on several nodes.
+const hits = new Map<string, number[]>()
+function throttle(userId: string) {
+  const t = Date.now(), recent = (hits.get(userId) ?? []).filter(x => t - x < 10_000)
+  recent.push(t)
+  hits.set(userId, recent)
+  if (recent.length > 200) throw createError({ statusCode: 429, statusMessage: 'TOO_MANY_REQUESTS', message: 'Searching too fast. Wait a moment.' })
+}
+
 export default defineEventHandler((event) => {
+  throttle(access().user.id)
   const q = String(getQuery(event).q ?? '').trim().slice(0, 80).toLowerCase()
   const words = q.split(/\s+/).filter(Boolean)
   const empty = { q, facts: [], entities: [], documents: [], notes: [] }

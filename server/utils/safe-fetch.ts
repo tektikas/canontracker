@@ -36,6 +36,8 @@ for (const [net, bits] of [['0.0.0.0', 8], ['10.0.0.0', 8], ['100.64.0.0', 10], 
 // IPv6 must be global unicast (2000::/3), which already leaves out ::, ::1, IPv4-mapped/NAT64, ULA, link-local and multicast;
 // inside it, the IANA special-purpose blocks that aren't globally reachable or can wrap a private IPv4 are refused:
 // IETF protocol assignments (Teredo, benchmarking, ORCHID, …), documentation (2001:db8::/32, 3fff::/20) and 6to4.
+// Deliberately conservative: the whole 2001::/23 block is refused, which also covers a few small globally reachable ranges inside it
+// (2001:3::/32 AMT, 2001:4:112::/48 AS112). An image host there is rare; allow a range only with a test that proves it is safe.
 const global6 = new BlockList()
 global6.addSubnet('2000::', 3, 'ipv6')
 const private6 = new BlockList()

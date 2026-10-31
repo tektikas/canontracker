@@ -16,8 +16,10 @@ export async function readLimitedForm(event: H3Event, lim: FormLimits) {
     setResponseHeader(event, 'connection', 'close') // don't read the rest of the body: close once the 413 is sent
     return createError({ statusCode: 413, statusMessage: 'TOO_LARGE', message: lim.tooLarge })
   }
-  const boundary = getHeader(event, 'content-type')?.match(/^multipart\/form-data;.*boundary=([^;]*)(;|$)/i)?.[1]
+  const boundary = getHeader(event, 'content-type')?.match(/^multipart\/form-data;.*boundary=("[^"]*"|[^;]*)(;|$)/i)?.[1]?.replace(/^"|"$/g, '')
   if (!boundary) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: lim.notMultipart })
+  // h3's parser takes the boundary literally: hand it the unquoted form (a quoted boundary is valid, RFC 2046).
+  event.node.req.headers['content-type'] = `multipart/form-data; boundary=${boundary}`
   if (Number(getHeader(event, 'content-length') ?? 0) > lim.maxTotal) throw tooLarge()
   const marker = Buffer.from(`--${boundary}`)
   const chunks: Buffer[] = []

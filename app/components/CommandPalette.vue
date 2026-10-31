@@ -99,8 +99,8 @@ watch(q, (v) => {
   clearTimeout(timer)
   if (!v.trim()) { searching.value = false; error.value = ''; return }
   searching.value = true
+  const mine = ++seq // a newer query drops any request still in flight
   timer = setTimeout(async () => {
-    const mine = ++seq
     try {
       const r = await $fetch('/api/search', { query: { q: v } })
       if (mine !== seq) return
@@ -195,7 +195,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', global))
           <div :id="`${uid}-g-${g.name}`" class="palette-group" role="presentation">{{ g.name }}</div>
           <div
             v-for="it in g.items" :id="`${uid}-o${it.i}`" :key="it.key" role="option" class="palette-item"
-            :aria-selected="it.i === active" :aria-busy="busy === it.key || undefined" @pointermove="active = it.i" @click="choose(it)"
+            :aria-selected="it.i === active" :aria-busy="busy === it.key || undefined" :class="{ stale: searching && it.group !== 'Commands' }" @pointermove="active = it.i" @click="(!searching || it.group === 'Commands') && choose(it)"
           >
             <UiIcon :name="it.icon" :size="18" class="palette-icon" />
             <span class="palette-text">
@@ -236,6 +236,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', global))
 .palette-list { flex: 1; min-height: 0; overflow-y: auto; padding: var(--s-1) var(--s-2) var(--s-2); overscroll-behavior: contain; }
 .palette-group { padding: var(--s-3) var(--s-2) var(--s-1); font-size: var(--text-xs); font-weight: 600; color: var(--faint); }
 .palette-item { display: flex; align-items: flex-start; gap: var(--s-3); padding: 8px var(--s-2); border-radius: var(--r-md); cursor: pointer; }
+.palette-item.stale { opacity: .55; cursor: default; }
 .palette-item[aria-selected=true] { background: var(--accent-soft); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 35%, transparent); }
 .palette-icon { margin-top: 2px; color: var(--muted); }
 .palette-item[aria-selected=true] .palette-icon { color: var(--accent); }

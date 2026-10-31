@@ -143,7 +143,9 @@ async function explicit() {
     check('no override: 20 of 40 min is near the limit, soft', await scan(), ['soft'])
     check('explicit Hard (same as built-in): always hard', await scan({ TRAVEL_TIME_TOO_SHORT: 'hard' }), ['hard'])
     check('explicit Soft: soft', await scan({ TRAVEL_TIME_TOO_SHORT: 'soft' }), ['soft'])
-    check('setting another rule does not turn the travel default into an override', await scan({ TRAVEL_TIME_TOO_SHORT: 'hard', EXACT_TIME_LOCATION_OVERLAP: 'soft' }), ['hard'])
+    // Overrides merge, so clear the earlier travel override first: with only another rule set, travel must keep its built-in default.
+    { const d = new DatabaseSync(file); d.prepare(`update projects set severity_defaults = '{}' where id = ?`).run(pid); d.close() }
+    check('setting only another rule leaves the travel default (soft) alone', await scan({ EXACT_TIME_LOCATION_OVERLAP: 'soft' }), ['soft'])
     console.log('severity explicit-default probe: all checks passed')
   } finally {
     server?.kill()

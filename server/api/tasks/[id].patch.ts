@@ -4,6 +4,7 @@ export default defineEventHandler(async (event) => {
   const b = (await readBody<Record<string, unknown>>(event)) ?? {}
   const bad = (statusMessage: string, message: string) => createError({ statusCode: 400, statusMessage, message })
   if (task.status === 'not_needed') throw createError({ statusCode: 409, statusMessage: 'INVALID_STATE_TRANSITION', message: 'The change was reverted, so this task is closed.' })
+  if (task.change_status === 'reverted' && ['open', 'in_progress'].includes(b.status as string)) throw createError({ statusCode: 409, statusMessage: 'INVALID_STATE_TRANSITION', message: 'The change was reverted, so this task cannot be reopened.' })
   const next = { status: task.status, assignee_id: task.assignee_id, due_date: task.due_date, comment: task.comment }
   if (b.status !== undefined) {
     if (!TASK_STATUSES.includes(b.status as typeof TASK_STATUSES[number])) throw bad('BAD_STATUS', `status must be one of ${TASK_STATUSES.join(', ')}.`)

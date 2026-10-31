@@ -19,6 +19,7 @@ const child = process.argv[2] === 'proxy-child'
 // --- fixture: self-signed cert for the fake names, TLS server on loopback -----------------------------------------
 const dir = child ? process.env.PROBE_DIR : mkdtempSync(join(tmpdir(), 'c15-probe-'))
 if (!child) {
+  try { execFileSync('openssl', ['version'], { stdio: 'ignore' }) } catch { console.error('image-fetch-probe needs the `openssl` command (it makes the throwaway TLS certificate). Install it and run again.'); process.exit(1) }
   execFileSync('openssl', ['req', '-x509', '-newkey', 'rsa:2048', '-nodes', '-days', '1', '-subj', '/CN=img.test',
     '-addext', 'subjectAltName=DNS:img.test,DNS:cdn.test,DNS:evil.test,DNS:rebind.test',
     '-keyout', join(dir, 'key.pem'), '-out', join(dir, 'cert.pem')], { stdio: 'ignore' })

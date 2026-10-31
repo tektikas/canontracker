@@ -11,6 +11,7 @@ export default defineEventHandler(async (event) => {
     notMultipart: 'Send the files as a multipart form upload.'
   })
   const parts = form.filter(p => p.filename)
+  if (parts.length > MAX_FILES) throw createError({ statusCode: 413, statusMessage: 'TOO_LARGE', message: `Import at most ${MAX_FILES} files of up to 1 MB at a time.` })
   // Optional: the Library folder new documents land in (a new version stays where its document is).
   const folderField = form.find(p => !p.filename && p.name === 'folder_id')?.data.toString('utf8') || null
   const folderId = folderField ? getFolder(folderField).id : null

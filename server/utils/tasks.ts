@@ -3,7 +3,7 @@ export const TASK_STATUSES = ['open', 'in_progress', 'done', 'wont_fix'] as cons
 export interface TaskItem {
   id: string, change_id: string, document_id: string, passage_id: string | null, status: string, assignee_id: string | null, assignee_name: string | null
   due_date: string | null, comment: string, path: string[], evidence_ids: string[], rationale: string, hop_count: number, created_at: string, updated_at: string
-  updated_by_name: string | null, document_title: string, filename: string, document_version: number, start_line: number | null, quote: string | null
+  updated_by_name: string | null, document_title: string, filename: string, document_version: number, start_line: number | null, quote: string | null, assignee_former: number
   change_statement: string, change_status: string, path_labels: string[]
 }
 
@@ -12,7 +12,9 @@ export function listTasks(where = '1 = 1', ...params: (string | number)[]) {
   const db = useDb()
   const rows = db.prepare(`select t.*, au.name assignee_name, uu.name updated_by_name, d.title document_title, d.filename, d.version document_version,
       p.start_line, c.proposed_statement change_statement, c.status change_status, c.before_statement,
-      (select e.quote from evidence e where e.id = json_extract(t.evidence_ids, '$[0]')) quote
+      (select e.quote from evidence e where e.id = json_extract(t.evidence_ids, '$[0]')) quote,
+      -- an assignee who has since left the studio
+      t.assignee_id is not null and not exists (select 1 from memberships m join projects pr on pr.studio_id = m.studio_id where pr.id = t.project_id and m.user_id = t.assignee_id) assignee_former
     from tasks t join documents d on d.id = t.document_id join changes c on c.id = t.change_id
     left join passages p on p.id = t.passage_id left join users au on au.id = t.assignee_id left join users uu on uu.id = t.updated_by
     where t.project_id = ? and (${where}) order by t.rowid desc`).all(pid(), ...params) as unknown as (Omit<TaskItem, 'path' | 'evidence_ids' | 'path_labels'> & { path: string, evidence_ids: string, before_statement: string })[]
