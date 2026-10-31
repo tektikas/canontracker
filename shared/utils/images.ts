@@ -20,3 +20,14 @@ export const IMAGE_DEADLINE_MS = 150_000
 
 // What the picture is called on screen: characters get a portrait, documents a cover, every other page just an image.
 export const imageNoun = (type: ImageTarget, kind?: string) => (type === 'document' ? 'cover' : kind === 'character' ? 'portrait' : 'image')
+
+// Uploads: raster only (checked by magic bytes on the server), one size cap per file, and a pixel cap so a small file can't
+// unpack into a picture no browser can draw. The client checks the same numbers first for instant feedback.
+export const IMAGE_UPLOAD_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'image/gif'] as const
+export const IMAGE_MAX_BYTES = 10_000_000
+export const IMAGE_MAX_SIDE = 12_000
+export const IMAGE_MAX_PIXELS = 50_000_000
+// Files per upload request; the page splits a bigger drop into several.
+export const IMAGE_BATCH_FILES = 8
+export const IMAGE_CAPTION_MAX = 300
+export type ImageSource = 'generated' | 'upload'

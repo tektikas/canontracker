@@ -1,4 +1,4 @@
-// Generated images are served only through the project guard: another studio gets 404.
+// Images (generated and uploaded) are served only through the project guard: another studio gets 404.
 export default defineEventHandler((event) => {
   const i = getImage(getRouterParam(event, 'id')!)
   const data = readPortrait(i.id)

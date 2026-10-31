@@ -8,7 +8,7 @@ export default defineEventHandler((event) => {
   tx(() => {
     useDb().prepare('delete from entities where id = ?').run(e.id)
     useDb().prepare(`delete from images where project_id = ? and target_type = 'entity' and target_id = ?`).run(pid(), e.id)
-    audit('entity.deleted', 'entity', e.id, { name: e.name, entity: snapshot(e), images: images.map(i => ({ id: i.id, prompt: i.prompt })) })
+    audit('entity.deleted', 'entity', e.id, { name: e.name, entity: snapshot(e), images: images.map(i => ({ id: i.id, source: i.source, prompt: i.prompt, filename: i.filename, caption: i.caption })) })
   })
   removePortrait(e.id)
   for (const i of images) removePortrait(i.id)

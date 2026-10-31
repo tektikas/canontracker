@@ -27,7 +27,8 @@ export default defineEventHandler(async (event) => {
   try {
     results.forEach((r, i) => savePortrait(ids[i]!, r.bytes))
     tx(() => {
-      const insert = useDb().prepare('insert into images values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?)')
+      const insert = useDb().prepare(`insert into images (id, target_type, target_id, prompt, style, model_id, mime, bytes, created_at, created_by, applied_at, project_id)
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?)`)
       results.forEach((r, i) => insert.run(ids[i]!, target.type, target.id, sent, style, model.id, r.type, r.bytes.length, at, access().user.id, pid()))
       audit('image.generated', target.type, target.id, { name: target.name, images: ids, model: model.id, style, prompt: sent })
     })
