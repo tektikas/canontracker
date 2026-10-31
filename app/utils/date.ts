@@ -9,3 +9,8 @@ const zone = () => ({ timeZone: localDates.value ? undefined : 'UTC' })
 export const shortDate = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { ...DAY, ...zone() })
 export const dateTime = (iso: string) => new Date(iso).toLocaleString('en-GB', { ...DAY, hour: '2-digit', minute: '2-digit', hour12: false, ...zone() })
 export const clock = (iso: string) => new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, ...zone() })
+// The calendar day `n` days before `iso`'s day in the selected zone, formatted like shortDate (DST-safe: no 24 h arithmetic).
+export const shortDateBack = (iso: string, n: number) => {
+  const [y, m, d] = new Date(iso).toLocaleDateString('en-CA', zone()).split('-').map(Number)
+  return new Date(Date.UTC(y!, m! - 1, d! - n, 12)).toLocaleDateString('en-GB', { ...DAY, timeZone: 'UTC' })
+}
