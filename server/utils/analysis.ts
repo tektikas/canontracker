@@ -67,12 +67,14 @@ export async function scanConflicts() {
   const ins = db.prepare(`insert or ignore into conflicts (id, left_fact_id, right_fact_id, rule, origin, model_id, rationale, confidence, status, pair_hash, created_at, project_id, severity)
     values (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`)
   const sev = projectSeverities(access().project.severity_defaults)
+  const raw = JSON.parse(access().project.severity_defaults || '{}') as Record<string, unknown>
+  const explicit = Object.fromEntries(Object.keys(RULE_SEVERITY).map(r => [r, SEVERITIES.includes(raw[r] as Severity)]))
   let created = 0
   const add = (a: Fact, b: Fact, rule: string, rationale: string, confidence: number, modelId: string | null = null, near = false) => {
     const pairHash = createHash('sha256').update([a.id, b.id].sort().join('|') + rule).digest('hex').slice(0, 24)
     const id = newId('conf')
-    const overridden = sev[rule] !== RULE_SEVERITY[rule]
-    const severity: Severity = near && !overridden ? 'soft' : sev[rule]!
+    // An explicit project value (even one equal to the built-in) always wins; only "no override" uses the near-limit rule.
+    const severity: Severity = near && !explicit[rule] ? 'soft' : sev[rule]!
     if (ins.run(id, a.id, b.id, rule, modelId ? 'model' : 'rule', modelId, rationale, confidence, pairHash, now(), pid(), severity).changes) {
       audit('conflict.detected', 'conflict', id, { rule, left: a.id, right: b.id, model_id: modelId, severity })
       created++

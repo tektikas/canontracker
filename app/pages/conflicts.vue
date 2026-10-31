@@ -50,6 +50,7 @@ const tabs = computed(() => [
 ])
 // Most likely first, so the clearest clash leads the list.
 const rank = (s: string) => (s === 'hard' ? 0 : 1)
+const inView = computed(() => (conflicts.value ?? []).some(c => (view.value === 'open') === (c.status === 'open')))
 const shown = computed(() => (conflicts.value ?? []).filter(c => (view.value === 'open') === (c.status === 'open') && (sevFilter.value === 'all' || c.severity === sevFilter.value))
   .sort((a, b) => (sevSort.value ? rank(a.severity) - rank(b.severity) : 0) || b.confidence - a.confidence))
 const level = (n: number) => (n >= 0.8 ? 'High' : n >= 0.5 ? 'Medium' : 'Low')
@@ -116,7 +117,10 @@ async function decide(id: string, decision: string) {
       </label>
       <label class="small"><input v-model="sevSort" type="checkbox"> Hard first</label>
     </div>
-    <p v-if="!shown.length" class="muted empty-note">{{ view === 'open' ? 'Nothing left to judge. Scan again after canon changes.' : 'No decisions yet.' }}</p>
+    <p v-if="!shown.length" class="muted empty-note">
+      <template v-if="sevFilter !== 'all' && inView">No matching conflicts. <a href="#" @click.prevent="sevFilter = 'all'">Clear filter</a></template>
+      <template v-else>{{ view === 'open' ? 'Nothing left to judge. Scan again after canon changes.' : 'No decisions yet.' }}</template>
+    </p>
 
     <div class="list">
       <article v-for="c in shown" :key="c.id" class="conflict" :class="{ model: c.origin === 'model', decided: c.status !== 'open', soft: c.severity === 'soft' }" :data-tour="c.rule === 'EXACT_TIME_LOCATION_OVERLAP' && c.status === 'open' ? 'c1' : undefined">

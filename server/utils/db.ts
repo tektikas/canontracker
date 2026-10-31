@@ -246,7 +246,9 @@ function migrate13(db: DatabaseSync) {
     const near = db.prepare(`select id, rationale from conflicts where rule = 'TRAVEL_TIME_TOO_SHORT'`).all() as { id: string, rationale: string }[]
     const soften = db.prepare(`update conflicts set severity = 'soft' where id = ?`)
     for (const c of near) {
-      const m = c.rationale.match(/has (-?\d+) min to get .* takes (\d+(?:\.\d+)?) min/)
+      // Anchored to the clause scanConflicts writes (lazy, first match), so a quoted statement later in the text cannot
+      // supply the numbers. Unparseable text keeps the rule default (hard).
+      const m = c.rationale.match(/^.*? has (-?\d+) min to get from .*?, but canon says the trip takes (\d+(?:\.\d+)?) min \("/s)
       if (m && Number(m[1]) >= Number(m[2]) / 2) soften.run(c.id)
     }
     db.exec('pragma user_version = 14')

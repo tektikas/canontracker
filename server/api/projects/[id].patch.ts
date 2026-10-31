@@ -10,7 +10,7 @@ export default defineEventHandler(async (event) => {
   const artStyle = body.art_style === undefined ? project.art_style : cleanText(body.art_style, 'Art style', 500)
   let severities = project.severity_defaults
   if (body.severity_defaults !== undefined) {
-    const next = projectSeverities(severities)
+    const next = JSON.parse(severities || '{}') as Record<string, Severity> // overrides only: absent = no override
     for (const [rule, v] of Object.entries(body.severity_defaults ?? {})) {
       if (!Object.hasOwn(RULE_SEVERITY, rule) || !SEVERITIES.includes(v as Severity)) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: 'Severity must be hard or soft, for a known rule.' })
       next[rule] = v as Severity
