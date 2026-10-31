@@ -20,6 +20,8 @@ export default defineNuxtConfig({
       ],
     },
   },
+  // Share pages carry a secret in the URL: never cached, indexed or sent on as a referrer.
+  routeRules: { '/share/**': { headers: { 'cache-control': 'no-store', 'x-robots-tag': 'noindex', 'referrer-policy': 'no-referrer' } } },
   runtimeConfig: {
     modelMode: 'mock', // NUXT_MODEL_MODE=meta to call the Meta Model API
     modelId: 'muse-spark-1.3', // NUXT_MODEL_ID

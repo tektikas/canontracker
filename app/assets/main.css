@@ -76,7 +76,8 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
+/* Dark on screens only: print and PDF always use the light set. */
+@media screen and (prefers-color-scheme: dark) {
   :root {
     --canvas: #0f1318;
     --surface: #141920;
