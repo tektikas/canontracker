@@ -5,10 +5,22 @@ const overlaps = (a: Fact, b: Fact) => a.t_from! <= end(b) && b.t_from! <= end(a
 const isRule = (f: Fact) => f.kind === 'rule' && f.predicate === 'rule'
 export const isTravel = (f: Fact) => f.predicate === 'travel_time' && !!f.value && Number.isFinite(Number(f.value))
 
+export const SEVERITIES = ['hard', 'soft'] as const
+export type Severity = typeof SEVERITIES[number]
+// hard = breaks canon, soft = worth a look. A project can override a rule's default (projects.severity_defaults, JSON).
+export const RULE_SEVERITY: Record<string, Severity> = {
+  EXACT_TIME_LOCATION_OVERLAP: 'hard', RELATIONSHIP_AFTER_END: 'hard', TRAVEL_TIME_TOO_SHORT: 'hard',
+  APPROX_TIME_LOCATION_OVERLAP: 'soft', WORLD_RULE_VIOLATION: 'soft',
+}
+export function projectSeverities(raw: string): Record<string, Severity> {
+  const set = JSON.parse(raw || '{}') as Record<string, Severity>
+  return Object.fromEntries(Object.keys(RULE_SEVERITY).map(r => [r, SEVERITIES.includes(set[r]!) ? set[r]! : RULE_SEVERITY[r]!]))
+}
+
 // The deterministic rules for one pair of facts. `travel` is the canon travel_time facts. Also used after a merge to see
 // which open conflicts still hold.
 export function ruleHits(a: Fact, b: Fact, travel: Fact[]) {
-  const hits: { a: Fact, b: Fact, rule: string, rationale: string, confidence: number }[] = []
+  const hits: { a: Fact, b: Fact, rule: string, rationale: string, confidence: number, near?: boolean }[] = []
   if (normEntity(a.subject) !== normEntity(b.subject)) return hits
   const travelMinutes = (x: string | null, y: string | null) => travel.find(t =>
     (normEntity(t.subject) === normEntity(x) && normEntity(t.object) === normEntity(y))
@@ -30,7 +42,8 @@ export function ruleHits(a: Fact, b: Fact, travel: Fact[]) {
       if (route && gap < Number(route.value))
         hits.push({ a: first, b: second, rule: 'TRAVEL_TIME_TOO_SHORT',
           rationale: `${a.subject} has ${gap} min to get from ${first.object} to ${second.object}, but canon says the trip takes ${route.value} min ("${route.statement}").`,
-          confidence: exact ? 0.8 : 0.4 })
+          confidence: exact ? 0.8 : 0.4,
+          near: gap >= Number(route.value) / 2 }) // close to the limit: a soft warning unless the project overrides the rule
     }
   }
 
@@ -51,14 +64,17 @@ export function ruleHits(a: Fact, b: Fact, travel: Fact[]) {
 export async function scanConflicts() {
   const db = useDb()
   const facts = db.prepare(`select * from facts where project_id = ? and status = 'canon'`).all(pid()) as unknown as Fact[]
-  const ins = db.prepare(`insert or ignore into conflicts (id, left_fact_id, right_fact_id, rule, origin, model_id, rationale, confidence, status, pair_hash, created_at, project_id)
-    values (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?)`)
+  const ins = db.prepare(`insert or ignore into conflicts (id, left_fact_id, right_fact_id, rule, origin, model_id, rationale, confidence, status, pair_hash, created_at, project_id, severity)
+    values (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`)
+  const sev = projectSeverities(access().project.severity_defaults)
   let created = 0
-  const add = (a: Fact, b: Fact, rule: string, rationale: string, confidence: number, modelId: string | null = null) => {
+  const add = (a: Fact, b: Fact, rule: string, rationale: string, confidence: number, modelId: string | null = null, near = false) => {
     const pairHash = createHash('sha256').update([a.id, b.id].sort().join('|') + rule).digest('hex').slice(0, 24)
     const id = newId('conf')
-    if (ins.run(id, a.id, b.id, rule, modelId ? 'model' : 'rule', modelId, rationale, confidence, pairHash, now(), pid()).changes) {
-      audit('conflict.detected', 'conflict', id, { rule, left: a.id, right: b.id, model_id: modelId })
+    const overridden = sev[rule] !== RULE_SEVERITY[rule]
+    const severity: Severity = near && !overridden ? 'soft' : sev[rule]!
+    if (ins.run(id, a.id, b.id, rule, modelId ? 'model' : 'rule', modelId, rationale, confidence, pairHash, now(), pid(), severity).changes) {
+      audit('conflict.detected', 'conflict', id, { rule, left: a.id, right: b.id, model_id: modelId, severity })
       created++
     }
   }
@@ -66,7 +82,7 @@ export async function scanConflicts() {
   const travel = facts.filter(isTravel)
   tx(() => {
     for (const [i, a] of facts.entries()) {
-      for (const b of facts.slice(i + 1)) for (const h of ruleHits(a, b, travel)) add(h.a, h.b, h.rule, h.rationale, h.confidence)
+      for (const b of facts.slice(i + 1)) for (const h of ruleHits(a, b, travel)) add(h.a, h.b, h.rule, h.rationale, h.confidence, null, h.near)
     }
   })
 

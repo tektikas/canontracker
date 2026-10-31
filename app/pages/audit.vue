@@ -51,6 +51,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'conflict.scan': return [`${who} scanned canon for conflicts`, `${d.facts} canon facts checked, ${d.created} new ${d.created === 1 ? 'candidate' : 'candidates'}${d.model_error ? ' · world-rule check failed' : ''}`]
     case 'conflict.confirmed': return [`${who} confirmed a conflict`, because(d)]
     case 'conflict.false_positive': return [`${who} marked a conflict as a false alarm`, because(d)]
+    case 'conflict.severity': return [`${who} changed a conflict from ${d.from} to ${d.to}`, because(d)]
     case 'conflict.uncertain': return [`${who} marked a conflict as uncertain`, because(d)]
     case 'change.created': return [`${who} proposed a canon change: ${q(d.proposed)}`, d.before ? `Replaces ${q(d.before)}` : '']
     case 'impact.completed': return [`${d.rerun ? `${who} re-ran impact analysis: ` : 'Impact analysis '}found ${d.items} item(s) to review`, d.scenes?.length ? `Scenes: ${d.scenes.join(', ')}` : d.items ? 'Scenes: none within 2 hops' : 'No impact found within 2 hops']

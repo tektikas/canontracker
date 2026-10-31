@@ -5,7 +5,7 @@ export type Role = typeof ROLES[number]
 export const atLeast = (role: Role, min: Role) => ROLES.indexOf(role) >= ROLES.indexOf(min)
 
 export interface UserRow { id: string, email: string, name: string, password_hash: string, last_project_id: string | null, created_at: string }
-export interface ProjectRow { id: string, studio_id: string, name: string, created_at: string, medium: string, art_style: string }
+export interface ProjectRow { id: string, studio_id: string, name: string, created_at: string, medium: string, art_style: string, severity_defaults: string }
 export interface Access {
   user: { id: string, name: string, email: string }
   project: ProjectRow

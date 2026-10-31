@@ -3,7 +3,7 @@ import { mkdirSync, rmSync } from 'node:fs'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-export const SCHEMA_VERSION = 12
+export const SCHEMA_VERSION = 13
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -25,7 +25,8 @@ create table if not exists invites (
 -- medium: game | prose | screen (decides the entity wiki's extra fields). art_style goes into every image prompt.
 create table if not exists projects (
   id text primary key, studio_id text not null references studios(id), name text not null, created_at text not null,
-  medium text not null default 'game', art_style text not null default ''
+  medium text not null default 'game', art_style text not null default '',
+  severity_defaults text not null default '{}'
 );
 
 -- Per-user API tokens for the MCP endpoint. Only the sha256 of the secret is stored; one project each; role is the user's live role.
@@ -84,11 +85,13 @@ create table if not exists evidence (
   passage_id text, quote text not null, verified integer not null, support text not null default 'states', project_id text not null
 );
 -- origin: rule (deterministic code) | model (model-suggested, labeled as such)
+-- severity: hard (breaks canon) | soft (worth a look); set from the rule's default, a person can change it (audited)
 -- status: open | confirmed | false_positive | uncertain | resolved_by_merge (merge_audit_id = the entity.merged event)
 create table if not exists conflicts (
   id text primary key, left_fact_id text not null, right_fact_id text not null, rule text not null, origin text not null,
   model_id text, rationale text not null, confidence real not null, status text not null, pair_hash text not null unique,
-  created_at text not null, decided_at text, decision_rationale text, decided_by text, merge_audit_id text, project_id text not null
+  created_at text not null, decided_at text, decision_rationale text, decided_by text, merge_audit_id text, project_id text not null,
+  severity text not null default 'soft'
 );
 -- status: ready_for_review | applied | rejected | reverted
 -- impact_stale: set (JSON: the merge that outdated it) when a merge changed the impact; accept needs a fresh analysis first.
@@ -244,7 +247,7 @@ export interface EvidenceRow {
 export interface ConflictRow {
   id: string, left_fact_id: string, right_fact_id: string, rule: string, origin: string, model_id: string | null, rationale: string
   confidence: number, status: string, pair_hash: string, created_at: string, decided_at: string | null, decision_rationale: string | null
-  decided_by: string | null, merge_audit_id: string | null, project_id: string
+  decided_by: string | null, merge_audit_id: string | null, project_id: string, severity: 'hard' | 'soft'
 }
 export interface ChangeRow {
   id: string, target_fact_id: string, before_statement: string, proposed_statement: string, rationale: string, status: string

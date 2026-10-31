@@ -71,7 +71,7 @@ const STEPS = computed<Step[]>(() => [
     title: 'Catch a conflict',
     page: '/conflicts',
     targets: [
-      { sel: '[data-tour="c1"]', phone: '[data-tour="c1"] .clash', body: 'Caught: Arin can’t be crossing the causeway at 22:00 and in the Lighthouse gallery from 21:30 to 22:30. Both sides cite their passage. Confirm it or call it a false alarm, with a reason; deciding never edits canon.' },
+      { sel: '[data-tour="c1"]', phone: '[data-tour="c1"] .clash', body: 'Caught: Arin can’t be crossing the causeway at 22:00 and in the Lighthouse gallery from 21:30 to 22:30. Both sides cite their passage. It is marked Hard: exact times, so it breaks canon (a Soft one is only worth a look). Confirm it or call it a false alarm, with a reason; deciding never edits canon.' },
       { sel: '[data-tour="scan"]', body: 'Scan canon runs timing, travel and relationship checks over accepted canon. Press it: Arin’s clash between scenes S05 and S06 shows up here.' },
     ],
     missing: 'Conflicts are checked by an editor. Ask one to scan canon, then come back.',

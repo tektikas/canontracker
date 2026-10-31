@@ -77,6 +77,24 @@ async function setMedium(id: string, medium: string) {
 }
 // Art style is added to every image prompt in the project, so portraits and covers look like one game.
 const artDraft = reactive<Record<string, string>>({})
+// Per-rule default severity for new scans. Existing conflicts keep theirs.
+const RULE_LABEL: Record<string, string> = {
+  EXACT_TIME_LOCATION_OVERLAP: 'Same person, two places, exact times overlap',
+  APPROX_TIME_LOCATION_OVERLAP: 'Same person, two places, approximate times overlap',
+  RELATIONSHIP_AFTER_END: 'Relationship used after it ended',
+  TRAVEL_TIME_TOO_SHORT: 'Not enough time to travel (near-limit trips are soft unless you change this)',
+  WORLD_RULE_VIOLATION: 'Fact breaks a world rule (model-suggested)',
+}
+const sevBusy = ref('')
+async function setRuleSeverity(id: string, rule: string, severity: string) {
+  sevBusy.value = id
+  try {
+    await $fetch(`/api/projects/${id}`, { method: 'PATCH', body: { severity_defaults: { [rule]: severity } } })
+    await refresh()
+  } finally {
+    sevBusy.value = ''
+  }
+}
 const artState = ref<Record<string, 'saving' | 'saved'>>({})
 const artError = ref<{ id: string, message: string } | null>(null)
 const artTimers: Record<string, ReturnType<typeof setTimeout>> = {}
@@ -191,6 +209,23 @@ const ago = (iso: string | null) => {
             </template>
             <p v-else :id="`art-${p.id}`" class="small" :class="{ faint: !p.art_style }">{{ p.art_style || 'Not set' }}</p>
           </div>
+          <details class="sevdefaults">
+            <summary>Conflict severity by rule</summary>
+            <table>
+              <thead><tr><th scope="col">Rule</th><th scope="col">Default</th></tr></thead>
+              <tbody>
+                <tr v-for="(label, rule) in RULE_LABEL" :key="rule">
+                  <td>{{ label }}</td>
+                  <td>
+                    <select v-if="data.can_manage" :aria-label="`Default severity: ${label}`" :value="p.severity_defaults[rule]" :disabled="sevBusy === p.id" @change="setRuleSeverity(p.id, rule, ($event.target as HTMLSelectElement).value)">
+                      <option value="hard">Hard</option><option value="soft">Soft</option>
+                    </select>
+                    <b v-else>{{ p.severity_defaults[rule] === 'hard' ? 'Hard' : 'Soft' }}</b>
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </details>
           <div class="row project-actions">
             <UiButton v-if="p.id === currentId" size="sm" to="/">Go to home</UiButton>
             <UiButton v-else size="sm" variant="primary" :loading="busy === p.id" @click="open(p.id)">Open project</UiButton>
@@ -233,4 +268,9 @@ const ago = (iso: string | null) => {
 .art p { margin: 0; overflow-wrap: anywhere; }
 .good-text { display: inline-flex; align-items: center; gap: 4px; color: var(--good); font-weight: 500; }
 @media (max-width: 720px) { .projects { grid-template-columns: 1fr; } }
+.sevdefaults { font-size: var(--text-sm); }
+.sevdefaults summary { cursor: pointer; font-weight: 500; }
+.sevdefaults table { width: 100%; border-collapse: collapse; margin-top: var(--s-2); }
+.sevdefaults th, .sevdefaults td { text-align: left; padding: 6px 4px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+.sevdefaults select { width: auto; }
 </style>
