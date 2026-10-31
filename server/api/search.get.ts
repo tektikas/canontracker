@@ -19,13 +19,22 @@ function snippet(text: string, words: string[]) {
   return `${from ? '…' : ''}${flat.slice(from, from + SNIP)}${from + SNIP < flat.length ? '…' : ''}`
 }
 
-// ponytail: per-process, per-user sliding window; the palette sends ≤ ~8 requests/s while typing, the cap is 20/s. Use a shared store if the app ever runs on several nodes.
-const hits = new Map<string, number[]>()
+// ponytail: per-process fixed window per user (200 requests / 10 s); rejected requests are not counted, idle entries are evicted and the map is capped. Use a shared store if the app ever runs on several nodes.
+const WINDOW = 10_000, MAX_USERS = 1000
+const hits = new Map<string, { n: number, from: number }>()
 function throttle(userId: string) {
-  const t = Date.now(), recent = (hits.get(userId) ?? []).filter(x => t - x < 10_000)
-  recent.push(t)
-  hits.set(userId, recent)
-  if (recent.length > 200) throw createError({ statusCode: 429, statusMessage: 'TOO_MANY_REQUESTS', message: 'Searching too fast. Wait a moment.' })
+  const t = Date.now()
+  let h = hits.get(userId)
+  if (!h || t - h.from >= WINDOW) {
+    if (hits.size >= MAX_USERS) {
+      for (const [k, v] of hits) if (t - v.from >= WINDOW) hits.delete(k)
+      if (hits.size >= MAX_USERS) hits.delete(hits.keys().next().value!)
+    }
+    h = { n: 0, from: t }
+    hits.set(userId, h)
+  }
+  if (h.n >= 200) throw createError({ statusCode: 429, statusMessage: 'TOO_MANY_REQUESTS', message: 'Searching too fast. Wait a moment.' })
+  h.n++
 }
 
 export default defineEventHandler((event) => {

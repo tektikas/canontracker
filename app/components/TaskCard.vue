@@ -9,6 +9,7 @@ const STATUS = [
   { value: 'open', label: 'Open', tone: 'warn' }, { value: 'in_progress', label: 'In progress', tone: 'accent' },
   { value: 'done', label: 'Done', tone: 'good' }, { value: 'wont_fix', label: 'Won’t fix', tone: 'neutral' },
 ] as const
+const reverted = computed(() => props.task.change_status === 'reverted')
 const closed = computed(() => props.task.status === 'not_needed')
 const meta = computed(() => (closed.value ? { label: 'Not needed', tone: 'neutral' } : STATUS.find(s => s.value === props.task.status)!))
 const today = new Date().toISOString().slice(0, 10)
@@ -61,8 +62,9 @@ const pick = (e: Event) => (e.target as HTMLInputElement | HTMLSelectElement).va
     <div v-if="editor && !closed" class="controls">
       <label><span class="small muted">Status</span>
         <select :value="task.status" :disabled="busy" @change="save({ status: pick($event) })">
-          <option v-for="s in STATUS" :key="s.value" :value="s.value">{{ s.label }}</option>
+          <option v-for="s in STATUS" :key="s.value" :value="s.value" :disabled="reverted && ['open', 'in_progress'].includes(s.value) && s.value !== task.status">{{ s.label }}</option>
         </select>
+        <span v-if="reverted" class="small faint">Change reverted: can’t be reopened.</span>
       </label>
       <label><span class="small muted">Assignee</span>
         <select :value="task.assignee_id ?? ''" :disabled="busy" @change="save({ assignee_id: pick($event) })">
