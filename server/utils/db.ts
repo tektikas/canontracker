@@ -1,9 +1,10 @@
 import { DatabaseSync } from 'node:sqlite'
-import { mkdirSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, rmSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-export const SCHEMA_VERSION = 12
+export const SCHEMA_VERSION = 13
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -123,12 +124,14 @@ create table if not exists entities (
   fields text not null default '{}', notes text not null default '', portrait_type text, portrait_at text, origin text not null,
   created_at text not null, created_by text, updated_at text not null, updated_by text, project_id text not null
 );
--- Generated images (Muse Image). Editorial, never canon. target_type: entity (portrait) | document (cover).
--- applied_at is set on the one image currently used as the target's portrait or cover; the bytes live next to portraits.
+-- An entity's or document's image history: generated (Muse Image) and uploaded images together. Editorial, never canon.
+-- target_type: entity (portrait) | document (cover). applied_at is set on the one image currently used as the target's
+-- portrait or cover; the bytes live next to portraits. source: generated | upload. An upload has no prompt, style or model
+-- (empty strings) and keeps its original file name. caption: the team's own words about the picture.
 create table if not exists images (
   id text primary key, target_type text not null, target_id text not null, prompt text not null, style text not null,
   model_id text not null, mime text not null, bytes integer not null, created_at text not null, created_by text not null,
-  applied_at text, project_id text not null
+  applied_at text, project_id text not null, source text not null default 'generated', caption text not null default '', filename text
 );
 -- Identity decisions from merges: a name that was merged away maps to the kept entity's analysis_name (renaming or deleting
 -- the page later doesn't change it; merging the kept entity on moves the row along). Applied when a later candidate naming it
@@ -165,19 +168,65 @@ create index if not exists tasks_change on tasks(change_id);
 
 let db: DatabaseSync | undefined
 
+// The connection is shared only once it is fully set up: if the upgrade fails, it is closed and the next request tries again.
 export function useDb() {
   if (db) return db
   mkdirSync('.data', { recursive: true })
-  db = new DatabaseSync('.data/storybible.db')
-  const { user_version } = db.prepare('pragma user_version').get() as { user_version: number }
-  if (user_version !== SCHEMA_VERSION) {
-    const tables = db.prepare(`select name from sqlite_master where type = 'table'`).all() as { name: string }[]
-    db.exec('pragma foreign_keys = off')
-    for (const t of tables) db.exec(`drop table "${t.name}"`)
-    db.exec(`pragma foreign_keys = on; pragma user_version = ${SCHEMA_VERSION}`)
+  const conn = new DatabaseSync('.data/storybible.db')
+  try {
+    const user_version = schemaVersion(conn)
+    if (user_version === 12) migrate12(conn)
+    else if (user_version !== SCHEMA_VERSION) {
+      const tables = conn.prepare(`select name from sqlite_master where type = 'table'`).all() as { name: string }[]
+      conn.exec('pragma foreign_keys = off')
+      for (const t of tables) conn.exec(`drop table "${t.name}"`)
+      conn.exec(`pragma foreign_keys = on; pragma user_version = ${SCHEMA_VERSION}`)
+    }
+    conn.exec(SCHEMA)
+  } catch (e) {
+    conn.close()
+    throw e
   }
-  db.exec(SCHEMA)
-  return db
+  return (db = conn)
+}
+
+// What the database file itself says, not what this build expects.
+export const schemaVersion = (d = useDb()) => (d.prepare('pragma user_version').get() as { user_version: number }).user_version
+
+// v12 → v13: images gain source, caption and filename. A portrait uploaded before then had no history row (only the
+// entity's own copy of the file); it becomes an upload row in use, with its own copy of the bytes, credited to whoever
+// uploaded it per the audit trail. Nothing else changes, so the data survives the upgrade.
+function migrate12(db: DatabaseSync) {
+  const copies: string[] = []
+  db.exec('begin')
+  try {
+    db.exec(`alter table images add column source text not null default 'generated';
+      alter table images add column caption text not null default '';
+      alter table images add column filename text`)
+    const orphans = db.prepare(`select e.* from entities e where e.portrait_type is not null and not exists
+      (select 1 from images i where i.project_id = e.project_id and i.target_type = 'entity' and i.target_id = e.id and i.applied_at is not null)`)
+      .all() as { id: string, project_id: string, portrait_type: string, portrait_at: string | null, updated_at: string, updated_by: string | null, created_by: string | null }[]
+    const uploader = db.prepare(`select actor, created_at from audit_events where project_id = ? and target_id = ? and event_type = 'entity.portrait_set' order by rowid desc limit 1`)
+    const insert = db.prepare(`insert into images (id, target_type, target_id, prompt, style, model_id, mime, bytes, created_at, created_by, applied_at, project_id, source)
+      values (?, 'entity', ?, '', 'none', '', ?, ?, ?, ?, ?, ?, 'upload')`)
+    for (const e of orphans) {
+      const from = join('.data', 'portraits', e.project_id, e.id)
+      if (!existsSync(from)) continue
+      const id = newId('img')
+      const to = join('.data', 'portraits', e.project_id, id)
+      copyFileSync(from, to)
+      copies.push(to)
+      const by = uploader.get(e.project_id, e.id) as { actor: string, created_at: string } | undefined
+      const at = e.portrait_at ?? by?.created_at ?? e.updated_at
+      insert.run(id, e.id, e.portrait_type, statSync(from).size, at, by?.actor ?? e.updated_by ?? e.created_by ?? '', at, e.project_id)
+    }
+    db.exec('pragma user_version = 13')
+    db.exec('commit')
+  } catch (err) {
+    db.exec('rollback')
+    for (const f of copies) rmSync(f, { force: true }) // the copies have no rows any more; a retry makes new ones
+    throw err
+  }
 }
 
 export const newId = (prefix: string) => `${prefix}_${randomUUID().replaceAll('-', '').slice(0, 16)}`

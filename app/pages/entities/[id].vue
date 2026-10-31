@@ -3,6 +3,8 @@ const route = useRoute()
 const router = useRouter()
 const me = useMe()
 const { data: e, error: loadError, refresh } = await useFetch(() => `/api/entities/${route.params.id}`)
+// The image history (uploads and generated together) for the Images tab and its count.
+const { data: gallery, refresh: refreshImages } = await useFetch('/api/images', { query: computed(() => ({ target_type: 'entity', target_id: String(route.params.id) })) })
 useHead(() => ({ title: `${e.value?.name ?? 'Entity'} · Story Bible` }))
 const editable = computed(() => canEdit(me.value))
 const manager = computed(() => canManage(me.value))
@@ -17,7 +19,7 @@ const canonName = computed(() => {
 })
 
 // Tabs live in the URL so a writer can link straight to a character's relationships.
-const TABS = ['story', 'timeline', 'relationships', 'appearances', 'notes'] as const
+const TABS = ['story', 'timeline', 'relationships', 'appearances', 'images', 'notes'] as const
 type Tab = typeof TABS[number]
 const tab = computed<Tab>({
   get: () => (TABS.includes(route.query.tab as Tab) ? route.query.tab as Tab : 'story'),
@@ -33,6 +35,7 @@ const tabs = computed(() => [
   { value: 'timeline' as Tab, label: 'Timeline', count: timedCount.value },
   { value: 'relationships' as Tab, label: 'Relationships', count: relCount.value },
   { value: 'appearances' as Tab, label: 'Appearances', count: passageCount.value },
+  { value: 'images' as Tab, label: 'Images', count: gallery.value?.images.length ?? 0 },
   { value: 'notes' as Tab, label: 'Notes', count: openNotes.value || undefined },
 ])
 
@@ -94,37 +97,38 @@ function saveDetails() {
   save({ name: draft.name, kind: draft.kind, aliases: draft.aliases })
 }
 
-// Portrait upload: checked here for quick feedback, and again on the server by the file's bytes.
+// Upload onto the portrait (button or drop): the first image becomes the portrait at once; any others join the history.
+// Checked here for quick feedback, and again on the server by the file's bytes.
 const fileInput = ref<HTMLInputElement>()
 const uploading = ref(false)
 const portraitError = ref('')
-async function upload(ev: Event) {
-  const input = ev.target as HTMLInputElement
-  const file = input.files?.[0]
-  input.value = ''
+async function uploadPortrait(files: File[]) {
   portraitError.value = ''
-  if (!file) return
-  if (!/^image\/(png|jpeg|webp|gif)$/.test(file.type)) {
-    portraitError.value = 'Use a PNG, JPEG, WebP or GIF image.'
-    return
-  }
-  if (file.size > 2_000_000) {
-    portraitError.value = 'Images can be up to 2 MB.'
+  if (!files.length) return
+  const problem = files.map(imageUploadProblem).find(Boolean)
+  if (problem) {
+    portraitError.value = problem
     return
   }
   uploading.value = true
   try {
-    const body = new FormData()
-    body.append('file', file)
-    await $fetch(`/api/entities/${e.value!.id}/portrait`, { method: 'POST', body })
-    await Promise.all([refresh(), refreshEntities()])
+    const r = await sendImages('entity', e.value!.id, files.slice(0, IMAGE_BATCH_FILES), { apply: true })
+    const refused = r.results.find(x => x.status === 'refused')
+    if (refused) portraitError.value = `${refused.name}: ${refused.message}`
+    await portraitChanged()
   } catch (err) {
     portraitError.value = errorMessage(err)
   } finally {
     uploading.value = false
   }
 }
-// Removing a generated portrait can be undone (its image stays in the history); an uploaded one is gone for good.
+function onPortraitPick(ev: Event) {
+  const input = ev.target as HTMLInputElement
+  uploadPortrait([...input.files ?? []])
+  input.value = ''
+}
+const { over: overPortrait, on: portraitDrop } = useFileDrop(uploadPortrait, () => editable.value)
+// Removing the portrait can be undone: the image stays in the history.
 const undo = ref<{ id: string, message: string } | null>(null)
 async function removePortrait() {
   uploading.value = true
@@ -132,8 +136,8 @@ async function removePortrait() {
   const gen = e.value!.portrait_image
   try {
     await $fetch(`/api/entities/${e.value!.id}/portrait`, { method: 'DELETE' })
-    undo.value = gen ? { id: gen.id, message: `${noun.value === 'portrait' ? 'Portrait' : 'Image'} removed.` } : null
-    await Promise.all([refresh(), refreshEntities()])
+    undo.value = gen ? { id: gen.id, message: `${noun.value === 'portrait' ? 'Portrait' : 'Image'} removed. It stays in Images.` } : null
+    await portraitChanged()
   } catch (err) {
     portraitError.value = errorMessage(err)
   } finally {
@@ -154,7 +158,7 @@ async function undoRemove() {
     portraitError.value = errorMessage(err)
   }
 }
-const portraitChanged = () => Promise.all([refresh(), refreshEntities()])
+const portraitChanged = () => Promise.all([refresh(), refreshEntities(), refreshImages()])
 
 // Merge and delete open a panel under the header.
 const panel = ref<'' | 'merge' | 'delete'>('')
@@ -216,15 +220,18 @@ const ago = (iso: string) => {
 
     <header class="hero">
       <div class="portrait">
-        <EntityAvatar :entity="e" :size="104" />
+        <div class="slot" :class="{ over: overPortrait }" v-on="portraitDrop">
+          <EntityAvatar :entity="e" :size="104" />
+          <span v-if="overPortrait" class="slot-drop" aria-hidden="true"><UiIcon name="upload" :size="20" />Set as {{ noun }}</span>
+        </div>
         <div v-if="editable" class="portrait-actions">
-          <input ref="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif" hidden @change="upload">
+          <input ref="fileInput" type="file" :accept="IMAGE_UPLOAD_TYPES.join(',')" hidden @change="onPortraitPick">
           <UiButton size="sm" icon="upload" :loading="uploading" @click="fileInput?.click()">{{ e.portrait ? 'Replace' : 'Upload' }}</UiButton>
           <UiButton size="sm" icon="image" :disabled="uploading" @click="generator?.open()">Generate</UiButton>
           <UiButton v-if="e.portrait" size="sm" variant="ghost" icon="trash" :disabled="uploading" :aria-label="`Remove ${noun}`" :title="`Remove ${noun}`" @click="removePortrait" />
         </div>
         <p v-if="portraitError" class="portrait-error" role="alert">{{ portraitError }}</p>
-        <ImageGenerator v-if="editable" :id="e.id" ref="generator" type="entity" can-upload @changed="portraitChanged" @upload="fileInput?.click()" />
+        <ImageGenerator v-if="editable" :id="e.id" ref="generator" type="entity" @changed="portraitChanged" />
         <UndoToast v-if="undo" :message="undo.message" @undo="undoRemove" @close="undo = null" />
       </div>
       <div class="ident">
@@ -242,10 +249,13 @@ const ago = (iso: string) => {
           {{ counted(facts.length, 'canon fact') }} · {{ e.appearances.length ? `appears in ${counted(e.appearances.length, 'document')}` : 'not mentioned in any source' }}
           <template v-if="e.updated_by"> · edited by {{ e.updated_by }} {{ ago(e.updated_at) }}</template>
         </p>
-        <details v-if="e.portrait_image" class="gen-note small">
+        <details v-if="e.portrait_image?.source === 'generated'" class="gen-note small">
           <summary class="expand"><UiBadge tone="pencil">Generated with Muse Image</UiBadge> {{ noun === 'portrait' ? 'Portrait' : 'Image' }} by {{ e.portrait_image.created_by_name ?? 'unknown' }}, {{ shortDate(e.portrait_image.created_at) }}</summary>
           <p>{{ e.portrait_image.prompt }}</p>
         </details>
+        <p v-else-if="e.portrait_image" class="gen-note small up-note">
+          <UiBadge><UiIcon name="upload" :size="12" />Uploaded</UiBadge> {{ noun === 'portrait' ? 'Portrait' : 'Image' }} uploaded by {{ e.portrait_image.created_by_name ?? 'unknown' }}, {{ shortDate(e.portrait_image.created_at) }}<template v-if="e.portrait_image.caption"> · {{ e.portrait_image.caption }}</template>
+        </p>
       </div>
       <div v-if="editable" class="actions">
         <UiButton icon="review" @click="edit('details')">Edit</UiButton>
@@ -433,6 +443,12 @@ const ago = (iso: string) => {
       </div>
     </template>
 
+    <UiPanel v-else-if="tab === 'images'" :title="`Images of ${e.name}`" :description="`Concept art, references and generated images. Editorial only, never canon. Pick any of them as the ${noun}.`">
+      <template v-if="editable" #actions><UiButton size="sm" icon="image" @click="generator?.open()">Generate</UiButton></template>
+      <ImageHistory v-if="gallery" v-model:images="gallery.images" type="entity" :id="e.id" :name="e.name" :noun="noun" :editable="editable" @changed="portraitChanged" />
+      <p v-else class="muted none">Images couldn’t be loaded. Reload the page to try again.</p>
+    </UiPanel>
+
     <!-- Notes -->
     <div v-else class="stack notes-tab">
     <UiPanel title="Notes on the text" :description="`Notes pinned to passages that mention ${e.name}. Not canon.`">
@@ -472,6 +488,11 @@ const ago = (iso: string) => {
 .hero { display: flex; gap: var(--s-5); align-items: flex-start; flex-wrap: wrap; margin-bottom: var(--s-5); }
 .portrait { display: grid; gap: var(--s-2); justify-items: center; width: 256px; }  /* fixed so the header does not shift when Remove appears */
 .portrait-actions { display: flex; gap: 4px; flex-wrap: wrap; justify-content: center; }
+.slot { position: relative; display: grid; border-radius: var(--r-md); }
+.slot.over { outline: 2px dashed var(--accent); outline-offset: 3px; }
+.slot-drop { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: 2px; border-radius: var(--r-md); background: color-mix(in srgb, var(--raised) 85%, transparent); color: var(--accent); font-size: var(--text-xs); font-weight: 600; pointer-events: none; }
+.up-note { display: flex; flex-wrap: wrap; gap: 4px var(--s-2); align-items: center; margin: 0; color: var(--muted); }
+.up-note .chip { gap: 4px; }
 .ident { flex: 1 1 320px; min-width: 0; display: grid; gap: var(--s-1); align-content: start; }
 .ident h1 { margin: var(--s-1) 0 0; font-size: var(--text-2xl); line-height: 1.2; overflow-wrap: anywhere; }
 .ident .chip { gap: 5px; }
