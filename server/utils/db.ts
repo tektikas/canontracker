@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-export const SCHEMA_VERSION = 13
+export const SCHEMA_VERSION = 14
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -179,6 +179,7 @@ export function useDb() {
   try {
     const user_version = schemaVersion(conn)
     if (user_version === 12) migrate12(conn)
+    if (user_version === 12 || user_version === 13) migrate13(conn)
     else if (user_version !== SCHEMA_VERSION) {
       const tables = conn.prepare(`select name from sqlite_master where type = 'table'`).all() as { name: string }[]
       conn.exec('pragma foreign_keys = off')
@@ -228,6 +229,30 @@ function migrate12(db: DatabaseSync) {
   } catch (err) {
     db.exec('rollback')
     for (const f of copies) rmSync(f, { force: true }) // the copies have no rows any more; a retry makes new ones
+    throw err
+  }
+}
+
+// v13 → v14: conflicts gain a severity, projects gain per-rule severity defaults. Existing conflicts get the rule's default
+// (the rule table as it was at v14; a travel conflict whose gap was at least half the trip is soft, read from its stored
+// rationale). Idempotent: columns are added only if missing. Nothing is dropped.
+function migrate13(db: DatabaseSync) {
+  const has = (t: string, c: string) => (db.prepare(`pragma table_info(${t})`).all() as { name: string }[]).some(r => r.name === c)
+  db.exec('begin')
+  try {
+    if (!has('conflicts', 'severity')) db.exec(`alter table conflicts add column severity text not null default 'soft'`)
+    if (!has('projects', 'severity_defaults')) db.exec(`alter table projects add column severity_defaults text not null default '{}'`)
+    db.exec(`update conflicts set severity = case when rule in ('EXACT_TIME_LOCATION_OVERLAP', 'RELATIONSHIP_AFTER_END', 'TRAVEL_TIME_TOO_SHORT') then 'hard' else 'soft' end`)
+    const near = db.prepare(`select id, rationale from conflicts where rule = 'TRAVEL_TIME_TOO_SHORT'`).all() as { id: string, rationale: string }[]
+    const soften = db.prepare(`update conflicts set severity = 'soft' where id = ?`)
+    for (const c of near) {
+      const m = c.rationale.match(/has (-?\d+) min to get .* takes (\d+(?:\.\d+)?) min/)
+      if (m && Number(m[1]) >= Number(m[2]) / 2) soften.run(c.id)
+    }
+    db.exec('pragma user_version = 14')
+    db.exec('commit')
+  } catch (err) {
+    db.exec('rollback')
     throw err
   }
 }

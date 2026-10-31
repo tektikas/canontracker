@@ -1,0 +1,86 @@
+// Severity migration probe: node scripts/severity-probe.mjs migrate [port]   (default 3999; run `pnpm build` first)
+// Builds a schema-13 database (the shape on master, read from git) with conflicts of every rule, starts the built server
+// on it in a temp folder, and checks the in-place v13→14 upgrade: every conflict gets its rule's severity, nothing is lost.
+// An upgrade failure is injected with a trigger on conflicts: the DB must stay v13 and the next request must retry.
+import assert from 'node:assert/strict'
+import { execFileSync, spawn } from 'node:child_process'
+import { randomBytes } from 'node:crypto'
+import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
+import { DatabaseSync } from 'node:sqlite'
+import { fileURLToPath } from 'node:url'
+
+const root = join(dirname(fileURLToPath(import.meta.url)), '..')
+const port = Number(process.argv[3] ?? 3999)
+if (process.argv[2] !== 'migrate') { console.log('usage: node scripts/severity-probe.mjs migrate [port]'); process.exit(1) }
+
+const check = (name, got, want) => { assert.deepEqual(got, want, name); console.log(`ok  ${name}`) }
+const dir = mkdtempSync(join(tmpdir(), 'sb-sev-'))
+const data = join(dir, '.data')
+mkdirSync(data)
+let server
+try {
+  const old = execFileSync('git', ['show', '6177e3d:server/utils/db.ts'], { cwd: root, encoding: 'utf8' }) // master at v13
+  const schema = old.slice(old.indexOf('const SCHEMA = `') + 16, old.indexOf('`\n\nlet db'))
+  assert.ok(/SCHEMA_VERSION = 13/.test(old) && !schema.includes('severity'), 'v13 schema found')
+  const file = join(data, 'storybible.db')
+  const db = new DatabaseSync(file)
+  db.exec(schema)
+  db.exec('pragma user_version = 13')
+  const at = '2026-10-30T10:00:00.000Z'
+  db.prepare('insert into users values (?, ?, ?, ?, ?, ?)').run('usr_m', 'mig@probe.test', 'Ada', 'x', 'prj_m', at)
+  db.prepare('insert into studios values (?, ?, ?, ?)').run('std_m', 'Tidewright', 'usr_m', at)
+  db.prepare('insert into memberships values (?, ?, ?, ?)').run('std_m', 'usr_m', 'owner', at)
+  db.prepare(`insert into projects (id, studio_id, name, created_at) values ('prj_m', 'std_m', 'Broken Tide', ?)`).run(at)
+  const gap = (n) => `Leya has ${n} min to get from the Harbor to the Lighthouse, but canon says the trip takes 40 min ("The trip takes 40 min.").`
+  // id, rule, origin, rationale, status, expected severity
+  const rows = [
+    ['c1', 'EXACT_TIME_LOCATION_OVERLAP', 'rule', 'Leya is at two places at once.', 'open', 'hard'],
+    ['c2', 'APPROX_TIME_LOCATION_OVERLAP', 'rule', 'Leya may be at two places.', 'false_positive', 'soft'],
+    ['c3', 'RELATIONSHIP_AFTER_END', 'rule', 'The alliance ended, but is used as active.', 'confirmed', 'hard'],
+    ['c4', 'TRAVEL_TIME_TOO_SHORT', 'rule', gap(5), 'open', 'hard'],
+    ['c5', 'TRAVEL_TIME_TOO_SHORT', 'rule', gap(20), 'open', 'soft'],
+    ['c6', 'TRAVEL_TIME_TOO_SHORT', 'rule', gap(19), 'uncertain', 'hard'],
+    ['c7', 'WORLD_RULE_VIOLATION', 'model', 'The fact breaks a world rule.', 'open', 'soft'],
+  ]
+  const ins = db.prepare(`insert into conflicts (id, left_fact_id, right_fact_id, rule, origin, model_id, rationale, confidence, status, pair_hash, created_at, project_id)
+    values (?, 'f_l', 'f_r', ?, ?, null, ?, 0.5, ?, ?, ?, 'prj_m')`)
+  for (const [id, rule, origin, why, status] of rows) ins.run(id, rule, origin, why, status, `h_${id}`, at)
+  const before = db.prepare('select * from conflicts order by id').all().map(r => ({ ...r }))
+  // Injected failure: any update on conflicts aborts, so the backfill fails after the columns were added.
+  db.exec(`create trigger boom before update on conflicts begin select raise(abort, 'injected'); end`)
+  db.close()
+
+  server = spawn(process.execPath, [join(root, '.output/server/index.mjs')], { cwd: dir, stdio: 'ignore',
+    env: { ...process.env, PORT: String(port), HOST: 'localhost', NUXT_SESSION_PASSWORD: randomBytes(24).toString('hex'), NUXT_MODEL_MODE: 'mock' } })
+  const base = `http://localhost:${port}`
+  for (let i = 0; ; i++) {
+    try { await fetch(`${base}/api/health`); break } catch {}
+    if (i > 100) throw new Error('server did not start')
+    await new Promise(r => setTimeout(r, 100))
+  }
+  const peek = (fn) => { const d = new DatabaseSync(file, { readOnly: true }); try { return fn(d) } finally { d.close() } }
+  const cols = () => peek(d => d.prepare('pragma table_info(conflicts)').all().map(c => c.name))
+  const version = () => peek(d => d.prepare('pragma user_version').get().user_version)
+  check('failed upgrade: health 500, and again on the next request', [(await fetch(`${base}/api/health`)).status, (await fetch(`${base}/api/health`)).status], [500, 500])
+  check('failed upgrade: DB still v13, no severity column (rolled back)', [version(), cols().includes('severity')], [13, false])
+
+  const fix = new DatabaseSync(file)
+  fix.exec('drop trigger boom')
+  fix.close()
+  const h = await fetch(`${base}/api/health`)
+  check('fixed: next request upgrades without restart; health reports 14', [h.status, (await h.json()).schema, version()], [200, 14, 14])
+  const after = peek(d => d.prepare('select * from conflicts order by id').all())
+  check('no conflict lost, no other column changed', after.map(({ severity, ...r }) => ({ ...r })), before)
+  check('every conflict has the severity of its rule (travel near the limit is soft)', after.map(r => [r.id, r.severity]), rows.map(r => [r[0], r[5]]))
+  check('project has severity_defaults, empty', peek(d => d.prepare('select severity_defaults from projects').all().map(r => ({ ...r }))), [{ severity_defaults: '{}' }])
+  check('user and project rows kept', peek(d => [d.prepare('select count(*) n from users').get().n, d.prepare('select count(*) n from projects').get().n]), [1, 1])
+  await fetch(`${base}/api/health`)
+  check('later boots leave it at 14', version(), 14)
+  console.log('severity migration probe: all checks passed')
+} finally {
+  server?.kill()
+  await new Promise(r => setTimeout(r, 300))
+  rmSync(dir, { recursive: true, force: true })
+}
