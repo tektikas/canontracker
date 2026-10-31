@@ -138,28 +138,24 @@ function movePendingEvidence(key: string, documentId: string, version: number, p
 // What the project already has (any status: pending, canon, rejected or superseded, so a decision a person made stands):
 // the same statement, or the same kind, names, value and story time in other words.
 const norm = (s: string | null | undefined) => (s ?? '').toLowerCase().replace(/\s+/g, ' ').replace(/[.!?\s]+$/, '').trim()
-const factKey = (f: { kind: string, subject: string, predicate: string, object?: string | null, value?: unknown, t_from?: number | null, t_to?: number | null }) =>
-  [f.kind, norm(f.subject), norm(f.predicate), norm(f.object), norm(f.value == null ? '' : String(f.value)), f.t_from ?? '', f.t_to ?? ''].join('|')
+const factKey = (f: { kind: string, subject: string, predicate: string, object?: string | null, value?: unknown, t_from?: number | null, t_to?: number | null, precision?: string | null }) =>
+  [f.kind, norm(f.subject), norm(f.predicate), norm(f.object), norm(f.value == null ? '' : String(f.value)), f.t_from ?? '', f.t_to ?? '', f.precision ?? ''].join('|')
 
 // Runs extraction on one document version and stores the candidates as pending. Never touches canon. A candidate the project
-// already has is skipped. One exception on import (not `strict`, which re-extract uses): a candidate naming something a merge
-// mapped to another name is kept unless the same one is already pending, because a merge rewrites the names of the facts
-// it moves but keeps their statements; the reviewer sees the mapping on it (see entity_merges).
-export async function extractInto(doc: { id: string, filename: string, title: string, content: string }, passages: { id: string, text: string }[], strict = false) {
+// already has, in any status, is skipped. Names are compared under their kept analysis identity (entity_merges), because a
+// merge rewrites the names of the facts it moves but keeps their statements: a re-imported "Lighthouse" candidate equals the
+// canon (or rejected) fact now naming "Causeway". Stored facts keep their original statements and quotes.
+export async function extractInto(doc: { id: string, filename: string, title: string, content: string }, passages: { id: string, text: string }[]) {
   const db = useDb()
   const projectId = pid()
   const drafts = await extractCandidates({ id: doc.id, filename: doc.filename, title: doc.title, text: doc.content })
   const model = modelInfo()
-  const existing = db.prepare('select statement, kind, subject, predicate, object, value, t_from, t_to, status from facts where project_id = ?').all(projectId) as { statement: string, kind: string, subject: string, predicate: string, object: string | null, value: string | null, t_from: number | null, t_to: number | null, status: string }[]
+  const existing = db.prepare('select statement, kind, subject, predicate, object, value, t_from, t_to, precision, status from facts where project_id = ?').all(projectId) as { statement: string, kind: string, subject: string, predicate: string, object: string | null, value: string | null, t_from: number | null, t_to: number | null, precision: string | null, status: string }[]
   const seen = new Map<string, string>()
-  const pending = new Set<string>()
-  const remember = (keys: string[], status: string) => {
-    for (const k of keys) {
-      seen.set(k, status)
-      if (status === 'pending') pending.add(k)
-    }
-  }
-  for (const f of existing) remember([`s:${norm(f.statement)}`, `k:${factKey(f)}`], f.status)
+  const kept = keptNameOf()
+  const keyOf = (f: Parameters<typeof factKey>[0]) => factKey({ ...f, subject: kept(f.subject), object: kept(f.object) })
+  const remember = (keys: string[], status: string) => { for (const k of keys) seen.set(k, status) }
+  for (const f of existing) remember([`s:${norm(f.statement)}`, `k:${keyOf(f)}`], f.status)
   let created = 0
   let unverified = 0
   const skipped: Record<string, number> = {}
@@ -167,9 +163,8 @@ export async function extractInto(doc: { id: string, filename: string, title: st
     for (const c of drafts) {
       const tFrom = parseStoryTime(c.time?.from)
       const tTo = parseStoryTime(c.time?.to)
-      const keys = [`s:${norm(c.statement)}`, `k:${factKey({ ...c, t_from: tFrom, t_to: tTo })}`]
-      const mapped = !strict && identityOf({ subject: c.subject, object: c.object ?? null }).length > 0
-      const already = mapped ? (keys.some(k => pending.has(k)) ? 'pending' : undefined) : keys.map(k => seen.get(k)).find(Boolean)
+      const keys = [`s:${norm(c.statement)}`, `k:${keyOf({ ...c, t_from: tFrom, t_to: tTo, precision: c.time ? (c.time.precision ?? 'exact') : null })}`]
+      const already = keys.map(k => seen.get(k)).find(Boolean)
       if (already) {
         skipped[already] = (skipped[already] ?? 0) + 1
         continue

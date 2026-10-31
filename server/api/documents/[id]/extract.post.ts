@@ -11,7 +11,7 @@ export default defineEventHandler(async (event) => {
   const recordedCovers = model.mode === 'mock' ? await hasRecordedExtraction(latest.filename) : null
   const passages = db.prepare('select id, text from passages where document_id = ? order by ordinal').all(latest.id) as { id: string, text: string }[]
   try {
-    const r = await extractInto({ id: latest.id, filename: latest.filename, title: latest.title, content: latest.content }, passages, true)
+    const r = await extractInto({ id: latest.id, filename: latest.filename, title: latest.title, content: latest.content }, passages)
     audit('document.reextracted', 'document', latest.id, {
       filename: latest.name, folder: folderPath(latest.folder_id), title: latest.title, version: latest.version, model_id: model.id,
       proposed: r.proposed, created: r.created, unverified: r.unverified, skipped: r.skipped_by_status,

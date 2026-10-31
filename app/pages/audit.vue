@@ -130,7 +130,8 @@ function target(e: { event_type: string, target_type: string, target_id: string,
 // Compared as formatted dates, so "Today" follows the same time zone as every date on the page.
 const day = (iso: string) => {
   const d = shortDate(iso)
-  return d === shortDate(new Date().toISOString()) ? 'Today' : d === shortDate(new Date(Date.now() - 864e5).toISOString()) ? 'Yesterday' : d
+  const now = new Date().toISOString()
+  return d === shortDate(now) ? 'Today' : d === shortDateBack(now, 1) ? 'Yesterday' : d
 }
 const groups = computed(() => {
   const out: { day: string, items: typeof shown.value }[] = []

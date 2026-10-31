@@ -256,6 +256,11 @@ export function mergedIdentity(name: string | null) {
   const page = listEntities().find(e => normName(analysisName(e)) === normName(m.canonical))
   return { from: name, to: m.canonical, entity_id: page?.id ?? null, merged_at: m.merged_at, merged_by_name: m.merged_by_name, audit_id: m.audit_id }
 }
+// Name -> the analysis name it is kept under (merged-away names map to their kept entity; others stay as typed), normalised.
+export function keptNameOf() {
+  const m = new Map(mergeRows().map(r => [r.name_norm, normName(r.canonical)]))
+  return (name: string | null | undefined) => (name ? (m.get(normName(name)) ?? normName(name)) : '')
+}
 export const identityOf = (f: { subject: string, object: string | null }) => (['subject', 'object'] as const)
   .flatMap((role) => { const m = mergedIdentity(f[role]); return m ? [{ role, ...m }] : [] })
 

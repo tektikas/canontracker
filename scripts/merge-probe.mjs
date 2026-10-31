@@ -31,9 +31,27 @@ const studio = (await a('/api/studios', { method: 'POST', body: { name: 'Merge S
 const project = (await a('/api/projects', { method: 'POST', body: { name: 'Merge Probe', studio_id: studio.id } })).data
 check('demo loads', (await a('/api/demo/load', { method: 'POST' })).status, 200)
 
-// Accept every candidate whose quote is verified, then scan.
-for (const f of (await a('/api/facts?status=pending')).data)
-  if (f.evidence.some(e => e.verified)) assert.equal((await a(`/api/facts/${f.id}/review`, { method: 'POST', body: { decision: 'accept' } })).status, 200)
+// Accept every candidate whose quote is verified, then scan. Two get other decisions so the re-imports below can tell
+// suppressed duplicates from a genuinely new candidate: the figurative "sisters" one is rejected (a decision must stand),
+// and S10's Lighthouse one is accepted corrected to another predicate (so the recorded S10 candidate matches no fact).
+let sisterDoc = null
+const docName = async f => (await a(`/api/documents/${f.evidence[0].document_id}`)).data.filename
+for (const f of (await a('/api/facts?status=pending')).data) {
+  if (!f.evidence.some(e => e.verified)) continue
+  if (/sisters/.test(f.statement)) {
+    sisterDoc = await docName(f)
+    assert.equal((await a(`/api/facts/${f.id}/review`, { method: 'POST', body: { decision: 'reject', rationale: 'probe: figurative' } })).status, 200)
+  } else if (names(f).includes('Lighthouse') && f.predicate === 'located_at' && await docName(f) === 'S10.md')
+    assert.equal((await a(`/api/facts/${f.id}/review`, { method: 'POST', body: { decision: 'correct_and_accept', corrected: { statement: 'Arin watches from the Lighthouse at 10:00 on Day 3.', predicate: 'watches_from' } } })).status, 200)
+  else assert.equal((await a(`/api/facts/${f.id}/review`, { method: 'POST', body: { decision: 'accept' } })).status, 200)
+}
+assert.ok(sisterDoc, 'the rejected candidate has a source document')
+const reimport = async (filename, tail) => {
+  const d = (await a('/api/documents')).data.filter(x => x.filename === filename).sort((x, y) => y.version - x.version)[0]
+  const form = new FormData()
+  form.append('files', new Blob([`${(await a(`/api/documents/${d.id}`)).data.content}\n${tail}\n`], { type: 'text/markdown' }), filename)
+  assert.equal((await a('/api/documents', { method: 'POST', form })).status, 200)
+}
 await a('/api/conflicts/scan', { method: 'POST' })
 let canon = (await a('/api/facts?status=canon')).data
 const atCauseway = canon.find(f => f.predicate === 'located_at' && f.object === 'Causeway')
@@ -114,14 +132,20 @@ console.log(`    ${ruleWithLh.length} of ${ruleCalls.length} rule-check prompts 
 // Renaming the kept page is editorial: it must not change the name analysis uses for later candidates.
 check('rename the Causeway page', (await a(`/api/entities/${causeway.id}`, { method: 'PATCH', body: { name: 'Old Causeway Road' } })).status, 200)
 
-// 3. Re-importing S06 brings "Lighthouse" back as a candidate; the reviewer sees the mapping, accept saves it as Causeway.
-const s06 = (await a('/api/documents')).data.find(d => d.filename === 'S06.md')
+// 3. Re-importing S10 brings "Lighthouse" back as a candidate; the reviewer sees the mapping, accept saves it as Causeway.
+const s06 = (await a('/api/documents')).data.find(d => d.filename === 'S10.md')
 const content = (await a(`/api/documents/${s06.id}`)).data.content
 const form = new FormData()
-form.append('files', new Blob([`${content}\n\nRevised draft.\n`], { type: 'text/markdown' }), 'S06.md')
-check('S06 re-import', (await a('/api/documents', { method: 'POST', form })).status, 200)
+form.append('files', new Blob([`${content}\n\nRevised draft.\n`], { type: 'text/markdown' }), 'S10.md')
+check('S10 re-import', (await a('/api/documents', { method: 'POST', form })).status, 200)
 const cand = (await a('/api/facts?status=pending')).data.find(f => names(f).includes('Lighthouse') && f.evidence.some(e => e.verified))
-assert.ok(cand, 'S06 v2 has a verified Lighthouse candidate')
+assert.ok(cand, 'S10 v2 has a verified Lighthouse candidate')
+// Duplicates of decided facts stay out: S06's candidate equals canon under the kept name, "sisters" was rejected.
+const pendingBefore = (await a('/api/facts?status=pending')).data.length
+await reimport('S06.md', 'Revised draft.')
+await reimport(sisterDoc, 'Revised draft.')
+check('re-import suppresses canon (S06) and rejected duplicates', (await a('/api/facts?status=pending')).data.length, pendingBefore)
+check('the new mapped candidate came from the changed fact only', (await a('/api/facts?status=pending')).data.filter(f => names(f).includes('Lighthouse')).length, 1)
 check('candidate shows the merge mapping (name fixed at merge)', cand.identity.map(i => `${i.from}->${i.to} ${i.audit_id} ${i.entity_id}`).join(), `Lighthouse->Causeway ${mergeEvent.id} ${causeway.id}`)
 const conflictsBefore = (await a('/api/conflicts')).data.length
 check('accept the candidate', (await a(`/api/facts/${cand.id}/review`, { method: 'POST', body: { decision: 'accept' } })).status, 200)
@@ -133,7 +157,8 @@ const accAudit = (await a('/api/audit')).data.find(e => e.event_type === 'candid
 check('accept audit records the identity', accAudit.detail.identity?.[0]?.merge_audit_id, mergeEvent.id)
 await a('/api/conflicts/scan', { method: 'POST' })
 const fresh = (await a('/api/conflicts')).data.slice(conflictsBefore).filter(c => [c.left_fact_id, c.right_fact_id].includes(cand.id))
-check('scan raises no false conflict for the new fact', fresh.length, 0)
+// S10's beat is a real travel conflict (15 min Causeway to Harbor, canon says 40): the only one it may raise.
+check('scan raises only the real travel conflict for the new fact', fresh.map(c => c.rule).join(), 'TRAVEL_TIME_TOO_SHORT')
 const change2 = (await a('/api/changes', { method: 'POST', body: { target_fact_id: atCauseway.id, proposed_statement: 'Arin waits on the Causeway at night.', rationale: 'probe' } })).data
 check('impact reaches the new fact', change2.impact.some(i => i.target_id === cand.id), true)
 check('no page re-filed for Lighthouse', (await a('/api/entities')).data.some(e => e.name === 'Lighthouse'), false)
@@ -158,17 +183,13 @@ check('re-merge maps both names', remerge.data.names_mapped.sort().join(), 'Caus
 canon = (await a('/api/facts?status=canon')).data
 check('no canon fact names Causeway or Lighthouse', canon.filter(f => names(f).some(n => n === 'Causeway' || n === 'Lighthouse')).length, 0)
 check('re-pointed facts name Salt Market', canon.filter(f => [atCauseway.id, cand.id, ...atLighthouse.map(x => x.id)].includes(f.id)).every(f => f.object === 'Salt Market'), true)
-const s06v2 = (await a('/api/documents')).data.filter(d => d.filename === 'S06.md').sort((x, y) => y.version - x.version)[0]
-const form2 = new FormData()
-form2.append('files', new Blob([`${(await a(`/api/documents/${s06v2.id}`)).data.content}\nThird draft.\n`], { type: 'text/markdown' }), 'S06.md')
-check('S06 re-import again', (await a('/api/documents', { method: 'POST', form: form2 })).status, 200)
-const cand3 = (await a('/api/facts?status=pending')).data.find(f => names(f).includes('Lighthouse') && f.evidence.some(e => e.verified))
-check('candidate maps Lighthouse to Salt Market', cand3.identity.map(i => `${i.from}->${i.to} ${i.entity_id}`).join(), `Lighthouse->Salt Market ${market.id}`)
-check('accept it', (await a(`/api/facts/${cand3.id}/review`, { method: 'POST', body: { decision: 'accept' } })).status, 200)
+await reimport('S10.md', 'Third draft.')
+check('re-import after re-merge finds no new candidate (its mapped form is canon)', (await a('/api/facts?status=pending')).data.filter(f => names(f).includes('Lighthouse')).length, 0)
+const cand3 = cand
 await a('/api/conflicts/scan', { method: 'POST' })
 const same = (await a('/api/conflicts')).data.filter(c => c.status === 'open' && /LOCATION|TRAVEL/.test(c.rule) && c.left.object === c.right.object)
 check('no open location conflict within one place', same.length, 0)
-check('no open conflict on the new fact', (await a('/api/conflicts')).data.filter(c => c.status === 'open' && c.origin === 'rule' && [c.left_fact_id, c.right_fact_id].includes(cand3.id)).length, 0)
+check('no open location conflict on the new fact', (await a('/api/conflicts')).data.filter(c => c.status === 'open' && c.origin === 'rule' && c.rule !== 'TRAVEL_TIME_TOO_SHORT' && [c.left_fact_id, c.right_fact_id].includes(cand3.id)).length, 0)
 const travel = (await a('/api/facts?status=canon')).data.find(f => f.predicate === 'travel_time')
 const change3 = (await a('/api/changes', { method: 'POST', body: { target_fact_id: travel.id, proposed_statement: 'The trip takes an hour.', rationale: 'probe' } })).data
 check('travel impact reaches the new fact', change3.impact.some(i => i.target_id === cand3.id), true)
@@ -190,4 +211,25 @@ for (const bad of ['constructor', 'toString', '__proto__', 'hasOwnProperty'])
 check('medium "prose" accepted', (await a(`/api/projects/${project.id}`, { method: 'PATCH', body: { medium: 'prose' } })).status, 200)
 check('entity page still renders', (await a(`/api/entities/${market.id}`)).status, 200)
 check('unknown field "constructor" refused', (await a(`/api/entities/${market.id}`, { method: 'PATCH', body: { fields: { constructor: 'x' } } })).status, 400)
+// 6. Precision is part of a fact's identity (lead c22r): an exact reading is not the approximate one with the same bounds.
+// Fresh project, no demo: an approximate Lighthouse fact is authored from a scratch doc, then S06.md arrives and its exact
+// candidate (same names, same bounds) must still come; a second S06 version (same precision) collapses.
+const s06text = (await a(`/api/documents/${(await a('/api/documents')).data.find(d => d.filename === 'S06.md').id}`)).data.content
+await a('/api/projects', { method: 'POST', body: { name: 'Precision Probe', studio_id: studio.id } })
+const upload = async (name, text) => {
+  const f = new FormData()
+  f.append('files', new Blob([text], { type: 'text/markdown' }), name)
+  const r = await a('/api/documents', { method: 'POST', form: f })
+  assert.equal(r.status, 200)
+  return r.data.results?.[0] ?? r.data[0] ?? r.data
+}
+const quote = 'From 21:30 to 22:30 on Day 1, Arin keeps the lamp lit at the Lighthouse and never leaves the gallery.'
+await upload('Scratch.md', `# Scratch\n\n${quote}\n`)
+const scratchDoc = (await a('/api/documents')).data.find(d => d.filename === 'Scratch.md')
+check('approximate twin authored', (await a('/api/facts', { method: 'POST', body: { to: 'canon', document_id: scratchDoc.id, quote, kind: 'event', subject: 'Arin', predicate: 'located_at', object: 'Lighthouse', statement: 'Arin was around the Lighthouse in the evening of Day 1.', time_from: 'D1 21:30', time_to: 'D1 22:30', precision: 'approximate' } })).status, 200)
+await upload('S06.md', s06text)
+const exactNew = (await a('/api/facts?status=pending')).data.filter(f => f.predicate === 'located_at' && f.object === 'Lighthouse')
+check('exact candidate kept next to the approximate fact (same bounds)', `${exactNew.length}/${exactNew[0]?.precision}`, '1/exact')
+await upload('S06.md', `${s06text}\nRevised draft.\n`)
+check('same precision collapses on re-import', (await a('/api/facts?status=pending')).data.filter(f => f.predicate === 'located_at' && f.object === 'Lighthouse').length, 1)
 console.log('all checks passed')
