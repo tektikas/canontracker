@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Story Bible social image source</title>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; font-family: 'Instrument Sans', sans-serif; }
+    .card { width: 1200px; height: 630px; overflow: hidden; position: relative; background: #eceef1; color: #17212e; padding: 56px 64px; }
+    .brand { display: flex; align-items: center; gap: 14px; font-size: 32px; font-weight: 600; letter-spacing: -0.6px; }
+    .brand svg { width: 44px; height: 44px; color: #1f4f82; }
+    .kicker { margin: 58px 0 16px; color: #1f4f82; font-size: 17px; font-weight: 600; letter-spacing: 0.4px; }
+    h1 { position: relative; z-index: 1; margin: 0; max-width: 570px; font-size: 56px; font-weight: 600; line-height: 1.08; letter-spacing: -2px; }
+    .description { font-size: 21px; line-height: 1.5; color: #4b5563; max-width: 450px; margin: 26px 0 0; }
+    .art { position: absolute; width: 540px; height: 360px; right: 24px; bottom: 104px; object-fit: contain; }
+    .footer { position: absolute; inset: auto 64px 42px; display: flex; justify-content: space-between; border-top: 1px solid #b8c0cb; padding-top: 19px; font-size: 15px; color: #4b5563; }
+    .dark { background: #0f1318; color: #e3e8ee; }
+    .dark .brand svg, .dark .kicker { color: #84b2e6; }
+    .dark .description, .dark .footer { color: #a8b2bf; }
+    .dark .footer { border-color: #364151; }
+  </style>
+</head>
+<body>
+  <main class="card" id="card">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true">
+        <path d="M16 10C12 7 8 5 4 6v18c4-1 8 1 12 4V10Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
+        <path d="m8 12 4 2m-4 3 4 2" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-dasharray="1 2"/>
+        <path d="M16 10c4-3 8-5 12-4v18c-4-1-8 1-12 4V10Zm4 3v2l5-2v-2l-5 2Zm0 5v2l5-2v-2l-5 2Z" fill="currentColor" fill-rule="evenodd"/>
+      </svg>
+      <span>Story Bible</span>
+    </div>
+    <p class="kicker">FOR NARRATIVE TEAMS AT GAME STUDIOS</p>
+    <h1 id="headline">Know what’s canon.<br>See what a change<br>touches.</h1>
+    <p class="description" id="description">Give every story decision a source.<br>Keep your team on the same page.</p>
+    <img class="art" src="http://localhost:3640/art/story-world.webp" width="540" height="360" alt="An open story ledger and its connected world.">
+    <div class="footer"><span>Human-approved · Source-cited · Change impact</span><span>storybible.trythis.work</span></div>
+  </main>
+  <script>
+    if ((document.documentElement.dataset.variant || new URLSearchParams(location.search).get('variant')) === 'default') {
+      document.getElementById('card').classList.add('dark')
+      document.getElementById('headline').innerHTML = 'Narrative canon,<br>committed in ink.'
+      document.getElementById('description').innerHTML = 'From lore docs to trusted canon.<br>See which scenes a change touches.'
+    }
+  </script>
+</body>
+</html>

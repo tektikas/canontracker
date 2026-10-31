@@ -1,15 +1,27 @@
 <script setup lang="ts">
 // Public landing page. Every example is real content from the Broken Tide demo, and the model note says what this instance actually runs.
-useHead({ title: 'Story Bible · Narrative canon and impact QA for game teams' })
+useSeoMeta({
+  title: 'Story Bible · Narrative canon and impact QA for game teams',
+  description: 'Know what’s canon. Trace every fact to its source and see which scenes a change touches before it ships.',
+  ogTitle: 'Story Bible · Know what’s canon',
+  ogDescription: 'Human-approved, source-cited canon and change impact for your narrative team.',
+  ogImage: 'https://storybible.trythis.work/og-landing.png',
+  ogImageAlt: 'Story Bible — Know what’s canon. See what a change touches.',
+  twitterCard: 'summary_large_image',
+  twitterTitle: 'Story Bible · Know what’s canon',
+  twitterDescription: 'Human-approved, source-cited canon and change impact for your narrative team.',
+  twitterImage: 'https://storybible.trythis.work/og-landing.png',
+  twitterImageAlt: 'Story Bible — Know what’s canon. See what a change touches.',
+})
 const me = useMe()
 const recorded = computed(() => me.value?.model.mode !== 'meta')
 
 const STEPS = [
-  { title: 'Import', text: 'Bring lore docs and scene scripts as Markdown or text. Sources are hashed, versioned and never edited.' },
-  { title: 'Review', text: 'The model proposes facts, each with the exact quote it came from. A person accepts, corrects or rejects every one.' },
-  { title: 'Canon', text: 'Accepted facts become canon: characters, places, relationships and rules, each cited to its passage.' },
-  { title: 'Conflicts', text: 'Catch someone in two places at once, a trip that’s too fast, or a relationship used after it ended.' },
-  { title: 'Impact', text: 'Before you change canon, see which facts and scenes it touches, up to two steps away. Export the list for re-review.' },
+  { title: 'Import', art: 'import', alt: 'Manuscript pages gathered with a paper clip.', text: 'Bring lore docs and scene scripts as Markdown or text. Sources are hashed, versioned and never edited.' },
+  { title: 'Review', art: 'review', alt: 'A pen and a reviewed manuscript card.', text: 'The model proposes facts, each with the exact quote it came from. A person accepts, corrects or rejects every one.' },
+  { title: 'Canon', art: 'canon', alt: 'A reference ledger with an ink-blue bookmark.', text: 'Accepted facts become canon: characters, places, relationships and rules, each cited to its passage.' },
+  { title: 'Conflicts', art: 'conflicts', alt: 'Two scene cards with an interrupted connection.', text: 'Catch someone in two places at once, a trip that’s too fast, or a relationship used after it ended.' },
+  { title: 'Impact', art: 'impact', alt: 'A story card connected to two downstream scenes.', text: 'Before you change canon, see which facts and scenes it touches, up to two steps away. Export the list for re-review.' },
 ]
 const PRINCIPLES = [
   { title: 'A person decides', text: 'The model only proposes. Nothing becomes canon until someone on your team accepts it, and their name is on the decision.' },
@@ -52,36 +64,39 @@ const TEAM = [
           <p class="small muted">Comes with Broken Tide, an original demo story with planted contradictions, so you can try it before importing your own lore.</p>
         </div>
 
-        <figure class="preview" aria-label="Example from the Broken Tide demo">
-          <div class="pv-bar">
-            <span class="small"><b>Review</b> <span class="faint">· Broken Tide</span></span>
-            <UiBadge tone="pencil">3 of 25 candidates</UiBadge>
-          </div>
-
-          <div class="pv-card candidate">
-            <div class="pv-meta"><UiBadge tone="pencil">Candidate</UiBadge><span class="small faint">relationship · from S02</span></div>
-            <p class="statement">Mara and Leya are sisters.</p>
-            <blockquote class="quote">“You’re my sister in all but blood,” Mara says, and Leya laughs.</blockquote>
-            <div class="pv-decision">
-              <span class="pv-btn reject" aria-hidden="true">Reject</span>
-              <span class="small muted"><b>Rejected by Ada</b> · figurative, they aren’t related</span>
+        <div class="hero-visual">
+          <LandingArt name="story-world" alt="An open story ledger unfolds into a coastal world, with linked scene cards beside it." :width="720" :height="480" eager class="hero-art" />
+          <figure class="preview" aria-label="Example from the Broken Tide demo">
+            <div class="pv-bar">
+              <span class="small"><b>Review</b> <span class="faint">· Broken Tide</span></span>
+              <UiBadge tone="pencil">3 of 25 candidates</UiBadge>
             </div>
-          </div>
 
-          <div class="pv-card canon">
-            <div class="pv-meta"><UiBadge tone="accent">Canon</UiBadge><UiBadge tone="good" dot>Quote verified</UiBadge></div>
-            <p class="statement">Leya and Arin are biological siblings; Arin is four years older.</p>
-            <span class="small faint">characters.md · accepted by Ada</span>
-          </div>
-
-          <div class="pv-impact">
-            <div class="small"><b>Change a world rule</b> <span class="muted">· the chord stone erases the last hour</span></div>
-            <div class="row">
-              <span class="small muted">Scenes to re-review</span>
-              <UiBadge v-for="s in ['S04', 'S07', 'S09', 'S10']" :key="s" tone="warn">{{ s }}</UiBadge>
+            <div class="pv-card candidate">
+              <div class="pv-meta"><UiBadge tone="pencil">Candidate</UiBadge><span class="small faint">relationship · from S02</span></div>
+              <p class="statement">Mara and Leya are sisters.</p>
+              <blockquote class="quote">“You’re my sister in all but blood,” Mara says, and Leya laughs.</blockquote>
+              <div class="pv-decision">
+                <span class="pv-btn reject" aria-hidden="true">Reject</span>
+                <span class="small muted"><b>Rejected by Ada</b> · figurative, they aren’t related</span>
+              </div>
             </div>
-          </div>
-        </figure>
+
+            <div class="pv-card canon">
+              <div class="pv-meta"><UiBadge tone="accent">Canon</UiBadge><UiBadge tone="good" dot>Quote verified</UiBadge></div>
+              <p class="statement">Leya and Arin are biological siblings; Arin is four years older.</p>
+              <span class="small faint">characters.md · accepted by Ada</span>
+            </div>
+
+            <div class="pv-impact">
+              <div class="small"><b>Change a world rule</b> <span class="muted">· the chord stone erases the last hour</span></div>
+              <div class="row">
+                <span class="small muted">Scenes to re-review</span>
+                <UiBadge v-for="s in ['S04', 'S07', 'S09', 'S10']" :key="s" tone="warn">{{ s }}</UiBadge>
+              </div>
+            </div>
+          </figure>
+        </div>
       </section>
 
       <section id="how" class="band">
@@ -91,8 +106,8 @@ const TEAM = [
         </div>
         <ol class="steps">
           <li v-for="(s, i) in STEPS" :key="s.title">
-            <span class="step-n">{{ i + 1 }}</span>
-            <h3>{{ s.title }}</h3>
+            <LandingArt :name="s.art" :alt="s.alt" :width="200" :height="160" class="step-art" />
+            <div class="step-heading"><span class="step-n">{{ i + 1 }}</span><h3>{{ s.title }}</h3></div>
             <p>{{ s.text }}</p>
           </li>
         </ol>
@@ -165,10 +180,13 @@ const TEAM = [
 .lp-nav > a:not(.btn):hover { color: var(--ink); }
 
 .hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: var(--s-7); align-items: center; padding-block: var(--s-7) 72px; }
+.hero-copy { align-self: start; padding-top: var(--s-6); }
 .kicker { display: inline-block; margin-bottom: var(--s-3); font-size: var(--text-sm); font-weight: 600; color: var(--accent); }
 .hero h1 { font-size: clamp(2rem, 1.2rem + 2.6vw, 3.1rem); line-height: 1.08; letter-spacing: -0.03em; margin-bottom: var(--s-4); }
 .lead { font-size: 1.0625rem; line-height: 1.6; color: var(--muted); max-width: 56ch; margin-bottom: var(--s-5); }
 .cta { margin-bottom: var(--s-3); }
+.hero-visual { display: grid; gap: var(--s-3); min-width: 0; }
+.hero-art { width: min(100%, 360px); margin-inline: auto; }
 
 /* The one bold element: a slice of the real review screen. */
 .preview { margin: 0; display: grid; gap: var(--s-3); padding: var(--s-4); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
@@ -191,6 +209,8 @@ const TEAM = [
 
 .steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-4); }
 .steps li { display: grid; gap: var(--s-2); align-content: start; }
+.step-art { width: min(100%, 160px); }
+.step-heading { display: flex; align-items: center; gap: var(--s-2); }
 .steps h3, .cards h3 { margin: 0; font-size: var(--text-md); }
 .steps p, .cards p { margin: 0; color: var(--muted); }
 .step-n { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed var(--pencil); color: var(--pencil); font-size: var(--text-xs); font-weight: 600; }
@@ -216,6 +236,7 @@ const TEAM = [
 
 @media (max-width: 1000px) {
   .hero { grid-template-columns: minmax(0, 1fr); gap: var(--s-6); padding-top: var(--s-5); }
+  .hero-copy { padding-top: 0; }
   .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .cards.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
@@ -228,6 +249,8 @@ const TEAM = [
   .preview { padding: var(--s-3); }
   .band { padding-block: var(--s-6); }
   .steps, .cards.four, .cards.three { grid-template-columns: minmax(0, 1fr); }
+  .steps li { grid-template-columns: 92px minmax(0, 1fr); column-gap: var(--s-4); }
+  .step-art { grid-row: span 2; align-self: center; }
   .final-card { padding: var(--s-5); }
   .final-card .btn { width: 100%; }
 }
