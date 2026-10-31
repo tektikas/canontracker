@@ -92,6 +92,8 @@ export function buildBible(opts: BibleOptions, portrait: (e: EntityRow) => strin
     }
   })
   const byFactEntity = (k: string) => (on.has('facts') ? facts.filter(f => f.entity === k && f.kind !== 'rule').map(f => f.n) : [])
+  const names = new Map(used.map(f => [num.get(f.id)!, [entOf(f.subject), entOf(f.object)].map(e => (e ? keys.get(e.id) : undefined))]))
+  const namedIn = (k: string) => (on.has('facts') ? facts.filter(f => f.kind !== 'rule' && f.entity !== k && names.get(f.n)!.includes(k)).map(f => f.n) : [])
 
   const entities: BibleEntity[] = shown.map((e) => {
     const fields = fieldsOf(e)
@@ -100,7 +102,7 @@ export function buildBible(opts: BibleOptions, portrait: (e: EntityRow) => strin
       fields: (MEDIA[medium].fields[e.kind] ?? []).filter(k => fields[k]).map(k => ({ label: FIELD_LABEL[k]!.label, value: fields[k]! })),
     }
     return {
-      key: keys.get(e.id)!, name: e.name, kind: e.kind, aliases: aliasesOf(e), facts: byFactEntity(keys.get(e.id)!),
+      key: keys.get(e.id)!, name: e.name, kind: e.kind, aliases: aliasesOf(e), facts: byFactEntity(keys.get(e.id)!), named_in: namedIn(keys.get(e.id)!),
       portrait: opts.images && e.portrait_type ? portrait(e) : null,
       editorial: on.has('editorial') && (ed.summary || ed.notes || ed.fields.length) ? ed : null,
     }
@@ -172,6 +174,7 @@ export function bibleMarkdown(b: Bible, imageFile: (e: BibleEntity) => string | 
         if (img) out.push(`![${e.name}](${img})`, '')
         if (e.aliases.length) out.push(`Also known as: ${e.aliases.join(', ')}`, '')
         if (e.facts.length) out.push(`Canon: ${e.facts.join(', ')}`, '')
+        if (e.named_in.length) out.push(`${e.facts.length ? 'Also named in' : 'Named in'}: ${e.named_in.join(', ')}`, '')
         if (e.editorial) {
           out.push('*Editorial notes, not canon:*', '')
           if (e.editorial.summary) out.push(e.editorial.summary, '')

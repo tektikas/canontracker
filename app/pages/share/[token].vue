@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { setResponseStatus } from 'h3'
 // Public, read-only story bible behind a share link. No app chrome and no app requests: one call to /api/public/share.
 definePageMeta({ layout: false })
 const token = useRoute().params.token as string
@@ -8,6 +9,8 @@ useHead(() => ({
   meta: [{ name: 'robots', content: 'noindex, nofollow' }, { name: 'referrer', content: 'no-referrer' }],
 }))
 const expired = computed(() => error.value?.statusCode === 410)
+// The page answers with the API's status too (404 turned off or unknown, 410 expired), so the link reads as gone everywhere.
+if (import.meta.server && error.value) setResponseStatus(useRequestEvent()!, error.value.statusCode ?? 404)
 const print = () => window.print()
 </script>
 
@@ -44,9 +47,10 @@ const print = () => window.print()
 .foot { display: flex; align-items: center; justify-content: center; gap: var(--s-2); padding: var(--s-4) 0 var(--s-6); }
 .foot :deep(.brand-mark) { width: 18px; height: 18px; }
 @media (max-width: 720px) {
-  .bar-in { padding: var(--s-2) var(--s-4); flex-wrap: wrap; }
-  .exp { margin-left: 0; order: 3; width: 100%; padding-bottom: 4px; }
-  .bar-in :deep(.btn) { margin-left: auto; }
+  .bar { position: static; }
+  .bar-in { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 2px var(--s-3); padding: var(--s-2) var(--s-4); }
+  .exp { margin-left: 0; grid-row: 2; }
+  .bar-in :deep(.btn) { grid-column: 2; grid-row: 1 / span 2; }
   .doc { margin: 0; padding: var(--s-5) var(--s-4); border: 0; border-radius: 0; }
 }
 @media print {

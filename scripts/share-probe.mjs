@@ -200,6 +200,7 @@ assert.equal((await ada(`/api/shares/${full.id}`, { method: 'DELETE' })).status,
 assert.equal((await anon(`/api/public/share/${full.token}`)).status, 404)
 assert.equal((await anon(heroCard.portrait)).status, 404)
 const gone = await anon(`/share/${full.token}`)
+assert.equal(gone.status, 404, 'revoked share page answers 404')
 assert.ok(gone.data.includes('isn’t available') || gone.data.includes('isn&#39;t available') || gone.data.includes('isn&rsquo;t available'), 'revoked page says so')
 db.prepare('update share_links set expires_at = ? where id = ?').run(new Date(Date.now() - 1000).toISOString(), soon.id)
 assert.equal((await anon(`/api/public/share/${soon.token}`)).status, 410)

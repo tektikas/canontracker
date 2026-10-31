@@ -117,7 +117,7 @@ async function copy(text: string) {
 }
 const listError = ref('')
 async function revoke(s: Share) {
-  if (!(await askConfirm({ title: `Turn off “${s.name}”?`, body: 'Anyone who has the link sees “link not found” from now on. This can’t be undone; you can make a new link.', confirm: 'Turn off link', danger: true }))) return
+  if (!(await askConfirm({ title: `Turn off “${s.name}”?`, body: 'Anyone who opens it sees “This link isn’t available” from now on. This can’t be undone, but you can make a new link.', confirm: 'Turn off link', danger: true }))) return
   listError.value = ''
   try {
     await $fetch(`/api/shares/${s.id}`, { method: 'DELETE' })
@@ -133,58 +133,60 @@ const opened = (s: Share) => (s.open_count ? `opened ${counted(s.open_count, 'ti
   <UiPageHeader title="Export & share" description="Hand the story bible to writers, voice directors, localisation or a publisher. It holds only accepted canon, every fact with the exact source words it rests on." />
 
   <div class="layout">
-    <UiPanel title="What goes in" class="setup">
-      <div class="group" role="radiogroup" aria-label="Scope">
-        <span class="label">Scope</span>
-        <div class="chips">
-          <label v-for="s in SCOPES" :key="s.value" class="pick" :class="{ on: scope === s.value }">
-            <input v-model="scope" type="radio" name="scope" :value="s.value">{{ s.label }}
-          </label>
-        </div>
-      </div>
-
-      <div v-if="scope === 'entities'" class="group">
-        <div class="spread">
-          <span class="label">Entities <span class="faint">{{ picked.length }} selected</span></span>
-          <button v-if="picked.length" type="button" class="linkish small" @click="picked = []">Clear</button>
-        </div>
-        <input v-model="entityFilter" type="search" placeholder="Find a character, place, item…" aria-label="Find an entity">
-        <ul v-if="entityList.length" class="ent-list">
-          <li v-for="e in entityList" :key="e.id">
-            <label class="ent" :class="{ on: picked.includes(e.id) }">
-              <input type="checkbox" :checked="picked.includes(e.id)" @change="togglePick(e.id)">
-              <EntityAvatar :entity="e" :size="28" />
-              <span class="ent-name">{{ e.name }}</span>
-              <span class="faint small">{{ kindLabel(e.kind).one }} · {{ counted(e.facts, 'fact') }}</span>
+    <UiPanel title="What goes in">
+      <div class="setup">
+        <div class="group" role="radiogroup" aria-label="Scope">
+          <span class="label">Scope</span>
+          <div class="chips">
+            <label v-for="s in SCOPES" :key="s.value" class="pick" :class="{ on: scope === s.value }">
+              <input v-model="scope" type="radio" name="scope" :value="s.value">{{ s.label }}
             </label>
-          </li>
-        </ul>
-        <p v-else class="small faint">{{ entities?.length ? `No entity matches “${entityFilter}”.` : 'No entity pages yet. They appear as canon names them.' }}</p>
-      </div>
-
-      <div v-if="scope === 'folder'" class="group">
-        <UiField label="Folder" hint="Canon citing a document in this folder or its subfolders.">
-          <select v-model="folder" :disabled="!folders.length">
-            <option value="" disabled>{{ folders.length ? 'Choose a folder' : 'No folders yet' }}</option>
-            <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.label }}</option>
-          </select>
-        </UiField>
-      </div>
-
-      <fieldset class="group">
-        <legend class="label">Sections</legend>
-        <div class="sections">
-          <label v-for="k in SECTION_KEYS" :key="k" class="sec-opt" :class="{ on: sections.includes(k), ed: k === 'editorial' }">
-            <input type="checkbox" :checked="sections.includes(k)" @change="toggleSection(k)">
-            <span><b>{{ BIBLE_SECTIONS[k].label }}</b><template v-if="k === 'editorial'"> <UiBadge tone="pencil">Not canon</UiBadge></template><span class="small muted">{{ BIBLE_SECTIONS[k].hint }}</span></span>
-          </label>
+          </div>
         </div>
-      </fieldset>
 
-      <label class="sec-opt img-opt" :class="{ on: images }">
-        <input v-model="images" type="checkbox">
-        <span><b>Include portraits</b><span class="small muted">Entity images, in the PDF and as an images folder with the Markdown</span></span>
-      </label>
+        <div v-if="scope === 'entities'" class="group">
+          <div class="spread">
+            <span class="label">Entities <span class="faint">{{ picked.length }} selected</span></span>
+            <button v-if="picked.length" type="button" class="linkish small" @click="picked = []">Clear</button>
+          </div>
+          <input v-model="entityFilter" type="search" placeholder="Find a character, place, item…" aria-label="Find an entity">
+          <ul v-if="entityList.length" class="ent-list">
+            <li v-for="e in entityList" :key="e.id">
+              <label class="ent" :class="{ on: picked.includes(e.id) }">
+                <input type="checkbox" :checked="picked.includes(e.id)" @change="togglePick(e.id)">
+                <EntityAvatar :entity="e" :size="28" />
+                <span class="ent-name">{{ e.name }}</span>
+                <span class="faint small">{{ kindLabel(e.kind).one }} · {{ counted(e.facts, 'fact') }}</span>
+              </label>
+            </li>
+          </ul>
+          <p v-else class="small faint">{{ entities?.length ? `No entity matches “${entityFilter}”.` : 'No entity pages yet. They appear as canon names them.' }}</p>
+        </div>
+
+        <div v-if="scope === 'folder'" class="group">
+          <UiField label="Folder" hint="Canon citing a document in this folder or its subfolders.">
+            <select v-model="folder" :disabled="!folders.length">
+              <option value="" disabled>{{ folders.length ? 'Choose a folder' : 'No folders yet' }}</option>
+              <option v-for="f in folders" :key="f.id" :value="f.id">{{ f.label }}</option>
+            </select>
+          </UiField>
+        </div>
+
+        <fieldset class="group">
+          <legend class="label">Sections</legend>
+          <div class="sections">
+            <label v-for="k in SECTION_KEYS" :key="k" class="sec-opt" :class="{ on: sections.includes(k), ed: k === 'editorial' }">
+              <input type="checkbox" :checked="sections.includes(k)" @change="toggleSection(k)">
+              <span><span class="opt-title"><b>{{ BIBLE_SECTIONS[k].label }}</b><UiBadge v-if="k === 'editorial'" tone="pencil">Not canon</UiBadge></span><span class="small muted">{{ BIBLE_SECTIONS[k].hint }}</span></span>
+            </label>
+          </div>
+        </fieldset>
+
+        <label class="sec-opt img-opt" :class="{ on: images }">
+          <input v-model="images" type="checkbox">
+          <span><b>Include portraits</b><span class="small muted">Entity images, in the PDF and as an images folder with the Markdown</span></span>
+        </label>
+      </div>
     </UiPanel>
 
     <div class="side">
@@ -308,6 +310,7 @@ const opened = (s: Share) => (s.open_count ? `opened ${counted(s.open_count, 'ti
 .sec-opt input { margin-top: 3px; }
 .sec-opt > span { display: grid; gap: 1px; }
 .sec-opt b { font-weight: 500; }
+.opt-title { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
 .sec-opt.on { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
 .sec-opt.ed { border-style: dashed; }
 .img-opt { margin-top: calc(-1 * var(--s-2)); }

@@ -64,7 +64,8 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
                 <h3>{{ e.name }}</h3>
                 <p v-if="e.aliases.length" class="small muted">Also known as {{ e.aliases.join(', ') }}</p>
                 <a v-if="e.facts.length" class="small" :href="`#${e.key}-canon`">{{ plural(e.facts.length, 'canon fact') }}</a>
-                <p v-else-if="on.has('facts')" class="small faint">No canon fact names this page yet.</p>
+                <p v-if="e.named_in.length" class="small muted refs">{{ e.facts.length ? 'Also named in' : 'Named in' }} <template v-for="(n, i) in e.named_in" :key="n"><a :href="`#${n}`">{{ n }}</a>{{ i < e.named_in.length - 1 ? ', ' : '' }}</template></p>
+                <p v-else-if="on.has('facts') && !e.facts.length" class="small faint">No canon fact names this page yet.</p>
               </div>
             </div>
             <div v-if="e.editorial" class="editorial">
@@ -102,7 +103,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
       <p class="small muted">Timed canon in story order. Day 1 starts at 00:00.</p>
       <ol class="timeline">
         <li v-for="n in b.timeline" :key="n">
-          <span class="when mono" :class="{ approx: fact.get(n)!.approximate }">{{ fact.get(n)!.time_label }}</span>
+          <span class="when" :class="{ approx: fact.get(n)!.approximate }">{{ fact.get(n)!.time_label }}</span>
           <span class="what">{{ fact.get(n)!.statement }}</span>
           <a class="ref mono small" :href="`#${n}`">{{ n }}</a>
         </li>
@@ -176,9 +177,9 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
 .group { margin-bottom: var(--s-5); scroll-margin-top: var(--s-5); }
 .group-head { display: flex; align-items: center; gap: var(--s-2); margin: 0 0 var(--s-1); font-size: var(--text-md); break-after: avoid; }
 .timeline { list-style: none; margin: 0; padding: 0; border-left: 2px solid var(--accent); }
-.timeline li { display: grid; grid-template-columns: 9.5rem minmax(0, 1fr) auto; gap: var(--s-3); padding: var(--s-2) 0 var(--s-2) var(--s-4); position: relative; break-inside: avoid; }
+.timeline li { display: grid; grid-template-columns: 10.5rem minmax(0, 1fr) auto; gap: var(--s-3); padding: var(--s-2) 0 var(--s-2) var(--s-4); position: relative; break-inside: avoid; }
 .timeline li::before { content: ""; position: absolute; left: -6px; top: 14px; width: 10px; height: 10px; border-radius: 50%; background: var(--raised); border: 2px solid var(--accent); }
-.when { color: var(--muted); font-size: var(--text-sm); padding-top: 2px; }
+.when { color: var(--muted); font-size: var(--text-sm); font-variant-numeric: tabular-nums; white-space: nowrap; padding-top: 2px; }
 .when.approx { color: var(--warn); }
 .what { font-family: var(--font-story); }
 .ref { padding-top: 2px; }

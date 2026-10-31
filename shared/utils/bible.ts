@@ -40,7 +40,8 @@ export interface BibleFact {
   entity: string | null, citations: BibleCitation[]
 }
 export interface BibleEntity {
-  key: string, name: string, kind: string, aliases: string[], portrait: string | null, facts: string[]
+  // facts: given in full under this entity in "Canon by entity"; named_in: facts given under another entity that also name it.
+  key: string, name: string, kind: string, aliases: string[], portrait: string | null, facts: string[], named_in: string[]
   editorial: { summary: string, fields: { label: string, value: string }[], notes: string } | null
 }
 export interface Bible {
