@@ -6,6 +6,10 @@ const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
 const { data: entities } = await useEntityList()
 const route = useRoute()
 const navOpen = ref(false)
+const paletteOpen = usePaletteOpen()
+const mac = ref(false)
+onMounted(() => { mac.value = /Mac|iPhone|iPad/.test(navigator.platform) })
+watch(paletteOpen, (o) => { if (o) navOpen.value = false })
 const navTrigger = ref<HTMLButtonElement>()
 const navClose = ref<HTMLButtonElement>()
 watch(() => route.fullPath, () => { navOpen.value = false })
@@ -38,6 +42,7 @@ const groups = computed<{ label?: string, links: NavLink[] }[]>(() => [
       { to: '/entities', label: 'Entities', icon: 'entities', count: entities.value?.length || undefined },
       { to: '/conflicts', label: 'Conflicts', icon: 'conflicts', count: stats.value?.open_conflicts || undefined, tone: 'bad', sub: severityCounts(stats.value) },
       { to: '/changes', label: 'Changes', icon: 'changes', count: stats.value?.changes || undefined },
+      { to: '/tasks', label: 'Tasks', icon: 'tasks', count: stats.value?.open_tasks || undefined },
       { to: '/notes', label: 'Notes', icon: 'note', count: stats.value?.open_notes || undefined },
     ],
   },
@@ -47,6 +52,7 @@ const groups = computed<{ label?: string, links: NavLink[] }[]>(() => [
       { to: '/ask', label: 'Ask canon', icon: 'ask' },
       { to: '/metrics', label: 'Metrics', icon: 'metrics' },
       { to: '/audit', label: 'Audit log', icon: 'audit' },
+      { to: '/export', label: 'Export & share', icon: 'link' },
     ],
   },
   {
@@ -85,6 +91,7 @@ async function open(id: string) {
       <NuxtLink to="/" class="brand topbar-project">
         <BrandMark /><span class="topbar-name">{{ current?.project.name ?? 'Story Bible' }}</span>
       </NuxtLink>
+      <button class="icon-btn" type="button" aria-label="Search" aria-haspopup="dialog" @click="paletteOpen = true"><UiIcon name="search" :size="20" /></button>
       <UiBadge v-if="stats" :tone="recorded ? 'warn' : 'good'" dot :title="stats.model.label">
         {{ recorded ? 'Recorded run' : 'Live model' }}
       </UiBadge>
@@ -123,6 +130,10 @@ async function open(id: string) {
         <NuxtLink v-if="canManage(me)" to="/settings/projects?new=1" class="menu-item"><UiIcon name="plus" :size="16" />New project</NuxtLink>
         </template>
       </UiMenu>
+
+      <button type="button" class="search-btn" aria-haspopup="dialog" @click="paletteOpen = true">
+        <UiIcon name="search" :size="16" /><span class="search-label">Search</span><kbd>{{ mac ? '⌘K' : 'Ctrl K' }}</kbd>
+      </button>
 
       <nav class="nav" aria-label="Main">
         <div v-for="(g, i) in groups" :key="i" class="nav-group">
@@ -183,6 +194,7 @@ async function open(id: string) {
         <span v-if="stats?.open_conflicts" class="sr-only">({{ counted(stats.open_conflicts, 'open conflict') }})</span>
       </button>
     </nav>
+    <CommandPalette />
     <MentionCard />
     <GuidedTour />
   </div>
@@ -202,6 +214,9 @@ async function open(id: string) {
 .sidebar-foot { margin-top: auto; display: grid; gap: var(--s-2); }
 .sidebar-foot .model-status { margin-top: 0; }
 .avatar { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: var(--text-xs); font-weight: 700; }
+.search-btn { display: flex; align-items: center; gap: var(--s-2); width: 100%; min-height: 34px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); color: var(--muted); font: inherit; cursor: pointer; }
+.search-btn:hover { border-color: var(--line-strong); color: var(--ink); }
+.search-label { flex: 1; text-align: left; }
 .viewer-note { margin-bottom: var(--s-5); }
 .viewer-note svg { flex: none; margin-top: 2px; }
 .topbar-name { overflow: hidden; text-overflow: ellipsis; }

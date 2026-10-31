@@ -1,5 +1,6 @@
 import { DatabaseSync } from 'node:sqlite'
-import { mkdirSync, rmSync } from 'node:fs'
+import { copyFileSync, existsSync, mkdirSync, rmSync, statSync } from 'node:fs'
+import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
@@ -35,6 +36,14 @@ create table if not exists api_tokens (
   token_hash text not null unique, prefix text not null, created_at text not null, last_used_at text, revoked_at text
 );
 
+-- Read-only share links to a project's story bible. Only the sha256 of the link token is stored. options: the bible's
+-- scope, sections and images (JSON, see shared/utils/bible.ts). expires_at null = never. open_count/last_opened_at: link use.
+create table if not exists share_links (
+  id text primary key, project_id text not null references projects(id), name text not null, token_hash text not null unique,
+  prefix text not null, options text not null, created_by text not null, created_at text not null, expires_at text,
+  revoked_at text, revoked_by text, last_opened_at text, open_count integer not null default 0
+);
+
 -- Content. Every row belongs to one project; routes only ever read and write the caller's current project.
 -- origin: import (an uploaded file) | written (written in the app; each save is a new read-only version). created_by: who saved it.
 -- One row per version. filename: the document's key, shared by its versions and unique per document in the project. name: the
@@ -65,6 +74,13 @@ create table if not exists drafts (
 create table if not exists notes (
   id text primary key, document_id text not null, passage_id text not null, quote text not null, body text not null, status text not null,
   created_by text not null, created_at text not null, updated_by text, updated_at text not null, project_id text not null
+);
+-- Re-review tasks: one per scene in an applied change's impact manifest. status: open | in_progress | done | wont_fix | not_needed
+-- (not_needed is set only by reverting the change). path, evidence_ids and rationale are copied from the manifest. Editorial; never canon.
+create table if not exists tasks (
+  id text primary key, change_id text not null, document_id text not null, passage_id text, status text not null,
+  assignee_id text, due_date text, comment text not null default '', path text not null, evidence_ids text not null,
+  rationale text not null, hop_count integer not null, created_at text not null, updated_by text, updated_at text not null, project_id text not null
 );
 create table if not exists passages (
   id text primary key, document_id text not null references documents(id), ordinal integer not null,
@@ -111,12 +127,14 @@ create table if not exists entities (
   fields text not null default '{}', notes text not null default '', portrait_type text, portrait_at text, origin text not null,
   created_at text not null, created_by text, updated_at text not null, updated_by text, project_id text not null
 );
--- Generated images (Muse Image). Editorial, never canon. target_type: entity (portrait) | document (cover).
--- applied_at is set on the one image currently used as the target's portrait or cover; the bytes live next to portraits.
+-- An entity's or document's image history: generated (Muse Image) and uploaded images together. Editorial, never canon.
+-- target_type: entity (portrait) | document (cover). applied_at is set on the one image currently used as the target's
+-- portrait or cover; the bytes live next to portraits. source: generated | upload. An upload has no prompt, style or model
+-- (empty strings) and keeps its original file name. caption: the team's own words about the picture.
 create table if not exists images (
   id text primary key, target_type text not null, target_id text not null, prompt text not null, style text not null,
   model_id text not null, mime text not null, bytes integer not null, created_at text not null, created_by text not null,
-  applied_at text, project_id text not null
+  applied_at text, project_id text not null, source text not null default 'generated', caption text not null default '', filename text
 );
 -- Identity decisions from merges: a name that was merged away maps to the kept entity's analysis_name (renaming or deleting
 -- the page later doesn't change it; merging the kept entity on moves the row along). Applied when a later candidate naming it
@@ -147,23 +165,71 @@ create index if not exists images_target on images(project_id, target_type, targ
 create index if not exists audit_project on audit_events(project_id);
 create index if not exists memberships_user on memberships(user_id);
 create index if not exists notes_project on notes(project_id, status);
+create index if not exists tasks_project on tasks(project_id, status);
+create index if not exists tasks_change on tasks(change_id);
 `
 
 let db: DatabaseSync | undefined
 
+// The connection is shared only once it is fully set up: if the upgrade fails, it is closed and the next request tries again.
 export function useDb() {
   if (db) return db
   mkdirSync('.data', { recursive: true })
-  db = new DatabaseSync('.data/storybible.db')
-  const { user_version } = db.prepare('pragma user_version').get() as { user_version: number }
-  if (user_version !== SCHEMA_VERSION) {
-    const tables = db.prepare(`select name from sqlite_master where type = 'table'`).all() as { name: string }[]
-    db.exec('pragma foreign_keys = off')
-    for (const t of tables) db.exec(`drop table "${t.name}"`)
-    db.exec(`pragma foreign_keys = on; pragma user_version = ${SCHEMA_VERSION}`)
+  const conn = new DatabaseSync('.data/storybible.db')
+  try {
+    const user_version = schemaVersion(conn)
+    if (user_version === 12) migrate12(conn)
+    else if (user_version !== SCHEMA_VERSION) {
+      const tables = conn.prepare(`select name from sqlite_master where type = 'table'`).all() as { name: string }[]
+      conn.exec('pragma foreign_keys = off')
+      for (const t of tables) conn.exec(`drop table "${t.name}"`)
+      conn.exec(`pragma foreign_keys = on; pragma user_version = ${SCHEMA_VERSION}`)
+    }
+    conn.exec(SCHEMA)
+  } catch (e) {
+    conn.close()
+    throw e
   }
-  db.exec(SCHEMA)
-  return db
+  return (db = conn)
+}
+
+// What the database file itself says, not what this build expects.
+export const schemaVersion = (d = useDb()) => (d.prepare('pragma user_version').get() as { user_version: number }).user_version
+
+// v12 → v13: images gain source, caption and filename. A portrait uploaded before then had no history row (only the
+// entity's own copy of the file); it becomes an upload row in use, with its own copy of the bytes, credited to whoever
+// uploaded it per the audit trail. Nothing else changes, so the data survives the upgrade.
+function migrate12(db: DatabaseSync) {
+  const copies: string[] = []
+  db.exec('begin')
+  try {
+    db.exec(`alter table images add column source text not null default 'generated';
+      alter table images add column caption text not null default '';
+      alter table images add column filename text`)
+    const orphans = db.prepare(`select e.* from entities e where e.portrait_type is not null and not exists
+      (select 1 from images i where i.project_id = e.project_id and i.target_type = 'entity' and i.target_id = e.id and i.applied_at is not null)`)
+      .all() as { id: string, project_id: string, portrait_type: string, portrait_at: string | null, updated_at: string, updated_by: string | null, created_by: string | null }[]
+    const uploader = db.prepare(`select actor, created_at from audit_events where project_id = ? and target_id = ? and event_type = 'entity.portrait_set' order by rowid desc limit 1`)
+    const insert = db.prepare(`insert into images (id, target_type, target_id, prompt, style, model_id, mime, bytes, created_at, created_by, applied_at, project_id, source)
+      values (?, 'entity', ?, '', 'none', '', ?, ?, ?, ?, ?, ?, 'upload')`)
+    for (const e of orphans) {
+      const from = join('.data', 'portraits', e.project_id, e.id)
+      if (!existsSync(from)) continue
+      const id = newId('img')
+      const to = join('.data', 'portraits', e.project_id, id)
+      copyFileSync(from, to)
+      copies.push(to)
+      const by = uploader.get(e.project_id, e.id) as { actor: string, created_at: string } | undefined
+      const at = e.portrait_at ?? by?.created_at ?? e.updated_at
+      insert.run(id, e.id, e.portrait_type, statSync(from).size, at, by?.actor ?? e.updated_by ?? e.created_by ?? '', at, e.project_id)
+    }
+    db.exec('pragma user_version = 13')
+    db.exec('commit')
+  } catch (err) {
+    db.exec('rollback')
+    for (const f of copies) rmSync(f, { force: true }) // the copies have no rows any more; a retry makes new ones
+    throw err
+  }
 }
 
 export const newId = (prefix: string) => `${prefix}_${randomUUID().replaceAll('-', '').slice(0, 16)}`
@@ -207,7 +273,7 @@ export function audit(eventType: string, targetType: string, targetId: string, d
 // the caller appends a project.reset event, and events before it whose target was cleared read as removed (listAudit).
 export function resetData() {
   tx(() => {
-    for (const t of ['document_tags', 'tags', 'folders', 'notes', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })
@@ -215,7 +281,7 @@ export function resetData() {
 
 // The project's audit trail. Targets of events before the latest project.reset were deleted by that reset (tokens and the
 // project itself survive one), so those events carry target_removed instead of pointing at an id that no longer exists.
-const SURVIVES_RESET = ['token', 'project', 'audit', 'question']
+const SURVIVES_RESET = ['token', 'project', 'audit', 'question', 'user', 'share']
 export function listAudit(order: 'asc' | 'desc') {
   const db = useDb()
   const reset = (db.prepare(`select max(rowid) r from audit_events where project_id = ? and event_type = 'project.reset'`).get(pid()) as { r: number | null }).r ?? 0

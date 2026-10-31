@@ -10,7 +10,7 @@ Comics and animation teams draw in pencil and commit in ink. Story Bible works t
 
 ## Tokens (`app/assets/main.css`)
 
-All colors are CSS variables with a light set and a `prefers-color-scheme: dark` set. Never hard-code a hex in a page.
+All colors are CSS variables with a light set and a dark set (`prefers-color-scheme: dark`, or `data-theme` on `<html>` when a person toggled it in the command palette). Never hard-code a hex in a page.
 
 | Group | Tokens |
 | --- | --- |
@@ -25,6 +25,14 @@ All colors are CSS variables with a light set and a `prefers-color-scheme: dark`
 | Motion | `--dur-1` 120ms (hover), `--dur-2` 220ms (drawer), `--ease`. Motion only answers a user action; `prefers-reduced-motion` turns it off. |
 
 Fonts load from Google Fonts in `nuxt.config.ts`.
+
+## Brand
+
+The mark is an open story ledger: graphite-style strokes on the left, solid ink on the right. Keep at least one quarter of the mark’s width clear around it. Minimum size: 16px for the mark, 140px for the horizontal lockup. Do not stretch, rotate, add shadows or place it on a busy image.
+
+`BrandMark.vue` keeps the inline mark in the app’s existing text lockups. Standalone vectors live in `public/brand/`: `mark.svg` and `story-bible.svg` adapt to the system theme; `story-bible-mono.svg` uses `currentColor` when inlined. The wordmark is outlined Instrument Sans semibold (license alongside it). Use `--accent` (Prussian blue / light blue in dark mode), or one solid ink colour for monochrome. Keep Instrument Sans for UI and branding; Literata stays reserved for story content.
+
+Original generated pencil-and-ink illustrations live in `public/art/`, with transparent WebP and PNG alternatives. Preserve their aspect ratios and ivory paper interiors in either theme. They are editorial artwork, not canon or screenshots. App icons and 1200×630 social PNGs live in `public/`; the social composition source and every generation prompt are in `scripts/brand/`. Keep social image URLs absolute in metadata. Regeneration details and asset sizes: `scripts/brand/README.md`.
 
 ## Components (`app/components/ui/`, auto-imported as `Ui*`)
 
@@ -44,6 +52,10 @@ Fonts load from Google Fonts in `nuxt.config.ts`.
 Domain components restyled to this language: `SourceRef` (quote + source link + verification badge) and `FactSummary` (kind/time badges, statement, triple, optional sources).
 
 The components render the same global classes old pages use, so both stay consistent: `.btn` (`.primary .ghost .danger .good .sm .lg`), `.chip` (= badge tones), `.card` (= panel), `.page-head`, `.tabs`, `.notice` (`.info .warn .bad`), `.empty`, `.stack`, `.row`, `.spread`, `.grid-2`, `.statement`, `.triple`, `.quote` (`.unverified .prior`), `.passage`, `.table-wrap`, `.muted`, `.faint`, `.small`, `.mono`, `.hide-sm`. New pages should prefer the components; don't invent new global classes for one page (use scoped styles).
+
+## Command palette
+
+`<CommandPalette>` (in the default layout) opens with Ctrl/⌘ K or the Search button (sidebar; top bar on mobile). It searches canon facts, entities (any alias or merged name), documents (text, with the exact passage) and notes through `GET /api/search`, and runs commands (viewers only get read commands). Fixed height so results never shift the sheet; full screen on phones. Roles: combobox on the input, listbox/option for results.
 
 ## Layout
 

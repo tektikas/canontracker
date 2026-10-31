@@ -11,13 +11,7 @@ const scanned = useState('conflicts-scanned', () => false) // read by Home's wor
 const ui = reactive<Record<string, { rationale: string, error: string, busy: boolean }>>({})
 const state = (id: string) => (ui[id] ??= { rationale: '', error: '', busy: false })
 
-const RULES: Record<string, string> = {
-  EXACT_TIME_LOCATION_OVERLAP: 'Same person, two places, overlapping exact times',
-  APPROX_TIME_LOCATION_OVERLAP: 'Same person, two places, overlapping approximate times',
-  RELATIONSHIP_AFTER_END: 'Relationship used after it ended',
-  TRAVEL_TIME_TOO_SHORT: 'Not enough time to travel between places',
-  WORLD_RULE_VIOLATION: 'Fact breaks a world rule',
-}
+const RULES = CONFLICT_RULE_LABEL
 const DECISIONS = [
   { value: 'confirmed', label: 'Confirm conflict', cls: 'danger' },
   { value: 'false_positive', label: 'False alarm', cls: 'good' },

@@ -76,8 +76,37 @@
   color-scheme: light;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
+/* Dark follows the system unless the person picked a theme (data-theme, set by the palette's "Toggle theme"). Screens only: print and PDF always use the light set. */
+@media screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme=light]) {
+    --canvas: #0f1318;
+    --surface: #141920;
+    --raised: #19202a;
+    --sunken: #0b0e12;
+    --quote-bg: #121820;
+    --ink: #e3e8ee;
+    --muted: #a8b2bf;
+    --faint: #8a95a3;
+    --line: #262e39;
+    --line-strong: #364151;
+    --accent: #84b2e6;
+    --accent-strong: #a6c8ee;
+    --accent-ink: #0c1724;
+    --accent-soft: #182a3e;
+    --pencil: #a0a9b5;
+    --pencil-soft: #222932;
+    --good: #7cc59c;
+    --good-soft: #15291f;
+    --warn: #e0b453;
+    --warn-soft: #2e2512;
+    --bad: #ee8b77;
+    --bad-soft: #351a16;
+    --elev-overlay: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
+    color-scheme: dark;
+  }
+}
+@media screen {
+  :root[data-theme=dark] {
     --canvas: #0f1318;
     --surface: #141920;
     --raised: #19202a;

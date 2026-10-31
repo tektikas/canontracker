@@ -9,17 +9,35 @@ const lineOf = (ev: Record<string, any>) => `Line ${ev.start_line}${ev.end_line 
 // Evidence from this document, any version. One that cites another version is shown as such, never as this text.
 const here = (f: Record<string, any>) => f.evidence.filter((ev: any) => ev.document_key === doc.value?.filename)
 const activeQuote = computed(() => doc.value?.facts.flatMap(f => f.evidence).find(ev => ev.verified && ev.passage_id === active.value)?.quote)
+// Unfinished re-review tasks on this document (any version), grouped by the change that caused them.
+const { data: allTasks } = await useFetch('/api/tasks', { default: () => [] })
+const taskGroups = computed(() => {
+  const g = new Map<string, { id: string, statement: string, n: number, first: string }>()
+  for (const t of allTasks.value) {
+    if (t.filename !== doc.value?.filename || (t.status !== 'open' && t.status !== 'in_progress')) continue
+    const x = g.get(t.change_id) ?? { id: t.change_id, statement: t.change_statement, n: 0, first: t.id }
+    x.n++
+    g.set(t.change_id, x)
+  }
+  return [...g.values()]
+})
 const latest = computed(() => !doc.value || doc.value.latest.id === doc.value.id)
 // Facts and notes are only added to the latest version: an older one is already superseded.
 const annotate = computed(() => editor.value && latest.value)
 
-type Side = 'facts' | 'notes'
-const side = ref<Side>(route.query.notes ? 'notes' : 'facts')
+type Side = 'facts' | 'notes' | 'images'
+const side = ref<Side>(route.query.notes ? 'notes' : route.query.images ? 'images' : 'facts')
+// The palette can open a note while this page is already showing: follow the link.
+watch(() => route.fullPath, () => { if (route.query.notes) side.value = 'notes' })
 const openNotes = computed(() => doc.value?.notes.filter(n => n.status !== 'done').length ?? 0)
 const sideTabs = computed(() => [
   { value: 'facts' as Side, label: 'Facts', count: doc.value?.facts.length ?? 0 },
   { value: 'notes' as Side, label: 'Notes', count: openNotes.value },
+  { value: 'images' as Side, label: 'Images', count: gallery.value?.images.length ?? 0 },
 ])
+// This version's image history (uploads and generated together); one of them may be the cover.
+const { data: gallery, refresh: refreshImages } = await useFetch('/api/images', { query: computed(() => ({ target_type: 'document', target_id: String(route.params.id) })) })
+const coverChanged = () => Promise.all([refresh(), refreshImages()])
 const sortedNotes = computed(() => [...(doc.value?.notes ?? [])].sort((a, b) => Number(a.status === 'done') - Number(b.status === 'done')))
 
 // The last thing added here, with a link to where it now shows up.
@@ -39,7 +57,7 @@ async function showNotes(passageId: string) {
   el?.focus({ preventScroll: true })
 }
 
-// A generated cover is editorial: shown above the source, never written into it.
+// A cover (uploaded or generated) is editorial: shown above the source, never written into it.
 const generator = ref<{ open: () => void }>()
 const undo = ref('')
 async function undoRemove() {
@@ -47,11 +65,40 @@ async function undoRemove() {
   undo.value = ''
   try {
     await $fetch(`/api/images/${id}/apply`, { method: 'POST' })
-    await refresh()
+    await coverChanged()
   } catch (e) {
     coverError.value = errorMessage(e)
   }
 }
+// Upload onto the cover (button or drop on the cover or its empty slot): the first image becomes the cover at once.
+const coverInput = ref<HTMLInputElement>()
+async function uploadCover(files: File[]) {
+  coverError.value = ''
+  if (!files.length) return
+  const problem = files.map(imageUploadProblem).find(Boolean)
+  if (problem) {
+    coverError.value = problem
+    return
+  }
+  coverBusy.value = true
+  undo.value = ''
+  try {
+    const r = await sendImages('document', doc.value!.id, files.slice(0, IMAGE_BATCH_FILES), { apply: true })
+    const refused = r.results.find(x => x.status === 'refused')
+    if (refused) coverError.value = `${refused.name}: ${refused.message}`
+    await coverChanged()
+  } catch (e) {
+    coverError.value = errorMessage(e)
+  } finally {
+    coverBusy.value = false
+  }
+}
+function onCoverPick(ev: Event) {
+  const input = ev.target as HTMLInputElement
+  uploadCover([...input.files ?? []])
+  input.value = ''
+}
+const { over: overCover, on: coverDrop } = useFileDrop(uploadCover, () => editor.value)
 const coverBusy = ref(false)
 const coverError = ref('')
 async function removeCover() {
@@ -60,7 +107,7 @@ async function removeCover() {
   try {
     const id = doc.value!.cover!.id
     await $fetch(`/api/images/${id}/apply`, { method: 'DELETE' })
-    await refresh()
+    await coverChanged()
     undo.value = id
   } catch (e) {
     coverError.value = errorMessage(e)
@@ -127,28 +174,46 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
         <template v-if="editor">
           <UiButton v-if="latest" icon="refresh" :loading="reextracting" :title="recordedNoOutput ? 'Recorded demo run: only the demo files have recorded output' : 'Run extraction again; new candidates go to review'" @click="reextract">Re-extract</UiButton>
           <UiButton v-if="doc.origin === 'written'" icon="review" :to="`/write?doc=${doc.latest.id}`">Edit</UiButton>
-          <UiButton v-if="!doc.cover" icon="image" @click="generator?.open()">Generate cover</UiButton>
         </template>
       </template>
     </UiPageHeader>
-    <ImageGenerator v-if="canEdit(me)" :id="doc.id" ref="generator" type="document" @changed="refresh" />
-    <UndoToast v-if="undo" message="Cover removed." @undo="undoRemove" @close="undo = ''" />
+    <ImageGenerator v-if="editor" :id="doc.id" ref="generator" type="document" @changed="coverChanged" />
+    <UndoToast v-if="undo" message="Cover removed. It stays in Images." @undo="undoRemove" @close="undo = ''" />
+    <input v-if="editor" ref="coverInput" type="file" :accept="IMAGE_UPLOAD_TYPES.join(',')" hidden @change="onCoverPick">
 
-    <figure v-if="doc.cover" class="cover panel">
-      <img :src="doc.cover.url" :alt="`Cover for ${doc.title}`">
+    <figure v-if="doc.cover" class="cover panel" :class="{ over: overCover }" v-on="coverDrop">
+      <img :src="doc.cover.url" :alt="doc.cover.caption || `Cover for ${doc.title}`">
+      <span v-if="overCover" class="cover-drop" aria-hidden="true"><UiIcon name="upload" :size="22" />Drop to replace the cover</span>
       <figcaption>
-        <details class="small">
+        <details v-if="doc.cover.source === 'generated'" class="small">
           <summary class="expand"><UiBadge tone="pencil">Generated with Muse Image</UiBadge> Cover by {{ doc.cover.created_by_name ?? 'unknown' }}, {{ shortDate(doc.cover.created_at) }}</summary>
           <p class="prompt">{{ doc.cover.prompt }}</p>
         </details>
-        <div v-if="canEdit(me)" class="row">
-          <UiButton size="sm" icon="image" @click="generator?.open()">Change</UiButton>
-          <UiButton size="sm" variant="ghost" :loading="coverBusy" @click="removeCover">Remove cover</UiButton>
+        <p v-else class="small up-note">
+          <UiBadge><UiIcon name="upload" :size="12" />Uploaded</UiBadge> Cover uploaded by {{ doc.cover.created_by_name ?? 'unknown' }}, {{ shortDate(doc.cover.created_at) }}<template v-if="doc.cover.caption"> · {{ doc.cover.caption }}</template>
+        </p>
+        <div v-if="editor" class="row">
+          <UiButton size="sm" icon="upload" :loading="coverBusy" @click="coverInput?.click()">Replace</UiButton>
+          <UiButton size="sm" icon="image" :disabled="coverBusy" @click="generator?.open()">Generate</UiButton>
+          <UiButton size="sm" variant="ghost" :disabled="coverBusy" @click="removeCover">Remove cover</UiButton>
         </div>
         <p v-if="coverError" class="field-error" role="alert">{{ coverError }}</p>
       </figcaption>
     </figure>
+    <div v-else-if="editor" class="cover-slot" :class="{ over: overCover }" v-on="coverDrop">
+      <UiIcon name="image" :size="18" />
+      <span class="small muted"><template v-if="overCover">Drop to use it as the cover</template><template v-else>No cover yet.<span class="hide-sm"> Drop an image here, or</span></template></span>
+      <div v-if="!overCover" class="row">
+        <UiButton size="sm" icon="upload" :loading="coverBusy" @click="coverInput?.click()">Upload cover</UiButton>
+        <UiButton size="sm" icon="image" :disabled="coverBusy" @click="generator?.open()">Generate cover</UiButton>
+      </div>
+      <p v-if="coverError" class="field-error" role="alert">{{ coverError }}</p>
+    </div>
 
+    <p v-for="g in taskGroups" :key="g.id" class="notice warn gap" role="status">
+      <UiIcon name="tasks" :size="16" />
+      <span>{{ counted(g.n, 're-review task') }} from change “{{ g.statement.length > 70 ? `${g.statement.slice(0, 70)}…` : g.statement }}”. <NuxtLink :to="`/tasks?change=${g.id}&doc=${encodeURIComponent(doc.filename)}`">Open tasks</NuxtLink></span>
+    </p>
     <p v-if="!latest" class="notice warn gap" role="status">
       <UiIcon name="file" :size="16" />
       <span>You’re reading v{{ doc.version }}. The latest is v{{ doc.latest.version }}; new facts and notes go there. <NuxtLink :to="`/documents/${doc.latest.id}`">Open v{{ doc.latest.version }}</NuxtLink></span>
@@ -199,6 +264,7 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
             </li>
           </ul>
         </template>
+        <ImageHistory v-else-if="side === 'images' && gallery" v-model:images="gallery.images" type="document" :id="doc.id" :name="doc.title" noun="cover" :editable="editor" @changed="coverChanged" />
         <template v-else>
           <p v-if="!doc.notes.length" class="small muted none">No notes yet.<template v-if="annotate"> Select words in the text and choose Add note.</template></p>
           <ul v-else class="notes-list">
@@ -220,7 +286,13 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
 .meta { display: inline-flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
 .gap { margin-bottom: var(--s-4); }
 .gap svg { flex: none; margin-top: 2px; }
-.cover { margin: 0 0 var(--s-4); padding: 0; overflow: hidden; }
+.cover { position: relative; margin: 0 0 var(--s-4); padding: 0; overflow: hidden; }
+.cover.over, .cover-slot.over { outline: 2px dashed var(--accent); outline-offset: 2px; }
+.cover-drop { position: absolute; inset: 0; display: grid; place-content: center; justify-items: center; gap: var(--s-2); background: color-mix(in srgb, var(--raised) 80%, transparent); color: var(--accent); font-weight: 600; pointer-events: none; }
+.cover-slot { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-3); align-items: center; margin: 0 0 var(--s-4); padding: var(--s-3) var(--s-4); border: 1px dashed var(--line-strong); border-radius: var(--r-lg); background: var(--pencil-soft); color: var(--faint); }
+.cover-slot .field-error { flex-basis: 100%; margin: 0; }
+.up-note { display: flex; flex: 1 1 320px; flex-wrap: wrap; gap: 4px var(--s-2); align-items: center; margin: 0; color: var(--muted); }
+.up-note .chip { gap: 4px; }
 .cover img { display: block; width: 100%; max-height: 320px; object-fit: cover; background: var(--sunken); }
 .cover figcaption { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); align-items: flex-start; justify-content: space-between; padding: var(--s-3) var(--s-4); border-top: 1px solid var(--line); }
 .cover details { flex: 1 1 320px; min-width: 0; }

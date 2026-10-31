@@ -34,6 +34,7 @@ export default defineEventHandler(async (event) => {
     db.prepare(`update facts set status = 'superseded' where id = ?`).run(old.id)
     db.prepare(`update changes set status = 'applied', new_fact_id = ?, decided_at = ?, decision_rationale = ?, decided_by = ? where id = ?`).run(newFactId, now(), rationale.trim(), by, id)
     audit('change.accepted', 'change', id, { rationale: rationale.trim() })
+    createTasks(id, change.impact)
     audit('change.applied', 'fact', newFactId, { change_id: id, superseded_fact_id: old.id, before: old.statement, after: change.proposed_statement })
   })
   return { id, status: 'applied', new_fact_id: newFactId, superseded_fact_id: old.id }

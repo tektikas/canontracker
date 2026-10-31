@@ -11,6 +11,7 @@ const clip = (v: unknown, n = 90) => {
   return t.length > n ? `${t.slice(0, n - 1)}…` : t
 }
 const q = (v: unknown) => (v ? `“${clip(v)}”` : '')
+const TASK_LABEL: Record<string, string> = { open: 'open', in_progress: 'in progress', done: 'done', wont_fix: 'won’t fix', not_needed: 'not needed' }
 const identity = (d: Record<string, any>) => (d.identity ?? []).map((i: any) => `${i.from} saved as ${i.to} (merged page)`).join(', ')
 const SAMPLE_NAME: Record<string, string> = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample' }
 // Audit details carry the file's own name and the folder it was in then (null: the Library root), never the internal key.
@@ -59,10 +60,23 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'change.rejected': return [`${who} rejected a change proposal`, because(d)]
     case 'change.applied': return [`Canon updated: ${q(d.after)}`, d.before ? `Superseded ${q(d.before)}, kept in history` : '']
     case 'change.reverted': return [`${who} reverted a change, restoring ${q(d.restored)}`, because(d)]
+    case 'task.created': return [`Applying the change created ${counted(d.count, 're-review task')}`, `Scenes: ${(d.scenes ?? []).join(', ')}`]
+    case 'task.closed': return [`Reverting the change closed ${counted(d.count, 'unfinished re-review task')} as not needed`, 'Kept in the task list with their history']
+    case 'task.updated': return [d.status ? `${who} marked the re-review of ${d.document} ${TASK_LABEL[d.status.to] ?? d.status.to}` : `${who} updated the re-review of ${d.document}`, [
+      d.status ? `Was ${TASK_LABEL[d.status.from] ?? d.status.from}` : '', d.assignee ? (d.assignee.to ? `Assigned to ${d.assignee.to}` : 'Unassigned') : '',
+      d.due_date ? (d.due_date.to ? `Due ${d.due_date.to}` : 'Due date removed') : '', d.comment ? `Comment: ${q(d.comment)}` : '',
+    ].filter(Boolean).join(' · ')]
     case 'qa.asked': return [`${who} asked: ${q(d.question)}`, `Result: ${({ supported: 'Supported by canon', source_only: 'Related canon only', unknown: 'Unknown' } as Record<string, string>)[d.status] ?? d.status}`]
     case 'eval.completed': return [`${who} ran the evaluation`, `${d.passed} met, ${d.failed} missed`]
     case 'export.created': return [`${who} exported ${d.format?.toUpperCase()}`, d.items != null ? `${d.items} impact items` : d.events != null ? `${d.events} audit events` : '']
+    case 'bible.exported': return [`${who} exported the story bible as ${({ md: 'Markdown', zip: 'Markdown with portraits', pdf: 'a PDF print view' } as Record<string, string>)[d.format] ?? d.format}`,
+      `${d.scope} · ${counted(d.facts ?? 0, 'canon fact')}, ${counted(d.entities ?? 0, 'entity', 'entities')}`]
+    case 'share.created': return [`${who} created the read-only link “${d.name}”`, `${d.scope} · ${counted(d.facts ?? 0, 'canon fact')} · ${d.expires_at ? `expires ${shortDate(d.expires_at)}` : 'never expires'} · stored hashed`]
+    case 'share.revoked': return [`${who} turned off the read-only link “${d.name}”`, 'Opening it now says the link isn’t available']
+    case 'share.opened': return [`The read-only link “${d.name}” was opened for the first time`, 'Later opens are counted on the link, not logged here']
     case 'agent.proposal_refused': return [`Agent “${d.token_name}” proposed a candidate and was refused for ${who}`, `${String(d.code).replaceAll('_', ' ').toLowerCase()}, nothing stored: ${q(d.statement)}`]
+    case 'account.profile_updated': return [`${who} updated their profile`, [d.name ? `Name: ${d.name.from} to ${d.name.to}` : '', d.email ? `Email: ${d.email.from} to ${d.email.to}` : ''].filter(Boolean).join(' · ')]
+    case 'account.password_changed': return [`${who} changed their password`, 'The password itself is never logged']
     case 'token.created': return [`${who} created the API token “${d.name}”`, 'Shown once, stored hashed']
     case 'token.revoked': return [`${who} revoked an API token`, '']
     case 'entity.created': return [`${who} created a page for ${d.name}`, `${KIND_LABEL[d.kind as EntityKind]?.one ?? d.kind}`]
@@ -80,8 +94,10 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'entity.portrait_set': return [`${who} ${d.replaced ? 'replaced' : 'added'} ${d.name}’s portrait`, '']
     case 'entity.portrait_removed': return [`${who} removed ${d.name}’s portrait`, '']
     case 'image.generated': return [`${who} generated ${d.images?.length ?? 0} image${d.images?.length === 1 ? '' : 's'} for ${d.name} with Muse Image`, `Editorial, not canon · prompt: ${q(d.prompt)}`]
-    case 'image.applied': return [`${who} set an image as ${d.name}’s ${d.as ?? 'image'}`, d.replaced ? 'Replaced the previous one' : '']
-    case 'image.discarded': return [`${who} deleted a generated image${d.name ? ` of ${d.name}` : ''}`, `Prompt was ${q(d.prompt)}`]
+    case 'image.uploaded': return [`${who} uploaded ${d.images?.length === 1 ? 'an image' : `${d.images?.length ?? 0} images`} to ${d.name}`, `Editorial, not canon · ${(d.files ?? []).join(', ')}`]
+    case 'image.applied': return [`${who} set ${d.source === 'upload' ? 'an uploaded' : d.source === 'generated' ? 'a generated' : 'an'} image as ${d.name}’s ${d.as ?? 'image'}`, d.replaced ? 'Replaced the previous one, which stays in the image history' : '']
+    case 'image.discarded': return [`${who} deleted ${d.source === 'upload' ? 'an uploaded' : 'a generated'} image${d.name ? ` of ${d.name}` : ''}`, d.source === 'upload' ? `File was ${q(d.filename ?? 'unnamed')}` : `Prompt was ${q(d.prompt)}`]
+    case 'image.captioned': return [`${who} ${d.to ? 'captioned' : 'removed the caption from'} an image of ${d.name}`, d.to ? q(d.to) : '']
     case 'image.cover_removed': return [`${who} removed ${d.name ? `${d.name}’s` : 'a document’s'} cover`, 'The image stays in its history']
     case 'folder.created': return [`${who} created the folder ${d.parent ? `${d.parent} / ` : ''}${d.name}`, 'Library label · sources unchanged']
     case 'folder.renamed': return [`${who} renamed the folder ${d.from} to ${d.to}`, 'Library label · sources unchanged']
@@ -113,7 +129,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
 }
 
 const TONE: Record<string, 'accent' | 'good' | 'bad' | 'warn' | 'pencil' | 'neutral'> = {
-  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad', entity: 'neutral', image: 'neutral', agent: 'bad', token: 'neutral', fact: 'accent', note: 'pencil', folder: 'neutral', tag: 'neutral', library: 'neutral',
+  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad', entity: 'neutral', image: 'neutral', agent: 'bad', token: 'neutral', fact: 'accent', note: 'pencil', task: 'pencil', folder: 'neutral', tag: 'neutral', library: 'neutral', bible: 'neutral', share: 'neutral',
 }
 
 // Short ID plus a link where a page exists; pages have no per-item anchors, so links go to the list.
@@ -122,7 +138,7 @@ function target(e: { event_type: string, target_type: string, target_id: string,
   const short = e.target_id.replace(/^[a-z]+_/, '').slice(0, 6)
   if (e.target_removed) return { to: '', label: `${t.charAt(0).toUpperCase() + t.slice(1)} · ${short}… (removed by reset)` }
   const to = t === 'entity' ? (e.event_type === 'entity.deleted' ? '' : `/entities/${e.target_id}`) : t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' || e.event_type === 'conflict.scan' ? '/conflicts' : t === 'change' ? '/changes'
-    : t === 'fact' ? (e.event_type.startsWith('candidate.') && !e.event_type.endsWith('accepted') ? '/review' : '/canon') : t === 'note' ? '/notes' : ['folder', 'tag', 'library'].includes(t) ? '/library' : ''
+    : t === 'fact' ? (e.event_type.startsWith('candidate.') && !e.event_type.endsWith('accepted') ? '/review' : '/canon') : t === 'note' ? '/notes' : t === 'task' ? '/tasks' : t === 'share' || e.event_type === 'bible.exported' ? '/export' : ['folder', 'tag', 'library'].includes(t) ? '/library' : ''
   // Ids already carry a type prefix ("fact_d0e…", "trc_e02c…"): drop it and label the thing in words.
   const noun = e.target_id.startsWith('trc_') ? 'Model call' : t.charAt(0).toUpperCase() + t.slice(1)
   return { to: e.target_id.startsWith('trc_') ? '/metrics' : to, label: `${noun} · ${short}…` }
