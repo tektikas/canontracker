@@ -65,6 +65,13 @@ create table if not exists notes (
   id text primary key, document_id text not null, passage_id text not null, quote text not null, body text not null, status text not null,
   created_by text not null, created_at text not null, updated_by text, updated_at text not null, project_id text not null
 );
+-- Re-review tasks: one per scene in an applied change's impact manifest. status: open | in_progress | done | wont_fix | not_needed
+-- (not_needed is set only by reverting the change). path, evidence_ids and rationale are copied from the manifest. Editorial; never canon.
+create table if not exists tasks (
+  id text primary key, change_id text not null, document_id text not null, passage_id text, status text not null,
+  assignee_id text, due_date text, comment text not null default '', path text not null, evidence_ids text not null,
+  rationale text not null, hop_count integer not null, created_at text not null, updated_by text, updated_at text not null, project_id text not null
+);
 create table if not exists passages (
   id text primary key, document_id text not null references documents(id), ordinal integer not null,
   start_line integer not null, end_line integer not null, text text not null, project_id text not null
@@ -144,6 +151,8 @@ create index if not exists images_target on images(project_id, target_type, targ
 create index if not exists audit_project on audit_events(project_id);
 create index if not exists memberships_user on memberships(user_id);
 create index if not exists notes_project on notes(project_id, status);
+create index if not exists tasks_project on tasks(project_id, status);
+create index if not exists tasks_change on tasks(change_id);
 `
 
 let db: DatabaseSync | undefined
@@ -204,7 +213,7 @@ export function audit(eventType: string, targetType: string, targetId: string, d
 // the caller appends a project.reset event, and events before it whose target was cleared read as removed (listAudit).
 export function resetData() {
   tx(() => {
-    for (const t of ['document_tags', 'tags', 'folders', 'notes', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })

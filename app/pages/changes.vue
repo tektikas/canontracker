@@ -5,6 +5,12 @@ const route = useRoute()
 const { data: canon, refresh: refreshCanon } = await useFetch('/api/facts', { query: { status: 'canon' } })
 const { data: changes, refresh } = await useFetch('/api/changes')
 const fill = useFillAction()
+const { data: tasks, refresh: refreshTasks } = await useFetch('/api/tasks', { default: () => [] })
+// Re-review tasks of one applied change: closed (done or won't fix) out of the live ones; "not needed" ones left a reverted change.
+const tasksOf = (id: string) => tasks.value.filter(t => t.change_id === id)
+const live = (id: string) => tasksOf(id).filter(t => t.status !== 'not_needed')
+const reviewed = (id: string) => live(id).filter(t => t.status === 'done' || t.status === 'wont_fix').length
+const TASK_TAG: Record<string, [string, string]> = { open: ['Open', 'warn'], in_progress: ['In progress', 'accent'], done: ['Done', 'good'], wont_fix: ['Won’t fix', 'neutral'], not_needed: ['Not needed', 'neutral'] }
 
 const targetId = ref(String(route.query.target ?? ''))
 const target = computed(() => canon.value?.find(f => f.id === targetId.value))
@@ -66,6 +72,7 @@ async function decide(id: string, decision: 'accept' | 'reject' | 'revert') {
   // Not awaited: a newer refresh cancels an older one, and a cancelled refresh never settles.
   refresh()
   refreshCanon()
+  refreshTasks()
   refreshNuxtData('stats')
 }
 
@@ -180,6 +187,24 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
         </details>
       </section>
 
+      <section v-if="tasksOf(c.id).length" class="tasks" :aria-label="`Re-review tasks for change ${c.id}`">
+        <header class="spread">
+          <div class="row"><UiBadge tone="pencil">Re-review tasks</UiBadge>
+            <span v-if="live(c.id).length" class="small muted">{{ reviewed(c.id) }} of {{ live(c.id).length }} {{ live(c.id).length === 1 ? 'scene' : 'scenes' }} re-reviewed</span>
+            <span v-else class="small muted">Not needed — change reverted</span>
+          </div>
+          <NuxtLink :to="`/tasks?show=all&change=${c.id}`" class="small">Open in Tasks</NuxtLink>
+        </header>
+        <div v-if="live(c.id).length" class="bar" role="progressbar" :aria-valuenow="reviewed(c.id)" aria-valuemin="0" :aria-valuemax="live(c.id).length"><span :style="{ width: `${reviewed(c.id) / live(c.id).length * 100}%` }" /></div>
+        <ul class="task-rows">
+          <li v-for="t in tasksOf(c.id)" :key="t.id" class="task-row">
+            <UiBadge :tone="TASK_TAG[t.status]![1] as any">{{ TASK_TAG[t.status]![0] }}</UiBadge>
+            <NuxtLink :to="`/documents/${t.document_id}${t.passage_id ? `#${t.passage_id}` : ''}`" class="name">{{ t.document_title }}</NuxtLink>
+            <span class="small faint">{{ t.assignee_name ?? 'Unassigned' }}</span>
+          </li>
+        </ul>
+      </section>
+
       <p v-if="c.status === 'ready_for_review' && !editor" class="decide small muted">Ready for review · waiting for an editor to accept or reject.</p>
       <template v-else-if="c.status === 'ready_for_review'">
         <div class="decide">
@@ -234,6 +259,12 @@ const facts = (c: Record<string, any>) => c.impact.filter((i: any) => i.target_t
 .arrow { display: flex; align-items: center; color: var(--faint); }
 .deps summary { cursor: pointer; font-size: var(--text-sm); color: var(--muted); }
 .deps ul { margin: var(--s-2) 0 0; padding-left: var(--s-5); display: grid; gap: var(--s-1); }
+.tasks { border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s-3); display: grid; gap: var(--s-3); }
+.bar { height: 6px; border-radius: 3px; background: var(--sunken); overflow: hidden; }
+.bar span { display: block; height: 100%; background: var(--accent); }
+.task-rows { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.task-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2); }
+.task-row .small { margin-left: auto; }
 .decide { border-top: 1px solid var(--line); padding-top: var(--s-3); display: grid; gap: var(--s-3); }
 .decide p { margin: 0; }
 @media (max-width: 720px) {
