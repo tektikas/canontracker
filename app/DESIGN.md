@@ -10,7 +10,7 @@ Comics and animation teams draw in pencil and commit in ink. Story Bible works t
 
 ## Tokens (`app/assets/main.css`)
 
-All colors are CSS variables with a light set and a `prefers-color-scheme: dark` set. Never hard-code a hex in a page.
+All colors are CSS variables with a light set and a dark set (`prefers-color-scheme: dark`, or `data-theme` on `<html>` when a person toggled it in the command palette). Never hard-code a hex in a page.
 
 | Group | Tokens |
 | --- | --- |
@@ -44,6 +44,10 @@ Fonts load from Google Fonts in `nuxt.config.ts`.
 Domain components restyled to this language: `SourceRef` (quote + source link + verification badge) and `FactSummary` (kind/time badges, statement, triple, optional sources).
 
 The components render the same global classes old pages use, so both stay consistent: `.btn` (`.primary .ghost .danger .good .sm .lg`), `.chip` (= badge tones), `.card` (= panel), `.page-head`, `.tabs`, `.notice` (`.info .warn .bad`), `.empty`, `.stack`, `.row`, `.spread`, `.grid-2`, `.statement`, `.triple`, `.quote` (`.unverified .prior`), `.passage`, `.table-wrap`, `.muted`, `.faint`, `.small`, `.mono`, `.hide-sm`. New pages should prefer the components; don't invent new global classes for one page (use scoped styles).
+
+## Command palette
+
+`<CommandPalette>` (in the default layout) opens with Ctrl/⌘ K or the Search button (sidebar; top bar on mobile). It searches canon facts, entities (any alias or merged name), documents (text, with the exact passage) and notes through `GET /api/search`, and runs commands (viewers only get read commands). Fixed height so results never shift the sheet; full screen on phones. Roles: combobox on the input, listbox/option for results.
 
 ## Layout
 

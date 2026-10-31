@@ -15,6 +15,8 @@ const annotate = computed(() => editor.value && latest.value)
 
 type Side = 'facts' | 'notes'
 const side = ref<Side>(route.query.notes ? 'notes' : 'facts')
+// The palette can open a note while this page is already showing: follow the link.
+watch(() => route.fullPath, () => { if (route.query.notes) side.value = 'notes' })
 const openNotes = computed(() => doc.value?.notes.filter(n => n.status !== 'done').length ?? 0)
 const sideTabs = computed(() => [
   { value: 'facts' as Side, label: 'Facts', count: doc.value?.facts.length ?? 0 },
