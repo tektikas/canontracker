@@ -9,6 +9,7 @@ const STATUS = [
   { value: 'open', label: 'Open', tone: 'warn' }, { value: 'in_progress', label: 'In progress', tone: 'accent' },
   { value: 'done', label: 'Done', tone: 'good' }, { value: 'wont_fix', label: 'Won’t fix', tone: 'neutral' },
 ] as const
+const reverted = computed(() => props.task.change_status === 'reverted')
 const closed = computed(() => props.task.status === 'not_needed')
 const meta = computed(() => (closed.value ? { label: 'Not needed', tone: 'neutral' } : STATUS.find(s => s.value === props.task.status)!))
 const today = new Date().toISOString().slice(0, 10)
@@ -40,7 +41,7 @@ const pick = (e: Event) => (e.target as HTMLInputElement | HTMLSelectElement).va
       <UiBadge :tone="meta.tone as any" :dot="!closed && task.status !== 'done'">{{ meta.label }}</UiBadge>
       <UiBadge v-if="overdue" tone="bad">Overdue</UiBadge>
       <span v-if="task.due_date && !overdue" class="small muted">Due {{ shortDate(task.due_date) }}</span>
-      <span class="small faint right">{{ task.assignee_name ? `Assigned to ${task.assignee_name}` : 'Unassigned' }}</span>
+      <span class="small faint right">{{ task.assignee_name ? `Assigned to ${task.assignee_name}${task.assignee_former ? ' (former member)' : ''}` : 'Unassigned' }}</span>
     </div>
     <NuxtLink :to="`/documents/${task.document_id}${task.passage_id ? `#${task.passage_id}` : ''}`" class="scene">
       <UiIcon name="file" :size="14" />{{ task.document_title }} <span class="faint small">v{{ task.document_version }}{{ line }}</span>
@@ -61,12 +62,14 @@ const pick = (e: Event) => (e.target as HTMLInputElement | HTMLSelectElement).va
     <div v-if="editor && !closed" class="controls">
       <label><span class="small muted">Status</span>
         <select :value="task.status" :disabled="busy" @change="save({ status: pick($event) })">
-          <option v-for="s in STATUS" :key="s.value" :value="s.value">{{ s.label }}</option>
+          <option v-for="s in STATUS" :key="s.value" :value="s.value" :disabled="reverted && ['open', 'in_progress'].includes(s.value) && s.value !== task.status">{{ s.label }}</option>
         </select>
+        <span v-if="reverted" class="small faint">Change reverted: can’t be reopened.</span>
       </label>
       <label><span class="small muted">Assignee</span>
         <select :value="task.assignee_id ?? ''" :disabled="busy" @change="save({ assignee_id: pick($event) })">
           <option value="">Unassigned</option>
+          <option v-if="task.assignee_former" :value="task.assignee_id" disabled>{{ task.assignee_name }} (former member)</option>
           <option v-for="m in members" :key="m.id" :value="m.id">{{ m.name }}</option>
         </select>
       </label>

@@ -27,7 +27,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'document.version_added': return [`${who} imported version ${d.version} of ${d.filename}${inFolder(d)}`, `${d.passages} passages`]
     case 'document.written': return [`${who} wrote ${d.title ?? d.filename} in Story Bible`, `${d.passages} passages, read-only once saved`]
     case 'document.version_written': return [`${who} saved version ${d.version} of ${d.title ?? d.filename}`, `${d.passages} passages · earlier versions are kept`]
-    case 'citation.stale': return [`${d.filename}${inFolder(d)} v${d.version} makes ${d.fact_ids?.length ?? 0} citation(s) stale`, 'Re-check the facts that cite it']
+    case 'citation.stale': return [`${d.title ?? d.filename}${inFolder(d)} v${d.version} makes ${d.fact_ids?.length ?? 0} citation(s) stale`, 'Re-check the facts that cite it']
     case 'candidate.created':
       if (d.via === 'mcp') return [`Agent “${d.token_name}” proposed a candidate for ${who}`, 'Quote found in source · waiting for a human decision']
       return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
@@ -95,7 +95,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'entity.portrait_removed': return [`${who} removed ${d.name}’s portrait`, '']
     case 'image.generated': return [`${who} generated ${d.images?.length ?? 0} image${d.images?.length === 1 ? '' : 's'} for ${d.name} with Muse Image`, `Editorial, not canon · prompt: ${q(d.prompt)}`]
     case 'image.uploaded': return [`${who} uploaded ${d.images?.length === 1 ? 'an image' : `${d.images?.length ?? 0} images`} to ${d.name}`, `Editorial, not canon · ${(d.files ?? []).join(', ')}`]
-    case 'image.applied': return [`${who} set ${d.source === 'upload' ? 'an uploaded' : d.source === 'generated' ? 'a generated' : 'an'} image as ${d.name}’s ${d.as ?? 'image'}`, d.replaced ? 'Replaced the previous one, which stays in the image history' : '']
+    case 'image.applied': return d.restored ? [`${who} undid removing the ${d.as ?? 'image'} of ${d.name}`, 'The image is back in use'] : [`${who} set ${d.source === 'upload' ? 'an uploaded' : d.source === 'generated' ? 'a generated' : 'an'} image as ${d.name}’s ${d.as ?? 'image'}`, d.replaced ? 'Replaced the previous one, which stays in the image history' : '']
     case 'image.discarded': return [`${who} deleted ${d.source === 'upload' ? 'an uploaded' : 'a generated'} image${d.name ? ` of ${d.name}` : ''}`, d.source === 'upload' ? `File was ${q(d.filename ?? 'unnamed')}` : `Prompt was ${q(d.prompt)}`]
     case 'image.captioned': return [`${who} ${d.to ? 'captioned' : 'removed the caption from'} an image of ${d.name}`, d.to ? q(d.to) : '']
     case 'image.cover_removed': return [`${who} removed ${d.name ? `${d.name}’s` : 'a document’s'} cover`, 'The image stays in its history']

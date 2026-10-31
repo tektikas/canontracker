@@ -85,7 +85,7 @@ export async function importDocument(filename: string, content: string, written?
       const stale = db.prepare(`select distinct f.id from facts f join evidence e on e.fact_id = f.id join documents d on d.id = e.document_id
         where f.project_id = ? and f.status = 'canon' and d.filename = ? and d.version < ?`).all(projectId, key, version) as { id: string }[]
       staleFacts = stale.length
-      if (stale.length) audit('citation.stale', 'document', documentId, { filename: name, folder: where, version, fact_ids: stale.map(s => s.id) })
+      if (stale.length) audit('citation.stale', 'document', documentId, { filename: name, title, folder: where, version, fact_ids: stale.map(s => s.id) })
       evidenceMoved = movePendingEvidence(key, documentId, version, passages, { name, folder: where })
     }
   })

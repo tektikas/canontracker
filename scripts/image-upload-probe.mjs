@@ -207,6 +207,14 @@ async function live(base) {
   if (pid) { const grew = rss(pid) - rss2; check(`library import memory stays flat (grew ${grew.toFixed(0)} MiB, under 40)`, grew < 40, true) }
   check('library import with 30 fields: 413', await chunked([...Array.from({ length: 30 }, (_, i) => field(`f${i}`, 'x')), mdFile, Buffer.from(`--${bnd}--\r\n`)], '/api/documents'), 413)
   check('refused imports add no document', (await a('/api/documents')).data.length, docsBefore)
+  // The boundary is parsed once (RFC 2046) and the header rewritten, so the limiter and the parser count the same delimiter.
+  const many = (n, b) => [...Array.from({ length: n }, (_, i) => Buffer.from(`--${b}\r\ncontent-disposition: form-data; name="f${i}"\r\n\r\nx\r\n`)), Buffer.from(`--${b}--\r\n`)]
+  const withCt = async (ct, parts) => (await fetch(`${base}/api/documents`, { method: 'POST', body: Buffer.concat(parts), headers: { 'content-type': ct, cookie: a.cookie() } })).status
+  check('1,001 parts, boundary="review;different": refused (400) before reading', await withCt('multipart/form-data; boundary="review;different"', many(1001, 'review')), 400)
+  check('1,001 parts, plain boundary: 413', await withCt('multipart/form-data; boundary=review', many(1001, 'review')), 413)
+  check('1,001 parts, quoted boundary: 413', await withCt('multipart/form-data; boundary="review"', many(1001, 'review')), 413)
+  check('two boundary parameters: 400', await withCt('multipart/form-data; boundary=a; boundary=b', many(1, 'a')), 400)
+  check('71-char boundary: 400', await withCt(`multipart/form-data; boundary=${'x'.repeat(71)}`, many(1, 'x'.repeat(71))), 400)
   check('Content-Length over the cap: 413 before reading', await declared(), 413)
   check('refused requests add nothing', (await list()).length, rowsBefore)
   check('a well-formed chunked upload still works', await chunked([field('target_type', 'entity'), field('target_id', leya.id),

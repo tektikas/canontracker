@@ -152,7 +152,7 @@ async function undoRemove() {
   const id = undo.value!.id
   undo.value = null
   try {
-    await $fetch(`/api/images/${id}/apply`, { method: 'POST' })
+    await $fetch(`/api/images/${id}/apply`, { method: 'POST', body: { undo: true } })
     await portraitChanged()
   } catch (err) {
     portraitError.value = errorMessage(err)

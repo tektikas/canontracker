@@ -115,9 +115,9 @@ async function act(i: ImageItem, fn: () => Promise<unknown>) {
   }
 }
 const markApplied = (id: string | null) => { images.value = images.value.map(x => ({ ...x, applied: x.id === id })) }
-async function apply(i: ImageItem) {
+async function apply(i: ImageItem, restore = false) {
   undo.value = null
-  if (await act(i, () => $fetch(`/api/images/${i.id}/apply`, { method: 'POST' }))) markApplied(i.id)
+  if (await act(i, () => $fetch(`/api/images/${i.id}/apply`, { method: 'POST', body: restore ? { undo: true } : undefined }))) markApplied(i.id)
 }
 async function unapply(i: ImageItem) {
   const ok = await act(i, () => (props.type === 'entity' ? $fetch(`/api/entities/${props.id}/portrait`, { method: 'DELETE' }) : $fetch(`/api/images/${i.id}/apply`, { method: 'DELETE' })))
@@ -128,7 +128,7 @@ async function unapply(i: ImageItem) {
 async function undoRemove() {
   const i = images.value.find(x => x.id === undo.value?.id)
   undo.value = null
-  if (i) await apply(i)
+  if (i) await apply(i, true)
 }
 async function remove(i: ImageItem) {
   const ok = await askConfirm({

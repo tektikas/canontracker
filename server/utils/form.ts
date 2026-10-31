@@ -16,8 +16,17 @@ export async function readLimitedForm(event: H3Event, lim: FormLimits) {
     setResponseHeader(event, 'connection', 'close') // don't read the rest of the body: close once the 413 is sent
     return createError({ statusCode: 413, statusMessage: 'TOO_LARGE', message: lim.tooLarge })
   }
-  const boundary = getHeader(event, 'content-type')?.match(/^multipart\/form-data;.*boundary=([^;]*)(;|$)/i)?.[1]
-  if (!boundary) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: lim.notMultipart })
+  // RFC 2046: boundary is a token or quoted-string, 1-70 chars from a fixed set, no trailing space. Parsed once here;
+  // the header is then rewritten to this exact value so the limiter and h3 count the same delimiter.
+  const ct = getHeader(event, 'content-type') ?? ''
+  const params = ct.match(/^multipart\/form-data\s*((?:;(?:[^;"]|"[^"]*")*)*)$/i)?.[1]
+  const found = params?.split(/;(?=(?:[^"]*"[^"]*")*[^"]*$)/).map(x => x.trim().match(/^boundary=(?:"([^"]*)"|([^"]*))$/i)).filter(Boolean)
+  const boundary = found?.length === 1 ? (found[0]![1] ?? found[0]![2]!) : ''
+  const quoted = found?.[0]?.[1] !== undefined
+  if (!boundary || !/^[0-9A-Za-z'()+_,\-./:=? ]{1,70}$/.test(boundary) || boundary.endsWith(' ') || (!quoted && boundary.includes(' '))) {
+    throw createError({ statusCode: 400, statusMessage: 'INVALID', message: lim.notMultipart })
+  }
+  event.node.req.headers['content-type'] = `multipart/form-data; boundary=${boundary}` // h3 takes the boundary literally: no quotes
   if (Number(getHeader(event, 'content-length') ?? 0) > lim.maxTotal) throw tooLarge()
   const marker = Buffer.from(`--${boundary}`)
   const chunks: Buffer[] = []

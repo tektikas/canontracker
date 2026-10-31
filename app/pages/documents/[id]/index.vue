@@ -64,7 +64,7 @@ async function undoRemove() {
   const id = undo.value
   undo.value = ''
   try {
-    await $fetch(`/api/images/${id}/apply`, { method: 'POST' })
+    await $fetch(`/api/images/${id}/apply`, { method: 'POST', body: { undo: true } })
     await coverChanged()
   } catch (e) {
     coverError.value = errorMessage(e)
