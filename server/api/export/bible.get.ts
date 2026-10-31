@@ -1,5 +1,5 @@
 // The story bible as a download (format=md, or zip with portraits) or as JSON for the print view (format=json).
-// Read-only, so viewers may export too: it holds only canon they can already read. for=print logs the PDF export.
+// Read-only, so viewers may export too: it holds only canon they can already read. for=printed (sent when someone presses Save as PDF, not when the preview loads) logs the PDF export.
 export default defineEventHandler((event) => {
   const q = getQuery(event)
   const opts = cleanBibleOptions(q)
@@ -7,7 +7,7 @@ export default defineEventHandler((event) => {
   const format = q.format === 'md' || q.format === 'zip' ? q.format : 'json'
   const log = (as: string) => audit('bible.exported', 'project', pid(), { format: as, scope: bible.scope.label, sections: opts.sections, images: opts.images, facts: bible.counts.facts, entities: bible.counts.entities })
   if (format === 'json') {
-    if (q.for === 'print') log('pdf')
+    if (q.for === 'printed') log('pdf')
     return bible
   }
   const file = bibleDownload(bible, rows, format === 'zip')

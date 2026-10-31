@@ -4,10 +4,14 @@
 definePageMeta({ layout: false })
 const route = useRoute()
 const params = computed(() => new URLSearchParams(Object.entries(route.query).filter(([k, v]) => k !== 'print' && typeof v === 'string') as [string, string][]).toString())
-const { data: bible, error } = await useFetch<Bible>(() => `/api/export/bible?${params.value}&format=json&for=print`)
+const { data: bible, error } = await useFetch<Bible>(() => `/api/export/bible?${params.value}&format=json`)
 useHead(() => ({ title: bible.value ? `${bible.value.title} · Story bible` : 'Story bible' }))
 const back = computed(() => `/export?${params.value}`)
-const print = () => window.print()
+// Only a press of Save as PDF (or the auto-print after it on Export) is audited, not every preview load.
+const print = async () => {
+  await $fetch(`/api/export/bible?${params.value}&format=json&for=printed`).catch(() => {})
+  window.print()
+}
 onMounted(async () => {
   if (route.query.print !== '1' || !bible.value) return
   await document.fonts.ready

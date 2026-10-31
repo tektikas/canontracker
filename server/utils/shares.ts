@@ -37,3 +37,14 @@ export function openShare(event: import('h3').H3Event, token: string) {
 }
 
 export const shareOptions = (row: ShareRow) => JSON.parse(row.options) as BibleOptions
+
+// Answers a public share request's own errors (404, 410) as a plain response instead of throwing: Nitro's error handler
+// rewrites a 404's cache-control to no-cache, and these responses must keep the no-store headers the share middleware set.
+export async function shareReply(event: import('h3').H3Event, run: () => unknown) {
+  try { return await run() } catch (e) {
+    const err = e as { statusCode?: number, statusMessage?: string, message?: string }
+    if (!err.statusCode) throw e
+    setResponseStatus(event, err.statusCode, err.statusMessage)
+    return { error: true, statusCode: err.statusCode, statusMessage: err.statusMessage, message: err.message }
+  }
+}

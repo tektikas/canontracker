@@ -99,6 +99,14 @@ assert.ok((await audit(ada)).filter(t => t === 'bible.exported').length >= 3, 'd
 const preview = await ada(`/api/export/bible?format=json&sections=${ALL}`)
 assert.equal(preview.data.facts.length, canon.length)
 ok('export json preview', `${preview.data.facts.length} facts`)
+// The print view's load is not audited; only a press of Save as PDF is.
+const pdfCount = async () => (await audit(ada)).filter(t => t === 'bible.exported').length
+const before = await pdfCount()
+await ada(`/api/export/bible?format=json&sections=${ALL}`)
+assert.equal(await pdfCount(), before, 'preview/print-view load writes no audit row')
+await ada(`/api/export/bible?format=json&for=printed&sections=${ALL}`)
+assert.equal(await pdfCount(), before + 1, 'Save as PDF click is audited')
+ok('print view load unaudited, Save as PDF audited')
 
 // Viewer: may export, may not create or revoke links.
 const bo = await account('Bo')
@@ -163,6 +171,29 @@ assert.ok(html.data.includes('Read-only') && html.data.includes(`shared by Tidew
 assert.ok(!html.data.includes(NOTE) && !html.data.includes(`Ada ${run}`), 'share page leaks nothing')
 ok('public page /share/<token> renders, read-only header')
 
+// A signed-in studio member opening the link: the page payload must hold the bible and nothing of their session.
+const me = (await ada('/api/me')).data
+const seen = await ada(`/share/${full.token}`)
+assert.equal(seen.status, 200)
+const sessionBits = [me.user?.id, me.user?.email, me.project?.id, studio.id, 'loggedInAt', `ada-${run}@probe.test`].filter(Boolean)
+assert.ok(sessionBits.length >= 3, 'probe knows the signed-in identity')
+for (const bit of sessionBits) assert.ok(!seen.data.includes(bit), `signed-in share page leaks ${bit}`)
+for (const bit of sessionBits) assert.ok(!html.data.includes(bit), `anonymous share page leaks ${bit}`)
+const nuxtData = seen.data.match(/id="__NUXT_DATA__"[^>]*>([\s\S]*?)<\/script>/)?.[1] ?? ''
+assert.ok(nuxtData.length > 0 && !nuxtData.includes('user'), 'payload carries no user')
+ok('share page payload holds no session (signed-in and anonymous)')
+
+// Every public share response, errors and portraits included, is uncacheable, unindexed and sends no referrer.
+const hdr = (r, label) => {
+  assert.equal(r.headers.get('cache-control'), 'no-store', `${label}: cache-control`)
+  assert.equal(r.headers.get('x-robots-tag'), 'noindex', `${label}: x-robots-tag`)
+  assert.equal(r.headers.get('referrer-policy'), 'no-referrer', `${label}: referrer-policy`)
+}
+hdr(pub, 'public json'); hdr(html, 'share page'); hdr(await anon(heroCard.portrait, { raw: true }), 'portrait')
+hdr(await anon('/api/public/share/sbs_nope'), 'unknown api 404'); hdr(await anon('/share/sbs_nope'), 'unknown page 404')
+hdr(await anon(`/api/public/share/${full.token}/portrait/nope`), 'portrait 404')
+ok('no-store, noindex, no-referrer on every public share response')
+
 const sb = (await anon(`/api/public/share/${scoped.token}`)).data
 assert.ok(sb.entities.length === 1 && sb.entities[0].name === hero.name && sb.entities[0].portrait === null, 'scoped to one entity, no portraits')
 assert.ok(sb.facts.length > 0 && sb.facts.length < canon.length, 'entity scope narrows facts')
@@ -201,6 +232,7 @@ assert.equal((await anon(`/api/public/share/${full.token}`)).status, 404)
 assert.equal((await anon(heroCard.portrait)).status, 404)
 const gone = await anon(`/share/${full.token}`)
 assert.equal(gone.status, 404, 'revoked share page answers 404')
+hdr(gone, 'revoked page'); hdr(await anon(`/api/public/share/${full.token}/portrait/${hero.id}`), 'revoked portrait')
 assert.ok(gone.data.includes('isn’t available') || gone.data.includes('isn&#39;t available') || gone.data.includes('isn&rsquo;t available'), 'revoked page says so')
 db.prepare('update share_links set expires_at = ? where id = ?').run(new Date(Date.now() - 1000).toISOString(), soon.id)
 assert.equal((await anon(`/api/public/share/${soon.token}`)).status, 410)
