@@ -1,6 +1,6 @@
 <script setup lang="ts">
 const me = useMe()
-const TABS = [{ to: '/settings', label: 'General' }, { to: '/settings/team', label: 'Team' }, { to: '/settings/projects', label: 'Projects' }, { to: '/settings/agents', label: 'Agents & API' }]
+const TABS = [{ to: '/settings', label: 'Studio' }, { to: '/settings/profile', label: 'Profile' }, { to: '/settings/team', label: 'Team' }, { to: '/settings/projects', label: 'Projects' }, { to: '/settings/agents', label: 'Agents & API' }]
 </script>
 
 <template>

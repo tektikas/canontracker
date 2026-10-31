@@ -85,3 +85,12 @@ export function cleanEmail(v: unknown) {
   return s
 }
 export const MIN_PASSWORD = 8
+
+// Account-level events (profile, password) have no project of their own: log them in the project the person has open,
+// if they still can. Never put secrets in `detail`.
+export function auditAccount(userId: string, projectId: string | undefined, eventType: string, detail: Record<string, unknown> = {}) {
+  const project = projectId && projectsFor(userId).find(p => p.id === projectId)
+  if (!project) return
+  useDb().prepare('insert into audit_events values (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(newId('aud'), eventType, 'user', userId, userId, JSON.stringify(detail), now(), project.id)
+}
