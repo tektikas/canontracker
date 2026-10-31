@@ -38,6 +38,17 @@ const tabs = computed(() => [
   { value: 'timeline' as Tab, label: 'Timeline' },
   { value: 'superseded' as Tab, label: 'Superseded', count: superseded.value?.length ?? 0 },
 ])
+// The palette links to #fact-<id>: show Facts unfiltered, scroll to that fact and mark it (:target is not updated by client-side navigation).
+const target = computed(() => (route.hash.startsWith('#fact-') ? route.hash.slice(6) : ''))
+async function jump() {
+  if (!target.value) return
+  tab.value = 'facts'
+  filter.value = ''
+  await nextTick()
+  document.getElementById(`fact-${target.value}`)?.scrollIntoView({ block: 'center' })
+}
+onMounted(jump)
+watch(target, jump)
 // Lineage: the version that replaced each superseded fact (canon or a later superseded version).
 const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value ?? [])].find(f => f.supersedes_id === id)
 </script>
@@ -62,7 +73,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
     <section v-for="g in groups" :key="g.kind" class="kind">
       <h2>{{ g.kind }}s</h2>
       <div class="stack">
-        <UiPanel v-for="f in g.facts" :key="f.id" class="stack">
+        <UiPanel v-for="f in g.facts" :id="`fact-${f.id}`" :key="f.id" class="stack" :class="{ target: f.id === target }">
           <FactSummary :fact="f" sources />
           <div v-if="editor"><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
         </UiPanel>
@@ -105,6 +116,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 
 <style scoped>
 .filter { display: flex; gap: var(--s-2); margin-bottom: var(--s-4); max-width: 420px; }
+.target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); scroll-margin-top: 72px; }
 .kind { margin-bottom: var(--s-5); }
 .kind h2 { text-transform: capitalize; }
 .picker { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-5); }

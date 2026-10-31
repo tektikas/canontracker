@@ -12,6 +12,8 @@ export default defineNuxtConfig({
       viewport: 'width=device-width, initial-scale=1, viewport-fit=cover',
       htmlAttrs: { lang: 'en' },
       meta: [{ name: 'description', content: 'Human-approved, source-cited narrative canon and change impact for game teams.' }],
+      // Apply a saved theme before first paint (see app/composables/theme.ts).
+      script: [{ innerHTML: `try{var t=localStorage.getItem('sb-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}` }],
       link: [
         { rel: 'preconnect', href: 'https://fonts.googleapis.com' },
         { rel: 'preconnect', href: 'https://fonts.gstatic.com', crossorigin: '' },
