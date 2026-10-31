@@ -38,6 +38,7 @@ const groups = computed<{ label?: string, links: NavLink[] }[]>(() => [
       { to: '/entities', label: 'Entities', icon: 'entities', count: entities.value?.length || undefined },
       { to: '/conflicts', label: 'Conflicts', icon: 'conflicts', count: stats.value?.open_conflicts || undefined, tone: 'bad' },
       { to: '/changes', label: 'Changes', icon: 'changes', count: stats.value?.changes || undefined },
+      { to: '/tasks', label: 'Tasks', icon: 'tasks', count: stats.value?.open_tasks || undefined },
       { to: '/notes', label: 'Notes', icon: 'note', count: stats.value?.open_notes || undefined },
     ],
   },

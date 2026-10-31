@@ -26,6 +26,7 @@ export default defineEventHandler(() => {
     open_conflicts: count(`select count(*) n from conflicts where project_id = ? and status = 'open'`),
     changes: count('select count(*) n from changes where project_id = ?'),
     open_notes: count(`select count(*) n from notes where project_id = ? and status = 'open'`),
+    open_tasks: count(`select count(*) n from tasks where project_id = ? and status in ('open', 'in_progress')`),
     audit_events: count('select count(*) n from audit_events where project_id = ?'),
     last_scan: lastScan(),
     // Getting started on Home: has anyone else been invited to the studio, and has this person connected an agent here.

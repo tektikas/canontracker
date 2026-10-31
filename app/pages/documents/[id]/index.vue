@@ -9,6 +9,18 @@ const lineOf = (ev: Record<string, any>) => `Line ${ev.start_line}${ev.end_line 
 // Evidence from this document, any version. One that cites another version is shown as such, never as this text.
 const here = (f: Record<string, any>) => f.evidence.filter((ev: any) => ev.document_key === doc.value?.filename)
 const activeQuote = computed(() => doc.value?.facts.flatMap(f => f.evidence).find(ev => ev.verified && ev.passage_id === active.value)?.quote)
+// Unfinished re-review tasks on this document (any version), grouped by the change that caused them.
+const { data: allTasks } = await useFetch('/api/tasks', { default: () => [] })
+const taskGroups = computed(() => {
+  const g = new Map<string, { id: string, statement: string, n: number, first: string }>()
+  for (const t of allTasks.value) {
+    if (t.filename !== doc.value?.filename || (t.status !== 'open' && t.status !== 'in_progress')) continue
+    const x = g.get(t.change_id) ?? { id: t.change_id, statement: t.change_statement, n: 0, first: t.id }
+    x.n++
+    g.set(t.change_id, x)
+  }
+  return [...g.values()]
+})
 const latest = computed(() => !doc.value || doc.value.latest.id === doc.value.id)
 // Facts and notes are only added to the latest version: an older one is already superseded.
 const annotate = computed(() => editor.value && latest.value)
@@ -151,6 +163,10 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
       </figcaption>
     </figure>
 
+    <p v-for="g in taskGroups" :key="g.id" class="notice warn gap" role="status">
+      <UiIcon name="tasks" :size="16" />
+      <span>{{ counted(g.n, 're-review task') }} from change “{{ g.statement.length > 70 ? `${g.statement.slice(0, 70)}…` : g.statement }}”. <NuxtLink :to="`/tasks?change=${g.id}&doc=${encodeURIComponent(doc.filename)}`">Open tasks</NuxtLink></span>
+    </p>
     <p v-if="!latest" class="notice warn gap" role="status">
       <UiIcon name="file" :size="16" />
       <span>You’re reading v{{ doc.version }}. The latest is v{{ doc.latest.version }}; new facts and notes go there. <NuxtLink :to="`/documents/${doc.latest.id}`">Open v{{ doc.latest.version }}</NuxtLink></span>

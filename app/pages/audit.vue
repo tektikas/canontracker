@@ -11,6 +11,7 @@ const clip = (v: unknown, n = 90) => {
   return t.length > n ? `${t.slice(0, n - 1)}…` : t
 }
 const q = (v: unknown) => (v ? `“${clip(v)}”` : '')
+const TASK_LABEL: Record<string, string> = { open: 'open', in_progress: 'in progress', done: 'done', wont_fix: 'won’t fix', not_needed: 'not needed' }
 const identity = (d: Record<string, any>) => (d.identity ?? []).map((i: any) => `${i.from} saved as ${i.to} (merged page)`).join(', ')
 const SAMPLE_NAME: Record<string, string> = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample' }
 // Audit details carry the file's own name and the folder it was in then (null: the Library root), never the internal key.
@@ -58,6 +59,12 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'change.rejected': return [`${who} rejected a change proposal`, because(d)]
     case 'change.applied': return [`Canon updated: ${q(d.after)}`, d.before ? `Superseded ${q(d.before)}, kept in history` : '']
     case 'change.reverted': return [`${who} reverted a change, restoring ${q(d.restored)}`, because(d)]
+    case 'task.created': return [`Applying the change created ${counted(d.count, 're-review task')}`, `Scenes: ${(d.scenes ?? []).join(', ')}`]
+    case 'task.closed': return [`Reverting the change closed ${counted(d.count, 'unfinished re-review task')} as not needed`, 'Kept in the task list with their history']
+    case 'task.updated': return [d.status ? `${who} marked the re-review of ${d.document} ${TASK_LABEL[d.status.to] ?? d.status.to}` : `${who} updated the re-review of ${d.document}`, [
+      d.status ? `Was ${TASK_LABEL[d.status.from] ?? d.status.from}` : '', d.assignee ? (d.assignee.to ? `Assigned to ${d.assignee.to}` : 'Unassigned') : '',
+      d.due_date ? (d.due_date.to ? `Due ${d.due_date.to}` : 'Due date removed') : '', d.comment ? `Comment: ${q(d.comment)}` : '',
+    ].filter(Boolean).join(' · ')]
     case 'qa.asked': return [`${who} asked: ${q(d.question)}`, `Result: ${({ supported: 'Supported by canon', source_only: 'Related canon only', unknown: 'Unknown' } as Record<string, string>)[d.status] ?? d.status}`]
     case 'eval.completed': return [`${who} ran the evaluation`, `${d.passed} met, ${d.failed} missed`]
     case 'export.created': return [`${who} exported ${d.format?.toUpperCase()}`, d.items != null ? `${d.items} impact items` : d.events != null ? `${d.events} audit events` : '']
@@ -114,7 +121,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
 }
 
 const TONE: Record<string, 'accent' | 'good' | 'bad' | 'warn' | 'pencil' | 'neutral'> = {
-  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad', entity: 'neutral', image: 'neutral', agent: 'bad', token: 'neutral', fact: 'accent', note: 'pencil', folder: 'neutral', tag: 'neutral', library: 'neutral',
+  candidate: 'pencil', conflict: 'bad', change: 'accent', impact: 'accent', document: 'neutral', citation: 'warn', qa: 'neutral', eval: 'neutral', export: 'neutral', job: 'bad', entity: 'neutral', image: 'neutral', agent: 'bad', token: 'neutral', fact: 'accent', note: 'pencil', task: 'pencil', folder: 'neutral', tag: 'neutral', library: 'neutral',
 }
 
 // Short ID plus a link where a page exists; pages have no per-item anchors, so links go to the list.
@@ -123,7 +130,7 @@ function target(e: { event_type: string, target_type: string, target_id: string,
   const short = e.target_id.replace(/^[a-z]+_/, '').slice(0, 6)
   if (e.target_removed) return { to: '', label: `${t.charAt(0).toUpperCase() + t.slice(1)} · ${short}… (removed by reset)` }
   const to = t === 'entity' ? (e.event_type === 'entity.deleted' ? '' : `/entities/${e.target_id}`) : t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' || e.event_type === 'conflict.scan' ? '/conflicts' : t === 'change' ? '/changes'
-    : t === 'fact' ? (e.event_type.startsWith('candidate.') && !e.event_type.endsWith('accepted') ? '/review' : '/canon') : t === 'note' ? '/notes' : ['folder', 'tag', 'library'].includes(t) ? '/library' : ''
+    : t === 'fact' ? (e.event_type.startsWith('candidate.') && !e.event_type.endsWith('accepted') ? '/review' : '/canon') : t === 'note' ? '/notes' : t === 'task' ? '/tasks' : ['folder', 'tag', 'library'].includes(t) ? '/library' : ''
   // Ids already carry a type prefix ("fact_d0e…", "trc_e02c…"): drop it and label the thing in words.
   const noun = e.target_id.startsWith('trc_') ? 'Model call' : t.charAt(0).toUpperCase() + t.slice(1)
   return { to: e.target_id.startsWith('trc_') ? '/metrics' : to, label: `${noun} · ${short}…` }

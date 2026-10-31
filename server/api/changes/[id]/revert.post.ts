@@ -25,6 +25,7 @@ export default defineEventHandler(async (event) => {
     db.prepare(`update facts set status = 'superseded' where id = ?`).run(current.id)
     db.prepare(`update changes set status = 'reverted', reverted_fact_id = ?, reverted_at = ?, revert_rationale = ?, reverted_by = ? where id = ?`)
       .run(revertedId, now(), rationale.trim(), by, id)
+    closeTasks(id)
     audit('change.reverted', 'change', id, { rationale: rationale.trim(), superseded_fact_id: current.id, restored_fact_id: revertedId, restored: change.before_statement })
   })
   return { id, status: 'reverted', restored_fact_id: revertedId }
