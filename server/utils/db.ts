@@ -212,7 +212,7 @@ export function resetData() {
 
 // The project's audit trail. Targets of events before the latest project.reset were deleted by that reset (tokens and the
 // project itself survive one), so those events carry target_removed instead of pointing at an id that no longer exists.
-const SURVIVES_RESET = ['token', 'project', 'audit', 'question']
+const SURVIVES_RESET = ['token', 'project', 'audit', 'question', 'user']
 export function listAudit(order: 'asc' | 'desc') {
   const db = useDb()
   const reset = (db.prepare(`select max(rowid) r from audit_events where project_id = ? and event_type = 'project.reset'`).get(pid()) as { r: number | null }).r ?? 0

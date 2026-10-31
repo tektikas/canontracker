@@ -62,6 +62,8 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'eval.completed': return [`${who} ran the evaluation`, `${d.passed} met, ${d.failed} missed`]
     case 'export.created': return [`${who} exported ${d.format?.toUpperCase()}`, d.items != null ? `${d.items} impact items` : d.events != null ? `${d.events} audit events` : '']
     case 'agent.proposal_refused': return [`Agent “${d.token_name}” proposed a candidate and was refused for ${who}`, `${String(d.code).replaceAll('_', ' ').toLowerCase()}, nothing stored: ${q(d.statement)}`]
+    case 'account.profile_updated': return [`${who} updated their profile`, [d.name ? `Name: ${d.name.from} to ${d.name.to}` : '', d.email ? `Email: ${d.email.from} to ${d.email.to}` : ''].filter(Boolean).join(' · ')]
+    case 'account.password_changed': return [`${who} changed their password`, 'The password itself is never logged']
     case 'token.created': return [`${who} created the API token “${d.name}”`, 'Shown once, stored hashed']
     case 'token.revoked': return [`${who} revoked an API token`, '']
     case 'entity.created': return [`${who} created a page for ${d.name}`, `${KIND_LABEL[d.kind as EntityKind]?.one ?? d.kind}`]
