@@ -1,7 +1,15 @@
 const MAX_BYTES = 1_000_000
+const MAX_FILES = 20 // per request; the Library sends one file per request, scripts may batch
 
 export default defineEventHandler(async (event) => {
-  const form = await readMultipartFormData(event) ?? []
+  const form = await readLimitedForm(event, {
+    maxTotal: MAX_FILES * (MAX_BYTES + 64_000) + 64_000,
+    maxPart: MAX_BYTES + 64_000, // a file just over 1 MB still reaches the per-file "Too big" result
+    maxParts: MAX_FILES + 8,
+    maxField: 200, // folder id
+    tooLarge: `Import at most ${MAX_FILES} files of up to 1 MB at a time.`,
+    notMultipart: 'Send the files as a multipart form upload.'
+  })
   const parts = form.filter(p => p.filename)
   // Optional: the Library folder new documents land in (a new version stays where its document is).
   const folderField = form.find(p => !p.filename && p.name === 'folder_id')?.data.toString('utf8') || null

@@ -167,10 +167,10 @@ async function live(base) {
   const pid = /localhost|127\.0\.0\.1/.test(base) ? pidOf(new URL(base).port) : undefined
   const rssBefore = pid && rss(pid)
   // Streams the parts one chunk at a time with no Content-Length (chunked); a function part is a generator of chunks.
-  const chunked = async (parts) => {
+  const chunked = async (parts, path = '/api/images/upload') => {
     const it = (function* () { for (const p of parts) typeof p === 'function' ? yield* p() : yield p })()
     const body = new ReadableStream({ pull(c) { const { value, done } = it.next(); done ? c.close() : c.enqueue(value) } })
-    const res = await fetch(`${base}/api/images/upload`, { method: 'POST', duplex: 'half', body, headers: { 'content-type': `multipart/form-data; boundary=${bnd}`, cookie: a.cookie() } })
+    const res = await fetch(`${base}${path}`, { method: 'POST', duplex: 'half', body, headers: { 'content-type': `multipart/form-data; boundary=${bnd}`, cookie: a.cookie() } })
       .catch(e => ({ status: `error: ${e.cause?.code ?? e.message}` }))
     return res.status
   }
@@ -197,6 +197,16 @@ async function live(base) {
     ...Array.from({ length: 30 }, (_, i) => field(`f${i}`, 'x')), file('x.png', png(2, 2)), Buffer.from(`--${bnd}--\r\n`)]), 413)
   check('a 5 KB text field: 413', await chunked([field('target_type', 'entity'), field('target_id', leya.id), field('caption', 'x'.repeat(5000)),
     file('x.png', png(2, 2)), Buffer.from(`--${bnd}--\r\n`)]), 413)
+  // Library import goes through the same limiter: a 90 MB ignored field + a small .md is refused, memory flat.
+  const mdFile = Buffer.from(`--${bnd}\r\ncontent-disposition: form-data; name="files"; filename="n.md"\r\n\r\n# N\r\n`)
+  const docsBefore = (await a('/api/documents')).data.length
+  const rss2 = pid && rss(pid)
+  check('library import, chunked 90 MB ignored field: 413', await chunked([
+    Buffer.from(`--${bnd}\r\ncontent-disposition: form-data; name="ignored"\r\n\r\n`), function* () { for (let i = 0; i < 90; i++) yield mb }, Buffer.from('\r\n'),
+    mdFile, Buffer.from(`--${bnd}--\r\n`)], '/api/documents'), 413)
+  if (pid) { const grew = rss(pid) - rss2; check(`library import memory stays flat (grew ${grew.toFixed(0)} MiB, under 40)`, grew < 40, true) }
+  check('library import with 30 fields: 413', await chunked([...Array.from({ length: 30 }, (_, i) => field(`f${i}`, 'x')), mdFile, Buffer.from(`--${bnd}--\r\n`)], '/api/documents'), 413)
+  check('refused imports add no document', (await a('/api/documents')).data.length, docsBefore)
   check('Content-Length over the cap: 413 before reading', await declared(), 413)
   check('refused requests add nothing', (await list()).length, rowsBefore)
   check('a well-formed chunked upload still works', await chunked([field('target_type', 'entity'), field('target_id', leya.id),
