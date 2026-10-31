@@ -101,7 +101,7 @@ export function buildMcpServer(token: { id: string, name: string }) {
       .all(...(s === 'all' ? [pid()] : [pid(), s])) as unknown as ConflictRow[]
     const stmt = (id: string) => (useDb().prepare('select id, statement from facts where id = ?').get(id) as { id: string, statement: string })
     return reply({ status_filter: s, count: rows.length, conflicts: rows.map(c => ({
-      id: c.id, rule: c.rule, origin: c.origin === 'model' ? 'model-suggested' : 'rule', status: c.status, confidence: c.confidence,
+      id: c.id, rule: c.rule, severity: c.severity, origin: c.origin === 'model' ? 'model-suggested' : 'rule', status: c.status, confidence: c.confidence,
       rationale: c.rationale, left: stmt(c.left_fact_id), right: stmt(c.right_fact_id),
     })) })
   })

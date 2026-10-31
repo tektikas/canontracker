@@ -27,7 +27,11 @@ onMounted(() => {
 })
 onBeforeUnmount(() => desktopMq?.removeEventListener('change', closeOnDesktop))
 
-interface NavLink { to: string, label: string, icon: IconName, count?: number, tone?: 'accent' | 'bad' }
+// "2 hard · 3 soft" for the open conflicts; shared wording with Home and the Conflicts header.
+const severityCounts = (s?: { open_hard: number, open_soft: number } | null) => s && (s.open_hard || s.open_soft)
+  ? [s.open_hard && `${s.open_hard} hard`, s.open_soft && `${s.open_soft} soft`].filter(Boolean).join(' · ') : undefined
+
+interface NavLink { to: string, label: string, icon: IconName, count?: number, tone?: 'accent' | 'bad', sub?: string }
 const groups = computed<{ label?: string, links: NavLink[] }[]>(() => [
   { links: [{ to: '/', label: 'Home', icon: 'home' }, { to: '/library', label: 'Library', icon: 'library', count: stats.value?.documents || undefined }] },
   {
@@ -36,7 +40,7 @@ const groups = computed<{ label?: string, links: NavLink[] }[]>(() => [
       { to: '/review', label: 'Review', icon: 'review', count: stats.value?.pending || undefined, tone: 'accent' },
       { to: '/canon', label: 'Canon', icon: 'canon', count: stats.value?.canon || undefined },
       { to: '/entities', label: 'Entities', icon: 'entities', count: entities.value?.length || undefined },
-      { to: '/conflicts', label: 'Conflicts', icon: 'conflicts', count: stats.value?.open_conflicts || undefined, tone: 'bad' },
+      { to: '/conflicts', label: 'Conflicts', icon: 'conflicts', count: stats.value?.open_conflicts || undefined, tone: 'bad', sub: severityCounts(stats.value) },
       { to: '/changes', label: 'Changes', icon: 'changes', count: stats.value?.changes || undefined },
       { to: '/tasks', label: 'Tasks', icon: 'tasks', count: stats.value?.open_tasks || undefined },
       { to: '/notes', label: 'Notes', icon: 'note', count: stats.value?.open_notes || undefined },
@@ -134,11 +138,12 @@ async function open(id: string) {
       <nav class="nav" aria-label="Main">
         <div v-for="(g, i) in groups" :key="i" class="nav-group">
           <div v-if="g.label" class="nav-group-label">{{ g.label }}</div>
-          <NuxtLink v-for="l in g.links" :key="l.to" :to="l.to" class="nav-link" :class="{ 'router-link-exact-active': l.to !== '/' && route.path.startsWith(`${l.to}/`) }">
+          <template v-for="l in g.links" :key="l.to"><NuxtLink :to="l.to" class="nav-link" :class="{ 'router-link-exact-active': l.to !== '/' && route.path.startsWith(`${l.to}/`) }">
             <UiIcon :name="l.icon" />
             <span class="nav-label">{{ l.label }}</span>
             <span v-if="l.count" class="nav-count" :class="l.tone">{{ l.count }}</span>
           </NuxtLink>
+          <div v-if="l.sub" class="nav-sub">{{ l.sub }}</div></template>
         </div>
       </nav>
 
@@ -216,4 +221,5 @@ async function open(id: string) {
 .viewer-note svg { flex: none; margin-top: 2px; }
 .topbar-name { overflow: hidden; text-overflow: ellipsis; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.nav-sub { margin: -2px 0 4px calc(var(--s-3) + 28px); font-size: var(--text-xs); color: var(--faint); }
 </style>

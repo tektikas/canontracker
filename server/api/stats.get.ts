@@ -24,6 +24,8 @@ export default defineEventHandler(() => {
     sample_canon: count(`select count(*) n from facts where project_id = ? and status = 'canon' and origin = 'sample'`),
     rejected: count(`select count(*) n from facts where project_id = ? and status = 'rejected'`),
     open_conflicts: count(`select count(*) n from conflicts where project_id = ? and status = 'open'`),
+    open_hard: count(`select count(*) n from conflicts where project_id = ? and status = 'open' and severity = 'hard'`),
+    open_soft: count(`select count(*) n from conflicts where project_id = ? and status = 'open' and severity = 'soft'`),
     changes: count('select count(*) n from changes where project_id = ?'),
     open_notes: count(`select count(*) n from notes where project_id = ? and status = 'open'`),
     open_tasks: count(`select count(*) n from tasks where project_id = ? and status in ('open', 'in_progress')`),

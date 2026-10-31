@@ -70,7 +70,7 @@ const steps = computed(() => {
     { key: 'import', label: 'Import', to: '/library', value: s.documents, caption: plural(s.documents, 'source'), done: s.documents > 0 },
     { key: 'review', label: 'Review', to: '/review', value: s.pending || null, caption: s.pending ? 'to review' : s.canon - s.sample_canon + s.rejected ? 'all reviewed' : s.documents ? 'none proposed' : 'nothing yet', done: s.documents > 0 && s.pending === 0 },
     { key: 'canon', label: 'Canon', to: '/canon', value: s.canon, caption: plural(s.canon, 'fact'), done: s.canon > 0 },
-    { key: 'conflicts', label: 'Conflicts', to: '/conflicts', value: s.open_conflicts || null, caption: s.open_conflicts ? 'open' : found || scanned.value ? 'none open' : s.canon ? 'none open · scan to check' : 'nothing yet', done: s.canon > 0 && s.open_conflicts === 0 && (found > 0 || scanned.value), skip: s.canon > 0 && s.open_conflicts === 0 },
+    { key: 'conflicts', label: 'Conflicts', to: '/conflicts', value: s.open_conflicts || null, caption: s.open_conflicts ? `open · ${s.open_hard} hard · ${s.open_soft} soft` : found || scanned.value ? 'none open' : s.canon ? 'none open · scan to check' : 'nothing yet', done: s.canon > 0 && s.open_conflicts === 0 && (found > 0 || scanned.value), skip: s.canon > 0 && s.open_conflicts === 0 },
     { key: 'changes', label: 'Changes', to: '/changes', value: s.changes, caption: plural(s.changes, 'proposal'), done: s.changes > 0 },
     { key: 'metrics', label: 'Metrics', to: '/metrics', value: runs, caption: plural(runs, 'run'), done: runs > 0 },
   ]
@@ -96,8 +96,8 @@ const next = computed(() => {
           : { title: 'Add facts by hand', text: 'The model found no facts it could quote from your sources. Open a source, select the words that say something, and add them as a fact.', manual: true }
     // only reachable with open conflicts: zero open is `done` or `skip`
     case 'conflicts': return editor.value
-      ? { title: `Decide on ${s?.open_conflicts} possible ${plural(s?.open_conflicts ?? 0, 'conflict')}`, text: 'Each one is a candidate for you to confirm or dismiss. Deciding never edits canon.', to: '/conflicts', action: 'Resolve conflicts' }
-      : { title: `${s?.open_conflicts} possible ${plural(s?.open_conflicts ?? 0, 'conflict')} open`, text: 'An editor on your team confirms or dismisses each one. Deciding never edits canon.', to: '/conflicts', action: 'View conflicts' }
+      ? { title: `Decide on ${s?.open_conflicts} possible ${plural(s?.open_conflicts ?? 0, 'conflict')}`, text: `${s?.open_hard} hard (breaks canon) and ${s?.open_soft} soft (worth a look). Start with the hard ones. Deciding never edits canon.`, to: '/conflicts', action: 'Resolve conflicts' }
+      : { title: `${s?.open_conflicts} possible ${plural(s?.open_conflicts ?? 0, 'conflict')} open`, text: `${s?.open_hard} hard and ${s?.open_soft} soft. An editor on your team confirms or dismisses each one. Deciding never edits canon.`, to: '/conflicts', action: 'View conflicts' }
     case 'changes': if (!editor.value) return { title: 'No change proposals yet', text: 'When an editor proposes a canon change, its impact shows up on Changes. Meanwhile, ask canon a question.', to: '/ask', action: 'Ask canon' }
       return { title: 'Propose a canon change', text: 'See which facts and scenes a change would touch, up to two hops away, before it reaches a build.', to: '/changes', action: 'Propose a change' }
     case 'metrics': return { title: 'Measure the run', text: 'Score extraction, conflicts and impact against the gold set.', to: '/metrics', action: 'Open metrics' }

@@ -332,7 +332,7 @@ async function migrate(port) {
     check('failed upgrade: database still v12, no stray portrait copies', [version(), readdirSync(portraits).sort()], [12, ['ent_leya', 'ent_mira', 'img_gen']])
     chmodSync(portraits, 0o755)
     const h = await fetch(`${base}/api/health`)
-    check('fixed: the next request upgrades without a restart; health reports the file’s version', [h.status, (await h.json()).schema, version()], [200, 13, 13])
+    check('fixed: the next request upgrades without a restart; health reports the file’s version', [h.status, (await h.json()).schema, version()], [200, 14, 14])
     const c = client(base)
     check('log in to the upgraded database', (await c('/api/auth/login', { method: 'POST', body: { email: `mig-${run}@probe.test`, password: 'correct horse' } })).status, 200)
     const leya = (await c('/api/entities/ent_leya')).data
@@ -342,7 +342,7 @@ async function migrate(port) {
     check('history row has its own copy of the bytes', (await c(`/api/images/${leya.portrait_image.id}`, { raw: true })).bytes.equals(leyaPng), true)
     const mira = (await c('/api/images?target_type=entity&target_id=ent_mira')).data.images
     check('generated portrait untouched, no duplicate row', mira.map(i => [i.id, i.source, i.applied]), [['img_gen', 'generated', true]])
-    check('schema is now 13', (await c('/api/health')).data.schema, 13)
+    check('schema is now 14', (await c('/api/health')).data.schema, 14)
     console.log('migration probe: all checks passed')
   } finally {
     try { chmodSync(join(data, 'portraits', 'prj_m'), 0o755) } catch {}

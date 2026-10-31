@@ -7,5 +7,5 @@ export default defineEventHandler(async (event) => {
       (select count(*) from facts f where f.project_id = p.id and f.status = 'pending') pending,
       (select max(a.created_at) from audit_events a where a.project_id = p.id) last_activity
     from projects p where p.studio_id = ? order by p.created_at`).all(studio.id) as unknown as (ProjectRow & { documents: number, canon: number, pending: number, last_activity: string | null })[]
-  return { studio, role, can_manage: atLeast(role, 'admin'), projects, user_id: user.id }
+  return { studio, role, can_manage: atLeast(role, 'admin'), projects: projects.map(p => ({ ...p, severity_defaults: projectSeverities(p.severity_defaults) })), user_id: user.id }
 })

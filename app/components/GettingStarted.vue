@@ -27,7 +27,7 @@ const items = computed(() => {
     { key: 'canon', label: 'See your canon', to: '/canon', done: s.canon > 0,
       hint: s.canon ? `${counted(s.canon, 'fact')}, each tied to its passage` : 'Accepted facts land here' },
     { key: 'scan', label: 'Run a conflict scan', to: '/conflicts', done: !!s.last_scan,
-      hint: s.last_scan ? (s.open_conflicts ? `${counted(s.open_conflicts, 'possible conflict')} to judge` : 'Scanned, nothing open') : 'Timing, travel and relationship checks over canon' },
+      hint: s.last_scan ? (s.open_conflicts ? `${counted(s.open_conflicts, 'possible conflict')} to judge (${s.open_hard} hard, ${s.open_soft} soft)` : 'Scanned, nothing open') : 'Timing, travel and relationship checks over canon' },
     { key: 'change', label: 'Propose a change and see its impact', to: '/changes', done: s.changes > 0,
       hint: s.changes ? `${counted(s.changes, 'proposal')}` : 'What a canon edit would touch, before it ships' },
     ...(admin.value ? [{ key: 'invite', label: 'Invite a teammate', to: '/settings/team', done: s.teammates > 0,

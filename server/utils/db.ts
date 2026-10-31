@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-export const SCHEMA_VERSION = 13
+export const SCHEMA_VERSION = 14
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -26,7 +26,8 @@ create table if not exists invites (
 -- medium: game | prose | screen (decides the entity wiki's extra fields). art_style goes into every image prompt.
 create table if not exists projects (
   id text primary key, studio_id text not null references studios(id), name text not null, created_at text not null,
-  medium text not null default 'game', art_style text not null default ''
+  medium text not null default 'game', art_style text not null default '',
+  severity_defaults text not null default '{}'
 );
 
 -- Per-user API tokens for the MCP endpoint. Only the sha256 of the secret is stored; one project each; role is the user's live role.
@@ -100,11 +101,13 @@ create table if not exists evidence (
   passage_id text, quote text not null, verified integer not null, support text not null default 'states', project_id text not null
 );
 -- origin: rule (deterministic code) | model (model-suggested, labeled as such)
+-- severity: hard (breaks canon) | soft (worth a look); set from the rule's default, a person can change it (audited)
 -- status: open | confirmed | false_positive | uncertain | resolved_by_merge (merge_audit_id = the entity.merged event)
 create table if not exists conflicts (
   id text primary key, left_fact_id text not null, right_fact_id text not null, rule text not null, origin text not null,
   model_id text, rationale text not null, confidence real not null, status text not null, pair_hash text not null unique,
-  created_at text not null, decided_at text, decision_rationale text, decided_by text, merge_audit_id text, project_id text not null
+  created_at text not null, decided_at text, decision_rationale text, decided_by text, merge_audit_id text, project_id text not null,
+  severity text not null default 'soft'
 );
 -- status: ready_for_review | applied | rejected | reverted
 -- impact_stale: set (JSON: the merge that outdated it) when a merge changed the impact; accept needs a fresh analysis first.
@@ -176,6 +179,7 @@ export function useDb() {
   try {
     const user_version = schemaVersion(conn)
     if (user_version === 12) migrate12(conn)
+    if (user_version === 12 || user_version === 13) migrate13(conn)
     else if (user_version !== SCHEMA_VERSION) {
       const tables = conn.prepare(`select name from sqlite_master where type = 'table'`).all() as { name: string }[]
       conn.exec('pragma foreign_keys = off')
@@ -225,6 +229,32 @@ function migrate12(db: DatabaseSync) {
   } catch (err) {
     db.exec('rollback')
     for (const f of copies) rmSync(f, { force: true }) // the copies have no rows any more; a retry makes new ones
+    throw err
+  }
+}
+
+// v13 → v14: conflicts gain a severity, projects gain per-rule severity defaults. Existing conflicts get the rule's default
+// (the rule table as it was at v14; a travel conflict whose gap was at least half the trip is soft, read from its stored
+// rationale). Idempotent: columns are added only if missing. Nothing is dropped.
+function migrate13(db: DatabaseSync) {
+  const has = (t: string, c: string) => (db.prepare(`pragma table_info(${t})`).all() as { name: string }[]).some(r => r.name === c)
+  db.exec('begin')
+  try {
+    if (!has('conflicts', 'severity')) db.exec(`alter table conflicts add column severity text not null default 'soft'`)
+    if (!has('projects', 'severity_defaults')) db.exec(`alter table projects add column severity_defaults text not null default '{}'`)
+    db.exec(`update conflicts set severity = case when rule in ('EXACT_TIME_LOCATION_OVERLAP', 'RELATIONSHIP_AFTER_END', 'TRAVEL_TIME_TOO_SHORT') then 'hard' else 'soft' end`)
+    const near = db.prepare(`select id, rationale from conflicts where rule = 'TRAVEL_TIME_TOO_SHORT'`).all() as { id: string, rationale: string }[]
+    const soften = db.prepare(`update conflicts set severity = 'soft' where id = ?`)
+    for (const c of near) {
+      // Anchored to the clause scanConflicts writes (lazy, first match), so a quoted statement later in the text cannot
+      // supply the numbers. Unparseable text keeps the rule default (hard).
+      const m = c.rationale.match(/^.*? has (-?\d+) min to get from .*?, but canon says the trip takes (\d+(?:\.\d+)?) min \("/s)
+      if (m && Number(m[1]) >= Number(m[2]) / 2) soften.run(c.id)
+    }
+    db.exec('pragma user_version = 14')
+    db.exec('commit')
+  } catch (err) {
+    db.exec('rollback')
     throw err
   }
 }
@@ -310,7 +340,7 @@ export interface EvidenceRow {
 export interface ConflictRow {
   id: string, left_fact_id: string, right_fact_id: string, rule: string, origin: string, model_id: string | null, rationale: string
   confidence: number, status: string, pair_hash: string, created_at: string, decided_at: string | null, decision_rationale: string | null
-  decided_by: string | null, merge_audit_id: string | null, project_id: string
+  decided_by: string | null, merge_audit_id: string | null, project_id: string, severity: 'hard' | 'soft'
 }
 export interface ChangeRow {
   id: string, target_fact_id: string, before_statement: string, proposed_statement: string, rationale: string, status: string

@@ -19,13 +19,40 @@ const DECISIONS = [
 ]
 const STATUS_TONE: Record<string, string> = { open: 'warn', confirmed: 'bad', false_positive: 'good', uncertain: 'neutral', resolved_by_merge: 'good' }
 const STATUS_LABEL: Record<string, string> = { open: 'Open', confirmed: 'Confirmed conflict', false_positive: 'False alarm', uncertain: 'Uncertain', resolved_by_merge: 'Resolved by merge' }
+const SEV_LABEL = { hard: 'Hard · breaks canon', soft: 'Soft · worth a look' } as const
+const sevFilter = ref<'all' | 'hard' | 'soft'>('all')
+const sevSort = ref(true) // hard first
+const openCount = (s: string) => (conflicts.value ?? []).filter(c => c.status === 'open' && c.severity === s).length
+const counts = computed(() => `${openCount('hard')} hard · ${openCount('soft')} soft`)
+const sevEdit = reactive<Record<string, { open: boolean, reason: string, error: string, busy: boolean }>>({})
+const sev = (id: string) => (sevEdit[id] ??= { open: false, reason: '', error: '', busy: false })
+async function setSeverity(id: string, severity: string) {
+  const s = sev(id)
+  s.busy = true
+  s.error = ''
+  try {
+    await $fetch(`/api/conflicts/${id}/severity`, { method: 'POST', body: { severity, rationale: s.reason } })
+    s.open = false
+    s.reason = ''
+  } catch (e) {
+    s.error = errorMessage(e)
+    return
+  } finally {
+    s.busy = false
+  }
+  refresh()
+  refreshNuxtData('stats')
+}
 const view = ref('open')
 const tabs = computed(() => [
   { value: 'open', label: 'To judge', count: (conflicts.value ?? []).filter(c => c.status === 'open').length },
   { value: 'decided', label: 'Decided', count: (conflicts.value ?? []).filter(c => c.status !== 'open').length },
 ])
 // Most likely first, so the clearest clash leads the list.
-const shown = computed(() => (conflicts.value ?? []).filter(c => (view.value === 'open') === (c.status === 'open')).sort((a, b) => b.confidence - a.confidence))
+const rank = (s: string) => (s === 'hard' ? 0 : 1)
+const inView = computed(() => (conflicts.value ?? []).some(c => (view.value === 'open') === (c.status === 'open')))
+const shown = computed(() => (conflicts.value ?? []).filter(c => (view.value === 'open') === (c.status === 'open') && (sevFilter.value === 'all' || c.severity === sevFilter.value))
+  .sort((a, b) => (sevSort.value ? rank(a.severity) - rank(b.severity) : 0) || b.confidence - a.confidence))
 const level = (n: number) => (n >= 0.8 ? 'High' : n >= 0.5 ? 'Medium' : 'Low')
 
 async function scan() {
@@ -60,7 +87,7 @@ async function decide(id: string, decision: string) {
 </script>
 
 <template>
-  <UiPageHeader title="Conflict candidates" description="Narrow checks over accepted canon: timing, travel and relationships in code, world rules with the model's help. A hit is a possible conflict for you to judge. Deciding never edits canon.">
+  <UiPageHeader title="Conflict candidates" description="Hard conflicts break canon; soft ones are worth a look. Narrow checks over accepted canon: timing, travel and relationships in code, world rules with the model's help. A hit is a possible conflict for you to judge. Deciding never edits canon.">
     <template v-if="editor && conflicts?.length" #actions><UiButton variant="primary" data-tour="scan" :loading="scanning" @click="scan">{{ scanning ? 'Scanning…' : 'Scan canon' }}</UiButton></template>
   </UiPageHeader>
 
@@ -83,12 +110,23 @@ async function decide(id: string, decision: string) {
 
   <template v-else>
     <UiTabs v-model="view" :items="tabs" />
-    <p v-if="!shown.length" class="muted empty-note">{{ view === 'open' ? 'Nothing left to judge. Scan again after canon changes.' : 'No decisions yet.' }}</p>
+    <div class="sevbar">
+      <span class="small muted" data-test="sev-counts">Open: <b>{{ counts }}</b></span>
+      <label class="small">Show
+        <select v-model="sevFilter" aria-label="Filter by severity"><option value="all">All severities</option><option value="hard">Hard only</option><option value="soft">Soft only</option></select>
+      </label>
+      <label class="small"><input v-model="sevSort" type="checkbox"> Hard first</label>
+    </div>
+    <p v-if="!shown.length" class="muted empty-note">
+      <template v-if="sevFilter !== 'all' && inView">No matching conflicts. <a href="#" @click.prevent="sevFilter = 'all'">Clear filter</a></template>
+      <template v-else>{{ view === 'open' ? 'Nothing left to judge. Scan again after canon changes.' : 'No decisions yet.' }}</template>
+    </p>
 
     <div class="list">
-      <article v-for="c in shown" :key="c.id" class="conflict" :class="{ model: c.origin === 'model', decided: c.status !== 'open' }" :data-tour="c.rule === 'EXACT_TIME_LOCATION_OVERLAP' && c.status === 'open' ? 'c1' : undefined">
+      <article v-for="c in shown" :key="c.id" class="conflict" :class="{ model: c.origin === 'model', decided: c.status !== 'open', soft: c.severity === 'soft' }" :data-tour="c.rule === 'EXACT_TIME_LOCATION_OVERLAP' && c.status === 'open' ? 'c1' : undefined">
         <header class="head">
           <div class="row">
+            <UiBadge :tone="c.severity === 'hard' ? 'bad' : 'warn'" :title="c.severity === 'hard' ? 'Breaks canon' : 'Worth a look'">{{ SEV_LABEL[c.severity] }}</UiBadge>
             <UiBadge :tone="STATUS_TONE[c.status] as any" dot>{{ STATUS_LABEL[c.status] }}</UiBadge>
             <UiBadge v-if="c.origin === 'model'" tone="pencil" :title="c.model_id ?? ''">Model-suggested · {{ modelLabel(c.model_id) }}</UiBadge>
             <UiBadge v-else>Rule-based</UiBadge>
@@ -105,6 +143,15 @@ async function decide(id: string, decision: string) {
           <section><h3>Source A</h3><FactSummary :fact="c.left" sources /></section>
           <div class="vs" aria-hidden="true">vs</div>
           <section><h3>Source B</h3><FactSummary :fact="c.right" sources /></section>
+        </div>
+        <div v-if="editor" class="small sev-change">
+          <button v-if="!sev(c.id).open" type="button" class="linklike" @click="sev(c.id).open = true">Change severity</button>
+          <form v-else class="row" novalidate @submit.prevent="setSeverity(c.id, c.severity === 'hard' ? 'soft' : 'hard')">
+            <input v-model="sev(c.id).reason" type="text" placeholder="Why? (required)" aria-label="Reason for the severity change">
+            <UiButton type="submit" size="sm" :loading="sev(c.id).busy" :disabled="!sev(c.id).reason.trim()">Make it {{ c.severity === 'hard' ? 'soft' : 'hard' }}</UiButton>
+            <UiButton size="sm" variant="ghost" @click="sev(c.id).open = false">Cancel</UiButton>
+            <span v-if="sev(c.id).error" class="field-error" role="alert">{{ sev(c.id).error }}</span>
+          </form>
         </div>
         <footer v-if="c.status === 'open' && !editor" class="decide small muted">Open · waiting for an editor to decide.</footer>
         <footer v-else-if="c.status === 'open'" class="decide">
@@ -126,10 +173,17 @@ async function decide(id: string, decision: string) {
 </template>
 
 <style scoped>
+.sevbar { display: flex; flex-wrap: wrap; gap: var(--s-4); align-items: center; margin-top: var(--s-3); }
+.sevbar label { display: flex; flex-direction: row; align-items: center; gap: var(--s-2); }
+.sevbar select { width: auto; }
+.sevbar input[type=checkbox] { width: auto; }
+.linklike { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; font: inherit; }
+.sev-change input[type=text] { flex: 1 1 14rem; }
 .notice { margin-bottom: var(--s-4); }
 .empty-note { margin: var(--s-5) 0; }
 .list { display: grid; gap: var(--s-5); margin-top: var(--s-4); }
 .conflict { background: var(--raised); border: 1px solid var(--line); border-left: 3px solid var(--bad); border-radius: var(--r-lg); padding: var(--s-4) var(--s-5); display: grid; gap: var(--s-3); min-width: 0; }
+.conflict.soft { border-left-color: var(--warn); }
 .conflict.model { border-left: 3px dashed var(--pencil); }
 /* Decided: the vermilion edge is for conflicts still waiting on someone. */
 .conflict.decided { border-left-color: var(--line-strong); }
