@@ -1,14 +1,18 @@
 // Image upload probe. Two modes:
 //   node scripts/image-upload-probe.mjs [baseUrl]   against a running server (mock mode is fine: uploads never need the model)
+//     For a localhost server it also finds the server's PID (ss -ltnp) and checks its memory stays flat on a 90 MB request.
 //   node scripts/image-upload-probe.mjs migrate [port]
 //     builds a schema-12 database (the shape at commit c7da54d) with a portrait uploaded the old way, starts the built server
 //     (.output, run `pnpm build` first) on it in a temp folder on [port] (default 3999), and checks the upgrade kept that
-//     portrait in use as an upload in the image history. Needs the port free; stops its server and removes the folder.
+//     portrait in use as an upload in the image history. The first boot fails the upgrade on purpose (portrait folder
+//     read-only): the database must stay v12 and the next request must retry. Needs the port free; stops its server and
+//     removes the folder.
 // Throwaway accounts with unique emails per run; nothing outside them is touched.
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
 import { randomBytes, scryptSync } from 'node:crypto'
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { chmodSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { request } from 'node:http'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -35,21 +39,42 @@ const JPEG = Buffer.from('/9j/4AAQSkZJRgABAQAAAQABAAD/2wBDAA0JCgsKCA0LCgsODg0PEy
 const GIF = Buffer.from('R0lGODlhBAADAPAAAKU6OgAAACH5BAAAAAAALAAAAAAEAAMAAAIDhI9WADs=', 'base64')
 const WEBP_LOSSLESS = Buffer.from('UklGRh4AAABXRUJQVlA4TBEAAAAvA4AAAAfQ0upUq/+BiOh/AAA=', 'base64')
 const WEBP_LOSSY = Buffer.from('UklGRjQAAABXRUJQVlA4ICgAAABwAQCdASoEAAMAAsBMJaACdAAAAADsj8KxTri5siKP+4/sj+cp0AAA', 'base64')
+// Hand-built GIF: canvas cw × ch, one image descriptor per [w, h] frame. Each frame's data is one decodable 1×1 LZW
+// stream; for frames bigger than that the bytes are short, which is fine: the sizes in the descriptors are what's checked.
+function gif(cw, ch, frames) {
+  const u16 = (n) => [n & 0xFF, n >> 8]
+  const head = [...Buffer.from('GIF89a'), ...u16(cw), ...u16(ch), 0x80, 0, 0, 0, 0, 0, 0xFF, 0xFF, 0xFF]
+  const body = frames.flatMap(([w, h]) => [0x21, 0xF9, 4, 0, 10, 0, 0, 0, 0x2C, 0, 0, 0, 0, ...u16(w), ...u16(h), 0, 2, 2, 0x44, 0x01, 0])
+  return Buffer.from([...head, ...body, 0x3B])
+}
+// Hand-built animated WebP: VP8X canvas, ANIM, then one ANMF frame per [w, h] wrapping the lossless 1×1 bitstream.
+function animWebp(cw, ch, frames) {
+  const u24 = (n) => [n & 0xFF, (n >> 8) & 0xFF, n >> 16]
+  const chunk = (id, data) => { const len = Buffer.alloc(4); len.writeUInt32LE(data.length); return Buffer.concat([Buffer.from(id, 'ascii'), len, data, Buffer.alloc(data.length & 1)]) }
+  const vp8l = WEBP_LOSSLESS.subarray(12)
+  const body = Buffer.concat([
+    chunk('VP8X', Buffer.from([0x02, 0, 0, 0, ...u24(cw - 1), ...u24(ch - 1)])), chunk('ANIM', Buffer.alloc(6)),
+    ...frames.map(([w, h]) => chunk('ANMF', Buffer.concat([Buffer.from([0, 0, 0, 0, 0, 0, ...u24(w - 1), ...u24(h - 1), 100, 0, 0, 0]), vp8l])))])
+  const size = Buffer.alloc(4); size.writeUInt32LE(body.length + 4)
+  return Buffer.concat([Buffer.from('RIFF'), size, Buffer.from('WEBP'), body])
+}
 const SVG = Buffer.from('<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"><rect width="10" height="10"/></svg>')
 
 function client(base) {
   let cookie = ''
-  return async (path, { method = 'GET', body, form, raw } = {}) => {
+  const c = async (path, { method = 'GET', body, form, raw } = {}) => {
     const headers = form ? { cookie } : { 'content-type': 'application/json', cookie }
     const res = await fetch(base + path, { method, headers, body: form ?? (body && JSON.stringify(body)) })
     const set = res.headers.getSetCookie().map(c => c.split(';')[0]).filter(c => c.includes('='))
     if (set.length) cookie = set.join('; ')
-    if (raw) return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), type: res.headers.get('content-type') }
+    if (raw) return { status: res.status, bytes: Buffer.from(await res.arrayBuffer()), type: res.headers.get('content-type'), headers: res.headers }
     const text = await res.text()
     let data
     try { data = JSON.parse(text) } catch { data = text }
     return { status: res.status, data }
   }
+  c.cookie = () => cookie
+  return c
 }
 const files = (target, list, extra = {}) => {
   const f = new FormData()
@@ -92,6 +117,10 @@ async function live(base) {
   const pngRow = imgs.find(i => i.filename === 'key-art.png')
   const served = await a(`/api/images/${pngRow.id}`, { raw: true })
   check('uploaded bytes served unchanged', [served.status, served.type, served.bytes.equals(four[0][1])], [200, 'image/png', true])
+  check('inline view: no download header, nosniff', [served.headers.get('content-disposition'), served.headers.get('x-content-type-options')], [null, 'nosniff'])
+  const dl = await a(`/api/images/${pngRow.id}?download=1`, { raw: true })
+  check('?download=1 saves it under its own name', [dl.status, dl.headers.get('content-disposition'), dl.bytes.equals(four[0][1])],
+    [200, `attachment; filename="key-art.png"; filename*=UTF-8''key-art.png`, true])
   const ev = (await a('/api/audit')).data.find(x => x.event_type === 'image.uploaded' && x.target_id === leya.id)
   check('one audit event for the batch: “uploaded 4 images”', [ev?.detail.images.length, ev?.detail.name], [4, `Leya ${run}`])
 
@@ -109,6 +138,70 @@ async function live(base) {
   check('refused files leave no row', (await list()).length, 5)
   check('more than 8 files in one request refused', (await a('/api/images/upload', { method: 'POST', form: files(L, Array.from({ length: 9 }, (_, i) => [`${i}.gif`, GIF, 'image/gif'])) })).status, 400)
   check('upload without files refused', (await a('/api/images/upload', { method: 'POST', form: files(L, []) })).status, 400)
+
+  // Hostile files, judged on their whole structure: frame sizes, animation budgets, files cut short.
+  const reasons = async (list) => (await a('/api/images/upload', { method: 'POST', form: files(L, list) })).data.results.map(r => [r.name, r.status === 'added' ? 'added' : r.message.split(/[:(]/)[0].trim()])
+  const pngCut = png(4, 4).subarray(0, 24)
+  check('hostile structures refused, real animations kept', await reasons([
+    ['tiny-canvas-wide-frame.gif', gif(1, 1, [[13_001, 1]]), 'image/gif'],
+    ['too-many-frames.gif', gif(1, 1, Array.from({ length: 1001 }, () => [1, 1])), 'image/gif'],
+    ['too-many-pixels.gif', gif(1000, 1000, Array.from({ length: 51 }, () => [1000, 1000])), 'image/gif'],
+    ['cut.gif', GIF.subarray(0, GIF.length - 8), 'image/gif'],
+    ['cut.png', pngCut, 'image/png'],
+    ['cut.webp', WEBP_LOSSY.subarray(0, 30), 'image/webp'],
+    ['tiny-canvas-wide-frame.webp', animWebp(1, 1, [[13_001, 1]]), 'image/webp'],
+    ['blink.gif', gif(1, 1, [[1, 1], [1, 1]]), 'image/gif'],
+  ]), [
+    ['tiny-canvas-wide-frame.gif', 'Too many pixels'], ['too-many-frames.gif', 'Too much animation'], ['too-many-pixels.gif', 'Too much animation'],
+    ['cut.gif', 'This image looks damaged'], ['cut.png', 'This image looks damaged'], ['cut.webp', 'This image looks damaged'],
+    ['tiny-canvas-wide-frame.webp', 'Too many pixels'], ['blink.gif', 'added'],
+  ])
+  check('…and an animated WebP within the limits is kept', await reasons([['blink.webp', animWebp(1, 1, [[1, 1], [1, 1]]), 'image/webp']]), [['blink.webp', 'added']])
+  const blink = (await list()).filter(i => /^blink\./.test(i.filename))
+  for (const i of blink) await a(`/api/images/${i.id}`, { method: 'DELETE' })
+
+  // Hostile requests: the body is capped while it streams, before any parsing.
+  // A chunked body (no Content-Length) with a 90 MB field nobody reads, then one real image.
+  const pidOf = (port) => { try { return execFileSync('ss', ['-ltnpH', `sport = :${port}`], { encoding: 'utf8' }).match(/pid=(\d+)/)?.[1] } catch {} }
+  const rss = (pid) => Number(readFileSync(`/proc/${pid}/status`, 'utf8').match(/VmRSS:\s+(\d+)/)[1]) / 1024
+  const pid = /localhost|127\.0\.0\.1/.test(base) ? pidOf(new URL(base).port) : undefined
+  const rssBefore = pid && rss(pid)
+  // Streams the parts one chunk at a time with no Content-Length (chunked); a function part is a generator of chunks.
+  const chunked = async (parts) => {
+    const it = (function* () { for (const p of parts) typeof p === 'function' ? yield* p() : yield p })()
+    const body = new ReadableStream({ pull(c) { const { value, done } = it.next(); done ? c.close() : c.enqueue(value) } })
+    const res = await fetch(`${base}/api/images/upload`, { method: 'POST', duplex: 'half', body, headers: { 'content-type': `multipart/form-data; boundary=${bnd}`, cookie: a.cookie() } })
+      .catch(e => ({ status: `error: ${e.cause?.code ?? e.message}` }))
+    return res.status
+  }
+  // Declares 90 MB, sends a few bytes and waits: the answer must come from the header alone.
+  const declared = () => new Promise((resolve) => {
+    const req = request(`${base}/api/images/upload`, { method: 'POST', headers: { 'content-type': `multipart/form-data; boundary=${bnd}`, 'content-length': '90000000', cookie: a.cookie() } },
+      (res) => { resolve(res.statusCode); res.resume(); req.destroy() })
+    req.on('error', e => resolve(`error: ${e.code}`))
+    req.write('--' + bnd)
+  })
+  const bnd = `----probe${run}`
+  const field = (name, value) => Buffer.from(`--${bnd}\r\ncontent-disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`)
+  const file = (name, bytes) => Buffer.concat([Buffer.from(`--${bnd}\r\ncontent-disposition: form-data; name="files"; filename="${name}"\r\ncontent-type: image/png\r\n\r\n`), bytes, Buffer.from('\r\n')])
+  const mb = Buffer.alloc(1_000_000, 0x61)
+  const rowsBefore = (await list()).length
+  check('chunked body with a 90 MB ignored field: 413', await chunked([field('target_type', 'entity'), field('target_id', leya.id),
+    Buffer.from(`--${bnd}\r\ncontent-disposition: form-data; name="ignored"\r\n\r\n`), function* () { for (let i = 0; i < 90; i++) yield mb }, Buffer.from('\r\n'),
+    file('x.png', png(2, 2)), Buffer.from(`--${bnd}--\r\n`)]), 413)
+  if (pid) {
+    const grew = rss(pid) - rssBefore
+    check(`server memory stays flat (grew ${grew.toFixed(0)} MiB, under 40)`, grew < 40, true)
+  } else console.log('skip memory check: no local server PID found')
+  check('chunked body with 30 fields: 413', await chunked([field('target_type', 'entity'), field('target_id', leya.id),
+    ...Array.from({ length: 30 }, (_, i) => field(`f${i}`, 'x')), file('x.png', png(2, 2)), Buffer.from(`--${bnd}--\r\n`)]), 413)
+  check('a 5 KB text field: 413', await chunked([field('target_type', 'entity'), field('target_id', leya.id), field('caption', 'x'.repeat(5000)),
+    file('x.png', png(2, 2)), Buffer.from(`--${bnd}--\r\n`)]), 413)
+  check('Content-Length over the cap: 413 before reading', await declared(), 413)
+  check('refused requests add nothing', (await list()).length, rowsBefore)
+  check('a well-formed chunked upload still works', await chunked([field('target_type', 'entity'), field('target_id', leya.id),
+    file('chunked.png', png(3, 3)), Buffer.from(`--${bnd}--\r\n`)]), 200)
+  for (const i of (await list()).filter(i => i.filename === 'chunked.png')) await a(`/api/images/${i.id}`, { method: 'DELETE' })
 
   // Set an upload as the portrait; captions; delete with the in-use guard.
   check('set an uploaded image as portrait', (await a(`/api/images/${pngRow.id}/apply`, { method: 'POST' })).status, 200)
@@ -212,15 +305,24 @@ async function migrate(port) {
     writeFileSync(join(portraits, 'ent_leya'), leyaPng)
     writeFileSync(join(portraits, 'ent_mira'), png(4, 4))
     writeFileSync(join(portraits, 'img_gen'), png(4, 4))
+    // First boot fails the upgrade on purpose: the portrait copy can't be written.
+    chmodSync(portraits, 0o555)
 
     server = spawn(process.execPath, [join(root, '.output/server/index.mjs')], { cwd: dir, stdio: 'ignore',
       env: { ...process.env, PORT: String(port), HOST: 'localhost', NUXT_SESSION_PASSWORD: randomBytes(24).toString('hex'), NUXT_MODEL_MODE: 'mock' } })
     const base = `http://localhost:${port}`
     for (let i = 0; ; i++) {
-      try { if ((await fetch(`${base}/api/health`)).ok) break } catch {}
+      try { await fetch(`${base}/api/health`); break } catch {}
       if (i > 100) throw new Error('server did not start')
       await new Promise(r => setTimeout(r, 100))
     }
+    const version = () => { const d = new DatabaseSync(join(data, 'storybible.db'), { readOnly: true }); try { return d.prepare('pragma user_version').get().user_version } finally { d.close() } }
+    check('failed upgrade: health 500, and again on the next request (no half-set-up connection kept)',
+      [(await fetch(`${base}/api/health`)).status, (await fetch(`${base}/api/health`)).status], [500, 500])
+    check('failed upgrade: database still v12, no stray portrait copies', [version(), readdirSync(portraits).sort()], [12, ['ent_leya', 'ent_mira', 'img_gen']])
+    chmodSync(portraits, 0o755)
+    const h = await fetch(`${base}/api/health`)
+    check('fixed: the next request upgrades without a restart; health reports the file’s version', [h.status, (await h.json()).schema, version()], [200, 13, 13])
     const c = client(base)
     check('log in to the upgraded database', (await c('/api/auth/login', { method: 'POST', body: { email: `mig-${run}@probe.test`, password: 'correct horse' } })).status, 200)
     const leya = (await c('/api/entities/ent_leya')).data
@@ -233,6 +335,7 @@ async function migrate(port) {
     check('schema is now 13', (await c('/api/health')).data.schema, 13)
     console.log('migration probe: all checks passed')
   } finally {
+    try { chmodSync(join(data, 'portraits', 'prj_m'), 0o755) } catch {}
     server?.kill()
     await new Promise(r => setTimeout(r, 300))
     rmSync(dir, { recursive: true, force: true })

@@ -2,7 +2,7 @@
 // so replacing or removing the portrait later never loses it. (The page uses /api/images/upload with apply=1.)
 export default defineEventHandler(async (event) => {
   const e = getEntity(getRouterParam(event, 'id')!)
-  const file = (await readMultipartFormData(event))?.find(p => p.name === 'file' && p.filename)
+  const file = (await readImageForm(event, 1)).find(p => p.name === 'file' && p.filename)
   if (!file) throw createError({ statusCode: 400, statusMessage: 'NO_FILE', message: 'Choose an image to upload.' })
   const { results } = addUploads(imageTarget('entity', e.id), [{ name: file.filename!, data: file.data }], { apply: true })
   const r = results[0]!

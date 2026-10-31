@@ -27,6 +27,8 @@ export const IMAGE_UPLOAD_TYPES = ['image/png', 'image/jpeg', 'image/webp', 'ima
 export const IMAGE_MAX_BYTES = 10_000_000
 export const IMAGE_MAX_SIDE = 12_000
 export const IMAGE_MAX_PIXELS = 50_000_000
+// Animated GIF/WebP: frames per file; IMAGE_MAX_PIXELS then caps the pixels decoded across all frames.
+export const IMAGE_MAX_FRAMES = 1_000
 // Files per upload request; the page splits a bigger drop into several.
 export const IMAGE_BATCH_FILES = 8
 export const IMAGE_CAPTION_MAX = 300

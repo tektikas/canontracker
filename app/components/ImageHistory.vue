@@ -239,7 +239,7 @@ const isNew = (i: ImageItem) => added.value.includes(i.id) || !!props.fresh?.inc
               <UiButton v-if="!i.applied" size="sm" variant="primary" :loading="busyId === i.id" :disabled="!!busyId && busyId !== i.id" @click="apply(i)">{{ applyLabel }}</UiButton>
               <UiButton v-else size="sm" :loading="busyId === i.id" :disabled="!!busyId && busyId !== i.id" @click="unapply(i)">{{ removeLabel }}</UiButton>
             </template>
-            <a class="btn sm ghost icon-only" :href="i.url" :download="imageFileName(i, name)" aria-label="Download original" title="Download original"><UiIcon name="download" :size="16" /></a>
+            <a class="btn sm ghost icon-only" :href="`${i.url}?download=1`" :download="imageFileName(i, name)" aria-label="Download original" title="Download original"><UiIcon name="download" :size="16" /></a>
             <UiButton v-if="editable && !i.applied" size="sm" variant="ghost" icon="trash" class="icon-only" :disabled="!!busyId" aria-label="Delete image" title="Delete image" @click="remove(i)" />
           </div>
         </figcaption>

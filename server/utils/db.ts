@@ -151,26 +151,36 @@ create index if not exists notes_project on notes(project_id, status);
 
 let db: DatabaseSync | undefined
 
+// The connection is shared only once it is fully set up: if the upgrade fails, it is closed and the next request tries again.
 export function useDb() {
   if (db) return db
   mkdirSync('.data', { recursive: true })
-  db = new DatabaseSync('.data/storybible.db')
-  const { user_version } = db.prepare('pragma user_version').get() as { user_version: number }
-  if (user_version === 12) migrate12(db)
-  else if (user_version !== SCHEMA_VERSION) {
-    const tables = db.prepare(`select name from sqlite_master where type = 'table'`).all() as { name: string }[]
-    db.exec('pragma foreign_keys = off')
-    for (const t of tables) db.exec(`drop table "${t.name}"`)
-    db.exec(`pragma foreign_keys = on; pragma user_version = ${SCHEMA_VERSION}`)
+  const conn = new DatabaseSync('.data/storybible.db')
+  try {
+    const user_version = schemaVersion(conn)
+    if (user_version === 12) migrate12(conn)
+    else if (user_version !== SCHEMA_VERSION) {
+      const tables = conn.prepare(`select name from sqlite_master where type = 'table'`).all() as { name: string }[]
+      conn.exec('pragma foreign_keys = off')
+      for (const t of tables) conn.exec(`drop table "${t.name}"`)
+      conn.exec(`pragma foreign_keys = on; pragma user_version = ${SCHEMA_VERSION}`)
+    }
+    conn.exec(SCHEMA)
+  } catch (e) {
+    conn.close()
+    throw e
   }
-  db.exec(SCHEMA)
-  return db
+  return (db = conn)
 }
+
+// What the database file itself says, not what this build expects.
+export const schemaVersion = (d = useDb()) => (d.prepare('pragma user_version').get() as { user_version: number }).user_version
 
 // v12 → v13: images gain source, caption and filename. A portrait uploaded before then had no history row (only the
 // entity's own copy of the file); it becomes an upload row in use, with its own copy of the bytes, credited to whoever
 // uploaded it per the audit trail. Nothing else changes, so the data survives the upgrade.
 function migrate12(db: DatabaseSync) {
+  const copies: string[] = []
   db.exec('begin')
   try {
     db.exec(`alter table images add column source text not null default 'generated';
@@ -186,7 +196,9 @@ function migrate12(db: DatabaseSync) {
       const from = join('.data', 'portraits', e.project_id, e.id)
       if (!existsSync(from)) continue
       const id = newId('img')
-      copyFileSync(from, join('.data', 'portraits', e.project_id, id))
+      const to = join('.data', 'portraits', e.project_id, id)
+      copyFileSync(from, to)
+      copies.push(to)
       const by = uploader.get(e.project_id, e.id) as { actor: string, created_at: string } | undefined
       const at = e.portrait_at ?? by?.created_at ?? e.updated_at
       insert.run(id, e.id, e.portrait_type, statSync(from).size, at, by?.actor ?? e.updated_by ?? e.created_by ?? '', at, e.project_id)
@@ -195,6 +207,7 @@ function migrate12(db: DatabaseSync) {
     db.exec('commit')
   } catch (err) {
     db.exec('rollback')
+    for (const f of copies) rmSync(f, { force: true }) // the copies have no rows any more; a retry makes new ones
     throw err
   }
 }
