@@ -211,4 +211,25 @@ for (const bad of ['constructor', 'toString', '__proto__', 'hasOwnProperty'])
 check('medium "prose" accepted', (await a(`/api/projects/${project.id}`, { method: 'PATCH', body: { medium: 'prose' } })).status, 200)
 check('entity page still renders', (await a(`/api/entities/${market.id}`)).status, 200)
 check('unknown field "constructor" refused', (await a(`/api/entities/${market.id}`, { method: 'PATCH', body: { fields: { constructor: 'x' } } })).status, 400)
+// 6. Precision is part of a fact's identity (lead c22r): an exact reading is not the approximate one with the same bounds.
+// Fresh project, no demo: an approximate Lighthouse fact is authored from a scratch doc, then S06.md arrives and its exact
+// candidate (same names, same bounds) must still come; a second S06 version (same precision) collapses.
+const s06text = (await a(`/api/documents/${(await a('/api/documents')).data.find(d => d.filename === 'S06.md').id}`)).data.content
+await a('/api/projects', { method: 'POST', body: { name: 'Precision Probe', studio_id: studio.id } })
+const upload = async (name, text) => {
+  const f = new FormData()
+  f.append('files', new Blob([text], { type: 'text/markdown' }), name)
+  const r = await a('/api/documents', { method: 'POST', form: f })
+  assert.equal(r.status, 200)
+  return r.data.results?.[0] ?? r.data[0] ?? r.data
+}
+const quote = 'From 21:30 to 22:30 on Day 1, Arin keeps the lamp lit at the Lighthouse and never leaves the gallery.'
+await upload('Scratch.md', `# Scratch\n\n${quote}\n`)
+const scratchDoc = (await a('/api/documents')).data.find(d => d.filename === 'Scratch.md')
+check('approximate twin authored', (await a('/api/facts', { method: 'POST', body: { to: 'canon', document_id: scratchDoc.id, quote, kind: 'event', subject: 'Arin', predicate: 'located_at', object: 'Lighthouse', statement: 'Arin was around the Lighthouse in the evening of Day 1.', time_from: 'D1 21:30', time_to: 'D1 22:30', precision: 'approximate' } })).status, 200)
+await upload('S06.md', s06text)
+const exactNew = (await a('/api/facts?status=pending')).data.filter(f => f.predicate === 'located_at' && f.object === 'Lighthouse')
+check('exact candidate kept next to the approximate fact (same bounds)', `${exactNew.length}/${exactNew[0]?.precision}`, '1/exact')
+await upload('S06.md', `${s06text}\nRevised draft.\n`)
+check('same precision collapses on re-import', (await a('/api/facts?status=pending')).data.filter(f => f.predicate === 'located_at' && f.object === 'Lighthouse').length, 1)
 console.log('all checks passed')
