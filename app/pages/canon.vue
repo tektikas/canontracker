@@ -54,7 +54,9 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 </script>
 
 <template>
-  <UiPageHeader title="Canon" :description="`${canon?.some(f => f.origin === 'sample') ? 'Facts a person accepted, plus the sample’s preloaded canon (marked).' : 'Only facts a person accepted.'} Every fact links to the exact passage it came from.`" />
+  <UiPageHeader title="Canon" :description="`${canon?.some(f => f.origin === 'sample') ? 'Facts a person accepted, plus the sample’s preloaded canon (marked).' : 'Only facts a person accepted.'} Every fact links to the exact passage it came from.`">
+    <template #actions><UiButton icon="link" to="/export">Export &amp; share</UiButton></template>
+  </UiPageHeader>
 
   <UiTabs v-model="tab" :items="tabs" />
 

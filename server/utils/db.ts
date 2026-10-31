@@ -34,6 +34,14 @@ create table if not exists api_tokens (
   token_hash text not null unique, prefix text not null, created_at text not null, last_used_at text, revoked_at text
 );
 
+-- Read-only share links to a project's story bible. Only the sha256 of the link token is stored. options: the bible's
+-- scope, sections and images (JSON, see shared/utils/bible.ts). expires_at null = never. open_count/last_opened_at: link use.
+create table if not exists share_links (
+  id text primary key, project_id text not null references projects(id), name text not null, token_hash text not null unique,
+  prefix text not null, options text not null, created_by text not null, created_at text not null, expires_at text,
+  revoked_at text, revoked_by text, last_opened_at text, open_count integer not null default 0
+);
+
 -- Content. Every row belongs to one project; routes only ever read and write the caller's current project.
 -- origin: import (an uploaded file) | written (written in the app; each save is a new read-only version). created_by: who saved it.
 -- One row per version. filename: the document's key, shared by its versions and unique per document in the project. name: the
@@ -221,7 +229,7 @@ export function resetData() {
 
 // The project's audit trail. Targets of events before the latest project.reset were deleted by that reset (tokens and the
 // project itself survive one), so those events carry target_removed instead of pointing at an id that no longer exists.
-const SURVIVES_RESET = ['token', 'project', 'audit', 'question', 'user']
+const SURVIVES_RESET = ['token', 'project', 'audit', 'question', 'user', 'share']
 export function listAudit(order: 'asc' | 'desc') {
   const db = useDb()
   const reset = (db.prepare(`select max(rowid) r from audit_events where project_id = ? and event_type = 'project.reset'`).get(pid()) as { r: number | null }).r ?? 0
