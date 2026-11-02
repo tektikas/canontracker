@@ -52,5 +52,6 @@ export default defineNuxtConfig({
     metaBaseUrl: 'https://api.meta.ai/v1', // NUXT_META_BASE_URL
     criticModelId: '', // NUXT_CRITIC_MODEL_ID: the AI critic's model; empty = modelId
     criticEffort: 'low', // NUXT_CRITIC_EFFORT=off | low | high: candidates per AI critic call and per run (server/utils/critic.ts)
+    criticReasoningEffort: '', // NUXT_CRITIC_REASONING_EFFORT=minimal | low | medium | high; empty = by NUXT_CRITIC_EFFORT (low: low, flags re-read at medium; high: medium, re-read at high)
   },
 })

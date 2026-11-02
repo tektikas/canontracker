@@ -35,8 +35,9 @@ export type CriticReason = keyof typeof CRITIC_REASONS
 // time: the corrected story time as a label ("D3 14:00", "~ D3", "D3 14:00 – D3 16:00"), null = no time.
 export interface CriticSuggestion { statement: string, subject: string, predicate: string, object: string | null, time: string | null }
 export interface CriticDraft { fact_id: string, verdict: CriticVerdict, reason: CriticReason, duplicate_of: string | null, explanation: string, suggestion: CriticSuggestion | null }
-// What the Critic was asked about one candidate: its statement and structured fields, and the canon ids it was shown.
-export interface CriticAsked { statement: string, subject: string, predicate: string, object: string | null, time_label: string | null, canon: Set<string> }
+// What the Critic was asked about one candidate: its statement and structured fields, the canon ids it was shown, and the
+// source text it read (kind and text: for the object rule in cleanOpinions).
+export interface CriticAsked { statement: string, subject: string, predicate: string, object: string | null, time_label: string | null, canon: Set<string>, kind?: string, text?: string }
 
 // A time label as stored or shown ("D3 14:00", "~ D3", "D3 14:00 – D3 16:00", "until D3 10:00") → its From / Until parts and
 // whether it is approximate: the form the edit fields and parseStoryRange take.
@@ -55,18 +56,21 @@ const timeKey = (label: string | null) => {
   if (r.bad) return undefined
   return r.from == null && r.to == null ? 'none' : JSON.stringify([r.from, r.to, approximate])
 }
-const same = (a: string | null, b: string | null) => {
-  const n = (v: string | null) => (v ?? '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
-  return n(a) === n(b)
-}
+const norm = (v: string | null) => (v ?? '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
+const same = (a: string | null, b: string | null) => norm(a) === norm(b)
 export const WORDING_ONLY = 'Suggested a wording change only; who, what, where and when stay as they are.'
+export const OTHER_PARTY = 'Suggested another party of the same fact as its object; the one the candidate names is in the passage too.'
+// Facts the conflict rules read by their object (shared/../server/utils/analysis.ts): there, a different object is a different fact.
+const conflictRead = (c: CriticAsked) => ['located_at', 'travel_time', 'rule'].includes(c.predicate) || ['relationship', 'rule'].includes(c.kind ?? '')
 
 // Model output → opinions we can show. One per asked candidate; anything that doesn't hold together is dropped and counted:
 // an unknown id or label, an opinion whose echoed statement isn't the candidate's (it was written about another candidate in
 // the batch), keep without reason "ok" (or "ok" without keep), "duplicate" without a canon id the Critic was actually shown
 // for that candidate, "needs edit" without a full suggestion or with a time that doesn't parse. "Needs edit" is for corrections
 // conflicts and impact read: a suggestion that leaves subject, predicate, object and time as they are is a wording nit, so it
-// becomes a keep (counted as softened). A suggestion carries no quote: the quote stays the verified one.
+// becomes a keep (counted as softened). So does one that only swaps the object for another party when the candidate's own
+// object is named in the text the Critic read, unless the conflict rules read that fact by its object (place, travel,
+// relationship, rule): "refuses Ysolde" and "refuses the bridge" are the same refusal. A suggestion carries no quote: the quote stays the verified one.
 const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().replace(/\s+/g, ' ').slice(0, max) : '')
 export function cleanOpinions(raw: unknown, asked: Map<string, CriticAsked>) {
   const list = Array.isArray(raw) ? raw : []
@@ -93,11 +97,14 @@ export function cleanOpinions(raw: unknown, asked: Map<string, CriticAsked>) {
       if (!suggestion.statement || !suggestion.subject || !suggestion.predicate) return drop('incomplete suggestion')
       const time = timeKey(suggestion.time)
       if (!time) return drop('suggested time unreadable')
-      if (same(suggestion.subject, c.subject) && same(suggestion.predicate, c.predicate) && same(suggestion.object, c.object) && time === timeKey(c.time_label)) {
+      const rest = same(suggestion.subject, c.subject) && same(suggestion.predicate, c.predicate) && time === timeKey(c.time_label)
+      const wording = rest && same(suggestion.object, c.object)
+      const party = rest && !!c.object && !conflictRead(c) && ` ${norm(c.text ?? '')} `.includes(` ${norm(c.object)} `)
+      if (wording || party) {
         softened++
         verdict = 'keep'
         suggestion = null
-        explanation = WORDING_ONLY
+        explanation = wording ? WORDING_ONLY : OTHER_PARTY
         seen.add(id)
         return [{ fact_id: id, verdict, reason: 'ok', duplicate_of: null, explanation, suggestion }]
       }

@@ -69,17 +69,22 @@ export function apiFailure(
 }
 
 // schema: a JSON schema the output is constrained to (response_format json_schema); the reply is still parsed and validated.
-async function chatJson(system: string, user: string, opts: { schema?: { name: string, schema: object }, model?: string } = {}) {
+// reasoningEffort: sent as reasoning_effort (Muse defaults to "high" without it; "none" is refused with json_schema).
+// onUsage: the reply's token usage, for the model_calls trace.
+export interface ChatUsage { completion_tokens?: number, completion_tokens_details?: { reasoning_tokens?: number } }
+async function chatJson(system: string, user: string, opts: { schema?: { name: string, schema: object }, model?: string, reasoningEffort?: string, onUsage?: (u: ChatUsage) => void } = {}) {
   const { metaBaseUrl, modelId } = useRuntimeConfig()
-  const res = await $fetch<{ choices: { message: { content: string } }[] }>(`${metaBaseUrl}/chat/completions`, {
+  const res = await $fetch<{ choices: { message: { content: string } }[], usage?: ChatUsage }>(`${metaBaseUrl}/chat/completions`, {
     method: 'POST',
     timeout: 60_000,
     headers: { Authorization: `Bearer ${apiKey()}` },
     body: {
       model: opts.model ?? modelId, temperature: 0, messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
       ...(opts.schema && { response_format: { type: 'json_schema', json_schema: { ...opts.schema, strict: true } } }),
+      ...(opts.reasoningEffort && { reasoning_effort: opts.reasoningEffort }),
     },
   }).catch((e) => { throw apiFailure(e) })
+  if (res.usage) opts.onUsage?.(res.usage)
   const text = res.choices?.[0]?.message?.content ?? ''
   try {
     return JSON.parse(text.slice(text.indexOf('{'), text.lastIndexOf('}') + 1))
@@ -290,8 +295,9 @@ Do not flag:
 - a reasonable reading of the passage with its context (who "he" is, where a scene happens, why someone acts);
 - design notes, codex entries, gameplay notes and lore documents: they are sources like any scene, and what they state is stated.
 If you are unsure, keep it; the person still reads every candidate. Judge only from the passage, its context and the canon given; never use outside knowledge. Each subject and object is a canonical entity name; names listed under "Same entity" refer to one entity.`
-export function critiqueCandidates(items: CriticItem[]) {
-  const asked = new Map(items.map(i => [i.id, { ...i, canon: new Set(i.canon.map(f => f.id)) }]))
+// reasoning: the reasoning_effort sent on live calls (criticReasoning in critic.ts); it and the tokens used go in the trace.
+export function critiqueCandidates(items: CriticItem[], reasoning: string) {
+  const asked = new Map(items.map(i => [i.id, { ...i, canon: new Set(i.canon.map(f => f.id)), text: [...i.before, i.passage, ...i.after].join('\n') }]))
   const canonLines = (facts: CriticItem['canon']) => facts.map(f => `[${f.id}] ${f.statement}\n  subject: ${f.subject}; predicate: ${f.predicate}; object: ${f.object ?? '-'}; time: ${f.time_label ?? '-'}`).join('\n')
   const input = items.map(i => [
     `[${i.id}] ${i.statement}`,
@@ -302,6 +308,7 @@ export function critiqueCandidates(items: CriticItem[]) {
   ].join('\n')).join('\n\n') + identityNotes(items.flatMap(i => [i, ...i.canon]))
   let dropped: string[] = []
   let softened = 0
+  let usage: ChatUsage | undefined
   const target = items.length === 1 ? { type: 'fact', id: items[0]!.id } : { type: 'batch', id: newId('crit') }
   return traced('critic', target, items.map(i => i.id), input, async (): Promise<CriticDraft[]> => {
     let raw: unknown
@@ -318,13 +325,13 @@ export function critiqueCandidates(items: CriticItem[]) {
         return o ? [{ ...o, id: i.id, statement: i.statement }] : []
       }))).flat()
     } else {
-      raw = (await chatJson(CRITIC_PROMPT, input, { schema: criticSchema(), model: criticModelId() })).opinions
+      raw = (await chatJson(CRITIC_PROMPT, input, { schema: criticSchema(), model: criticModelId(), reasoningEffort: reasoning, onUsage: (u) => { usage = u } })).opinions
     }
     const out = cleanOpinions(raw, asked)
     dropped = out.why
     softened = out.softened
     return out.kept
-  }, r => `${plural(r.length, 'opinion')} on ${plural(items.length, 'candidate')}${dropped.length ? ` (dropped ${dropped.length}: ${dropped.join(', ')})` : ''}${softened ? ` (${softened} wording-only edits read as keep)` : ''}`, criticModelId())
+  }, r => `${plural(r.length, 'opinion')} on ${plural(items.length, 'candidate')}${dropped.length ? ` (dropped ${dropped.length}: ${dropped.join(', ')})` : ''}${softened ? ` (${softened} wording-only edits read as keep)` : ''}${modelInfo().mode === 'mock' ? '' : ` · reasoning effort ${reasoning}${usage?.completion_tokens != null ? `, ${usage.completion_tokens} output tokens (${usage.completion_tokens_details?.reasoning_tokens ?? '?'} reasoning)` : ''}`}`, criticModelId())
 }
 
 // Muse Image via the OpenAI-style images endpoint. The success shape is not documented yet, so both data[].b64_json and

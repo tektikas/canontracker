@@ -169,7 +169,7 @@ create table if not exists model_calls (
 -- here changes a fact. One row per opinion, the newest per fact counts. verdict: keep | reject | needs_edit; reason: see
 -- shared/utils/review.ts; duplicate_of: a canon fact the Critic was shown; suggestion: JSON {statement, subject, predicate, object,
 -- time} for needs_edit (no quote: the quote stays the verified one). seen: the candidate's fingerprint when the Critic read it, so
--- an opinion on an older form of the candidate shows as such; canon_seen: a hash of the canon about its names then (a keep stops
+-- an opinion on an older form of the candidate shows as such; canon_seen: a hash of the canon that could repeat it then, same subject and object (a keep stops
 -- counting once that canon changes). A new table only, so an existing database gains it in place.
 create table if not exists critic_opinions (
   id text primary key, fact_id text not null, verdict text not null, reason text not null, duplicate_of text, explanation text not null,

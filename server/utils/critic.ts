@@ -7,12 +7,22 @@ import { createHash } from 'node:crypto'
 // Effort bounds the cost: candidates per model call and per run (NUXT_CRITIC_EFFORT = off | low | high). Small batches keep
 // each opinion about its own candidate (the model echoes the statement it judged; cleanOpinions drops a mismatch), and a flag
 // counts only when two more readings of that candidate alone, with the whole document, flag it too.
-const EFFORT: Record<string, { batch: number, max: number } | null> = { off: null, low: { batch: 5, max: 80 }, high: { batch: 3, max: 500 } }
+// reasoning: the reasoning_effort a batch reading sends (Muse reasons at "high" when none is sent); confirm: the one the few
+// second readings of a flag send. NUXT_CRITIC_REASONING_EFFORT overrides both (minimal | low | medium | high; "none" is
+// refused by the API with a json_schema, so it is ignored here).
+const EFFORT: Record<string, { batch: number, max: number, reasoning: string, confirm: string } | null> = {
+  off: null, low: { batch: 5, max: 80, reasoning: 'low', confirm: 'medium' }, high: { batch: 3, max: 500, reasoning: 'medium', confirm: 'high' },
+}
+const REASONING = ['minimal', 'low', 'medium', 'high']
 const CANON_PER_CANDIDATE = 8
 
 export function criticEffort() {
   const { criticEffort } = useRuntimeConfig()
   return EFFORT[criticEffort as string] === undefined ? EFFORT.low : EFFORT[criticEffort as string]
+}
+export function criticReasoning(effort: { reasoning: string, confirm: string }) {
+  const set = String(useRuntimeConfig().criticReasoningEffort ?? '')
+  return REASONING.includes(set) ? { batch: set, confirm: set } : { batch: effort.reasoning, confirm: effort.confirm }
 }
 
 type Listed = ReturnType<typeof listFacts>[number]
@@ -20,8 +30,10 @@ const shown = (f: Listed) => candidateFingerprint({ ...f, identity: identityOf(f
 
 type CanonRow = { id: string, statement: string, subject: string, predicate: string, object: string | null, time_label: string | null }
 // Accepted canon about a candidate's names (kept identities after merges): the closest few are what the Critic reads for
-// duplicates. `hash` covers all canon about those names, not just the shown few, so an opinion read before canon about them
-// changed (a fact accepted, superseded or merged in) no longer counts as a keep: the new canon may make it a duplicate.
+// duplicates. `hash` covers every canon fact that could repeat it, shown or not: those about exactly the candidate's names
+// (the same subject and object, either way round). An opinion read before that canon changed (a fact accepted, superseded or
+// merged in) no longer counts as a keep. Canon about other parties can't repeat it, so it doesn't count: accepting "Ves is
+// at Saltgate" or "Ves is a scout" leaves the keep on "Ves is at the Bell Gate" standing.
 function canonNear() {
   const kept = keptNameOf()
   const rows = useDb().prepare(`select id, statement, subject, predicate, object, time_label from facts where project_id = ? and status = 'canon' order by rowid`).all(pid()) as CanonRow[]
@@ -34,7 +46,9 @@ function canonNear() {
     const all = [...near.values()]
     // The closest first: the same names on both sides, then the same predicate.
     const score = (c: CanonRow) => (names.every(n => n === kept(c.subject) || n === kept(c.object)) ? 2 : 0) + (c.predicate === f.predicate ? 1 : 0)
-    const hash = createHash('sha256').update(JSON.stringify(all.map(c => [c.id, c.statement, c.subject, c.predicate, c.object, c.time_label]))).digest('hex')
+    const key = (n: string[]) => JSON.stringify([...new Set(n)].sort())
+    const could = all.filter(c => key([kept(c.subject), kept(c.object)].filter(Boolean)) === key(names))
+    const hash = createHash('sha256').update(JSON.stringify(could.map(c => [c.id, c.statement, c.subject, c.predicate, c.object, c.time_label]))).digest('hex')
     return { shown: all.toSorted((a, b) => score(b) - score(a)).slice(0, CANON_PER_CANDIDATE), hash }
   }
 }
@@ -76,6 +90,7 @@ export async function runCritic(factIds: string[]) {
 
   const modelId = criticModelId()
   const seen = new Map(batch.map(f => [f.id, shown(f)]))
+  const reasoning = criticReasoning(effort)
   let opinions = 0
   for (let i = 0; i < items.length; i += effort.batch) {
     // A batch reading sees a few paragraphs and is the noisier one, so a flag (reject or needs edit) must hold up on two more
@@ -83,8 +98,8 @@ export async function runCritic(factIds: string[]) {
     // a keep from either wins. Readings that fail or give nothing usable don't count; with none left, the first stands. Every
     // call is in model_calls. The person still reads every candidate either way.
     const drafts: CriticDraft[] = []
-    for (const d of await critiqueCandidates(items.slice(i, i + effort.batch))) {
-      const again = d.verdict === 'keep' ? [] : (await Promise.all([0, 1].map(() => critiqueCandidates([wide.get(d.fact_id)!()]).catch(() => [])))).flat()
+    for (const d of await critiqueCandidates(items.slice(i, i + effort.batch), reasoning.batch)) {
+      const again = d.verdict === 'keep' ? [] : (await Promise.all([0, 1].map(() => critiqueCandidates([wide.get(d.fact_id)!()], reasoning.confirm).catch(() => [])))).flat()
       drafts.push(again.find(o => o.verdict === 'keep') ?? again[0] ?? d)
     }
     const insert = db.prepare(`insert into critic_opinions (id, fact_id, verdict, reason, duplicate_of, explanation, suggestion, seen, canon_seen,

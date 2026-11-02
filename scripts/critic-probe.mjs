@@ -12,7 +12,7 @@
 // - A keep read before canon about its names changed (an equivalent fact accepted into canon) no longer counts as a keep.
 // - Edit & accept can correct story time (validated by the story-time parser); a bad time is refused and nothing changes.
 import assert from 'node:assert/strict'
-import { candidateFingerprint, cleanOpinions, WORDING_ONLY } from '../shared/utils/review.ts'
+import { candidateFingerprint, cleanOpinions, OTHER_PARTY, WORDING_ONLY } from '../shared/utils/review.ts'
 import { goldCheck } from './critic-gold.mjs'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
@@ -20,7 +20,7 @@ const run = Date.now().toString(36)
 const check = (label, actual, expected) => { assert.deepEqual(actual, expected, label); console.log(`ok  ${label} (${JSON.stringify(actual).slice(0, 80)})`) }
 
 // Offline: what survives cleaning.
-const cand = (statement, more = {}) => ({ statement, subject: 'Ves', predicate: 'located_at', object: 'Bell Gate', time_label: 'D3 14:00', canon: new Set(), ...more })
+const cand = (statement, more = {}) => ({ statement, subject: 'Ves', predicate: 'located_at', object: 'Bell Gate', time_label: 'D3 14:00', canon: new Set(), kind: 'event', text: 'At the Bell Gate, Ves waits. YSOLDE: Leave the bridge open. CORIN: The bridge closes.', ...more })
 const askedFor = new Map([
   ['f1', cand('Ves is at the Bell Gate at 14:00 on Day 3.', { canon: new Set(['c1']) })], ['f2', cand('F2.')], ['f3', cand('Ves is at Saltgate on Day 3.')],
   ['f4', cand('F4.')], ['f5', cand('The caravan carries salt.', { subject: 'Red Mule Caravan', predicate: 'carries', object: 'salt', time_label: null })], ['f6', cand('F6.')],
@@ -49,6 +49,11 @@ const timeOnly = cleanOpinions([{ id: 'f1', statement: st('f1'), verdict: 'needs
 check('clean: a time change alone is material', timeOnly.kept.map(o => [o.verdict, o.suggestion?.time]), [['needs_edit', '~ D3 14:00']])
 const sameTime = cleanOpinions([{ id: 'f1', statement: st('f1'), verdict: 'needs_edit', reason: 'ambiguous_time_place', explanation: 'Same.', suggestion: { statement: 'x', subject: 'Ves', predicate: 'located at', object: 'bell gate', time: 'D3 14:00' } }], askedFor)
 check('clean: the same fields written another way are no change', sameTime.kept.map(o => o.verdict), ['keep'])
+const refuses = (object, suggested) => cleanOpinions([{ id: 'f7', statement: 'Corin refuses to keep the bridge open.', verdict: 'needs_edit', reason: 'wrong_subject', explanation: 'Object should be the bridge.', suggestion: { statement: 'Corin refuses to keep the bridge open.', subject: 'Corin', predicate: 'refuses', object: suggested, time: 'D3 14:00' } }],
+  new Map([['f7', cand('Corin refuses to keep the bridge open.', { subject: 'Corin', predicate: 'refuses', object, kind: 'claim' })]])).kept.map(o => [o.verdict, o.explanation])
+check('clean: swapping the object for another party named in the passage is a keep', refuses('Ysolde', 'Cinder Bridge'), [['keep', OTHER_PARTY]])
+check('clean: … not when the candidate\'s object is not in the passage', refuses('Mara', 'Cinder Bridge')[0][0], 'needs_edit')
+check('clean: … nor for a place the conflict rules read (f3 above stayed needs edit)', cleaned.kept[1].verdict, 'needs_edit')
 check('clean: not an array → nothing', cleanOpinions({ opinions: "x" }, askedFor), { kept: [], dropped: 0, softened: 0, why: [] })
 
 function client() {
@@ -144,6 +149,8 @@ list = await pending()
 const dupNow = list.find(f => f.id === dupOf.id)
 check('… the old keep is still about this candidate but canon changed', [dupNow.critic.id, dupNow.critic.current, dupNow.critic.canon_changed], [dupOf.critic.id, true, true])
 check('… and no longer counts as a keep', keepsNow().some(f => f.id === dupOf.id), false)
+const other = list.find(f => f.id !== dupOf.id && f.subject === dupOf.subject && f.object && ![dupOf.subject, dupOf.object].includes(f.object) && f.critic?.verdict === 'keep' && f.critic.current)
+if (other) check('… a keep about the same subject and someone else still counts', other.critic.canon_changed, false)
 const staleSheet = await bulk([stale])
 check('a sheet opened before canon changed: 409, named', [staleSheet.status, staleSheet.data.data?.changed], [409, [dupOf.id]])
 check('the fresh sheet: skipped, not a keep any more', (await bulk([dupNow])).data.skipped, [{ id: dupOf.id, reason: 'critic_not_keep' }])
@@ -177,7 +184,7 @@ check('sending the same list again accepts nothing new', (await bulk(keepsNow())
 
 // Edit & accept corrects story time: validated by the story-time parser; sent only to change it.
 list = await pending()
-const retime = list.find(f => verified(f) && f.id !== sister.id)
+const retime = list.find(f => verified(f)) // by now only the Critic's reject is left; a person may still correct and accept it
 const review = body => a(`/api/facts/${retime.id}/review`, { method: 'POST', body: { decision: 'correct_and_accept', corrected: { statement: retime.statement, subject: retime.subject, predicate: retime.predicate, object: retime.object, ...body } } })
 check('a time that does not parse: 400, nothing accepted', [(await review({ time_from: 'teatime', time_to: '' })).status, (await pending()).some(f => f.id === retime.id)], [400, true])
 check('until before from: 400', (await review({ time_from: 'D3 14:00', time_to: 'D3 13:00' })).status, 400)

@@ -47,9 +47,9 @@ const by = {}
 for (const f of after) if (f.critic) by[`${f.critic.verdict}/${f.critic.reason}`] = (by[`${f.critic.verdict}/${f.critic.reason}`] ?? 0) + 1
 const opinions = after.filter(f => f.critic)
 const flagged = opinions.filter(f => f.critic.verdict !== 'keep')
-const softened = opinions.filter(f => f.critic.explanation.startsWith('Suggested a wording change only'))
+const softened = opinions.filter(f => /^Suggested (a wording change only|another party)/.test(f.critic.explanation))
 const calls = (await call(liveBase, '/api/model-calls')).filter(c => c.purpose === 'critic')
-console.log(`\nopinions: ${opinions.length}/${verified.length} verified candidates; flagged (reject or needs edit): ${flagged.length}; wording-only edits read as keep: ${softened.length}; total ${((Date.now() - started) / 1000).toFixed(0)} s`)
+console.log(`\nopinions: ${opinions.length}/${verified.length} verified candidates; flagged (reject or needs edit): ${flagged.length}; wording-only or other-party edits read as keep: ${softened.length}; total ${((Date.now() - started) / 1000).toFixed(0)} s`)
 console.log('by verdict/reason:', by)
 const recent = calls.filter(c => Date.parse(c.created_at) >= started && !c.model_id.startsWith('mock:'))
 if (recent.length) console.log(`critic calls: ${recent.length} (${recent.filter(c => c.status !== 'ok').length} failed), median ${recent.map(c => c.latency_ms).sort((a, b) => a - b)[recent.length >> 1]} ms`)
