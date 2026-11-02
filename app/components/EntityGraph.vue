@@ -72,6 +72,19 @@ const world = computed(() => {
 })
 
 // View: screen = world * k + (x, y). Node and text sizes stay in screen pixels, so zooming in spreads nodes and frees room.
+// kMin is the smallest scale at which no two circles overlap; below it (zoomed out) circles shrink with the scale instead.
+const kMin = computed(() => {
+  const ns = nodes.value.map(n => ({ r: n.r, ...(world.value.get(n.name) ?? { x: 0, y: 0 }) }))
+  let k = 0
+  for (let i = 0; i < ns.length; i++) {
+    for (let j = i + 1; j < ns.length; j++) {
+      const [a, b] = [ns[i]!, ns[j]!]
+      k = Math.max(k, (a.r + b.r + 6) / Math.max(1e-3, Math.hypot(a.x - b.x, a.y - b.y)))
+    }
+  }
+  return Math.min(3, k)
+})
+const shrink = computed(() => Math.min(1, view.k / Math.max(1e-3, kMin.value)))
 const box = ref<HTMLElement | null>(null)
 const W = ref(760)
 const H = ref(540)
@@ -86,6 +99,17 @@ function fit() {
   // Room on the right for the longest label, so the outermost names fit too.
   const right = 30 + Math.min(W.value * 0.2, Math.max(...nodes.value.map(n => labelW(n.name))))
   const k = Math.min(3, (W.value - 30 - right) / Math.max(1, x1 - x0), (H.value - 60) / Math.max(1, y1 - y0))
+  if (k < kMin.value) {
+    // The whole graph only fits if its circles overlap (phones, big projects): start at the smallest scale where they don't,
+    // centred on the focused or best-connected entity along each side the graph overflows. Drag or Find reaches the rest.
+    if (W.value < 560) H.value = 460
+    const c = world.value.get(focus.value ?? hubs.value[0]!.name)!
+    const m = kMin.value
+    const cx = (x1 - x0) * m > W.value - 40 ? c.x : (x0 + x1) / 2
+    const cy = (y1 - y0) * m > H.value - 40 ? c.y : (y0 + y1) / 2
+    Object.assign(view, { k: m, x: W.value / 2 - cx * m, y: H.value / 2 - cy * m })
+    return
+  }
   // On a phone the width decides the scale; the canvas then takes only the height the graph needs.
   if (W.value < 560) H.value = Math.round(Math.max(300, Math.min(460, (y1 - y0) * k + 80)))
   Object.assign(view, { k, x: 30 - x0 * k + (W.value - 30 - right - (x1 - x0) * k) / 2, y: H.value / 2 - ((y0 + y1) / 2) * k })
@@ -133,25 +157,34 @@ function select(name: string | null) {
 
 const placed = computed(() => {
   const pos = new Map(nodes.value.map(n => [n.name, screen(world.value.get(n.name) ?? { x: 0, y: 0 })]))
-  const ns = nodes.value.map(n => ({ ...n, ...pos.get(n.name)!, dim: !!lit.value && !lit.value.has(n.name) }))
+  const ns = nodes.value.map(n => ({ ...n, ...pos.get(n.name)!, r: n.r * shrink.value, dim: !!lit.value && !lit.value.has(n.name) }))
   const centre = hover.value ?? focus.value
   const es = edges.value.map(e => ({ ...e, A: pos.get(e.a)!, B: pos.get(e.b)!, dim: !!centre && e.a !== centre && e.b !== centre }))
   // Greedy labels: the focused entity and its neighbours first, then by number of links; a label that would overlap one already
-  // placed (or a node) is left out. Relationship labels show when they touch the focus, or when the graph is small.
+  // placed (or a node) is left out, except around the focus, which is always named. Relationship labels show when they touch
+  // the focus, or when the graph is small.
   const boxes: [number, number, number, number][] = ns.map(n => [n.x - n.r, n.y - n.r, n.x + n.r, n.y + n.r])
-  const free = (b: [number, number, number, number], skip = -1) => b[0] > 0 && b[2] < W.value && b[1] > 0 && b[3] < H.value
-    && !boxes.some((o, i) => i !== skip && b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1])
+  const inside = (b: [number, number, number, number]) => b[0] > 0 && b[2] < W.value && b[1] > 0 && b[3] < H.value
+  const hits = (b: [number, number, number, number], skip = -1) => boxes.filter((o, i) => i !== skip && b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]).length
+  const free = (b: [number, number, number, number], skip = -1) => inside(b) && !hits(b, skip)
   const order = ns.map((n, i) => i).sort((i, j) => Number(ns[i]!.dim) - Number(ns[j]!.dim) || Number(ns[j]!.name === centre) - Number(ns[i]!.name === centre) || ns[j]!.degree - ns[i]!.degree)
-  // A name goes right of its node, else left of it, else nowhere (its node still has a tooltip and the side list).
-  const labels = new Map<string, 'start' | 'end'>()
+  // A name goes right of its node, else left, below or above it, else nowhere (its node still has a tooltip and the side list).
+  type Label = { box: [number, number, number, number], x: number, y: number, anchor: 'start' | 'end' | 'middle' }
+  const labels = new Map<string, Label>()
   for (const i of order) {
     const n = ns[i]!
     if (n.dim) continue
     const w = labelW(n.name)
-    const right: [number, number, number, number] = [n.x + n.r + 3, n.y - 8, n.x + n.r + 3 + w, n.y + 8]
-    const left: [number, number, number, number] = [n.x - n.r - 3 - w, n.y - 8, n.x - n.r - 3, n.y + 8]
-    const side = free(right, i) ? 'start' : free(left, i) ? 'end' : n.name === centre ? 'start' : null
-    if (side) { boxes.push(side === 'start' ? right : left); labels.set(n.name, side) }
+    const spots: Label[] = [
+      { box: [n.x + n.r + 3, n.y - 8, n.x + n.r + 3 + w, n.y + 8], x: n.x + n.r + 4, y: n.y, anchor: 'start' },
+      { box: [n.x - n.r - 3 - w, n.y - 8, n.x - n.r - 3, n.y + 8], x: n.x - n.r - 4, y: n.y, anchor: 'end' },
+      { box: [n.x - w / 2, n.y + n.r + 2, n.x + w / 2, n.y + n.r + 18], x: n.x, y: n.y + n.r + 10, anchor: 'middle' },
+      { box: [n.x - w / 2, n.y - n.r - 18, n.x + w / 2, n.y - n.r - 2], x: n.x, y: n.y - n.r - 10, anchor: 'middle' },
+    ]
+    // Around the focus a name always shows: in the canvas if it can, where it covers the fewest others.
+    const forced = () => [...spots].sort((a, b) => Number(inside(b.box)) - Number(inside(a.box)) || hits(a.box, i) - hits(b.box, i))[0]
+    const spot = spots.find(s => free(s.box, i)) ?? (lit.value?.has(n.name) ? forced() : undefined)
+    if (spot) { boxes.push(spot.box); labels.set(n.name, spot) }
   }
   // A relationship label tries the middle of its line, then a third of the way from either end.
   const edgeLabels = es.filter(e => e.rel && !e.dim && (centre ? true : edges.value.length <= 24)).flatMap((e) => {
@@ -266,7 +299,7 @@ const summary = computed(() => `${counted(nodes.value.length, 'entity', 'entitie
             @mouseenter="hover = n.name" @mouseleave="hover = null" @focus="hover = n.name" @blur="hover = null"
           >
             <circle :cx="n.x" :cy="n.y" :r="n.r" />
-            <text v-if="placed.labels.has(n.name)" :x="placed.labels.get(n.name) === 'start' ? n.x + n.r + 4 : n.x - n.r - 4" :y="n.y" :text-anchor="placed.labels.get(n.name)" dominant-baseline="central">{{ n.name }}</text>
+            <text v-if="placed.labels.has(n.name)" :x="placed.labels.get(n.name)!.x" :y="placed.labels.get(n.name)!.y" :text-anchor="placed.labels.get(n.name)!.anchor" dominant-baseline="central">{{ n.name }}</text>
             <title>{{ n.name }}</title>
           </g>
           <text v-for="l in placed.edgeLabels" :key="`l${l.key}`" :x="l.x" :y="l.y" class="edge-label" text-anchor="middle" dominant-baseline="central">{{ l.label }}</text>
@@ -319,7 +352,7 @@ const summary = computed(() => `${counted(nodes.value.length, 'entity', 'entitie
 .legend li { display: inline-flex; align-items: center; gap: 6px; }
 .dot { flex: none; display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
 .legend .dot { margin: 0; }
-.l { display: inline-block; width: 22px; border-top: 1px solid var(--line-strong); }
+.l { display: inline-block; width: 22px; border-top: 1px solid var(--faint); }
 .l.rel { border-top: 2px solid var(--ink); opacity: .6; }
 .tools { display: flex; gap: var(--s-2); align-items: center; }
 .tools input { width: 180px; min-height: 34px; }
@@ -332,9 +365,10 @@ const summary = computed(() => `${counted(nodes.value.length, 'entity', 'entitie
 .canvas { min-width: 0; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--surface); overflow: hidden; }
 svg { display: block; width: 100%; height: auto; touch-action: none; cursor: grab; user-select: none; }
 svg:active { cursor: grabbing; }
-.edge { stroke: var(--line-strong); stroke-width: 1; }
-.edge.rel { stroke: var(--ink); stroke-opacity: .45; stroke-width: 1.75; }
-.edge.hot { stroke: var(--ink); stroke-opacity: .8; }
+/* Lines keep >= 3:1 against --surface in both themes: --faint (5.5:1 / 5.8:1), --ink at .6 (4.3:1 / 5.9:1). */
+.edge { stroke: var(--faint); stroke-width: 1; }
+.edge.rel { stroke: var(--ink); stroke-opacity: .6; stroke-width: 1.75; }
+.edge.hot { stroke: var(--ink); stroke-opacity: .9; }
 .edge.dim { stroke-opacity: .12; }
 .node { cursor: pointer; outline: none; }
 .node circle { fill: var(--tone); stroke: var(--surface); stroke-width: 1.5; }

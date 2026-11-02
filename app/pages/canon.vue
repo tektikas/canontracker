@@ -38,7 +38,11 @@ const kindF = ref('')
 const docF = ref('')
 const originF = ref<'' | 'people' | 'sample'>('')
 const hasSample = computed(() => (canon.value ?? []).some(f => f.origin === 'sample'))
-const docOf = (f: Fact) => f.evidence[0]?.document_title ?? 'No source'
+// A fact citing several documents is listed once: under the filtered document when there is one, else its first source,
+// and the row names how many more it cites.
+const docsOf = (f: Fact) => [...new Set(f.evidence.map((e: Ev) => e.document_title))]
+const docOf = (f: Fact) => (docF.value && docsOf(f).includes(docF.value) ? docF.value : docsOf(f)[0] ?? 'No source')
+const otherDocs = (f: Fact) => docsOf(f).filter(d => d !== docOf(f))
 const docs = computed(() => [...new Set((canon.value ?? []).flatMap(f => f.evidence.map((e: Ev) => e.document_title)))].sort())
 const filtering = computed(() => !!(filter.value || kindF.value || docF.value || originF.value))
 function clearFilters() {
@@ -218,6 +222,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
                 <UiBadge v-else-if="f.recheck === 'unchanged'" tone="warn">Source updated</UiBadge>
                 <UiBadge v-if="f.origin === 'sample'" tone="pencil" title="Sample canon (preloaded): its quote is verified, but no person reviewed or decided it.">Sample</UiBadge>
                 <span v-if="groupBy !== 'document'" class="src faint small">{{ docOf(f) }}</span>
+                <span v-if="otherDocs(f).length" class="more-src faint small" :title="`Also cites ${otherDocs(f).join(', ')}`">+{{ counted(otherDocs(f).length, 'more source') }}</span>
               </span>
             </button>
             <div v-if="open.has(f.id)" class="more">
@@ -310,6 +315,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 .text { flex: 1 1 auto; min-width: 0; font-family: var(--font-story); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .open .text { white-space: normal; }
 .flags { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.more-src { white-space: nowrap; }
 .src { max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .more { display: grid; gap: var(--s-3); padding: 0 var(--s-4) var(--s-4) calc(var(--s-3) + 22px); }
 .more > .row:empty { display: none; }
@@ -326,7 +332,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
   .kb { order: 1; margin-left: 22px; } /* phones: statement first, its badges on the line below */
   .flags { order: 2; flex-wrap: wrap; }
   .line:not(:has(.kb)) .flags { padding-left: 22px; }
-  .flags:not(:has(.chip)) { display: none; }
+  .flags:not(:has(.chip, .more-src)) { display: none; }
   .src { display: none; }
   .more { padding-left: var(--s-3); }
   .filter select { flex: 1 1 140px; max-width: none; min-height: 44px; }
