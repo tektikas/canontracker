@@ -391,7 +391,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
     </UiPanel>
   </div>
 
-  <UiDialog v-model:open="bulkOpen" wide :title="`Accept ${counted(bulkShown.length, 'verified candidate')}?`">
+  <UiDialog v-model:open="bulkOpen" wide :title="`Accept ${counted(bulkShown.length, 'verified candidate')}?`" @submit="acceptAll">
     <p>Each one becomes canon with your name on it in the audit log. Every quote below appears word for word in its source.
       <template v-if="bulkBlocked"> {{ counted(bulkBlocked, 'blocked candidate') }} (quote not found) {{ bulkBlocked === 1 ? 'stays' : 'stay' }} in the queue.</template>
       Read the list first; anything you’re unsure of, close this and decide it on its own.</p>
@@ -421,7 +421,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
     <p v-if="bulkError" class="notice bad" role="alert">{{ bulkError }}</p>
     <template #actions>
       <UiButton variant="ghost" @click="bulkOpen = false">Cancel</UiButton>
-      <UiButton variant="primary" icon="check" :loading="bulkBusy" :disabled="!bulkShown.length" @click="acceptAll">Accept {{ bulkShown.length }} into canon</UiButton>
+      <UiButton variant="primary" type="submit" icon="check" :loading="bulkBusy" :disabled="!bulkShown.length">Accept {{ bulkShown.length }} into canon<UiSendKey /></UiButton>
     </template>
   </UiDialog>
 
