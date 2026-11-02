@@ -8,6 +8,7 @@ const { data: e, error: loadError, refresh } = await useFetch(() => `/api/entiti
 // The image history (uploads and generated together) for the Images tab and its count.
 const { data: gallery, refresh: refreshImages } = await useFetch('/api/images', { query: computed(() => ({ target_type: 'entity', target_id: String(route.params.id) })) })
 useHead(() => ({ title: `${e.value?.name ?? 'Entity'} · Story Bible` }))
+useChatContext(() => (e.value ? [{ type: 'entity' as const, id: e.value.id, label: e.value.name }] : []))
 const editable = computed(() => canEdit(me.value))
 const manager = computed(() => canManage(me.value))
 const { data: types } = await useEntityTypes()

@@ -168,6 +168,23 @@ create table if not exists model_calls (
 create table if not exists eval_runs (
   id text primary key, dataset text not null, model_id text not null, results text not null, created_at text not null, project_id text not null
 );
+-- Ask: team conversations. Every member of the project reads every conversation and may post in any (viewers too: they can
+-- ask). mode: the mode the last message used (the switch's default). Titles start as the first question and are editable.
+-- A new table only, so an existing database gains it in place (create if not exists) without a version bump.
+create table if not exists conversations (
+  id text primary key, title text not null, mode text not null, created_by text not null, created_at text not null,
+  updated_by text not null, updated_at text not null, project_id text not null
+);
+-- One row per message. role: user | assistant. author_id: who wrote it (a user message) or whose question it answers (an
+-- assistant message). mode: canon | research. text: plain text (search, history). parts: JSON, see server/utils/conversations.ts
+-- (text, a canon answer with fact ids, a research answer with note ids, a follow-up question, an error). context: the chips the
+-- author attached (resolved on the server). reply_to: the user message an answer answers, or the follow-up a reply continues.
+create table if not exists messages (
+  id text primary key, conversation_id text not null, role text not null, author_id text not null, mode text not null,
+  text text not null, parts text not null, context text not null default '[]', reply_to text, created_at text not null, project_id text not null
+);
+create index if not exists conversations_project on conversations(project_id, updated_at);
+create index if not exists messages_conversation on messages(conversation_id);
 create index if not exists facts_project on facts(project_id, status);
 create index if not exists evidence_fact on evidence(fact_id);
 create index if not exists passages_document on passages(document_id);
@@ -332,7 +349,7 @@ export function audit(eventType: string, targetType: string, targetId: string, d
 // the caller appends a project.reset event, and events before it whose target was cleared read as removed (listAudit).
 export function resetData() {
   tx(() => {
-    for (const t of ['document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['messages', 'conversations', 'document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })

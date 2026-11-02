@@ -43,6 +43,7 @@ const ctx = {
   useHead() {}, useRoute: () => ({ query: {} }), useRouter: () => ({ replace() {} }), useMe: () => vue.ref(me), canEdit: () => true,
   onMounted() {}, onBeforeUnmount() {}, onBeforeRouteLeave(fn) { guard = fn }, askConfirm: async () => { confirms++; return answer },
   errorMessage: e => e.message, navigateTo() {}, refreshNuxtData() {},
+  useChat: () => vue.ref({ tick: 0, dock: null }), useChatDock() {}, useChatContext() {}, openChat() {}, // the chat panel: not under test
   localStorage: { getItem: () => null, setItem() {} },
   document: { fullscreenElement: null, addEventListener() {}, removeEventListener() {} },
   window: { addEventListener() {}, removeEventListener() {}, visualViewport: null },

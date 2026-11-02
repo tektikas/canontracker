@@ -30,6 +30,9 @@
   --warn-soft: #f5e9cb;
   --bad: #b5382a;
   --bad-soft: #f8e0db;
+  /* Research: outside sources, never canon (Ask's research answers) */
+  --research: #6a3d9a;
+  --research-soft: #ede4f6;
 
   /* Type */
   --font-ui: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
@@ -101,6 +104,8 @@
     --warn-soft: #2e2512;
     --bad: #ee8b77;
     --bad-soft: #351a16;
+    --research: #c3a3ea;
+    --research-soft: #261d33;
     --elev-overlay: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
     color-scheme: dark;
   }
@@ -129,6 +134,8 @@
     --warn-soft: #2e2512;
     --bad: #ee8b77;
     --bad-soft: #351a16;
+    --research: #c3a3ea;
+    --research-soft: #261d33;
     --elev-overlay: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
     color-scheme: dark;
   }
@@ -232,14 +239,14 @@ code, .mono { font-family: var(--font-code); font-size: 0.85em; }
   .sidebar .icon-btn { display: none; }
 }
 
-/* Phones: bottom nav with the five core sections. --bottom-nav-h lets fixed and sticky things sit above it. */
+/* Phones: bottom nav with the core sections and Ask. --bottom-nav-h lets fixed and sticky things sit above it. */
 :root { --bottom-nav-h: 0px; }
 .bottom-nav { display: none; }
 @media (max-width: 720px) {
   :root { --bottom-nav-h: calc(56px + env(safe-area-inset-bottom, 0px)); }
   .shell { padding-bottom: calc(var(--s-7) + var(--bottom-nav-h)); }
   .bottom-nav {
-    display: grid; grid-template-columns: repeat(5, 1fr);
+    display: grid; grid-template-columns: repeat(6, 1fr);
     position: fixed; left: 0; right: 0; bottom: 0; z-index: 25;
     height: var(--bottom-nav-h); padding: 0 env(safe-area-inset-right, 0px) env(safe-area-inset-bottom, 0px) env(safe-area-inset-left, 0px);
     background: color-mix(in srgb, var(--surface) 94%, transparent); backdrop-filter: blur(10px);
