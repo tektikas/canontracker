@@ -53,6 +53,13 @@ const reextract = async (filename) => {
   assert.equal(r.status, 200)
   return r
 }
+const upload = async (name, text) => {
+  const f = new FormData()
+  f.append('files', new Blob([text], { type: 'text/markdown' }), name)
+  const r = await a('/api/documents', { method: 'POST', form: f })
+  assert.equal(r.status, 200)
+  return r.data.results?.[0] ?? r.data[0] ?? r.data
+}
 await a('/api/conflicts/scan', { method: 'POST' })
 let canon = (await a('/api/facts?status=canon')).data
 const atCauseway = canon.find(f => f.predicate === 'located_at' && f.object === 'Causeway')
@@ -202,6 +209,39 @@ check('no canon fact names Old Archive or Market Row', canon.filter(f => names(f
 check('a merged-away name cannot be reused as a page', (await a('/api/entities', { method: 'POST', body: { name: 'Lighthouse', kind: 'location' } })).status, 409)
 check('the kept page may take it back as an alias', (await a(`/api/entities/${market.id}`, { method: 'PATCH', body: { aliases: ['Lighthouse'] } })).status, 200)
 
+// 4. A new version imported after merges and aliases exist (lead c50r2 #1). A pending candidate on S10 still names the
+// merged-away "Lighthouse"; v2 edits another cited sentence and adds a line. The edited text has no recorded output, the
+// pending citation follows v2, the merge mapping still applies (not the page title or the hand alias), and the c32 re-check
+// marks exactly the canon facts whose quote is gone as outdated.
+const s10v1 = (await a('/api/documents')).data.find(d => d.filename === 'S10.md')
+const s10text = (await a(`/api/documents/${s10v1.id}`)).data.content
+const pendQuote = 'Mara\'s fiancé, Arin, opens the door at 10:00 on Day 3 and hands over the leather pouch.'
+const pend = (await a('/api/facts', { method: 'POST', body: { to: 'review', document_id: s10v1.id, quote: pendQuote, kind: 'event', subject: 'Arin', predicate: 'opens_door_at', object: 'Lighthouse', statement: `Arin opens the Lighthouse door on Day 3 (${run}).` } })).data
+check('pending candidate naming Lighthouse on S10 v1', `${pend.status} ${pend.object}`, 'pending Lighthouse')
+const s10canon = (await a('/api/facts?status=canon')).data.filter(f => f.evidence.some(e => e.document_id === s10v1.id))
+const editQuote = s10canon.map(f => f.evidence[0].quote).find(q => q !== pendQuote && !q.includes(pendQuote) && !pendQuote.includes(q))
+assert.ok(editQuote, 'S10 has a second cited sentence to edit')
+const s10v2text = `${s10text.replace(editQuote, `${editQuote.slice(0, 20)} (revised)${editQuote.slice(20)}`)}\n\nRevised draft.\n`
+const count = (t, q) => t.split(q).length - 1
+const pendingOnS10 = (await a('/api/facts?status=pending')).data.filter(f => f.evidence.some(e => e.document_id === s10v1.id && e.verified))
+const s10v2 = await upload('S10.md', s10v2text)
+check('S10 v2 imported after the merges', `${s10v2.status} v${s10v2.version}`, 'imported v2')
+check('edited text gets no recorded candidates', `${s10v2.candidates}/${s10v2.skipped}`, '0/0')
+check('the upload says how many pending candidates now cite v2', s10v2.evidence_moved, pendingOnS10.filter(f => count(s10v2text, f.evidence[0].quote) === 1).length)
+const pendNow = (await a('/api/facts?status=pending')).data.find(f => f.id === pend.id)
+check('the pending citation moved to v2, still verified', `${pendNow.evidence[0].document_id} ${pendNow.evidence[0].verified}`, `${s10v2.document_id} 1`)
+check('the pending candidate still maps Lighthouse to the identity fixed at merge', pendNow.identity.map(i => `${i.from}->${i.to}`).join(), 'Lighthouse->Salt Market')
+const recheck = new Map((await a('/api/facts?status=canon')).data.filter(f => s10canon.some(x => x.id === f.id)).map(f => [f.id, f.recheck]))
+const wantOutdated = s10canon.filter(f => f.evidence.some(e => count(s10v2text, e.quote) === 0)).map(f => f.id).sort()
+check('re-check: outdated are exactly the facts whose quote is gone', [...recheck].filter(([, r]) => r === 'outdated').map(([id]) => id).sort().join(), wantOutdated.join())
+check('re-check: every other S10 fact unchanged', [...recheck].filter(([id]) => !wantOutdated.includes(id)).every(([, r]) => r === 'unchanged'), true)
+check('some S10 facts on each side', wantOutdated.length > 0 && wantOutdated.length < s10canon.length, true)
+check('accept the re-pinned candidate', (await a(`/api/facts/${pend.id}/review`, { method: 'POST', body: { decision: 'accept' } })).status, 200)
+const pendSaved = (await a('/api/facts?status=canon')).data.find(f => f.id === pend.id)
+check('saved under the merged identity, not the title or the alias', `${pendSaved.object} ${pendSaved.evidence[0].document_id}`, `Salt Market ${s10v2.document_id}`)
+check('no page re-filed for Lighthouse after the new version', (await a('/api/entities')).data.some(e => e.name === 'Lighthouse'), false)
+check('no canon fact names a merged-away name', (await a('/api/facts?status=canon')).data.filter(f => names(f).some(n => ['Lighthouse', 'Causeway', 'Old Archive'].includes(n))).length, 0)
+
 // 5. Medium must be a real key.
 for (const bad of ['constructor', 'toString', '__proto__', 'hasOwnProperty'])
   check(`medium "${bad}" refused`, (await a(`/api/projects/${project.id}`, { method: 'PATCH', body: { medium: bad } })).status, 400)
@@ -213,13 +253,6 @@ check('unknown field "constructor" refused', (await a(`/api/entities/${market.id
 // candidate (same names, same bounds) must still come; re-extracting S06 (same precision) collapses.
 const s06text = (await a(`/api/documents/${(await a('/api/documents')).data.find(d => d.filename === 'S06.md').id}`)).data.content
 await a('/api/projects', { method: 'POST', body: { name: 'Precision Probe', studio_id: studio.id } })
-const upload = async (name, text) => {
-  const f = new FormData()
-  f.append('files', new Blob([text], { type: 'text/markdown' }), name)
-  const r = await a('/api/documents', { method: 'POST', form: f })
-  assert.equal(r.status, 200)
-  return r.data.results?.[0] ?? r.data[0] ?? r.data
-}
 const quote = 'From 21:30 to 22:30 on Day 1, Arin keeps the lamp lit at the Lighthouse and never leaves the gallery.'
 await upload('Scratch.md', `# Scratch\n\n${quote}\n`)
 const scratchDoc = (await a('/api/documents')).data.find(d => d.filename === 'Scratch.md')
@@ -229,4 +262,8 @@ const exactNew = (await a('/api/facts?status=pending')).data.filter(f => f.predi
 check('exact candidate kept next to the approximate fact (same bounds)', `${exactNew.length}/${exactNew[0]?.precision}`, '1/exact')
 await reextract('S06.md')
 check('same precision collapses on re-extract', (await a('/api/facts?status=pending')).data.filter(f => f.predicate === 'located_at' && f.object === 'Lighthouse').length, 1)
+const s06v2 = await upload('S06.md', `${s06text}\nRevised draft.\n`)
+check('S06 v2 (edited text): no recorded candidates, the exact candidate follows it', `v${s06v2.version} ${s06v2.candidates} ${s06v2.evidence_moved}`, `v2 0 ${(await a('/api/facts?status=pending')).data.filter(f => f.evidence.some(e => e.document_filename === 'S06.md' && e.verified)).length}`)
+const exactV2 = (await a('/api/facts?status=pending')).data.filter(f => f.predicate === 'located_at' && f.object === 'Lighthouse')
+check('still one exact candidate, now citing v2', `${exactV2.length} ${exactV2[0].precision} ${exactV2[0].evidence[0].document_id}`, `1 exact ${s06v2.document_id}`)
 console.log('all checks passed')

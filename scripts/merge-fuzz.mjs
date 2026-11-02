@@ -1,7 +1,7 @@
 // Seeded random merge-identity sequence against a running server:
 //   node scripts/merge-fuzz.mjs <baseUrl> <path to the server's .data/storybible.db> [seed] [steps] [--uncapped]
 // Loads the demo into a throwaway account, then creates/deletes pages by hand, renames pages, adds/removes aliases, merges,
-// re-extracts scenes and accepts candidates in random order. --uncapped lets merges run until one page is left (by default
+// re-imports edited scenes, re-extracts scenes and accepts candidates in random order. --uncapped lets merges run until one page is left (by default
 // they stop at 5). After every step it asserts that analysis follows the merge decisions and nothing else:
 // canon never names a merged-away name, every mapping is terminal (its target is a live entity's analysis name, or a
 // canonical name whose page was deleted, which then stays as it is until a merge moves it), analysis names never change,
@@ -40,8 +40,9 @@ assert.equal((await api('/api/auth/signup', { method: 'POST', body: { name: 'Fuz
 const studio = (await api('/api/studios', { method: 'POST', body: { name: 'Fuzz Studio' } })).data
 const project = (await api('/api/projects', { method: 'POST', body: { name: 'Merge Fuzz', studio_id: studio.id } })).data
 ok(await api('/api/demo/load', { method: 'POST' }), 'demo load')
+// S06 and S10 candidates stay pending, so accepts and the pending re-pin on a new version have something to work on.
 for (const f of (await api('/api/facts?status=pending')).data)
-  if (f.evidence.some(e => e.verified)) ok(await api(`/api/facts/${f.id}/review`, { method: 'POST', body: { decision: 'accept' } }), 'accept')
+  if (f.evidence.some(e => e.verified) && !f.evidence.some(e => /^S(06|10)\.md$/.test(e.document_filename))) ok(await api(`/api/facts/${f.id}/review`, { method: 'POST', body: { decision: 'accept' } }), 'accept')
 const travel = (await api('/api/facts?status=canon')).data.find(f => f.predicate === 'travel_time')
 assert.ok(travel, 'demo has a travel rule')
 const change = ok(await api('/api/changes', { method: 'POST', body: { target_fact_id: travel.id, proposed_statement: 'The trip takes an hour.', rationale: 'fuzz' } }), 'proposal').data
@@ -141,7 +142,31 @@ const actions = {
     const dst = pick(ents.filter(e => e.id !== src.id))
     return ok(await api(`/api/entities/${src.id}/merge`, { method: 'POST', body: { into: dst.id } }), `merge ${src.name} → ${dst.name}`, [200, 409])
   },
-  // Recorded output replays only for the sample's own text, so candidates come back by re-extracting an unchanged scene.
+  // A new version of a scene, edited, after merges and aliases exist. Recorded output belongs to the sample's own text only,
+  // so the edited version proposes nothing; its pending citations follow it where the quote is still there once.
+  async reimport() {
+    const docs = (await api('/api/documents')).data.filter(d => /^S\d+\.md$/.test(d.filename))
+    const doc = rand() < 0.6 ? docs.find(d => d.filename === 'S06.md') : pick(docs)
+    const content = (await api(`/api/documents/${doc.id}`)).data.content
+    const text = `${content}\n\nDraft ${Math.floor(rand() * 1e6)}.\n`
+    const onDoc = (await api('/api/facts?status=pending')).data.filter(f => f.evidence.some(e => e.document_id === doc.id && e.verified))
+    const form = new FormData()
+    form.append('files', new Blob([text], { type: 'text/markdown' }), doc.filename)
+    const r = ok(await api('/api/documents', { method: 'POST', form }), `reimport ${doc.filename}`)
+    const up = r.data.results[0]
+    assert.equal(up.version, doc.version + 1, `reimport ${doc.filename}: version`)
+    assert.equal(up.candidates, 0, `reimport ${doc.filename}: edited text got recorded candidates`)
+    // The text only grew, so every pending citation on the old version follows it (subject/object untouched).
+    assert.equal(up.evidence_moved, onDoc.length, `reimport ${doc.filename}: pending citations moved`)
+    const now = new Map((await api('/api/facts?status=pending')).data.map(f => [f.id, f]))
+    for (const f of onDoc) {
+      const g = now.get(f.id)
+      assert.ok(g && g.evidence.every(e => e.document_id === up.document_id && e.verified), `reimport ${doc.filename}: ${f.id} still cites v${doc.version}`)
+      assert.deepEqual([g.subject, g.object], [f.subject, f.object], `reimport ${doc.filename}: ${f.id} names changed`)
+    }
+    return r
+  },
+  // Candidates come back by re-extracting a scene (recorded output only while it still holds the sample's text).
   async reextract() {
     const docs = (await api('/api/documents')).data.filter(d => /^S\d+\.md$/.test(d.filename))
     const doc = rand() < 0.6 ? docs.find(d => d.filename === 'S06.md') : pick(docs)
@@ -154,7 +179,7 @@ const actions = {
     return ok(await api(`/api/facts/${f.id}/review`, { method: 'POST', body: { decision: 'accept' } }), `accept ${f.statement}`)
   },
 }
-const weights = [['rename', 3], ['addAlias', 2], ['removeAlias', 2], ['create', 2], ['remove', 2], ['merge', 3], ['reextract', 2], ['accept', 3]]
+const weights = [['rename', 3], ['addAlias', 2], ['removeAlias', 2], ['create', 2], ['remove', 2], ['merge', 3], ['reimport', 2], ['reextract', 2], ['accept', 3]]
 const total = weights.reduce((a, [, w]) => a + w, 0)
 
 let step = 0
