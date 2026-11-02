@@ -14,6 +14,9 @@ const MAX_DECLARED = 64_000_000 // all entries together, as the zip declares the
 const MAX_PART = 8_000_000 // one XML part we inflate
 const MAX_READ = 16_000_000 // every part we inflate, together
 const MAX_DEPTH = 256 // XML nesting
+const MAX_OPEN = 1000 // comment ranges open at once
+const MAX_QUOTE = 2000 // characters of commented text kept per comment
+const MAX_TEXT = 1_000_000 // converted text: the most a .md upload can hold
 
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
@@ -32,7 +35,7 @@ function readZip(buf: Buffer) {
   const count = buf.readUInt16LE(eocd + 10), cdSize = buf.readUInt32LE(eocd + 12), cdOffset = buf.readUInt32LE(eocd + 16)
   if (count === 0xFFFF || cdOffset === 0xFFFFFFFF || cdOffset + cdSize > eocd) throw invalid()
   if (count > MAX_ENTRIES) throw invalid(`This Word file holds more than ${MAX_ENTRIES} parts; it is not imported.`)
-  const entries = new Map<string, { flags: number, method: number, crc: number, size: number, csize: number, offset: number, name: Buffer }>()
+  const entries = new Map<string, { method: number, crc: number, size: number, csize: number, start: number }>()
   let at = cdOffset, declared = 0
   for (let n = 0; n < count; n++) {
     if (at + 46 > eocd || buf.readUInt32LE(at) !== 0x02014B50) throw invalid()
@@ -48,24 +51,24 @@ function readZip(buf: Buffer) {
     const name = raw.toString('utf8')
     // Two entries under one name: which one a reader takes differs between readers, so the file is refused.
     if (entries.has(name)) throw invalid('This Word file lists the same part twice; it is not imported.')
-    entries.set(name, { flags, method, crc, size, csize, offset, name: raw })
+    // The local header must agree with the central directory for every entry, read or not: name, encryption, method, and
+    // sizes (a data descriptor, flag bit 3, may leave the local sizes zero). Headers only, nothing is inflated here.
+    if (offset + 30 > buf.length || buf.readUInt32LE(offset) !== 0x04034B50) throw invalid()
+    const lflags = buf.readUInt16LE(offset + 6), lmethod = buf.readUInt16LE(offset + 8)
+    const lcsize = buf.readUInt32LE(offset + 18), lsize = buf.readUInt32LE(offset + 22), lnameLen = buf.readUInt16LE(offset + 26)
+    const start = offset + 30 + lnameLen + buf.readUInt16LE(offset + 28)
+    if (start + csize > buf.length) throw invalid()
+    const sizesOk = (lcsize === csize && lsize === size) || (lflags & 8 && lcsize === 0 && lsize === 0)
+    if ((lflags & 0x49) !== (flags & 0x49) || lmethod !== method || !sizesOk || !buf.subarray(offset + 30, offset + 30 + lnameLen).equals(raw))
+      throw invalid('This Word file is inconsistent inside (its parts are listed differently in two places); it is not imported.')
+    entries.set(name, { method, crc, size, csize, start })
     at += 46 + skip
   }
   let budget = MAX_READ
   const read = (name: string) => {
     const e = entries.get(name)
     if (!e) return null
-    if (e.offset + 30 > buf.length || buf.readUInt32LE(e.offset) !== 0x04034B50) throw invalid()
-    // The local header must agree with the central directory: name, encryption, method, and sizes (a data descriptor, flag
-    // bit 3, may leave the local sizes zero).
-    const lflags = buf.readUInt16LE(e.offset + 6), lmethod = buf.readUInt16LE(e.offset + 8)
-    const lcsize = buf.readUInt32LE(e.offset + 18), lsize = buf.readUInt32LE(e.offset + 22), lnameLen = buf.readUInt16LE(e.offset + 26)
-    const start = e.offset + 30 + lnameLen + buf.readUInt16LE(e.offset + 28)
-    if (start + e.csize > buf.length) throw invalid()
-    const sizesOk = (lcsize === e.csize && lsize === e.size) || (lflags & 8 && lcsize === 0 && lsize === 0)
-    if ((lflags & 0x49) !== (e.flags & 0x49) || lmethod !== e.method || !sizesOk || !buf.subarray(e.offset + 30, e.offset + 30 + lnameLen).equals(e.name))
-      throw invalid('This Word file is inconsistent inside (its parts are listed differently in two places); it is not imported.')
-    const raw = buf.subarray(start, start + e.csize)
+    const raw = buf.subarray(e.start, e.start + e.csize)
     const cap = Math.min(MAX_PART, budget)
     if (e.size > cap) throw invalid('A part of this Word file is too large once unpacked; it is not imported.')
     let out: Buffer
@@ -182,23 +185,35 @@ export function docxToText(buf: Buffer): { text: string, comments: WordComment[]
   const noteNo = new Map<string, number>()
   const noteParts = { footnoteReference: part('footnotes.xml'), endnoteReference: part('endnotes.xml') }
   const blocks: string[] = []
-  const open = new Map<string, { block: number, text: string, live: boolean }>()
+  // Comment ranges, linear in the document: every commented character is appended once to `tracked`, and a range keeps only
+  // its start and end offsets in it. Only ranges of comments that exist are tracked; no comments part, nothing is.
+  const cRoot = part('comments.xml')
+  const cEls = cRoot ? els(find(cRoot, 'comments')).filter(x => x.name === 'comment') : []
+  const commentIds = new Set(cEls.map(c => c.attrs.id ?? ''))
+  const ranges = new Map<string, { block: number, start: number, end: number }>()
+  const live = new Set<string>()
+  let tracked = ''
 
   type Seg = { t: string, b: boolean, i: boolean }
   // Inline content of a paragraph (runs, insertions, links, fields, content controls). `track`: record commented text.
   function inline(e: El, segs: Seg[], track: boolean) {
     for (const k of els(e)) {
       if (SKIP.has(k.name)) continue
-      if (k.name === 'commentRangeStart' && track) open.set(k.attrs.id ?? '', { block: blocks.length, text: '', live: true })
-      else if (k.name === 'commentRangeEnd' && track) {
-        const c = open.get(k.attrs.id ?? '')
-        if (c) c.live = false
+      if (k.name === 'commentRangeStart' && track) {
+        const id = k.attrs.id ?? ''
+        if (!commentIds.has(id)) continue
+        ranges.set(id, { block: blocks.length, start: tracked.length, end: tracked.length })
+        live.add(id)
+        if (live.size > MAX_OPEN) throw invalid(`This Word file opens more than ${MAX_OPEN} comments at once; it is not imported.`)
+      } else if (k.name === 'commentRangeEnd' && track) {
+        const id = k.attrs.id ?? ''
+        if (live.delete(id)) ranges.get(id)!.end = tracked.length
       } else if (k.name === 'r') {
         const rPr = child(k, 'rPr')
         const fmt = { b: on(child(rPr, 'b')), i: on(child(rPr, 'i')) }
         const push = (t: string, text = true) => {
           segs.push({ t, ...fmt })
-          if (text && track) for (const c of open.values()) if (c.live) c.text += t
+          if (text && track && live.size) tracked += t
         }
         for (const x of els(k)) {
           if (x.name === 't') push(x.kids.filter(s => typeof s === 'string').join(''))
@@ -246,7 +261,10 @@ export function docxToText(buf: Buffer): { text: string, comments: WordComment[]
     const numPr = chain.map(x => child(x, 'numPr')).find(Boolean)
     const segs: Seg[] = []
     inline(p, segs, track)
-    if (track) for (const c of open.values()) if (c.block === blocks.length) c.live = false // a comment's quote stays in its first paragraph
+    if (track) { // a comment's quote stays in its first paragraph
+      for (const id of live) ranges.get(id)!.end = tracked.length
+      live.clear()
+    }
     let text = render(segs, plain || level > 0).replace(/[ \t]*\n\s*/g, '\n').trim()
     if (!text) return
     if (plain) return out.push(text)
@@ -280,19 +298,19 @@ export function docxToText(buf: Buffer): { text: string, comments: WordComment[]
   }
   walk(body, blocks, true)
   if (notes.length) blocks.push('# Notes', ...notes)
+  if (blocks.reduce((n, b) => n + b.length + 2, 0) > MAX_TEXT) throw invalid('This Word file holds more than 1 MB of text; it is not imported. Split it into smaller files.')
 
   // Comments: where the commented words start (line of their paragraph) and the words themselves.
   const starts: number[] = []
   blocks.reduce((line, b) => (starts.push(line), line + b.split('\n').length + 1), 1)
-  const cRoot = part('comments.xml')
   const comments: WordComment[] = []
-  for (const c of cRoot ? els(find(cRoot, 'comments')).filter(x => x.name === 'comment') : []) {
-    const at = open.get(c.attrs.id ?? '')
+  for (const c of cEls) {
+    const at = ranges.get(c.attrs.id ?? '')
     if (!at || at.block >= blocks.length) continue
     const out: string[] = []
     walk(c, out, false, true)
     const text = out.join('\n').trim()
-    if (text) comments.push({ line: starts[at.block]!, quote: at.text.replace(/\s+/g, ' ').trim(), author: c.attrs.author?.trim() || 'unknown', text })
+    if (text) comments.push({ line: starts[at.block]!, quote: tracked.slice(at.start, Math.min(at.end, at.start + MAX_QUOTE)).replace(/\s+/g, ' ').trim(), author: c.attrs.author?.trim() || 'unknown', text })
   }
   return { text: blocks.length ? `${blocks.join('\n\n')}\n` : '', comments }
 }

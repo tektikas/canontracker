@@ -4,7 +4,9 @@
 // same hash); the original .docx is served byte for byte and only inside its project; a Word comment becomes a note by the
 // uploader; v2 with one changed sentence flags only the fact citing it; zip bombs, too many parts, encrypted, macro-enabled,
 // old .doc, wrong MIME and damaged files are refused with 415/422 and nothing is stored; so are invalid or undeclared XML
-// entities, a DOCTYPE, duplicate zip entries, a local header that disagrees with the central directory and a wrong checksum.
+// entities, a DOCTYPE, duplicate zip entries, a local header that disagrees with the central directory (for any entry, read or
+// not), a wrong checksum, more than 1,000 comment ranges open at once and more than 1 MB of converted text. Comment ranges
+// cost linear time: 10,000 ranges import in under 200 ms, 1,000 comments (also across bold marks) in under 3 s.
 // The original is written before the import commits: with the project's originals folder read-only, the upload fails, stores
 // nothing, and the retry imports (needs the server's cwd to reach .data/originals).
 import assert from 'node:assert/strict'
@@ -236,7 +238,33 @@ await refused('a local encrypted flag under a clear central one refused', 'lflag
 await refused('a local compression method unlike the central one refused', 'lmethod.docx', parts({ local: { method: 0 } }), 422)
 await refused('a local size unlike the central one refused', 'lsize.docx', parts({ local: { size: 5 } }), 422)
 await refused('a wrong checksum refused', 'crc.docx', parts({ crc: 1234 }), 422)
+// Every entry's local header is checked, also parts the converter never reads (review c66r attempt 2).
+await refused('an unread part whose local name differs from the central one refused', 'media.docx', withDoc(plain, [{ name: 'word/media/pic.jpg', data: 'img', local: { name: 'word/media/pic.png' } }]), 422)
+await refused('an unread part whose local size differs refused', 'msize.docx', withDoc(plain, [{ name: 'word/media/pic.jpg', data: 'img', local: { size: 9 } }]), 422)
+// Comment ranges cost linear time: 10,000 range starts + 10,000 runs in one paragraph.
+const starts = n => Array.from({ length: n }, (_, i) => `<w:commentRangeStart w:id="${i}"/>`).join('')
+const runs = r('x ').repeat(10_000)
+const commentsOf = n => ({ name: 'word/comments.xml', data: `<w:comments ${NS}>${Array.from({ length: n }, (_, i) => `<w:comment w:id="${i}" w:author="QA"><w:p>${r(`Note ${i}`)}</w:p></w:comment>`).join('')}</w:comments>` })
+await refused('more than 1,000 comments open at once refused', 'open.docx', withDoc(`<w:document ${NS}><w:body><w:p>${starts(10_000)}${runs}</w:p></w:body></w:document>`, [commentsOf(10_000)]), 422)
 check('nothing refused was stored', (await a('/api/documents')).data.length, before)
+const timed = async (name, bytes) => {
+  const t = performance.now()
+  const res = await up(name, bytes)
+  return [res, Math.round(performance.now() - t)]
+}
+const [noComments, ms1] = await timed('ranges.docx', withDoc(`<w:document ${NS}><w:body><w:p>${starts(10_000)}${runs}</w:p></w:body></w:document>`))
+console.log(`    10,000 ranges, no comments part: ${ms1} ms`)
+check('10,000 ranges without a comments part import in < 200 ms, no notes', [noComments.status, noComments.word_notes ?? 0, ms1 < 200], ['imported', 0, true])
+const [manyOpen, ms2] = await timed('open1000.docx', withDoc(`<w:document ${NS}><w:body><w:p>${starts(1000)}${r('y ').repeat(10_000)}</w:p></w:body></w:document>`, [commentsOf(1000)]))
+console.log(`    1,000 open comments over 10,000 runs: ${ms2} ms`)
+check('1,000 open comments over 10,000 runs import in < 3 s, one note each', [manyOpen.status, manyOpen.word_notes, ms2 < 3000], ['imported', 1000, true])
+// Commented words split by bold marks are pinned by the folding match, which stops at its first hit (a repetitive passage
+// has a hit per word): 1,000 comments over a 140 KB paragraph of alternating bold words.
+const [folded, ms3] = await timed('folded.docx', withDoc(`<w:document ${NS}><w:body><w:p>${starts(1000)}${(r('y', '<w:b/>') + r(' z ')).repeat(20_000)}</w:p></w:body></w:document>`, [commentsOf(1000)]))
+console.log(`    1,000 comments across bold marks: ${ms3} ms`)
+const foldedNote = (await a(`/api/documents/${folded.document_id}`)).data.notes[0]
+check('…import in < 3 s, pinned to the words with their marks', [folded.status, folded.word_notes, ms3 < 3000, foldedNote?.quote.startsWith('**y** z **y** z')], ['imported', 1000, true, true])
+await refused('more than 1 MB of converted text refused', 'long.docx', withDoc(one('a'.repeat(1_100_000))), 422)
 const ok = await up('entities.docx', withDoc(one('Salt &amp; rope &#x2014; Mira&#8217;s &lt;lamp&gt; &quot;lit&quot;')))
 check('valid built-in and numeric references still import', [ok.status, (await a(`/api/documents/${ok.document_id}`)).data.content], ['imported', 'Salt & rope — Mira’s <lamp> "lit"\n'])
 

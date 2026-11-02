@@ -161,7 +161,9 @@ export const originalPath = (projectId: string, sha256: string) => join(ORIGINAL
 function commentNotes(comments: WordComment[], key: string, documentId: string, passages: { id: string, text: string, start_line: number, end_line: number }[]) {
   const db = useDb()
   const user = access().user.id
-  const seen = db.prepare('select 1 from notes n join documents d on d.id = n.document_id where n.project_id = ? and d.filename = ? and n.body = ? and n.quote = ?')
+  // Earlier versions' notes, read once (one lookup per comment would scan the project's notes per comment).
+  const seen = new Set((db.prepare('select n.body, n.quote from notes n join documents d on d.id = n.document_id where n.project_id = ? and d.filename = ?')
+    .all(pid(), key) as { body: string, quote: string }[]).map(n => JSON.stringify([n.body, n.quote])))
   const ins = db.prepare(`insert into notes (id, document_id, passage_id, quote, body, status, created_by, created_at, updated_at, project_id)
     values (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`)
   let n = 0
@@ -171,7 +173,9 @@ function commentNotes(comments: WordComment[], key: string, documentId: string, 
     const body = `From Word comment by ${c.author}: ${c.text}`.slice(0, 4000)
     const match = findQuotePassage([passage], c.quote)
     const quote = match?.quote ?? (c.quote && passage.text.includes(c.quote) ? c.quote : '')
-    if (seen.get(pid(), key, body, quote)) continue
+    const k = JSON.stringify([body, quote])
+    if (seen.has(k)) continue
+    seen.add(k)
     const id = newId('note')
     ins.run(id, documentId, passage.id, quote, body, user, now(), now(), pid())
     audit('note.created', 'note', id, { document_id: documentId, passage_id: passage.id, quote, body, from: 'word_comment', comment_author: c.author })
