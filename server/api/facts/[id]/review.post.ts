@@ -1,7 +1,8 @@
 interface Body {
   decision: 'accept' | 'correct_and_accept' | 'reject'
   rationale?: string
-  corrected?: { statement?: string, subject?: string, predicate?: string, object?: string | null }
+  // time_from / time_to: story time like "D2 14:30" or a whole day "D2" (both empty = no time); sent only to change it.
+  corrected?: { statement?: string, subject?: string, predicate?: string, object?: string | null, time_from?: string, time_to?: string, precision?: string }
 }
 
 export default defineEventHandler(async (event) => {
@@ -35,7 +36,15 @@ export default defineEventHandler(async (event) => {
     const v = (c as Record<string, unknown>)[k]
     return v === undefined ? undefined : k === 'object' && v === null ? null : optText(v, k, max)
   }
-  const corrected = { statement: field('statement', 500), subject: field('subject', 80), predicate: field('predicate', 60), object: field('object', 80) }
-  tx(() => acceptCandidate(fact, body.decision as 'accept' | 'correct_and_accept', corrected as Body['corrected'], rationale))
+  const corrected = { statement: field('statement', 500), subject: field('subject', 80), predicate: field('predicate', 60), object: field('object', 80) } as Body['corrected'] & { time?: StoryTimeFields }
+  const { time_from, time_to, precision } = c as Record<string, unknown>
+  if (time_from !== undefined || time_to !== undefined) {
+    const range = parseStoryRange(optText(time_from, 'From', 40), optText(time_to, 'Until', 40))
+    if (range.bad) throw createError({ statusCode: 400, statusMessage: 'BAD_TIME', message: 'Story time must be like D2 14:30, or a whole day like D-3650.' })
+    if (range.from != null && range.to != null && range.to < range.from) throw createError({ statusCode: 400, statusMessage: 'BAD_TIME', message: 'Until must be after From.' })
+    const p = range.from == null && range.to == null ? null : precision === 'approximate' ? 'approximate' : 'exact'
+    corrected.time = { t_from: range.from, t_to: range.to, time_label: timeLabel(range.from, range.to, p, range.day), precision: p }
+  }
+  tx(() => acceptCandidate(fact, body.decision as 'accept' | 'correct_and_accept', corrected, rationale))
   return { id, status: 'canon' }
 })

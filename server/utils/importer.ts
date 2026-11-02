@@ -226,7 +226,7 @@ export async function extractInto(doc: { id: string, filename: string, title: st
   const keyOf = (f: Parameters<typeof factKey>[0]) => factKey({ ...f, subject: kept(f.subject), object: kept(f.object) })
   const remember = (keys: string[], status: string) => { for (const k of keys) seen.set(k, status) }
   for (const f of existing) remember([`s:${norm(f.statement)}`, `k:${keyOf(f)}`], f.status)
-  let created = 0
+  const created: string[] = []
   let unverified = 0
   const skipped: Record<string, number> = {}
   tx(() => {
@@ -250,9 +250,18 @@ export async function extractInto(doc: { id: string, filename: string, title: st
       db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, ?, ?)')
         .run(newId('ev'), factId, doc.id, passage?.id ?? null, match?.quote ?? c.quote ?? '', passage ? 1 : 0, projectId)
       audit('candidate.created', 'fact', factId, { document_id: doc.id, quote_verified: !!passage, model_id: model.id })
-      created++
+      created.push(factId)
       if (!passage) unverified++
     }
   })
-  return { proposed: drafts.length, created, unverified, skipped: Object.values(skipped).reduce((a, b) => a + b, 0), skipped_by_status: skipped, model }
+  // The AI critic reads the new verified candidates next. Its opinion is advice on the review queue; failing must not lose them.
+  let critic: Awaited<ReturnType<typeof runCritic>> | null = null
+  let criticError: string | null = null
+  try {
+    critic = await runCritic(created)
+  } catch (e) {
+    criticError = (e as Error).message
+    audit('job.failed', 'document', doc.id, { step: 'critic', error: criticError })
+  }
+  return { proposed: drafts.length, created: created.length, critic, critic_error: criticError, unverified, skipped: Object.values(skipped).reduce((a, b) => a + b, 0), skipped_by_status: skipped, model }
 }
