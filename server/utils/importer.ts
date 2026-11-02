@@ -106,29 +106,26 @@ export async function importDocument(filename: string, content: string, written?
   }
 }
 
-// A new version: a PENDING candidate's quote that appears exactly once in it now cites that passage, so nobody re-reviews an
-// unrelated edit. The candidate keeps its origin and proposer; the audit keeps where the quote was. A quote that is gone or
+// A new version: a PENDING candidate's quote that appears exactly once in it (matched like findQuotePassage) now cites that
+// passage, so nobody re-reviews an unrelated edit. The candidate keeps its origin and proposer; the audit keeps where the quote was. A quote that is gone or
 // appears more than once stays on the old version (stale). Canon evidence never moves: a person re-checks it.
 function movePendingEvidence(key: string, documentId: string, version: number, passages: { id: string, text: string, start_line: number }[], doc: { name: string, folder: string | null }) {
   const db = useDb()
   const rows = db.prepare(`select e.id, e.fact_id, e.quote, e.document_id, e.passage_id, d.version, p.start_line from evidence e
     join facts f on f.id = e.fact_id join documents d on d.id = e.document_id left join passages p on p.id = e.passage_id
     where f.project_id = ? and f.status = 'pending' and e.verified = 1 and d.filename = ? and d.version < ?`).all(pid(), key, version) as { id: string, fact_id: string, quote: string, document_id: string, passage_id: string, version: number, start_line: number | null }[]
-  const occurrences = (text: string, q: string) => {
-    let n = 0
-    for (let i = text.indexOf(q); i !== -1; i = text.indexOf(q, i + 1)) n++
-    return n
-  }
-  const move = db.prepare('update evidence set document_id = ?, passage_id = ? where id = ?')
+  const move = db.prepare('update evidence set document_id = ?, passage_id = ?, quote = ? where id = ?')
   let moved = 0
   for (const r of rows) {
-    const hits = passages.filter(p => isVerbatimQuote(p.text, r.quote))
-    if (hits.length !== 1 || occurrences(hits[0]!.text, r.quote) !== 1) continue
-    move.run(documentId, hits[0]!.id, r.id)
+    // Matched like any quote (findQuotePassage's folding); the evidence then holds the new version's exact characters.
+    const hits = passages.flatMap(p => quoteMatches(p.text, r.quote).filter(q => isVerbatimQuote(p.text, q)).map(quote => ({ p, quote })))
+    if (hits.length !== 1) continue
+    const { p, quote } = hits[0]!
+    move.run(documentId, p.id, quote, r.id)
     audit('candidate.evidence_moved', 'fact', r.fact_id, {
-      filename: doc.name, folder: doc.folder, quote: r.quote,
+      filename: doc.name, folder: doc.folder, quote: r.quote, ...(quote !== r.quote && { new_quote: quote }),
       from: { document_id: r.document_id, version: r.version, passage_id: r.passage_id, line: r.start_line },
-      to: { document_id: documentId, version, passage_id: hits[0]!.id, line: hits[0]!.start_line },
+      to: { document_id: documentId, version, passage_id: p.id, line: p.start_line },
     })
     moved++
   }

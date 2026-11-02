@@ -128,7 +128,7 @@ export function buildMcpServer(token: { id: string, name: string }) {
   })
 
   server.registerTool('sb_propose_candidate', {
-    description: 'Propose a NEW fact for human review. It becomes a pending candidate in the review queue, marked as proposed by this agent; it is NOT canon until a person accepts it. The quote must appear verbatim (exact characters) in a passage of an imported document, or the proposal is refused and nothing is stored. Requires editor role or above.',
+    description: 'Propose a NEW fact for human review. It becomes a pending candidate in the review queue, marked as proposed by this agent; it is NOT canon until a person accepts it. The quote must appear verbatim in one passage (paragraph) of an imported document, or the proposal is refused and nothing is stored; curly vs straight quotes, dash style, line breaks and Markdown * _ marks may differ, and the source\'s exact characters are stored. Requires editor role or above.',
     inputSchema: {
       document: z.string().describe('Imported document id, or its file name (latest version) when only one document has that name'),
       quote: z.string().min(1).describe('Exact text copied from the document'),
@@ -156,7 +156,7 @@ export function buildMcpServer(token: { id: string, name: string }) {
       ?? db.prepare('select id, name from documents where project_id = ? and filename = ? order by version desc').get(pid(), named[0]?.filename ?? '')) as { id: string, name: string } | undefined
     if (!doc) return refuse('DOCUMENT_NOT_FOUND', `No imported document "${p.document}" in this project. Candidates must cite an imported document.`)
     const match = findQuotePassage(db.prepare('select id, text from passages where document_id = ? order by ordinal').all(doc.id) as { id: string, text: string }[], p.quote)
-    if (!match) return denied('QUOTE_NOT_VERBATIM', `The quote was blank, too short (min ${MIN_QUOTE_CHARS} characters) or not found verbatim in ${doc.name}. Copy the exact text; nothing was stored.`)
+    if (!match) return denied('QUOTE_NOT_VERBATIM', `The quote was blank, too short (min ${MIN_QUOTE_CHARS} characters) or not found in one paragraph of ${doc.name} (only curly quotes, dashes, line breaks and Markdown * _ marks may differ). Copy the exact text; nothing was stored.`)
     const tFrom = p.time_from ? parseStoryTime(p.time_from) : null
     const tTo = p.time_to ? parseStoryTime(p.time_to) : null
     if ((p.time_from && tFrom == null) || (p.time_to && tTo == null)) return refuse('BAD_TIME', 'Story time must look like "D2 14:30".')
