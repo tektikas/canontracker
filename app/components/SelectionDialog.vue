@@ -23,21 +23,19 @@ const f = reactive({
 })
 
 // Sentence first: the writer says what the passage establishes, and who / does what / where / when are read from that sentence
-// as it is edited (known names, a known place, story times). A part the writer has typed in keeps their words.
+// as it is edited (known names, a known place, story times; see `suggestParts`). A part the writer has typed in keeps their words.
 const PARTS = ['subject', 'relation', 'object', 'time_from', 'time_to'] as const
 type Part = typeof PARTS[number]
 const typed = reactive(new Set<Part>())
 const suggested = computed<Record<Part, string>>(() => {
   const re = lookup.value.pattern
-  const names = re ? [...f.statement.matchAll(re)].map(m => ({ name: m[0], page: lookup.value.byName.get(normName(m[0])) })) : []
-  const subject = names[0]?.name ?? ''
-  const place = names.find(n => n.page?.kind === 'location' && normName(n.name) !== normName(subject))
-  const time = timesIn(f.statement)
-  // Someone at a known place at a stated time is the one shape conflict checks read, so the form says it that way.
-  const at = !!(place && time.from)
-  return { subject, relation: at ? 'is at' : '', object: at ? place!.name : '', time_from: time.from, time_to: time.to }
+  const known = re ? [...f.statement.matchAll(re)].map(m => ({ name: m[0], kind: lookup.value.byName.get(normName(m[0]))?.kind })) : []
+  return suggestParts(f.statement, known)
 })
 watch(suggested, (s) => { for (const k of PARTS) if (!typed.has(k)) f[k] = s[k] }, { immediate: true })
+// A guess never becomes canon unseen: structured parts drive conflict checks, so a wrong guess is a false conflict.
+const guessed = computed(() => PARTS.some(k => !typed.has(k) && !!f[k].trim()))
+const checkFirst = ref(false)
 
 // Who a fact is about changes only by an explicit choice: picking a page from the list (its exact title) links it, and the
 // server stores the name analysis knows that page by. Typed names stay as typed; a title or alias of a page is only offered.
@@ -94,6 +92,12 @@ async function submit(to: 'canon' | 'review' | 'note' | 'entity') {
     more.value = true
     error.value = detailError.value
     if (!f.subject.trim()) nextTick(() => subjectInput.value?.focus())
+    return
+  }
+  // The first Add to canon with guessed parts still folded away opens them instead; the next one adds.
+  if (to === 'canon' && guessed.value && !more.value) {
+    more.value = true
+    checkFirst.value = true
     return
   }
   busy.value = to
@@ -173,6 +177,7 @@ const TITLE = { fact: 'Add a fact', entity: 'Add an entity', note: 'Add a note' 
             <span v-if="!more" class="parts-sum small" :class="{ missing: !f.subject.trim() }">{{ !f.subject.trim() ? 'Say who it is about' : summary }}</span>
           </summary>
           <div class="parts-body stack">
+            <p v-if="checkFirst" class="notice warn" role="status"><UiIcon name="conflicts" :size="16" /><span>Check these before adding to canon. They were read from your sentence.</span></p>
             <!-- Fields first, then their link states, so Tab goes who → does what → where; the grid puts each state under its field. -->
             <div class="triple-fields">
               <UiField label="Who or what" class="tf-s">
@@ -185,7 +190,7 @@ const TITLE = { fact: 'Add a fact', entity: 'Add an entity', note: 'Add a note' 
                 <input v-model="f.object" type="text" list="sel-entities" maxlength="80" spellcheck="false" autocomplete="off" placeholder="Optional" @input="typed.add('object')">
               </UiField>
               <template v-for="role in ROLES" :key="role">
-                <span v-if="link[role]" class="link-state" :class="`tf-${role[0]}l`"><UiIcon name="link" :size="14" />Linked to {{ link[role]!.name }}’s page
+                <span v-if="link[role]" class="link-state" :class="`tf-${role[0]}l`"><UiIcon name="link" :size="14" />Linked to {{ link[role]!.name }}
                   <button type="button" class="linkish" :aria-label="`Unlink from ${link[role]!.name}`" @click="link[role] = null">Unlink</button></span>
                 <span v-else-if="suggestion(role)" class="link-state" :class="`tf-${role[0]}l`">Did you mean {{ suggestion(role)!.name }}?
                   <button type="button" class="linkish" @click="pick(role, suggestion(role)!)">Select it to link</button></span>

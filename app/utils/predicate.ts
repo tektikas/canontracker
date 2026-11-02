@@ -46,11 +46,51 @@ export function storyTime(text: string) {
   const clock = [...text.matchAll(CLOCK)]
   return day && clock.length === 1 ? label(day, clock[0]![1]!, clock[0]![2]!) : null
 }
-// The times a sentence states: "from 20:00 to 21:00 on Day 1" -> D1 20:00 / D1 21:00. One day per sentence.
+// The times a sentence states: "from 20:00 to 21:00 on Day 1" -> D1 20:00 / D1 21:00. Each clock takes the day written next to
+// it ("08:00 on Day 1", "Day 2 09:00"); a clock without one takes the sentence's only day, or nothing when there are several.
 export function timesIn(text: string) {
-  const day = text.match(DAY)?.[1]
+  const days = [...text.matchAll(new RegExp(DAY, 'gi'))]
+  const at = (m: RegExpMatchArray) => {
+    const own = text.slice(0, m.index).match(/\b(?:d|day)\s*(\d+)\s*,?\s*(?:at\s+)?$/i)?.[1]
+      ?? text.slice(m.index! + m[0].length).match(/^\s*(?:on\s+)?(?:d|day)\s*(\d+)\b/i)?.[1]
+    const day = own ?? (days.length === 1 ? days[0]![1] : undefined)
+    return day ? label(day, m[1]!, m[2]!) : ''
+  }
   const [a, b] = [...text.matchAll(CLOCK)]
-  return { from: day && a ? label(day, a[1]!, a[2]!) : '', to: day && b ? label(day, b[1]!, b[2]!) : '' }
+  return { from: a ? at(a) : '', to: b ? at(b) : '' }
+}
+
+// What a sentence suggests for who / does what / where / when. `known` = the known names it mentions, in order, with their page
+// kind. Only guesses: the dialog shows them before anything goes to canon. Who is a known character or faction, else the first
+// capitalised name that isn't a known page; a known location is the place. "is at" only for presence wording (waits, stays, is in,
+// arrives at), never for movement (walks to, leaves): a wrong "is at" is a false conflict.
+const PRESENCE = /\b(?:(?:is|was|are|were|works?|worked|working|lives?|lived|arrives?|arrived|arriving|meets?|met)\s+(?:still\s+|already\s+)?(?:at|in|inside)|stays?|stayed|staying|waits?|waited|waiting|stands?|stood|standing|sits?|sat|sitting|hides?|hid|hiding|remains?|remained|sleeps?|slept)\b/i
+const MOTION = /\b(?:(?:walk|head|sail|travel|return|depart|climb|row|march|wander|cross|rush|hurr(?:y|ie))(?:s|ed|ing)?|go|goes|going|gone|went|run|runs|running|ran|ride|rides|riding|rode|drive|drives|driving|drove|move|moves|moved|moving|come|comes|coming|came|leave|leaves|leaving|left|fly|flies|flying|flew|set(?:s|ting)? (?:out|off)|towards?|into)\b/i
+export function suggestParts(text: string, known: { name: string, kind?: string }[]) {
+  const subject = known.find(n => n.kind === 'character' || n.kind === 'faction')?.name ?? firstName(text, known.map(n => n.name))
+  const place = known.find(n => n.kind === 'location' && n.name.toLowerCase() !== subject.toLowerCase())
+  const time = timesIn(text)
+  const at = !!(place && time.from && PRESENCE.test(text) && !MOTION.test(text))
+  return { subject, relation: at ? 'is at' : '', object: at ? place!.name : '', time_from: time.from, time_to: time.to }
+}
+// "At the Harbor, Leya waits" -> "Leya": a run of capitalised words, not a function word, not right after "the" / "at" / "to"
+// (those are places or things) unless the sentence opens with it ("The Glassworks hires Tom").
+const NOT_NAMES = new Set('a an the at on in to from until by when then after before during as and but or if while day this that there here he she they it we i you his her their its'.split(' '))
+const LEADS = new Set('a an the at on in into to toward towards from near by of'.split(' '))
+const isName = (t?: string) => !!t && /^\p{Lu}\p{Ll}/u.test(t) && !NOT_NAMES.has(t.toLowerCase())
+function firstName(text: string, skip: string[]) {
+  const no = new Set(skip.map(s => s.trim().toLowerCase()))
+  const tokens = (text.match(/[\p{L}\p{N}'’-]+|[^\s\p{L}\p{N}]/gu) ?? []).map(t => t.replace(/['’]s$/, ''))
+  for (let i = 0; i < tokens.length; i++) {
+    const prev = tokens[i - 1] ?? ''
+    if (!isName(tokens[i]) || (LEADS.has(prev.toLowerCase()) && !(i === 1 && /^(The|A|An)$/.test(prev)))) continue
+    let j = i
+    while (isName(tokens[j + 1])) j++
+    const name = tokens.slice(i, j + 1).join(' ')
+    if (!no.has(name.toLowerCase())) return name
+    i = j
+  }
+  return ''
 }
 
 // The fact's kind from its predicate. Kind feeds the relationship and world-rule checks; the writer never picks it.
