@@ -417,7 +417,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                   <span v-else class="faint">—</span>
                 </td>
                 <td v-if="editor" class="act">
-                  <UiMenu :label="`Actions for ${d.title}`" class="row-menu" fixed>
+                  <UiMenu :label="`Actions for ${d.title}`" class="row-menu">
                     <template #trigger><UiIcon name="more" :size="16" /></template>
                     <template #default="{ close }">
                       <NuxtLink :to="`/documents/${d.id}`" class="menu-item"><UiIcon name="file" :size="16" />Open</NuxtLink>
@@ -469,8 +469,6 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
 .side-row .row-menu { opacity: 0; }
 .side-row:hover .row-menu, .side-row:focus-within .row-menu, .row-menu:has([aria-expanded=true]) { opacity: 1; }
 @media (hover: none) { .side-row .row-menu { opacity: 1; } }
-.lib :deep(.menu-pop) { left: auto; right: 0; min-width: 220px; }
-.side :deep(.menu-pop) { left: 0; right: auto; }
 .lib :deep(.menu-item.danger) { color: var(--bad); }
 .lib :deep(.menu-item.danger svg) { color: var(--bad); }
 .lib :deep(.menu-item.indent) { padding-left: 30px; }
@@ -498,7 +496,6 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
 .selbar b { margin-right: var(--s-2); color: var(--accent); }
 .bar-menu :deep(.menu-trigger) { gap: 6px; min-height: 30px; padding: 3px 10px; border: 1px solid var(--line-strong); background: var(--raised); font-size: var(--text-sm); font-weight: 500; }
 .bar-menu :deep(.menu-trigger svg) { color: var(--muted); }
-.selbar :deep(.menu-pop) { left: 0; right: auto; }
 .status-line { display: flex; align-items: center; gap: 6px; margin: 0; padding: var(--s-2) var(--s-4); border-bottom: 1px solid var(--line); color: var(--good); }
 .status-line.field-error { color: var(--bad); }
 

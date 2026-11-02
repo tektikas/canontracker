@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Disclosure menu: a button that opens a small panel of links and actions. Closes on outside click, Esc and navigation.
-// fixed: the panel is positioned from the trigger in viewport coordinates, so a scrolling ancestor (a table wrapper) can't clip it.
-const props = withDefaults(defineProps<{ label: string, placement?: 'down' | 'up', fixed?: boolean }>(), { placement: 'down' })
+// The panel is always positioned from the trigger in viewport coordinates, so no scrolling ancestor can clip it; it flips up when there is no room below.
+defineProps<{ label: string }>()
 const open = ref(false)
 const root = ref<HTMLElement>()
 const panel = ref<HTMLElement>()
@@ -9,19 +9,23 @@ const trigger = ref<HTMLButtonElement>()
 const pos = ref<Record<string, string>>({})
 const close = () => { open.value = false }
 function toggle() {
-  if (!open.value && props.fixed && trigger.value) {
+  if (!open.value && trigger.value) {
     const r = trigger.value.getBoundingClientRect()
     const up = innerHeight - r.bottom < Math.min(420, innerHeight * 0.7) && r.top > innerHeight - r.bottom
     pos.value = { right: `${Math.min(Math.max(innerWidth - r.right, 8), innerWidth - 236)}px`, left: 'auto', ...(up ? { bottom: `${innerHeight - r.top + 4}px`, top: 'auto' } : { top: `${r.bottom + 4}px` }), maxHeight: `${Math.max(160, (up ? r.top : innerHeight - r.bottom) - 12)}px` }
   }
   open.value = !open.value
+  if (open.value) nextTick(() => { // a wider panel (min-width set by a call site) must not run off the left edge
+    const l = panel.value?.getBoundingClientRect().left
+    if (l !== undefined && l < 8) pos.value = { ...pos.value, right: `${parseFloat(pos.value.right ?? "0") + l - 8}px` }
+  })
 }
 const onScroll = (e: Event) => { if (!panel.value?.contains(e.target as Node)) close() } // scrolling inside the panel must not close it
 const outside = (e: Event) => { if (!root.value?.contains(e.target as Node)) close() }
 watch(open, (o) => {
   const f = o ? 'addEventListener' : 'removeEventListener'
   document[f]('pointerdown', outside)
-  if (props.fixed) { window[f]('scroll', onScroll, true); window[f]('resize', close) } // a fixed panel would drift from its trigger
+  window[f]('scroll', onScroll, true); window[f]('resize', close) // the panel would drift from its trigger
 })
 onBeforeUnmount(() => { open.value = false })
 watch(() => useRoute().fullPath, close)
@@ -38,7 +42,7 @@ function esc(e: KeyboardEvent) {
     <button ref="trigger" type="button" class="menu-trigger" :aria-label="label" :aria-expanded="open" @click="toggle">
       <slot name="trigger" :open="open" />
     </button>
-    <div v-if="open" ref="panel" class="menu-pop" :class="[placement, { fixed }]" :style="fixed ? pos : undefined">
+    <div v-if="open" ref="panel" class="menu-pop" :style="pos">
       <slot :close="close" />
     </div>
   </div>
@@ -48,10 +52,7 @@ function esc(e: KeyboardEvent) {
 .menu { position: relative; }
 .menu-trigger { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--r-md); background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease); }
 .menu-trigger:hover, .menu-trigger[aria-expanded=true] { background: var(--sunken); }
-.menu-pop { position: absolute; left: 0; right: 0; z-index: 50; display: grid; gap: 1px; padding: var(--s-1); background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--elev-overlay); max-height: min(420px, 70vh); overflow-y: auto; }
-.menu-pop.fixed { position: fixed; left: auto; width: max-content; min-width: 220px; }
-.menu-pop.down { top: calc(100% + 4px); }
-.menu-pop.up { bottom: calc(100% + 4px); }
+.menu-pop { position: fixed; left: auto; width: max-content; min-width: 220px; z-index: 50; display: grid; gap: 1px; padding: var(--s-1); background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--elev-overlay); max-height: min(420px, 70vh); overflow-y: auto; }
 .menu-pop :deep(.menu-item) { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 6px 10px; border: 0; border-radius: var(--r-md); background: none; color: var(--ink); font: inherit; font-size: var(--text-base); text-align: left; text-decoration: none; cursor: pointer; }
 .menu-pop :deep(.menu-item:hover) { background: var(--sunken); color: var(--ink); }
 .menu-pop :deep(.menu-item svg) { color: var(--faint); flex: none; }

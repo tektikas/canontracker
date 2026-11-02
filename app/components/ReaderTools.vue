@@ -175,7 +175,7 @@ onBeforeUnmount(() => {
 .icon-btn.sm { width: 32px; height: 32px; color: var(--muted); }
 .icon-btn:disabled { color: var(--faint); cursor: default; background: none; }
 .outline :deep(.menu-trigger) { gap: 6px; min-height: 28px; padding: 3px 10px; color: var(--muted); font-size: var(--text-sm); font-weight: 500; }
-.outline :deep(.menu-pop) { right: auto; min-width: 260px; max-width: min(360px, 80vw); }
+.outline :deep(.menu-pop) { min-width: 260px; max-width: min(360px, 80vw); }
 .outline :deep(.menu-item) { display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .line { display: flex; align-items: center; gap: 6px; margin-left: auto; }
 .line label { color: var(--muted); }

@@ -157,7 +157,7 @@ async function open(id: string) {
           </div>
         </div>
 
-        <UiMenu v-if="me?.user" label="Account" placement="up">
+        <UiMenu v-if="me?.user" label="Account">
           <template #trigger>
             <span class="avatar" aria-hidden="true">{{ initials(me.user.name) }}</span>
             <span class="switch-text">
