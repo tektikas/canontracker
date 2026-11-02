@@ -409,7 +409,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                 </td>
                 <td class="hide-sm when">
                   <span><NuxtLink v-if="d.version > 1" :to="`/documents/${d.id}/history`" class="quiet-link" :title="`See the history of ${d.title}`">v{{ d.version }}</NuxtLink><template v-else>v1</template> · {{ shortDate(d.imported_at) }}</span>
-                  <span class="small faint">{{ d.origin === 'written' ? 'Written' : 'Uploaded' }}<template v-if="d.created_by_name"> by {{ d.created_by_name }}</template></span>
+                  <span class="small faint">{{ d.origin === 'written' ? 'Written' : d.origin === 'research' ? 'Saved from research' : 'Uploaded' }}<template v-if="d.created_by_name"> by {{ d.created_by_name }}</template></span>
                 </td>
                 <td class="num hide-sm">{{ d.canon_facts || '—' }}</td>
                 <td class="num hide-sm">

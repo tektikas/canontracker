@@ -1,0 +1,64 @@
+[
+  {
+    "question": "How fast could the ship get there?",
+    "kind": "followup",
+    "recorded_from": "codex/gpt-6-luna research-v1 2026-11-02 (scripts/research-live.mjs)",
+    "followup": {
+      "question": "What destination and acceleration should I use?",
+      "options": [
+        "Proxima Centauri, 1 g",
+        "A different destination or acceleration"
+      ]
+    }
+  },
+  {
+    "question": "How far does Europa orbit from Jupiter, and what is the one-way light delay from Earth to Europa at 628 million km?",
+    "kind": "answer",
+    "recorded_from": "codex/gpt-6-luna research-v1 2026-11-02T15:56:47.993Z",
+    "draft": {
+      "verdict": "established",
+      "answer": "Europa orbits about 671,000 km from Jupiter. At an Earth–Europa distance of 628 million km, one-way light delay is about 2,094.8 seconds, or 34.9 minutes, assuming light travels through a vacuum in a straight line.",
+      "why": "Both values are documented by NASA or computed for the stated distance under the light-delay tool’s assumptions.",
+      "claims": [
+        {
+          "text": "Europa orbits about 671,000 km from Jupiter.",
+          "basis": "source",
+          "tool": null,
+          "sources": [
+            {
+              "url": "https://science.nasa.gov/jupiter/jupiter-moons/europa/europa-facts/",
+              "title": "Europa: Facts - NASA Science",
+              "quote": "Europa orbits Jupiter at about 417,000 miles (671,000 kilometers) from the planet, which itself orbits the Sun at a distance of roughly 500 million miles (780 million kilometers), or 5.2 astronomical units (AU)."
+            }
+          ]
+        },
+        {
+          "text": "At 628 million km, one-way light delay is 2,094.8 seconds (34.913 minutes), assuming a straight path through vacuum at the speed of light.",
+          "basis": "calculator",
+          "tool": "light_delay",
+          "sources": []
+        }
+      ]
+    },
+    "calculations": [
+      {
+        "name": "light_delay",
+        "args": {
+          "distance": 628000000,
+          "distance_unit": "km"
+        }
+      }
+    ],
+    "sources": [
+      {
+        "status": "unverified",
+        "reason": "The page could not be read (the page host answered 403)."
+      }
+    ],
+    "searches": [
+      "Europa average orbital distance Jupiter NASA 671000 km",
+      "site:science.nasa.gov Europa mean orbital radius Jupiter 671100 km",
+      "Europa orbital distance Jupiter NASA 671000 km"
+    ]
+  }
+]
