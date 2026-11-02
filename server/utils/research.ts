@@ -4,7 +4,7 @@
 // matcher), so a source reads "verified" only when its words are on the page. The result is stored as a research note.
 // Nothing here becomes canon: promoting a note makes a pending candidate a person reviews.
 import { CALCULATORS } from './calculators/index'
-import { researchProfile } from '../../shared/utils/research'
+import { researchProfile, sourceHref } from '../../shared/utils/research'
 import type { ResearchCalculation, ResearchClaim, ResearchSource, Verdict } from '../../shared/utils/research'
 
 export interface ResearchInput {
@@ -85,10 +85,12 @@ export function htmlToText(html: string) {
     .replace(/[ \t\f\v ]+/g, ' ')
 }
 
-// Analytics parameters are not part of a source's address.
+// Analytics parameters are not part of a source's address. Only safe https addresses survive (sourceHref); others are dropped.
 export function cleanUrl(raw: string) {
+  const safe = sourceHref(raw)
+  if (!safe) return ''
   try {
-    const u = new URL(raw)
+    const u = new URL(safe)
     for (const k of [...u.searchParams.keys()]) if (/^utm_|^fbclid$|^gclid$/.test(k)) u.searchParams.delete(k)
     u.hash = ''
     return u.href
@@ -97,13 +99,18 @@ export function cleanUrl(raw: string) {
   }
 }
 
-type Page = { text: string } | { pdf: true } | { error: string }
+// Only text pages are checked: anything else (images, archives, binaries) could "contain" a quote by accident.
+const TEXT_TYPES = /^(text\/(html|plain|xml)|application\/(xhtml\+xml|xml))$/i
+type Page = { text: string } | { notText: string } | { error: string }
 async function fetchPage(url: string): Promise<Page> {
-  if (/\.pdf$/i.test(new URL(url).pathname)) return { pdf: true } // not downloaded: no PDF text extraction (see checkSources)
+  const pdf = { notText: 'PDF: source not text-checked' }
+  if (/\.pdf$/i.test(new URL(url).pathname)) return pdf // not downloaded: no PDF text extraction (see checkSources)
   const signal = AbortSignal.timeout(PAGE_DEADLINE_MS)
   try {
     const res = await safeGet(url, PAGE_MAX_BYTES, signal, { accept: 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5', what: 'the page', agent: 'Mozilla/5.0 (compatible; StoryBible research source check)' })
-    if (/pdf/i.test(res.contentType) || res.body.subarray(0, 5).toString('latin1') === '%PDF-') return { pdf: true }
+    const type = res.contentType.split(';')[0]!.trim()
+    if (/pdf/i.test(type) || res.body.subarray(0, 5).toString('latin1') === '%PDF-') return pdf
+    if (!TEXT_TYPES.test(type)) return { notText: `Not a text page (${type || 'no content type'}): source not text-checked` }
     const charset = res.contentType.match(/charset=([\w-]+)/i)?.[1]
     let text: string
     try {
@@ -111,28 +118,43 @@ async function fetchPage(url: string): Promise<Page> {
     } catch {
       text = new TextDecoder('utf-8').decode(res.body)
     }
-    return { text: /html|xml/i.test(res.contentType) || /^\s*</.test(text) ? htmlToText(text) : text }
+    return { text: /plain/i.test(type) ? text : htmlToText(text) }
   } catch (e) {
     const err = e as Error
     return { error: signal.aborted ? 'the page took too long to load' : err.message }
   }
 }
 
-/** Fetches each cited page once and checks every quote on it, verbatim under typography folding. PDFs are marked
- * "not text-checked": extracting their text needs a heavy dependency, so they are neither fetched nor called verified. */
+/** Fetches each cited page once and checks every quote on it, verbatim under typography folding. PDFs and other non-text
+ * responses are marked "not text-checked": extracting PDF text needs a heavy dependency, so they are never called verified. */
 export async function checkSources(cited: { url: string, title: string, quote: string }[]): Promise<ResearchSource[]> {
   const urls = [...new Set(cited.map(c => c.url))]
   const pages = new Map(await Promise.all(urls.map(async u => [u, await fetchPage(u)] as const)))
   return cited.map((c, i) => {
     const page = pages.get(c.url)!
     const base = { n: i + 1, url: c.url, title: c.title, quote: c.quote }
-    if ('pdf' in page) return { ...base, status: 'not_checked' as const, reason: 'PDF: source not text-checked' }
+    if ('notText' in page) return { ...base, status: 'not_checked' as const, reason: page.notText }
     if ('error' in page) return { ...base, status: 'unverified' as const, reason: `The page could not be read (${page.error}).` }
     if (!c.quote) return { ...base, status: 'unverified' as const, reason: 'No quote was given for this source.' }
     return quoteMatches(page.text, c.quote).length
       ? { ...base, status: 'verified' as const, reason: null }
       : { ...base, status: 'unverified' as const, reason: 'The quoted sentence is not on the page.' }
   })
+}
+
+// --- Limits ---------------------------------------------------------------------------------------------------------------
+
+// A research run calls the live model with web search for up to minutes, so it has its own limit on every entry point (the
+// /research page and conversations): 6 runs per person and 20 per project every 10 minutes. Viewers may research in
+// conversations (as they may ask there) within the same limit. Call before any work; it counts the run.
+const perPerson = fixedWindow(6, 600_000)
+const perProject = fixedWindow(20, 600_000)
+export function researchThrottle() {
+  const user = access().user.id, project = pid()
+  const wait = Math.max(perPerson(user, false), perProject(project, false))
+  if (wait) throw createError({ statusCode: 429, statusMessage: 'TOO_MANY_REQUESTS', message: `Research is limited to 6 questions per person and 20 per project every 10 minutes. Try again in ${Math.ceil(wait / 60_000)} min.` })
+  perPerson(user)
+  perProject(project)
 }
 
 // --- The run -------------------------------------------------------------------------------------------------------------
@@ -189,6 +211,16 @@ function numberClaims(d: Draft, calcs: ResearchCalculation[]) {
     return { text: c.text, basis, sources, tool }
   })
   return { claims, cited }
+}
+
+// The verdict shown is ours, not the model's word: "established" only when every claim has a verified source or a calculation
+// this run made. Otherwise it is shown as plausible but speculative, and the why says what is missing.
+export function settleVerdict(d: { verdict: Verdict, why: string }, claims: ResearchClaim[], sources: ResearchSource[]): { verdict: Verdict, why: string } {
+  if (d.verdict !== 'established') return d
+  const weak = claims.filter(c => c.basis !== 'calculator' && !c.sources.some(k => sources[k - 1]?.status === 'verified')).length
+  if (claims.length && !weak) return d
+  const what = claims.length ? `${weak} of ${claims.length} claim${claims.length === 1 ? '' : 's'}` : 'The answer'
+  return { verdict: 'speculative', why: `Sources not verified: ${what} ${weak === 1 || !claims.length ? 'has' : 'have'} no verified source or calculation, so it is not shown as established.${d.why ? ` ${d.why}` : ''}` }
 }
 
 const VERDICT_TEXT: Record<Verdict, string> = { established: 'Established', speculative: 'Plausible but speculative', contradicts: 'Contradicts known science or history', unknown: 'Unknown' }
@@ -249,8 +281,8 @@ export async function runResearch(input: ResearchInput): Promise<ResearchResult>
     const calculations = (rec.calculations ?? []).map(c => runCalculator(c.name, c.args))
     const draft = readDraft(rec.draft ?? {})
     const { claims, cited } = numberClaims(draft, calculations)
-    const sources = cited.map((c, k) => ({ n: k + 1, ...c, status: rec.sources?.[k]?.status ?? 'unverified', reason: rec.sources?.[k]?.reason ?? 'Recorded run: not checked.' }))
-    const note = { question: title, ...draft, claims, sources, calculations, searches: rec.searches ?? [] }
+    const sources = cited.map((c, k) => ({ n: k + 1, ...c, ...(rec.sources?.[k] ?? { status: 'unverified' as const, reason: 'Not checked.' }) }))
+    const note = { question: title, ...draft, ...settleVerdict(draft, claims, sources), claims, sources, calculations, searches: rec.searches ?? [] }
     storeNote(id, input, note, { id: 'mock:recorded-fixtures', recorded: true })
     return { kind: 'answer', text: summaryText(note), noteIds: [id] }
   }
@@ -279,7 +311,7 @@ export async function runResearch(input: ResearchInput): Promise<ResearchResult>
       if (url && !cited.some(x => x.url === url) && cited.length < 8) cited.push({ url, title: c.title, quote: '' })
     }
   const sources = await checkSources(cited)
-  const note = { question: title, verdict: draft.verdict, answer: draft.answer, why: draft.why, claims, sources, calculations, searches: run.searches }
+  const note = { question: title, answer: draft.answer, ...settleVerdict(draft, claims, sources), claims, sources, calculations, searches: run.searches }
   storeNote(id, input, note, { id: modelInfo().id, recorded: false })
   return { kind: 'answer', text: summaryText(note), noteIds: [id] }
 }
@@ -306,7 +338,7 @@ export function getResearchNote(id: string) {
 // The read-only document a promoted note's facts cite: the note as written, made once, in the Library's "Research" folder.
 // Its text never changes (a note is never edited), so the citation stays verbatim.
 export function researchDocumentText(n: ResearchNote) {
-  const label = (s: ResearchSource) => s.status === 'verified' ? 'quote verified on the page' : s.status === 'not_checked' ? 'not text-checked (PDF)' : 'quote not verified'
+  const label = (s: ResearchSource) => s.status === 'verified' ? 'quote verified on the page' : s.status === 'not_checked' ? 'not text-checked' : 'quote not verified'
   const basis = (c: ResearchClaim) => c.basis === 'calculator' ? ` (calculated: ${c.tool})` : c.basis === 'model' ? ' (model knowledge, unverified)' : c.sources.length ? ` [${c.sources.join(', ')}]` : ''
   return [
     `# Research: ${n.question}`, '',

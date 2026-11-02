@@ -94,7 +94,6 @@ async function savePin(value: { document_id: string, quote: string } | null) {
       <h1>{{ n.question }}</h1>
       <div class="row meta">
         <UiBadge :tone="VERDICTS[n.verdict].tone">{{ VERDICTS[n.verdict].label }}</UiBadge>
-        <UiBadge v-if="n.recorded" tone="pencil" title="Replayed from a recorded run for tests, not researched live">Recorded run</UiBadge>
         <span class="small faint">Asked by {{ n.created_by_name }} · {{ shortDate(n.created_at) }}</span>
       </div>
     </header>
@@ -139,11 +138,12 @@ async function savePin(value: { document_id: string, quote: string } | null) {
       </ol>
     </UiPanel>
 
-    <UiPanel v-if="n.sources.length" title="Sources" description="Each web page was fetched and its quote looked up word for word. PDFs are listed but not text-checked.">
+    <UiPanel v-if="n.sources.length" title="Sources" description="Each web page was fetched and its quote looked up word for word. PDFs and other non-text files are listed but not text-checked.">
       <ol class="sources">
         <li v-for="s in n.sources" :id="`src-${s.n}`" :key="s.n">
           <div class="spread">
-            <a :href="s.url" target="_blank" rel="noopener noreferrer nofollow" class="src-title">[{{ s.n }}] {{ s.title || host(s.url) }} <span class="faint small">{{ host(s.url) }}</span></a>
+            <a v-if="sourceHref(s.url)" :href="sourceHref(s.url)" target="_blank" rel="noopener noreferrer nofollow" class="src-title">[{{ s.n }}] {{ s.title || host(s.url) }} <span class="faint small">{{ host(s.url) }}</span></a>
+            <span v-else class="src-title">[{{ s.n }}] {{ s.title || 'Unsafe link removed' }}</span>
             <UiBadge :tone="STATUS[s.status].tone">{{ STATUS[s.status].label }}</UiBadge>
           </div>
           <blockquote v-if="s.quote" class="src-quote" :class="s.status">{{ s.quote }}</blockquote>

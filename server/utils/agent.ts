@@ -1,14 +1,16 @@
 // A bounded tool-calling loop over the Meta Model API's Responses endpoint: the model plans and may run the built-in
 // web_search and our own deterministic function tools; we run each function call and hand back its output until it answers.
-// Bounded by steps and wall time per effort level; the last allowed step tells the model to answer (tool_choice can only
-// be "auto" on the Meta API, so a tool call there ends the run with an error instead of another step).
+// Bounded per effort level by steps, a hard wall-clock deadline (in-flight requests are aborted at it), output tokens per
+// request and web searches per run (sent as max_tool_calls, the searches left, where the endpoint supports it; once the
+// budget is spent the next step is the last). The last allowed step, or the last quarter of the time, tells the model to
+// answer (tool_choice can only be "auto" on the Meta API, so a tool call there ends the run with an error).
 // Every model step and every tool run is one model_calls row (step index, tool, args, result summary, latency, tokens), so a
 // trace can be shown. Live failures surface; there is no recorded fallback here.
 import type { Calculator } from './calculators/index'
 
 export const EFFORT = {
-  low: { maxSteps: 3, maxMs: 60_000 },
-  high: { maxSteps: 10, maxMs: 300_000 },
+  low: { maxSteps: 3, maxMs: 60_000, maxOutputTokens: 4_000, maxSearches: 3 },
+  high: { maxSteps: 10, maxMs: 300_000, maxOutputTokens: 16_000, maxSearches: 12 },
 } as const
 export type Effort = keyof typeof EFFORT
 
@@ -22,7 +24,7 @@ interface OutputItem {
   action?: { query?: string, queries?: string[] }
   content?: { type: string, text?: string, annotations?: { type: string, url?: string, title?: string }[] }[]
 }
-interface Reply { output?: OutputItem[], usage?: { total_tokens?: number }, error?: { message?: string } | null, status?: string }
+interface Reply { output?: OutputItem[], usage?: { total_tokens?: number }, error?: { message?: string } | null, status?: string, incomplete_details?: { reason?: string } | null }
 
 const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`
 const short = (v: unknown, max = 400) => {
@@ -46,23 +48,27 @@ export function recordStep(row: {
 async function responses(body: Record<string, unknown>, deadline: number): Promise<Reply> {
   const { metaBaseUrl } = useRuntimeConfig()
   const headers = { Authorization: `Bearer ${apiKey()}` }
-  const left = () => Math.max(15_000, deadline - Date.now())
+  // Every request is aborted at the deadline; nothing runs past it.
+  const left = () => {
+    const ms = deadline - Date.now()
+    if (ms <= 0) throw Object.assign(new Error('timeout'), { name: 'TimeoutError' })
+    return ms
+  }
   for (let attempt = 1; ; attempt++) {
     try {
       return await $fetch<Reply>(`${metaBaseUrl}/responses`, { method: 'POST', timeout: Math.min(180_000, left()), headers, body })
     } catch (e) {
       const status = (e as { statusCode?: number }).statusCode
       if ([429, 500, 503].includes(status ?? 0) && attempt < 3) {
-        await new Promise(r => setTimeout(r, 500 * 2 ** (attempt - 1) + Math.random() * 250))
+        await new Promise(r => setTimeout(r, Math.min(left(), 500 * 2 ** (attempt - 1) + Math.random() * 250)))
         continue
       }
       if (status !== 504) throw e
       // Background mode keeps the response server-side (store) and is polled until it settles.
-      let job = await $fetch<Reply & { id: string, status: string }>(`${metaBaseUrl}/responses`, { method: 'POST', timeout: 30_000, headers, body: { ...body, store: true, background: true } })
+      let job = await $fetch<Reply & { id: string, status: string }>(`${metaBaseUrl}/responses`, { method: 'POST', timeout: Math.min(30_000, left()), headers, body: { ...body, store: true, background: true } })
       while (['queued', 'in_progress'].includes(job.status)) {
-        if (Date.now() > deadline) throw Object.assign(new Error('timeout'), { name: 'TimeoutError' })
-        await new Promise(r => setTimeout(r, 2_000))
-        job = await $fetch(`${metaBaseUrl}/responses/${job.id}`, { timeout: 30_000, headers })
+        await new Promise(r => setTimeout(r, Math.min(left(), 2_000)))
+        job = await $fetch(`${metaBaseUrl}/responses/${job.id}`, { timeout: Math.min(30_000, left()), headers })
       }
       if (job.status !== 'completed') throw Object.assign(new Error(job.error?.message ?? `background response ${job.status}`), { statusCode: 502 })
       return job
@@ -78,8 +84,7 @@ export async function runAgent(o: {
 }): Promise<AgentRun> {
   const { modelId } = useRuntimeConfig()
   const limit = EFFORT[o.effort]
-  const started = Date.now()
-  const deadline = started + limit.maxMs + 120_000 // the last step may run past maxMs; nothing runs past this
+  const deadline = Date.now() + limit.maxMs // hard: requests in flight are aborted at it
   // State: stateless replay (store: false). Every item the model produced (reasoning as encrypted content, searches,
   // calls, messages) goes back in `input` with our outputs; previous_response_id is never used (with this include it is a 400).
   const items: unknown[] = [{ role: 'user', content: o.input }]
@@ -90,10 +95,14 @@ export async function runAgent(o: {
   // refused (400), the run switches to split steps: step 1 searches only, later steps run calculators only.
   let split = !search.length || !functions.length ? null : false as boolean | null
   const base = { purpose: o.purpose, target: o.target, modelId, projectId: o.projectId }
+  // ponytail: an endpoint that refuses max_tool_calls (OmniRoute answers 400 "Unsupported parameter") runs without it; then
+  // searches are only capped between steps, and one request may still search more than the budget left.
+  let toolCap = true
+  let searchCalls = 0
 
   for (let step = 0; ; step++) {
     // tool_choice only accepts "auto" on the Meta API, so the last step can't forbid tools: it asks for the answer instead.
-    const last = step >= limit.maxSteps - 1 || Date.now() - started > limit.maxMs
+    const last = step >= limit.maxSteps - 1 || deadline - Date.now() < limit.maxMs / 4 || searchCalls >= limit.maxSearches
     const tools = split ? (step === 0 ? search : functions) : [...search, ...functions]
     const nudge = last ? 'Step limit reached: give your final answer now, without calling more tools.'
       : split && step === 0 ? 'First search for sources. You can run the calculators in the next step.' : null
@@ -101,11 +110,20 @@ export async function runAgent(o: {
     let reply: Reply
     try {
       reply = await responses({ model: modelId, instructions: o.instructions, input: nudge ? [...items, { role: 'user', content: nudge }] : items, tools,
-        store: false, include: ['reasoning.encrypted_content'] }, deadline)
+        max_output_tokens: limit.maxOutputTokens, ...(toolCap && tools.some(t => t.type === 'web_search') ? { max_tool_calls: Math.max(1, limit.maxSearches - searchCalls) } : {}), store: false, include: ['reasoning.encrypted_content'] }, deadline)
     } catch (e) {
       const status = (e as { statusCode?: number }).statusCode
-      const err = apiFailure(e as Parameters<typeof apiFailure>[0], 'Research failed', 'Nothing was stored.')
-      recordStep({ ...base, step, tool: null, input: step ? null : o.input, status: 'failed', latency: Date.now() - t0, summary: null, error: err.message, tokens: null })
+      const err = Date.now() >= deadline
+        ? createError({ statusCode: 504, statusMessage: 'RESEARCH_TIMEOUT', message: `Research failed: it ran past its ${limit.maxMs / 60_000}-minute time limit. Nothing was stored.` })
+        : apiFailure(e as Parameters<typeof apiFailure>[0], 'Research failed', 'Nothing was stored.')
+      const noCap = status === 400 && toolCap && /max_tool_calls/.test(JSON.stringify((e as { data?: unknown }).data ?? ''))
+      recordStep({ ...base, step, tool: null, input: step ? null : o.input, status: 'failed', latency: Date.now() - t0, summary: null, tokens: null,
+        error: noCap ? 'The endpoint refused max_tool_calls (400); retried without it, searches capped between steps.' : err.message })
+      if (noCap) {
+        toolCap = false
+        step--
+        continue
+      }
       if (status === 400 && split === false && step === 0) {
         split = true
         step--
@@ -122,6 +140,7 @@ export async function runAgent(o: {
     const texts = out.filter(i => i.type === 'message').flatMap(i => i.content ?? []).filter(c => c.type === 'output_text')
     const text = texts.map(c => c.text ?? '').join('\n').trim()
     run.searches.push(...searches)
+    searchCalls += out.filter(i => i.type === 'web_search_call').length
     // Pages the model cited: url_citation annotations, or (they can be empty) URLs written in its text.
     const cited = texts.flatMap(c => c.annotations ?? []).filter(a => a.type === 'url_citation' && a.url).map(a => ({ url: a.url!, title: a.title ?? '' }))
     run.citations.push(...(cited.length ? cited : (text.match(URL_IN_TEXT) ?? []).map(url => ({ url, title: '' }))))
@@ -133,7 +152,8 @@ export async function runAgent(o: {
     const searchOnly = split && step === 0 && !last
     if (!searchOnly && (!calls.length || last)) {
       if (!text) {
-        const why = calls.length ? `did not finish within ${plural(limit.maxSteps, 'step')}` : 'returned no answer'
+        const why = reply.incomplete_details?.reason === 'max_output_tokens' ? `reached its output limit (${limit.maxOutputTokens} tokens) before answering`
+          : calls.length ? `did not finish within ${plural(limit.maxSteps, 'step')}` : 'returned no answer'
         recordStep({ ...base, step, tool: null, input: null, status: 'failed', latency: 0, summary: null, error: `The model ${why}.`, tokens: null })
         throw createError({ statusCode: 502, statusMessage: 'MODEL_BAD_OUTPUT', message: `Research failed: the model ${why}. Nothing was stored.` })
       }

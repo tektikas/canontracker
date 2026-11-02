@@ -17,7 +17,8 @@ interface ConversationRow { id: string, title: string, mode: Mode, created_by: s
 interface MessageRow { id: string, conversation_id: string, role: 'user' | 'assistant', author_id: string, mode: Mode, text: string, parts: string, context: string, reply_to: string | null, created_at: string }
 
 const fail = (statusCode: number, statusMessage: string, message: string) => createError({ statusCode, statusMessage, message })
-// Asking may call the live model: 30 messages a minute per person, the same as /api/qa (server/utils/throttle.ts).
+// Asking may call the live model: 30 messages a minute per person, the same as /api/qa (server/utils/throttle.ts). Research
+// posts also count against researchThrottle (server/utils/research.ts).
 const posts = fixedWindow(30, 60_000)
 
 export function getConversation(id: string) {
@@ -86,6 +87,7 @@ export async function readPost(event: Parameters<typeof readObject>[0]) {
   const mode: Mode = b.mode === 'research' ? 'research' : 'canon'
   const context = cleanContext(b.context)
   if (posts(access().user.id)) throw fail(429, 'TOO_MANY_REQUESTS', 'Asking too fast. Wait a moment.')
+  if (mode === 'research') researchThrottle()
   return { text, mode, context }
 }
 

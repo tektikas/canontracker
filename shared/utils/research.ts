@@ -14,6 +14,16 @@ export type SourceStatus = 'verified' | 'unverified' | 'not_checked'
 export interface ResearchSource { n: number, url: string, title: string, quote: string, status: SourceStatus, reason: string | null }
 // basis: source (cited pages), calculator (a tool this run called), model (no source: model knowledge, unverified).
 export interface ResearchClaim { text: string, basis: 'source' | 'calculator' | 'model', sources: number[], tool: string | null }
+/** A source address we store, fetch and link: https only (a model-cited javascript: or data: URL must never become a link)
+ * and no user:password@ part (a download never sends URL-derived credentials). '' for anything else. */
+export function sourceHref(raw: string) {
+  try {
+    const u = new URL(raw)
+    return u.protocol === 'https:' && !u.username && !u.password ? u.href : ''
+  } catch {
+    return ''
+  }
+}
 export interface ResearchCalculation { name: string, args: Record<string, unknown>, result: unknown, assumptions: string[], error: string | null }
 
 export const RESEARCH_FIELDS = { '': 'Not set', history: 'History', crime: 'Crime', science_fiction: 'Science fiction', other: 'Other' } as const

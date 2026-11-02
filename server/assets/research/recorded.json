@@ -14,26 +14,26 @@
   {
     "question": "How far does Europa orbit from Jupiter, and what is the one-way light delay from Earth to Europa at 628 million km?",
     "kind": "answer",
-    "recorded_from": "codex/gpt-6-luna research-v1 2026-11-02T15:56:47.993Z",
+    "recorded_from": "codex/gpt-6-luna research-v1 2026-11-02T16:31:40.220Z (scripts/research-live.mjs)",
     "draft": {
       "verdict": "established",
-      "answer": "Europa orbits about 671,000 km from Jupiter. At an Earth–Europa distance of 628 million km, one-way light delay is about 2,094.8 seconds, or 34.9 minutes, assuming light travels through a vacuum in a straight line.",
-      "why": "Both values are documented by NASA or computed for the stated distance under the light-delay tool’s assumptions.",
+      "answer": "Europa’s average orbital distance from Jupiter is about 671,000 km (417,000 miles). At an Earth–Europa distance of 628 million km, the one-way light delay is about 2,094.8 seconds, or 34.9 minutes, assuming light travels through vacuum in a straight line.",
+      "why": "The orbital distance is documented by NASA/JPL, and the signal delay is computed for the stated distance under the calculator’s assumptions.",
       "claims": [
         {
-          "text": "Europa orbits about 671,000 km from Jupiter.",
+          "text": "Europa orbits Jupiter at an average distance of about 671,000 km (417,000 miles).",
           "basis": "source",
           "tool": null,
           "sources": [
             {
-              "url": "https://science.nasa.gov/jupiter/jupiter-moons/europa/europa-facts/",
-              "title": "Europa: Facts - NASA Science",
-              "quote": "Europa orbits Jupiter at about 417,000 miles (671,000 kilometers) from the planet, which itself orbits the Sun at a distance of roughly 500 million miles (780 million kilometers), or 5.2 astronomical units (AU)."
+              "url": "https://www.jpl.nasa.gov/press-kits/europa-clipper/quick-facts/",
+              "title": "Quick Facts | NASA Jet Propulsion Laboratory (JPL)",
+              "quote": "Europa orbits Jupiter relatively quickly, circling the planet every 3.55 Earth days at a distance of about 417,000 miles (671,000 kilometers) from the planet — roughly 1.75 times farther than our own Moon is to Earth."
             }
           ]
         },
         {
-          "text": "At 628 million km, one-way light delay is 2,094.8 seconds (34.913 minutes), assuming a straight path through vacuum at the speed of light.",
+          "text": "At 628,000,000 km, the one-way light delay is 2,094.8 seconds, or 34.913 minutes, assuming a straight path through vacuum.",
           "basis": "calculator",
           "tool": "light_delay",
           "sources": []
@@ -51,14 +51,52 @@
     ],
     "sources": [
       {
-        "status": "unverified",
-        "reason": "The page could not be read (the page host answered 403)."
+        "status": "verified",
+        "reason": null
       }
     ],
     "searches": [
-      "Europa average orbital distance Jupiter NASA 671000 km",
-      "site:science.nasa.gov Europa mean orbital radius Jupiter 671100 km",
-      "Europa orbital distance Jupiter NASA 671000 km"
+      "NASA Europa orbit distance from Jupiter 671000 km",
+      "Europa mean orbital radius Jupiter NASA"
     ]
+  },
+  {
+    "question": "Probe: a draft that cites unsafe links",
+    "kind": "answer",
+    "recorded_from": "hand-written probe case (not a live run): a model draft citing a javascript: URL and a URL with user:password@; neither may be stored as a link, and an unbacked \"established\" is not shown as established",
+    "draft": {
+      "verdict": "established",
+      "answer": "Both claims cite links that are not safe to store.",
+      "why": "The model said so.",
+      "claims": [
+        {
+          "text": "A claim citing a script link.",
+          "basis": "source",
+          "tool": null,
+          "sources": [
+            {
+              "url": "javascript:alert(1)",
+              "title": "Script link",
+              "quote": "Anything at all."
+            }
+          ]
+        },
+        {
+          "text": "A claim citing a link with credentials.",
+          "basis": "source",
+          "tool": null,
+          "sources": [
+            {
+              "url": "https://u:p@example.com/",
+              "title": "Credential link",
+              "quote": "Anything at all."
+            }
+          ]
+        }
+      ]
+    },
+    "calculations": [],
+    "sources": [],
+    "searches": []
   }
 ]

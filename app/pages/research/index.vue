@@ -115,7 +115,6 @@ const ago = (iso: string) => shortDate(iso)
         <NuxtLink :to="`/research/${n.id}`" class="note">
           <span class="row top">
             <UiBadge :tone="VERDICTS[n.verdict].tone">{{ VERDICTS[n.verdict].label }}</UiBadge>
-            <UiBadge v-if="n.recorded" tone="pencil" title="Replayed from a recorded run for tests, not researched live">Recorded run</UiBadge>
             <span class="small faint">{{ n.created_by_name }} · {{ ago(n.created_at) }}</span>
           </span>
           <b class="q">{{ n.question }}</b>

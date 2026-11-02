@@ -72,8 +72,20 @@ check('a calculator claim names a tool this run called', note.claims.filter(c =>
 check('trace has the recorded step', note.trace.length >= 1 && note.trace.every(t => t.model_id === 'mock:recorded-fixtures'), true)
 const list = (await a('/api/research')).data
 check('listed', list.map(n => n.id), [noteId])
-check('list counts verified sources', list[0].sources.total, note.sources.length)
+check('list counts verified sources', list.find(n => n.id === noteId).sources.total, note.sources.length)
 check('unknown note 404', (await a('/api/research/rn_nope')).status, 404)
+const backed = n => n.claims.every(c => c.basis === 'calculator' || c.sources.some(k => n.sources[k - 1]?.status === 'verified'))
+check('"established" only when every claim has a verified source or a calculation', note.verdict !== 'established' || backed(note), true)
+
+// 4b. A draft citing a javascript: URL and a URL with user:password@: neither is stored, and the model's "established"
+// for claims now without sources is shown as plausible but speculative, with why.
+const unsafe = (await a('/api/research', { method: 'POST', body: { question: 'Probe: a draft that cites unsafe links' } })).data
+const unsafeNote = (await a(`/api/research/${unsafe.noteIds[0]}`)).data
+check('no unsafe link stored', unsafeNote.sources.map(s => s.url), [])
+check('…not even in the stored JSON', JSON.stringify(unsafeNote).includes('javascript:') || JSON.stringify(unsafeNote).includes('u:p@'), false)
+check('…claims left without a source read model knowledge', unsafeNote.claims.map(c => c.basis), ['model', 'model'])
+check('model said established; shown as speculative', unsafeNote.verdict, 'speculative')
+check('…and says why', unsafeNote.why.startsWith('Sources not verified: 2 of 2 claims have no verified source or calculation'), true)
 
 // 5. Promote → pending candidate only, citing a read-only basis document; never canon by itself.
 const pendingBefore = (await a('/api/facts?status=pending')).data.length
@@ -119,6 +131,14 @@ check('pinned', pinned.data.pin_quote, 'waits at the relay')
 check('pinned line', pinned.data.pin_line, 1)
 check('unpinned', (await a(`/api/research/${noteId}`, { method: 'PATCH', body: { pin: null } })).data.pin_passage_id, null)
 check('pin needs a body', (await a(`/api/research/${noteId}`, { method: 'PATCH', body: {} })).status, 400)
+check('pin with a passage but no words refused', (await a(`/api/research/${noteId}`, { method: 'PATCH', body: { pin: { document_id: scene.document_id, passage_id: pinned.data.pin_passage_id, quote: '' } } })).status, 422)
+const sceneDoc = (await a(`/api/documents/${scene.document_id}`)).data
+const second = sceneDoc.passages.find(p => p.id !== pinned.data.pin_passage_id)
+check('pin words from another passage than the one picked refused', (await a(`/api/research/${noteId}`, { method: 'PATCH', body: { pin: { document_id: scene.document_id, passage_id: second.id, quote: 'waits at the relay' } } })).status, 422)
+const edit = (await a('/api/drafts', { method: 'POST', body: { document_id: scene.document_id } })).data
+await a(`/api/drafts/${edit.id}`, { method: 'PUT', body: { content: 'Mara waits at the relay for the answer from Earth.\n\nIt comes just before dawn.' } })
+check('scene saved as version 2', (await a(`/api/drafts/${edit.id}/save`, { method: 'POST' })).data.version, 2)
+check('pin to an older version refused', (await a(`/api/research/${noteId}`, { method: 'PATCH', body: { pin: { document_id: scene.document_id, quote: 'waits at the relay' } } })).status, 409)
 
 // 7. Viewer reads research but cannot run or change it; another studio sees nothing.
 const link = (await a('/api/team/invites', { method: 'POST', body: { role: 'viewer', days: 7 } })).data
@@ -138,7 +158,16 @@ check('other studio: empty list', (await b('/api/research')).data.length, 0)
 check('other studio: 404 promoting', (await b(`/api/research/${noteId}/promote`, { method: 'POST', body: { as: 'rule', subject: 'x', statement: 'x', quote } })).status, 404)
 check('other studio: 404 pinning', (await b(`/api/research/${noteId}`, { method: 'PATCH', body: { pin: null } })).status, 404)
 
-// 8. Audit trail.
+// 8. Research has its own limit: 6 runs per person every 10 minutes (Rosa has made 4), with a plain 429 message.
+for (let i = 0; i < 2; i++) check(`research run ${5 + i} allowed`, (await a('/api/research', { method: 'POST', body: { question: 'Could a human survive a week on Europa’s surface?' } })).status, 200)
+const limited = await a('/api/research', { method: 'POST', body: { question: 'Could a human survive a week on Europa’s surface?' } })
+check('7th run in 10 minutes refused', limited.status, 429)
+check('…with a plain message', /^Research is limited to 6 questions per person/.test(limited.data.message), true)
+const conv = await a('/api/conversations', { method: 'POST', body: { text: 'How far can a horse walk in a day?', mode: 'research' } })
+check('the limit covers research in conversations too', conv.status, 429)
+check('canon questions are not limited by it', (await a('/api/conversations', { method: 'POST', body: { text: 'Who is Mara?', mode: 'canon' } })).status, 200)
+
+// 9. Audit trail.
 const events = (await a('/api/audit')).data.map(e => e.event_type)
 for (const t of ['research.created', 'research.promoted', 'document.research_saved', 'research.pinned', 'research.unpinned'])
   check(`audited ${t}`, events.includes(t), true)
