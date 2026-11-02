@@ -88,6 +88,7 @@ async function save(body: Record<string, unknown>) {
   }
 }
 function aliasKey(ev: KeyboardEvent) {
+  if (ev.isComposing || ev.keyCode === 229 || ev.ctrlKey || ev.metaKey) return
   if (ev.key !== 'Enter' && ev.key !== ',') return
   ev.preventDefault()
   addAlias()

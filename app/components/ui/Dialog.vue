@@ -2,6 +2,8 @@
 // Modal sheet on the native <dialog>: focus trap, Esc and inert page for free. Centered on wide screens, a bottom sheet on
 // phones. v-model:open drives it; closing by Esc, the backdrop or the × sets it back to false.
 const open = defineModel<boolean>('open', { default: false })
+// The actions footer is a form: its submit button (type="submit") emits submit, so Ctrl/⌘+Enter sends it too.
+const emit = defineEmits<{ submit: [] }>()
 defineProps<{ title: string, wide?: boolean }>()
 const dlg = ref<HTMLDialogElement>()
 const id = useId()
@@ -25,7 +27,7 @@ const backdrop = (e: MouseEvent) => { if (e.target === dlg.value) dlg.value?.clo
         <button type="button" class="icon-btn" aria-label="Close" @click="dlg?.close()"><UiIcon name="close" :size="18" /></button>
       </header>
       <div class="ui-dialog-body"><slot /></div>
-      <footer v-if="$slots.actions" class="ui-dialog-actions"><slot name="actions" /></footer>
+      <form v-if="$slots.actions" method="dialog" class="ui-dialog-actions" @submit.prevent="emit('submit')"><slot name="actions" /></form>
     </div>
   </dialog>
 </template>
