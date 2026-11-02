@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Agent activity ("receipts"): every AI run in the project with its model, prompt version and effort, each step it took (tool,
 // arguments, result, time, tokens), and what people did with it afterwards. ?run=<id> opens one run with its full step inputs;
-// "How was this made?" links land here. Like Metrics, this is the developer view: it names the model and recorded runs.
+// "How was this made?" links land here. Like Metrics, this is the developer view: it names the model.
 useHead({ title: 'Agent activity · Story Bible' })
 const route = useRoute()
 const one = computed(() => (typeof route.query.run === 'string' ? route.query.run : ''))
@@ -20,7 +20,6 @@ function outcome(r: Run) {
   const parts = Object.entries(map).map(([k, n]) => `${n} ${words[k] ?? k}`)
   return parts.length ? `${r.purpose === 'rule_check' ? 'Conflicts' : 'Candidates'}: ${parts.join(' · ')}` : none
 }
-const tone = (id: string) => ({ recorded: 'warn', live: 'good', mixed: 'pencil', none: 'neutral' } as const)[provenance(id).kind]
 const secs = (ms: number) => `${(ms / 1000).toFixed(ms < 10_000 ? 1 : 0)} s`
 const what = (s: Run['steps'][number]) => (s.tool === null ? 'AI' : s.tool === 'web_search' ? 'AI + web search' : s.tool)
 const link = (r: Run) => (r.purpose === 'research' ? { to: `/research/${r.target_id}`, label: 'Open the research note' }
@@ -75,7 +74,7 @@ watch(runs, (list) => { if (one.value && list?.[0]) loadReport(list[0]) }, { imm
 
         <div class="run-body">
           <dl class="facts small">
-            <div><dt>Model</dt><dd><UiBadge :tone="tone(r.model_id)" dot>{{ provenance(r.model_id).label }}</UiBadge> <span class="mono">{{ r.model_id }}</span></dd></div>
+            <div><dt>Model</dt><dd class="mono">{{ r.model_id }}</dd></div>
             <div><dt>Prompt</dt><dd class="mono">{{ r.prompt_version }}</dd></div>
             <div><dt>Effort</dt><dd>{{ r.effort ?? 'default' }}</dd></div>
             <div><dt>For</dt><dd><span class="mono">{{ r.target_type }} {{ r.target_id }}</span> <NuxtLink v-if="link(r)" :to="link(r)!.to">{{ link(r)!.label }}</NuxtLink></dd></div>

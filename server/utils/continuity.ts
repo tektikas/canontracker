@@ -170,7 +170,11 @@ export function groundReport(text: string, out: Record<string, unknown>, calls: 
   const done = findings.map(({ hard, ...f }) => ({ ...f, severity: (f.checks.length ? (f.checks.some(i => checks[i]!.severity === 'hard') ? 'hard' : 'soft')
     : f.kind === 'contradicts' ? (hard ? 'hard' : 'soft') : 'info') as Severity }))
   done.sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
-  return { summary: str(out.summary, 800), findings: done, checks, dropped }
+  // The summary is built from the kept findings, so it never claims more than they show. The AI's own summary stays only when nothing was left out.
+  const n = (k: Severity | 'new') => done.filter(f => (k === 'new' ? f.kind === 'new' : f.kind !== 'new' && f.severity === k)).length
+  const summary = dropped.length ? (done.length ? `${done.length} finding${done.length === 1 ? '' : 's'}: ${[n('hard') && `${n('hard')} hard`, n('soft') && `${n('soft')} soft`, n('info') && `${n('info')} to note`, n('new') && `${n('new')} not in canon yet`].filter(Boolean).join(', ')}.` : 'No finding is backed by canon.')
+    : str(out.summary, 800)
+  return { summary, findings: done, checks, dropped }
 }
 
 // --- The run ----------------------------------------------------------------------------------------------------------------

@@ -50,7 +50,7 @@ export default defineEventHandler((event) => {
     return {
       id: first.step == null ? first.id : first.target_id, purpose: first.purpose, agent: AGENTS[first.purpose] ?? first.purpose,
       target_type: first.target_type, target_id: first.target_id, started_at: first.created_at, about: about(first),
-      model_id: [...new Set(steps.map(s => s.model_id))].join(' + '), prompt_version: first.prompt_version, effort: steps.find(s => s.effort)?.effort ?? null,
+      model_id: [...new Set(steps.map(s => (s.model_id.startsWith('mock:') ? 'AI' : s.model_id)))].join(' + '), prompt_version: first.prompt_version, effort: steps.find(s => s.effort)?.effort ?? null,
       status: steps.some(s => s.status === 'failed' && !s.tool) ? 'failed' : 'ok',
       error: steps.findLast(s => s.status === 'failed' && !s.tool)?.error ?? null,
       model_steps: steps.filter(s => !s.tool || s.tool === 'web_search').length, tool_calls: steps.filter(s => s.tool && s.tool !== 'web_search').length,

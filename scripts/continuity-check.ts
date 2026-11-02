@@ -58,4 +58,7 @@ const loose = groundReport(S1, { summary: '', findings: [finding(S1, 'contradict
   { ...calls[0]!, error: 'BAD_INPUT' },
 ] as never, canon)
 assert.deepEqual([loose.checks.length, loose.findings[0]!.severity, loose.dropped.length], [0, 'soft', 1])
+// The summary is rebuilt from kept findings when something was dropped: the AI's own claim never survives alone.
+assert.equal(loose.summary, '1 finding: 1 soft.')
+assert.equal(groundReport(S1, { summary: 'canon places Rourke elsewhere', findings: [] }, [], canon).summary, 'canon places Rourke elsewhere')
 console.log('continuity grounding: all checks passed')
