@@ -19,6 +19,8 @@ WORKDIR /app
 ENV NODE_ENV=production \
     HOST=0.0.0.0 \
     PORT=3000
+# ffmpeg converts uploaded recordings and voice clips (MP3, M4A, OGG, WebM, ...) to the WAV Muse Voice Transcribe takes.
+RUN apk add --no-cache ffmpeg
 COPY --from=build --chown=node:node /app/.output ./.output
 COPY deployment/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # The app writes .data/storybible.db relative to /app; a fresh named volume copies this ownership on first mount

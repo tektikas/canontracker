@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import type { Turn, Wav } from './audio'
 
 // All model calls go through here. MODEL_MODE=mock replays recorded fixture output;
 // MODEL_MODE=meta calls the Meta Model API (OpenAI-compatible). The key never leaves the server.
@@ -12,7 +13,7 @@ export interface CandidateDraft {
 
 export interface RuleViolation { fact_id: string, rationale: string, confidence: number }
 
-export const PROMPT_VERSIONS = { extract: 'extract-v2', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', research: 'research-v1', critic: 'critic-v2' } as const
+export const PROMPT_VERSIONS = { extract: 'extract-v2', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', research: 'research-v1', critic: 'critic-v2', transcribe: 'transcribe-v1' } as const
 
 export function modelInfo() {
   const { modelMode, modelId } = useRuntimeConfig()
@@ -120,10 +121,12 @@ function identityNotes(facts: PromptFact[]) {
 // gets nothing, so an unrelated upload never receives another story's candidates.
 const RECORDED_SETS = ['broken-tide', 'ashbell-pass']
 const sha = (text: string) => createHash('sha256').update(text).digest('hex')
-let sources: Promise<Map<string, { set: string, filename: string }>> | undefined
+let sources: Promise<Map<string, { set: string, filename: string, candidates?: CandidateDraft[] }>> | undefined
 const recordedSources = () => sources ??= (async () => {
   const assets = useStorage('assets:server')
-  const map = new Map<string, { set: string, filename: string }>()
+  const map = new Map<string, { set: string, filename: string, candidates?: CandidateDraft[] }>()
+  // A sample recording's transcript is a source like the docs: its recorded candidates replay for that exact text only.
+  for (const r of await recordedRecordings()) map.set(sha(transcriptOf(r.turns).content), { set: r.set, filename: r.file, candidates: r.candidates })
   for (const set of RECORDED_SETS) {
     for (const dir of ['docs', 'v2']) {
       for (const key of await assets.getKeys(`${set}:${dir}`)) {
@@ -136,7 +139,7 @@ const recordedSources = () => sources ??= (async () => {
 })()
 const recordedCandidates = async (text: string) => {
   const src = (await recordedSources()).get(sha(text))
-  return src && (await useStorage('assets:server').getItem<Record<string, CandidateDraft[]>>(`${src.set}:candidates.json`))?.[src.filename]
+  return src && (src.candidates ?? (await useStorage('assets:server').getItem<Record<string, CandidateDraft[]>>(`${src.set}:candidates.json`))?.[src.filename])
 }
 
 // Recorded mode only has extraction output for the demo sets' own source texts.
@@ -384,4 +387,86 @@ export function generateImages(prompt: string, n: number, target: { type: string
       deadline.abort() // stops any download still running after a sibling failed
     }
   }, r => `${plural(r.images.length, 'image')}${r.extra > 0 ? ` (Muse Image returned ${r.extra} more than asked; not kept)` : ''}`, imageModelId)
+}
+
+// Muse Voice Transcribe (dev.meta.ai/docs/speech-to-text): POST {base}/asr/transcribe, multipart with a `request` JSON part
+// and an `audio` WAV part. Not the OpenAI /audio/transcriptions shape. ENDPOINTING mode returns model-detected turns with
+// start/end times (PUSH_TO_TALK returns none; DIARIZATION adds speaker labels but gave coarser turns in our tests, so it is
+// an option: NUXT_TRANSCRIBE_MODE). Timestamps are per turn; there are no word timestamps.
+// NUXT_TRANSCRIBE_API=openai talks to an OpenAI-style /audio/transcriptions stand-in instead (a test bridge, not Muse).
+export function transcribeModelInfo() {
+  const { modelMode, transcribeModelId } = useRuntimeConfig()
+  return { live: modelMode === 'meta', id: modelMode === 'meta' ? transcribeModelId : 'mock:recorded-fixtures' }
+}
+
+// Sample recordings with a recorded transcript (server/assets/<set>/recordings.json): the audio's sha256 picks the entry,
+// so only that exact sample file gets a transcript in recorded mode; any other audio is refused, never given made-up text.
+export interface RecordedRecording { set: string, file: string, audio_sha256: string, script?: string, duration_ms: number, session_id?: string, turns: Turn[], candidates?: CandidateDraft[] }
+let recordings: Promise<RecordedRecording[]> | undefined
+const recordedRecordings = () => recordings ??= (async () => {
+  const out: RecordedRecording[] = []
+  for (const set of RECORDED_SETS) {
+    const list = await useStorage('assets:server').getItem<Omit<RecordedRecording, 'set'>[]>(`${set}:recordings.json`)
+    for (const r of list ?? []) out.push({ ...r, set })
+  }
+  return out
+})()
+
+export interface Transcript { turns: Turn[], duration_ms: number, session_ids: string[], mode: string }
+type MuseTranscript = { sessionId?: string, transcript?: string, audioDurationMs?: number, turns?: { startMs?: number, endMs?: number, transcript?: string, speaker?: string }[] }
+
+async function transcribeChunk(file: Buffer, durationMs: number, keywords: string[]): Promise<{ turns: Turn[], session_id: string | null }> {
+  const { metaBaseUrl, metaApiKey, transcribeBaseUrl, transcribeApiKey, transcribeModelId, transcribeMode, transcribeApi } = useRuntimeConfig()
+  const key = transcribeApiKey || metaApiKey
+  if (!key) throw createError({ statusCode: 503, statusMessage: 'MODEL_NOT_CONFIGURED', message: 'Meta Model API key is not set (NUXT_META_API_KEY).' })
+  const base = transcribeBaseUrl || metaBaseUrl
+  const form = new FormData()
+  const audio = new Blob([new Uint8Array(file)], { type: 'audio/wav' })
+  const fail = (e: Parameters<typeof apiFailure>[0]) => apiFailure(e, 'Transcription failed', 'No transcript was saved.')
+  if (transcribeApi === 'openai') {
+    form.append('file', audio, 'audio.wav')
+    form.append('model', transcribeModelId)
+    form.append('response_format', 'verbose_json')
+    if (keywords.length) form.append('prompt', keywords.join(', '))
+    const r = await $fetch<{ text?: string, segments?: { start: number, end: number, text: string }[] }>(`${base}/audio/transcriptions`, {
+      method: 'POST', body: form, timeout: 300_000, headers: { Authorization: `Bearer ${key}` },
+    }).catch((e) => { throw fail(e) })
+    const segs = r.segments?.length ? r.segments : r.text ? [{ start: 0, end: durationMs / 1000, text: r.text }] : []
+    return { turns: segs.map(s => ({ start_ms: Math.round(s.start * 1000), end_ms: Math.round(s.end * 1000), text: s.text, speaker: null })), session_id: null }
+  }
+  form.append('request', new Blob([JSON.stringify({ model: transcribeModelId, audioEncoding: 'WAV', mode: transcribeMode, ...(keywords.length && { keywords }) })], { type: 'application/json' }))
+  form.append('audio', audio, 'audio.wav')
+  const r = await $fetch<MuseTranscript>(`${base}/asr/transcribe`, {
+    method: 'POST', body: form, timeout: 300_000, headers: { Authorization: `Bearer ${key}`, Accept: 'application/json' },
+  }).catch((e) => { throw fail(e) })
+  if (!r || typeof r !== 'object' || (r.turns !== undefined && !Array.isArray(r.turns)))
+    throw createError({ statusCode: 502, statusMessage: 'MODEL_BAD_OUTPUT', message: 'Transcription failed: Muse Voice Transcribe did not return a transcript. No transcript was saved.' })
+  const turns = (r.turns ?? []).filter(t => typeof t?.transcript === 'string')
+    .map(t => ({ start_ms: Number(t.startMs) || 0, end_ms: Number(t.endMs) || 0, text: t.transcript!, speaker: typeof t.speaker === 'string' ? t.speaker : null }))
+  // PUSH_TO_TALK (or a single utterance) can come back without turns: the whole clip is then one turn.
+  if (!turns.length && r.transcript?.trim()) turns.push({ start_ms: 0, end_ms: Number(r.audioDurationMs) || durationMs, text: r.transcript, speaker: null })
+  return { turns, session_id: r.sessionId ?? null }
+}
+
+/** Speech to text for one WAV (from toMuseWav). Longer than CHUNK_MS goes in chunks whose turn times are shifted back into
+ * place. Counted against the hourly audio limits first (spendAudio). Recorded in model_calls (purpose `transcribe`, the audio's sha256 as input ref); a failure is shown, never filled in. */
+export function transcribeAudio(wav: Wav & { sha256: string }, target: { type: string, id: string }) {
+  const info = transcribeModelInfo()
+  spendAudio(target.type === 'dictation' ? 'dictation' : 'recording', wav.duration_ms)
+  return traced('transcribe', target, [wav.sha256], null, async (): Promise<Transcript> => {
+    if (!info.live) {
+      const rec = (await recordedRecordings()).find(r => r.audio_sha256 === wav.sha256)
+      if (!rec) throw createError({ statusCode: 503, statusMessage: 'MODEL_OFFLINE', message: 'Transcription needs the live AI. In recorded mode only the sample recording has a transcript. Nothing was saved.' })
+      return { turns: rec.turns, duration_ms: rec.duration_ms, session_ids: rec.session_id ? [rec.session_id] : [], mode: 'recorded' }
+    }
+    const keywords = transcriptionKeywords()
+    const turns: Turn[] = []
+    const sessions: string[] = []
+    for (const c of wavChunks(wav)) {
+      const r = await transcribeChunk(c.file, Math.min(CHUNK_MS, wav.duration_ms - c.offset_ms), keywords)
+      turns.push(...r.turns.map(t => ({ ...t, start_ms: t.start_ms + c.offset_ms, end_ms: t.end_ms + c.offset_ms })))
+      if (r.session_id) sessions.push(r.session_id)
+    }
+    return { turns, duration_ms: wav.duration_ms, session_ids: sessions, mode: useRuntimeConfig().transcribeMode }
+  }, r => `${plural(r.turns.length, 'turn')}, ${Math.round(r.duration_ms / 1000)} s of audio`, info.id)
 }

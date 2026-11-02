@@ -38,7 +38,7 @@ const backdrop = (e: MouseEvent) => { if (e.target === dlg.value) dlg.value?.clo
   border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--raised); color: var(--ink); box-shadow: var(--elev-overlay);
 }
 .ui-dialog.wide { width: min(720px, calc(100vw - 32px)); }
-.ui-dialog::backdrop { background: rgb(8 12 18 / 0.45); }
+.ui-dialog::backdrop { background: var(--scrim); }
 .ui-dialog-sheet { display: flex; flex-direction: column; max-height: calc(100dvh - 48px); }
 .ui-dialog-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-3); padding: var(--s-4) var(--s-5) 0; }
 .ui-dialog-head h2 { margin: 0; font-size: var(--text-lg); }

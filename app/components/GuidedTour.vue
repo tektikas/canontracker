@@ -260,8 +260,8 @@ const finish = () => stop()
 
 <style scoped>
 .tour { position: fixed; inset: 0; z-index: 90; pointer-events: none; }
-.tour-dim { position: absolute; inset: 0; background: rgb(8 12 18 / 0.45); }
-.tour-spot { position: fixed; border-radius: var(--r-lg); box-shadow: 0 0 0 2px var(--accent), 0 0 0 9999px rgb(8 12 18 / 0.45); transition: top var(--dur-1) var(--ease), left var(--dur-1) var(--ease), width var(--dur-1) var(--ease), height var(--dur-1) var(--ease); }
+.tour-dim { position: absolute; inset: 0; background: var(--scrim); }
+.tour-spot { position: fixed; border-radius: var(--r-lg); box-shadow: 0 0 0 2px var(--accent), 0 0 0 9999px var(--scrim); transition: top var(--dur-1) var(--ease), left var(--dur-1) var(--ease), width var(--dur-1) var(--ease), height var(--dur-1) var(--ease); }
 .tour-pop { position: fixed; pointer-events: auto; display: grid; gap: var(--s-2); padding: var(--s-4); background: var(--raised); color: var(--ink); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--elev-overlay); }
 .centered .tour-pop { top: 50%; left: 50%; transform: translate(-50%, -50%); width: min(420px, calc(100vw - 32px)); }
 .tour-top { display: flex; align-items: center; justify-content: space-between; }

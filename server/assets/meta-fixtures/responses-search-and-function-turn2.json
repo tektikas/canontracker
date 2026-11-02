@@ -1,0 +1,141 @@
+{
+  "_note": "Responses turn 2 via previous_response_id + function_call_output. Final message has no phase; annotations [] here.",
+  "request": {
+    "method": "POST",
+    "path": "/responses",
+    "body": {
+      "model": "muse-spark-1.3",
+      "reasoning": {
+        "effort": "low"
+      },
+      "max_output_tokens": 2000,
+      "previous_response_id": "resp_fixture035",
+      "include": [
+        "web_search_call.results"
+      ],
+      "instructions": "Search the web for facts. Never compute numbers yourself: call the function tool for any arithmetic. Cite your sources.",
+      "input": [
+        {
+          "type": "function_call_output",
+          "call_id": "call_fixture043",
+          "output": "{\"seconds\":8.2}"
+        }
+      ],
+      "tools": [
+        {
+          "type": "web_search",
+          "search_context_size": "low"
+        },
+        {
+          "type": "function",
+          "name": "fall_time",
+          "description": "Seconds for an object to fall from a height in metres (no air resistance).",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "height_m": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "height_m"
+            ],
+            "additionalProperties": false
+          },
+          "strict": true
+        }
+      ]
+    }
+  },
+  "status": 200,
+  "latency_ms": 14099,
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit-requests": "3000",
+    "x-ratelimit-limit-tokens": "4000000",
+    "x-ratelimit-remaining-requests": "2995",
+    "x-ratelimit-remaining-tokens": "3994370"
+  },
+  "body": {
+    "top_logprobs": 0,
+    "temperature": 1,
+    "top_p": 1,
+    "service_tier": "auto",
+    "previous_response_id": "resp_fixture035",
+    "model": "muse-spark-1.3",
+    "reasoning": {
+      "effort": "low"
+    },
+    "background": false,
+    "tools": [
+      {
+        "type": "web_search",
+        "search_context_size": "low"
+      },
+      {
+        "type": "function",
+        "name": "fall_time",
+        "description": "Seconds for an object to fall from a height in metres (no air resistance).",
+        "parameters": {
+          "required": [
+            "height_m"
+          ],
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "height_m": {
+              "type": "number"
+            }
+          }
+        },
+        "strict": true
+      }
+    ],
+    "tool_choice": "auto",
+    "truncation": "disabled",
+    "id": "resp_fixture044",
+    "object": "response",
+    "status": "completed",
+    "created_at": 1793637889,
+    "completed_at": 1793637892,
+    "error": null,
+    "incomplete_details": null,
+    "output": [
+      {
+        "type": "reasoning",
+        "id": "rs_fixture045:rs_fixture046",
+        "summary": [],
+        "status": "completed"
+      },
+      {
+        "type": "message",
+        "id": "msg_fixture047",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "The Eiffel Tower is **330 metres (1,083 ft) tall**.\n\nBritannica lists:\n- Height: 330 meters (1,083 feet)\n- with the TV antenna atop the tower giving it a total elevation of 330 meters.\n\nCalled `fall_time` with `height_m = 330`:\n\n**Fall time: 8.2 seconds**\n",
+            "annotations": [],
+            "logprobs": []
+          }
+        ],
+        "status": "completed"
+      }
+    ],
+    "instructions": "Search the web for facts. Never compute numbers yourself: call the function tool for any arithmetic. Cite your sources.",
+    "usage": {
+      "input_tokens": 2543,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 542,
+      "output_tokens_details": {
+        "reasoning_tokens": 415
+      },
+      "total_tokens": 3085
+    },
+    "parallel_tool_calls": true,
+    "store": true,
+    "max_output_tokens": 2000
+  }
+}

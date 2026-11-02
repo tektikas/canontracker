@@ -1,0 +1,36 @@
+{
+  "_note": "Muse Image, response_format url: data[0].url is a signed fbcdn.net https webp URL (2240x1120 for size 1024x512, ~1 MB). Signature stripped.",
+  "request": {
+    "method": "POST",
+    "path": "/images/generations",
+    "body": {
+      "model": "muse-image-1.0",
+      "prompt": "A small stone lighthouse on a rocky shore at dusk, simple ink sketch.",
+      "n": 1,
+      "size": "1024x512",
+      "response_format": "url"
+    }
+  },
+  "status": 200,
+  "latency_ms": 10970,
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit-requests": "150",
+    "x-ratelimit-remaining-requests": "149"
+  },
+  "body": {
+    "created": 1793638041,
+    "data": [
+      {
+        "url": "https://scontent.xx.fbcdn.net/v/redacted/fixture.webp"
+      }
+    ],
+    "output_format": "webp",
+    "background": "opaque",
+    "usage": {
+      "input_tokens": 9987,
+      "output_tokens": 913,
+      "total_tokens": 10900
+    }
+  }
+}

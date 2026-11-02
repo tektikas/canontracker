@@ -8,6 +8,7 @@ export const DOC_KINDS: { value: string, label: string, icon: IconName }[] = [
   { value: 'location', label: 'Location', icon: 'location' },
   { value: 'quest', label: 'Quest', icon: 'quest' },
   { value: 'dialogue', label: 'Dialogue', icon: 'dialogue' },
+  { value: 'recording', label: 'Recording', icon: 'mic' },
   { value: 'other', label: 'Other', icon: 'file' },
 ]
 export const docKind = (k: string) => DOC_KINDS.find(x => x.value === k) ?? { value: k, label: k, icon: 'file' as IconName }
@@ -21,8 +22,12 @@ export type TagTone = typeof TAG_TONES[number]['value']
 
 // Same limits the server applies (server/api/documents/index.post.ts), checked first so a person hears at once.
 export const UPLOAD_MAX_BYTES = 1_000_000
+// Audio becomes a recording: transcribed, and the transcript is the document (server/api/recordings). Same list as the server.
+export const AUDIO_UPLOAD = /\.(wav|mp3|m4a|ogg|oga|opus|webm|flac|aac)$/i
+export const AUDIO_MAX_BYTES = 64 * 1024 * 1024
 export function uploadProblem(f: File) {
-  if (!/\.(md|markdown|txt)$/i.test(f.name)) return 'Not a text file: use .md or .txt.'
+  if (AUDIO_UPLOAD.test(f.name)) return f.size > AUDIO_MAX_BYTES ? `Too big: ${(f.size / 1e6).toFixed(1)} MB, recordings can be up to 64 MB.` : f.size ? null : 'Empty file.'
+  if (!/\.(md|markdown|txt)$/i.test(f.name)) return 'Not a text or audio file: use .md, .txt, or MP3, WAV, M4A, OGG, WebM or FLAC audio.'
   if (f.size > UPLOAD_MAX_BYTES) return `Too big: ${(f.size / 1e6).toFixed(1)} MB, the limit is 1 MB per file.`
   if (!f.size) return 'Empty file.'
   return null

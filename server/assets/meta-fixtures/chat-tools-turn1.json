@@ -1,0 +1,86 @@
+{
+  "_note": "Chat function calling turn 1: finish_reason tool_calls, message.content is NOT empty next to tool_calls.",
+  "request": {
+    "method": "POST",
+    "path": "/chat/completions",
+    "body": {
+      "model": "muse-spark-1.3",
+      "reasoning_effort": "minimal",
+      "max_completion_tokens": 400,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Where is Mara on day 3? Use the tool."
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_search_facts",
+            "description": "Search accepted canon facts in the story bible.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "query"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "status": 200,
+  "latency_ms": 2716,
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit-requests": "3000",
+    "x-ratelimit-limit-tokens": "4000000",
+    "x-ratelimit-remaining-requests": "2999",
+    "x-ratelimit-remaining-tokens": "3999734"
+  },
+  "body": {
+    "id": "chatcmpl-fixture025",
+    "choices": [
+      {
+        "finish_reason": "tool_calls",
+        "index": 0,
+        "message": {
+          "content": "I'll search the records for Mara's whereabouts on day 3.",
+          "refusal": null,
+          "tool_calls": [
+            {
+              "id": "call_fixture019",
+              "type": "function",
+              "function": {
+                "name": "sb_search_facts",
+                "arguments": "{\"query\":\"Where is Mara on day 3\"}"
+              }
+            }
+          ],
+          "role": "assistant"
+        },
+        "logprobs": null
+      }
+    ],
+    "created": 1793637849,
+    "model": "muse-spark-1.3",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 100,
+      "prompt_tokens": 551,
+      "total_tokens": 651,
+      "completion_tokens_details": {
+        "reasoning_tokens": 18
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    }
+  }
+}

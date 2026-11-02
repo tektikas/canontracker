@@ -1,0 +1,69 @@
+{
+  "_note": "max_output_tokens 16 (the minimum): HTTP 200, status incomplete, incomplete_details.reason max_output_tokens, only a reasoning item (no message).",
+  "request": {
+    "method": "POST",
+    "path": "/responses",
+    "body": {
+      "model": "muse-spark-1.3",
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "max_output_tokens": 16,
+      "input": "Write a long paragraph about lighthouses."
+    }
+  },
+  "status": 200,
+  "latency_ms": 1209,
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit-requests": "3000",
+    "x-ratelimit-limit-tokens": "4000000",
+    "x-ratelimit-remaining-requests": "2998",
+    "x-ratelimit-remaining-tokens": "3996435"
+  },
+  "body": {
+    "top_logprobs": 0,
+    "temperature": 1,
+    "top_p": 1,
+    "service_tier": "auto",
+    "model": "muse-spark-1.3",
+    "reasoning": {
+      "effort": "minimal"
+    },
+    "background": false,
+    "tools": [],
+    "tool_choice": "auto",
+    "truncation": "disabled",
+    "id": "resp_fixture032",
+    "object": "response",
+    "status": "incomplete",
+    "created_at": 1793637951,
+    "error": null,
+    "incomplete_details": {
+      "reason": "max_output_tokens"
+    },
+    "output": [
+      {
+        "type": "reasoning",
+        "id": "rs_fixture033:rs_fixture034",
+        "summary": [],
+        "status": "incomplete"
+      }
+    ],
+    "instructions": null,
+    "usage": {
+      "input_tokens": 17,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 16,
+      "output_tokens_details": {
+        "reasoning_tokens": 14
+      },
+      "total_tokens": 33
+    },
+    "parallel_tool_calls": true,
+    "store": true,
+    "max_output_tokens": 16
+  }
+}

@@ -68,6 +68,31 @@ export function ruleHits(a: Fact, b: Fact, travel: Fact[]) {
   return hits
 }
 
+/** The deterministic rules as a dry run: what `proposed` facts would raise against accepted canon and among themselves.
+ * Stores nothing. Callers pass subject/object already under their kept (merged) names. Shared by MCP sb_check_facts and the
+ * script-vs-recording check. A proposed fact that is itself canon is not compared with itself. */
+export function dryRunRules(proposed: Fact[]) {
+  const ids = new Set(proposed.map(f => f.id))
+  const canon = (useDb().prepare(`select * from facts where project_id = ? and status = 'canon'`).all(pid()) as unknown as Fact[]).filter(f => !ids.has(f.id))
+  const travel = [...canon, ...proposed].filter(isTravel)
+  const hits: ReturnType<typeof ruleHits> = []
+  for (const [i, a] of proposed.entries()) {
+    for (const b of canon) hits.push(...ruleHits(a, b, travel))
+    for (const b of proposed.slice(i + 1)) hits.push(...ruleHits(a, b, travel))
+  }
+  // A new travel time can turn two canon placements into a conflict: report those pairs too (canon-only hits already exist).
+  if (proposed.some(isTravel)) {
+    const canonTravel = canon.filter(isTravel)
+    for (const [i, a] of canon.entries()) {
+      for (const b of canon.slice(i + 1)) {
+        const before = new Set(ruleHits(a, b, canonTravel).map(h => h.rule))
+        hits.push(...ruleHits(a, b, travel).filter(h => !before.has(h.rule)))
+      }
+    }
+  }
+  return { canon, hits }
+}
+
 // Narrow conflict checks over accepted canon. Every hit is a candidate for a human, never a verdict.
 // Deterministic rules run in code; the world-rule check is model-suggested and labeled as such.
 export async function scanConflicts() {

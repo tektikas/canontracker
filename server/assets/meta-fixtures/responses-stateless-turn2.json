@@ -1,0 +1,168 @@
+{
+  "_note": "Stateless replay: user msg + every turn-1 output item (encrypted reasoning, commentary message, function_call) + function_call_output: accepted.",
+  "request": {
+    "method": "POST",
+    "path": "/responses",
+    "body": {
+      "model": "muse-spark-1.3",
+      "reasoning": {
+        "effort": "low"
+      },
+      "max_output_tokens": 600,
+      "max_tool_calls": 1,
+      "store": false,
+      "include": [
+        "reasoning.encrypted_content"
+      ],
+      "input": [
+        {
+          "role": "user",
+          "content": "How long does it take to fall 45 metres? Call fall_time."
+        },
+        {
+          "type": "reasoning",
+          "id": "rs_fixture049:rs_fixture050",
+          "encrypted_content": "<encrypted reasoning, redacted>",
+          "summary": [],
+          "status": "completed"
+        },
+        {
+          "type": "message",
+          "id": "rs_fixture051",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "I'll compute the fall time for 45 metres.",
+              "annotations": [],
+              "logprobs": []
+            }
+          ],
+          "phase": "commentary",
+          "status": "completed"
+        },
+        {
+          "type": "function_call",
+          "id": "fc_fixture052",
+          "call_id": "call_fixture053",
+          "name": "fall_time",
+          "arguments": "{\"height_m\":45.0}",
+          "status": "completed"
+        },
+        {
+          "type": "function_call_output",
+          "call_id": "call_fixture053",
+          "output": "{\"seconds\":3.03}"
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "name": "fall_time",
+          "description": "Seconds for an object to fall from a height in metres (no air resistance).",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "height_m": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "height_m"
+            ],
+            "additionalProperties": false
+          },
+          "strict": true
+        }
+      ]
+    }
+  },
+  "status": 200,
+  "latency_ms": 1899,
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit-requests": "3000",
+    "x-ratelimit-limit-tokens": "4000000",
+    "x-ratelimit-remaining-requests": "2996",
+    "x-ratelimit-remaining-tokens": "3992016"
+  },
+  "body": {
+    "top_logprobs": 0,
+    "temperature": 1,
+    "top_p": 1,
+    "service_tier": "auto",
+    "model": "muse-spark-1.3",
+    "reasoning": {
+      "effort": "low"
+    },
+    "background": false,
+    "max_tool_calls": 1,
+    "tools": [
+      {
+        "type": "function",
+        "name": "fall_time",
+        "description": "Seconds for an object to fall from a height in metres (no air resistance).",
+        "parameters": {
+          "required": [
+            "height_m"
+          ],
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "height_m": {
+              "type": "number"
+            }
+          }
+        },
+        "strict": true
+      }
+    ],
+    "tool_choice": "auto",
+    "truncation": "disabled",
+    "id": "resp_fixture054",
+    "object": "response",
+    "status": "completed",
+    "created_at": 1793637925,
+    "completed_at": 1793637925,
+    "error": null,
+    "incomplete_details": null,
+    "output": [
+      {
+        "type": "reasoning",
+        "id": "rs_fixture055:rs_fixture056",
+        "encrypted_content": "<encrypted reasoning, redacted>",
+        "summary": [],
+        "status": "completed"
+      },
+      {
+        "type": "message",
+        "id": "msg_fixture057",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "It takes **3.03 seconds** to fall 45 metres (in free fall, no air resistance).\n",
+            "annotations": [],
+            "logprobs": []
+          }
+        ],
+        "status": "completed"
+      }
+    ],
+    "instructions": null,
+    "usage": {
+      "input_tokens": 711,
+      "input_tokens_details": {
+        "cached_tokens": 497
+      },
+      "output_tokens": 86,
+      "output_tokens_details": {
+        "reasoning_tokens": 55
+      },
+      "total_tokens": 797
+    },
+    "parallel_tool_calls": true,
+    "store": false,
+    "max_output_tokens": 600
+  }
+}

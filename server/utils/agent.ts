@@ -1,16 +1,20 @@
 // A bounded tool-calling loop over the Meta Model API's Responses endpoint: the model plans and may run the built-in
 // web_search and our own deterministic function tools; we run each function call and hand back its output until it answers.
 // Bounded per effort level by steps, a hard wall-clock deadline (in-flight requests are aborted at it), output tokens per
-// request and web searches per run (sent as max_tool_calls, the searches left, where the endpoint supports it; once the
-// budget is spent the next step is the last). The last allowed step, or the last quarter of the time, tells the model to
-// answer (tool_choice can only be "auto" on the Meta API, so a tool call there ends the run with an error).
+// request, web searches per run and calculator calls per request. Meta's max_tool_calls counts every tool call in a request
+// (searches, page opens and function calls alike; recorded in server/assets/meta-fixtures/agent-stateless-search-turn1), so it
+// is sent as the searches left plus the calculator allowance, and the search budget is kept by our loop: once it is spent,
+// web_search is dropped from the tools and the calculators stay. Page opens (web_search_call action open_page) don't use the
+// search budget; their URLs become candidate sources. The last allowed step, or the last quarter of the time, tells the model
+// to answer (tool_choice can only be "auto" on the Meta API, so a tool call there ends the run with an error).
+// Commentary messages (phase "commentary": "I'll look up…") are progress notes, never part of the answer.
 // Every model step and every tool run is one model_calls row (step index, tool, args, result summary, latency, tokens), so a
 // trace can be shown. Live failures surface; there is no recorded fallback here.
 import type { Calculator } from './calculators/index'
 
 export const EFFORT = {
-  low: { maxSteps: 3, maxMs: 60_000, maxOutputTokens: 4_000, maxSearches: 3 },
-  high: { maxSteps: 10, maxMs: 300_000, maxOutputTokens: 16_000, maxSearches: 12 },
+  low: { maxSteps: 3, maxMs: 60_000, maxOutputTokens: 4_000, maxSearches: 3, calcsPerStep: 4 },
+  high: { maxSteps: 10, maxMs: 300_000, maxOutputTokens: 16_000, maxSearches: 12, calcsPerStep: 8 },
 } as const
 export type Effort = keyof typeof EFFORT
 
@@ -21,7 +25,9 @@ export interface AgentRun {
 
 interface OutputItem {
   type: string, id?: string, name?: string, call_id?: string, arguments?: string, status?: string
-  action?: { query?: string, queries?: string[] }
+  phase?: string
+  action?: { type?: string, query?: string, queries?: string[], url?: string }
+  results?: { title?: string, url?: string }[]
   content?: { type: string, text?: string, annotations?: { type: string, url?: string, title?: string }[] }[]
 }
 interface Reply { output?: OutputItem[], usage?: { total_tokens?: number }, error?: { message?: string } | null, status?: string, incomplete_details?: { reason?: string } | null }
@@ -91,66 +97,58 @@ export async function runAgent(o: {
   const run: AgentRun = { text: '', toolCalls: [], searches: [], citations: [], steps: 0, tokens: 0 }
   const search = o.webSearch ? [{ type: 'web_search' }] : []
   const functions = o.tools.map(t => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters }))
-  // Mixing web_search and function tools in one request is not confirmed for the Meta API. If the first mixed request is
-  // refused (400), the run switches to split steps: step 1 searches only, later steps run calculators only.
-  let split = !search.length || !functions.length ? null : false as boolean | null
   const base = { purpose: o.purpose, target: o.target, modelId, projectId: o.projectId }
-  // ponytail: an endpoint that refuses max_tool_calls (OmniRoute answers 400 "Unsupported parameter") runs without it; then
-  // searches are only capped between steps, and one request may still search more than the budget left.
-  let toolCap = true
   let searchCalls = 0
 
   for (let step = 0; ; step++) {
+    const searchesLeft = Math.max(0, limit.maxSearches - searchCalls)
+    const tools = [...(searchesLeft ? search : []), ...functions]
+    // ponytail: max_tool_calls caps the request's total, not each kind, so one request can still search up to its calculator
+    // allowance past the budget; the next step then has no web_search. Per-kind caps would need an API that has them.
+    const maxToolCalls = (searchesLeft && search.length ? searchesLeft : 0) + (functions.length ? limit.calcsPerStep : 0)
     // tool_choice only accepts "auto" on the Meta API, so the last step can't forbid tools: it asks for the answer instead.
-    const last = step >= limit.maxSteps - 1 || deadline - Date.now() < limit.maxMs / 4 || searchCalls >= limit.maxSearches
-    const tools = split ? (step === 0 ? search : functions) : [...search, ...functions]
-    const nudge = last ? 'Step limit reached: give your final answer now, without calling more tools.'
-      : split && step === 0 ? 'First search for sources. You can run the calculators in the next step.' : null
+    const last = step >= limit.maxSteps - 1 || deadline - Date.now() < limit.maxMs / 4 || !tools.length
+    const nudge = last ? 'Step limit reached: give your final answer now, without calling more tools.' : null
     const t0 = Date.now()
     let reply: Reply
     try {
-      reply = await responses({ model: modelId, instructions: o.instructions, input: nudge ? [...items, { role: 'user', content: nudge }] : items, tools,
-        max_output_tokens: limit.maxOutputTokens, ...(toolCap && tools.some(t => t.type === 'web_search') ? { max_tool_calls: Math.max(1, limit.maxSearches - searchCalls) } : {}), store: false, include: ['reasoning.encrypted_content'] }, deadline)
+      reply = await responses({ model: modelId, instructions: o.instructions, input: nudge ? [...items, { role: 'user', content: nudge }] : items,
+        ...(tools.length && { tools, max_tool_calls: maxToolCalls }), max_output_tokens: limit.maxOutputTokens, store: false,
+        include: ['reasoning.encrypted_content', ...(searchesLeft && search.length ? ['web_search_call.results'] : [])] }, deadline)
     } catch (e) {
-      const status = (e as { statusCode?: number }).statusCode
       const err = Date.now() >= deadline
         ? createError({ statusCode: 504, statusMessage: 'RESEARCH_TIMEOUT', message: `Research failed: it ran past its ${limit.maxMs / 60_000}-minute time limit. Nothing was stored.` })
         : apiFailure(e as Parameters<typeof apiFailure>[0], 'Research failed', 'Nothing was stored.')
-      const noCap = status === 400 && toolCap && /max_tool_calls/.test(JSON.stringify((e as { data?: unknown }).data ?? ''))
-      recordStep({ ...base, step, tool: null, input: step ? null : o.input, status: 'failed', latency: Date.now() - t0, summary: null, tokens: null,
-        error: noCap ? 'The endpoint refused max_tool_calls (400); retried without it, searches capped between steps.' : err.message })
-      if (noCap) {
-        toolCap = false
-        step--
-        continue
-      }
-      if (status === 400 && split === false && step === 0) {
-        split = true
-        step--
-        continue
-      }
+      recordStep({ ...base, step, tool: null, input: step ? null : o.input, status: 'failed', latency: Date.now() - t0, summary: null, tokens: null, error: err.message })
       throw err
     }
     const out = reply.output ?? []
     const tokens = reply.usage?.total_tokens ?? null
     run.steps = step + 1
     run.tokens += tokens ?? 0
-    const searches = out.filter(i => i.type === 'web_search_call').flatMap(i => i.action?.queries ?? (i.action?.query ? [i.action.query] : []))
+    const webCalls = out.filter(i => i.type === 'web_search_call')
+    const opens = webCalls.filter(i => i.action?.type === 'open_page' && i.action.url).map(i => i.action!.url!)
+    const searchItems = webCalls.filter(i => i.action?.type !== 'open_page')
+    const searches = searchItems.flatMap(i => i.action?.queries ?? (i.action?.query ? [i.action.query] : []))
+    const results = webCalls.flatMap(i => i.results ?? []).filter(r => r.url)
     const calls = out.filter(i => i.type === 'function_call' && i.name && i.call_id)
-    const texts = out.filter(i => i.type === 'message').flatMap(i => i.content ?? []).filter(c => c.type === 'output_text')
-    const text = texts.map(c => c.text ?? '').join('\n').trim()
+    const messages = out.filter(i => i.type === 'message')
+    // The answer is the last message that isn't commentary; commentary is never answer text.
+    const answer = messages.filter(i => i.phase !== 'commentary').at(-1)
+    const text = (answer?.content ?? []).filter(c => c.type === 'output_text').map(c => c.text ?? '').join('\n').trim()
     run.searches.push(...searches)
-    searchCalls += out.filter(i => i.type === 'web_search_call').length
-    // Pages the model cited: url_citation annotations, or (they can be empty) URLs written in its text.
-    const cited = texts.flatMap(c => c.annotations ?? []).filter(a => a.type === 'url_citation' && a.url).map(a => ({ url: a.url!, title: a.title ?? '' }))
-    run.citations.push(...(cited.length ? cited : (text.match(URL_IN_TEXT) ?? []).map(url => ({ url, title: '' }))))
-    recordStep({ ...base, step, tool: searches.length ? 'web_search' : null, input: step ? null : o.input, status: 'ok', latency: Date.now() - t0, tokens, error: null,
-      summary: [searches.length && `${searches.length} web search${searches.length === 1 ? '' : 'es'}: ${short(searches.join(' | '), 300)}`,
+    searchCalls += searchItems.length
+    // Candidate sources (each still goes through verification): pages the model opened, then the ones it cited as
+    // url_citation annotations, or (they can be empty) URLs written in its answer.
+    const cited = messages.flatMap(i => i.content ?? []).flatMap(c => c.annotations ?? []).filter(a => a.type === 'url_citation' && a.url).map(a => ({ url: a.url!, title: a.title ?? '' }))
+    run.citations.push(...opens.map(url => ({ url, title: '' })), ...(cited.length ? cited : (text.match(URL_IN_TEXT) ?? []).map(url => ({ url, title: '' }))))
+    recordStep({ ...base, step, tool: webCalls.length ? 'web_search' : null, input: step ? null : o.input, status: 'ok', latency: Date.now() - t0, tokens, error: null,
+      summary: [searches.length && `${plural(searches.length, 'web search')}: ${short(searches.join(' | '), 300)}`,
+        opens.length && `opened ${plural(opens.length, 'page')}: ${short(opens.join(' | '), 300)}`,
+        results.length && `${plural(results.length, 'result')}: ${short(results.map(r => `${r.title || 'untitled'} <${r.url}>`).join(' | '), 600)}`,
         calls.length && `asked for ${calls.map(c => c.name).join(', ')}`, text && !calls.length && 'answered'].filter(Boolean).join('; ') || 'no output' })
 
-    // In split mode the search step's message is notes for the next step, not the answer.
-    const searchOnly = split && step === 0 && !last
-    if (!searchOnly && (!calls.length || last)) {
+    if (!calls.length || last) {
       if (!text) {
         const why = reply.incomplete_details?.reason === 'max_output_tokens' ? `reached its output limit (${limit.maxOutputTokens} tokens) before answering`
           : calls.length ? `did not finish within ${plural(limit.maxSteps, 'step')}` : 'returned no answer'
@@ -162,8 +160,9 @@ export async function runAgent(o: {
     }
 
     // The model's own items go back as they came (reasoning, searches, calls, any interim message), followed by our outputs.
-    items.push(...out.filter(i => ['reasoning', 'web_search_call', 'function_call', 'message'].includes(i.type)))
-    if (searchOnly) items.push({ role: 'user', content: 'Now run the calculators you need, then give the final JSON answer.' })
+    // Search results (asked for with include, for the trace) are not sent back: replayed web_search_call items are recorded
+    // as accepted without them (agent-stateless-search-turn2).
+    items.push(...out.filter(i => ['reasoning', 'web_search_call', 'function_call', 'message'].includes(i.type)).map(({ results: _, ...i }) => i))
     for (const c of calls) {
       const t1 = Date.now()
       const tool = o.tools.find(t => t.name === c.name)

@@ -1,0 +1,29 @@
+{
+  "_note": "previous_response_id + include reasoning.encrypted_content on Responses: 400, code null, param include.",
+  "request": {
+    "method": "POST",
+    "path": "/responses",
+    "body": {
+      "model": "muse-spark-1.3",
+      "max_output_tokens": 16,
+      "previous_response_id": "resp_fixture028",
+      "include": [
+        "reasoning.encrypted_content"
+      ],
+      "input": "hi"
+    }
+  },
+  "status": 400,
+  "latency_ms": 1341,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "error": {
+      "code": null,
+      "message": "`reasoning.encrypted_content` cannot be used with `previous_response_id`",
+      "param": "include",
+      "type": "invalid_request_error"
+    }
+  }
+}

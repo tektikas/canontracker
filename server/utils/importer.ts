@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import type { Turn } from './audio'
 
 // A passage is a heading line or a run of non-empty lines. Line numbers are 1-based.
 export function splitPassages(content: string) {
@@ -22,7 +23,7 @@ export function splitPassages(content: string) {
   return out.map((p, i) => ({ ordinal: i + 1, start_line: p.start, end_line: p.end, text: p.lines.join('\n') }))
 }
 
-export const DOCUMENT_KINDS = ['scene', 'lore', 'character', 'location', 'quest', 'dialogue', 'other'] as const
+export const DOCUMENT_KINDS = ['scene', 'lore', 'character', 'location', 'quest', 'dialogue', 'recording', 'other'] as const
 
 // What an import would call a file on its own: its first heading, else the filename.
 const derivedTitle = (filename: string, content: string) => content.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? filename
@@ -34,7 +35,10 @@ const derivedTitle = (filename: string, content: string) => content.match(/^#\s+
 // Writing in the app names the document directly (`filename` is its key). The key (`documents.filename`) is unique per
 // document; `name` is the file's own name. A same-named file in another folder becomes its own document under a key that
 // carries its folder. A new version keeps the folder, kind and (if renamed) title of the earlier ones.
-export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }, folderId?: string | null) {
+// `recording`: the text is a transcript of that audio (one passage per turn, in order); it is stored with the version and the
+// passages keep the turns' times. The audio itself is written by the caller (storeAudio) before this runs.
+export interface RecordingImport { turns: Turn[], audio_sha256: string, bytes: number, duration_ms: number, original_name: string, model_id: string, mode: string, session_ids: string[], script_key: string | null }
+export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }, folderId?: string | null, recording?: RecordingImport) {
   const db = useDb()
   const projectId = pid()
   const sha256 = createHash('sha256').update(content).digest('hex')
@@ -60,10 +64,12 @@ export async function importDocument(filename: string, content: string, written?
   const version = (prev?.version ?? 0) + 1
   const renamed = prev && prev.title !== derivedTitle(prev.name, prev.content)
   const title = written?.title ?? (renamed ? prev.title : derivedTitle(filename, content))
-  const kind = written?.kind ?? prev?.kind ?? (/^S\d+/i.test(filename) ? 'scene' : 'lore')
+  const kind = written?.kind ?? prev?.kind ?? (recording ? 'recording' : /^S\d+/i.test(filename) ? 'scene' : 'lore')
   const documentId = newId('doc')
   const passages = splitPassages(content).map(p => ({ ...p, id: newId('psg') }))
-  if (!passages.length) throw createError({ statusCode: 422, statusMessage: 'EMPTY_DOCUMENT', message: `${filename} has no text.` })
+  if (!passages.length) throw createError({ statusCode: 422, statusMessage: 'EMPTY_DOCUMENT', message: recording ? `No speech was found in ${filename}.` : `${filename} has no text.` })
+  if (recording && recording.turns.length !== passages.length) throw new Error('Transcript turns and passages do not line up.')
+  const origin = recording ? 'recording' : written ? 'written' : 'import'
 
   // The key is identity only (it can carry the folder the first upload landed in); audit and results show the name and folder.
   const name = prev?.name ?? filename
@@ -73,14 +79,25 @@ export async function importDocument(filename: string, content: string, written?
   let evidenceMoved = 0
   tx(() => {
     db.prepare(`insert into documents (id, title, filename, name, kind, sha256, version, content, imported_at, project_id, origin, created_by, folder_id)
-      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, title, key, name, kind, sha256, version, content, now(), projectId, written ? 'written' : 'import', access().user.id, folder)
+      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, title, key, name, kind, sha256, version, content, now(), projectId, origin, access().user.id, folder)
     // A written version may carry a new title or kind: the labels are per document, so earlier versions follow.
     if (prev && (prev.title !== title || prev.kind !== kind))
       db.prepare('update documents set title = ?, kind = ? where project_id = ? and filename = ?').run(title, kind, projectId, key)
-    const ins = db.prepare('insert into passages values (?, ?, ?, ?, ?, ?, ?)')
-    for (const p of passages) ins.run(p.id, documentId, p.ordinal, p.start_line, p.end_line, p.text, projectId)
-    const event = written ? (version > 1 ? 'document.version_written' : 'document.written') : (version > 1 ? 'document.version_added' : 'document.imported')
-    audit(event, 'document', documentId, { filename: name, title, kind, version, sha256, passages: passages.length, folder: where })
+    const ins = db.prepare('insert into passages (id, document_id, ordinal, start_line, end_line, text, project_id, start_ms, end_ms, speaker) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    passages.forEach((p, i) => {
+      const t = recording?.turns[i]
+      ins.run(p.id, documentId, p.ordinal, p.start_line, p.end_line, p.text, projectId, t?.start_ms ?? null, t?.end_ms ?? null, t?.speaker ?? null)
+    })
+    // A later version keeps the script the recording is compared with.
+    const scriptKey = recording && (recording.script_key ?? (prev ? getRecording(prev.id)?.script_key ?? null : null))
+    if (recording)
+      db.prepare(`insert into recordings (document_id, audio_sha256, bytes, duration_ms, original_name, model_id, mode, session_ids, script_key, created_by, created_at, project_id)
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, recording.audio_sha256, recording.bytes, recording.duration_ms, recording.original_name, recording.model_id,
+        recording.mode, JSON.stringify(recording.session_ids), scriptKey ?? null, access().user.id, now(), projectId)
+    const event = recording ? (version > 1 ? 'recording.version_added' : 'recording.imported')
+      : written ? (version > 1 ? 'document.version_written' : 'document.written') : (version > 1 ? 'document.version_added' : 'document.imported')
+    audit(event, 'document', documentId, { filename: name, title, kind, version, sha256, passages: passages.length, folder: where,
+      ...(recording && { audio_sha256: recording.audio_sha256, duration_ms: recording.duration_ms, model_id: recording.model_id }) })
     // Old canon citations are not silently moved to the new version. Each is checked against it (recheck.ts): a quote that
     // still reads the same waits for a person to confirm it, a quote that is gone marks the fact "evidence outdated".
     if (version > 1) {
