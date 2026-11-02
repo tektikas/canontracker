@@ -121,9 +121,9 @@ assert.equal((await signup(`${ipBase}.40`)).status, 429)
 assert.equal((await signup(`${ipBase}.41`)).status, 400)
 ok('sign-up: 100 per IP in 10 min, then 429')
 
-// Viewer: every content write is 403, except Ask (/api/qa, posting in conversations) and leaving the studio.
+// Viewer: every content write is 403, except Ask (/api/qa, posting in conversations), voice input (speech to text, nothing stored) and leaving the studio.
 const ACCOUNT = ['/api/auth/', '/api/invites', '/api/studios', '/api/account', '/api/projects', '/api/agent-tokens', '/api/public/']
-const ASKING = new Set(['POST /api/qa', 'POST /api/conversations', 'POST /api/conversations/x_nope/messages'])
+const ASKING = new Set(['POST /api/qa', 'POST /api/conversations', 'POST /api/conversations/x_nope/messages', 'POST /api/voice/transcribe'])
 const viewerWrites = routes.filter(r => r.method !== 'GET' && !ACCOUNT.some(p => r.path.startsWith(p)) && !ASKING.has(`${r.method} ${r.path}`) && !(r.method === 'DELETE' && r.path === `/api/team/${boId}`))
 const leaks = []
 for (const r of viewerWrites) {
@@ -133,7 +133,8 @@ for (const r of viewerWrites) {
 assert.deepEqual(leaks, [])
 assert.equal((await bo('/api/qa', { method: 'POST', body: { question: 'Who rings the Ashbell?' } })).status, 200)
 assert.equal((await bo('/api/conversations', { method: 'POST', body: { text: 'Who rings the Ashbell?' } })).status, 200)
-ok('viewer writes are 403', `${viewerWrites.length} write routes; Ask and conversations allowed`)
+assert.equal((await bo('/api/voice/transcribe', { method: 'POST', body: {} })).status, 400) // not a clip: refused, never a 5xx
+ok('viewer writes are 403', `${viewerWrites.length} write routes; Ask, conversations and voice input allowed`)
 
 // Signed out: every content route is 401.
 const anon = web()

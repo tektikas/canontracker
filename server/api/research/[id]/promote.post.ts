@@ -28,7 +28,7 @@ function basisDocument(note: ResearchNote) {
   const passages = splitPassages(content).map(p => ({ ...p, id: newId('psg') }))
   db.prepare(`insert into documents (id, title, filename, name, kind, sha256, version, content, imported_at, project_id, origin, created_by, folder_id)
     values (?, ?, ?, ?, 'other', ?, 1, ?, ?, ?, 'research', ?, ?)`).run(id, title, name, name, createHash('sha256').update(content).digest('hex'), content, now(), pid(), user, folder.id)
-  const ins = db.prepare('insert into passages values (?, ?, ?, ?, ?, ?, ?)')
+  const ins = db.prepare('insert into passages (id, document_id, ordinal, start_line, end_line, text, project_id) values (?, ?, ?, ?, ?, ?, ?)')
   for (const p of passages) ins.run(p.id, id, p.ordinal, p.start_line, p.end_line, p.text, pid())
   db.prepare('update research_notes set document_id = ? where id = ?').run(id, note.id)
   audit('document.research_saved', 'document', id, { filename: name, title, research_note_id: note.id, passages: passages.length, folder: 'Research' })

@@ -2,37 +2,39 @@
 
 /* ---------- Tokens ---------- */
 :root {
-  /* Surfaces */
-  --canvas: #eceef1;
-  --surface: #f8f9fb;
-  --raised: #ffffff;
-  --sunken: #e3e7ec;
-  --quote-bg: #f1f4f7;
-  /* Text */
-  --ink: #17212e;
-  --muted: #4b5563;
-  --faint: #5c6776; /* >= 4.5:1 on every surface, incl. --sunken */
+  /* Surfaces: a linen desk with paper on it */
+  --canvas: #f4f0e8;   /* the desk (page) */
+  --surface: #ece6dc;  /* the desk, a shade deeper: sidebar, table heads, sunk panels */
+  --raised: #fdfbf7;   /* paper: panels, inputs, dialogs */
+  --sunken: #e4dccf;
+  --quote-bg: #f6f1e8;
+  /* Text: warm ink */
+  --ink: #2a241d;
+  --muted: #524b42;
+  --faint: #675d50; /* >= 4.5:1 on every surface, incl. --sunken */
   /* Lines */
-  --line: #d6dbe2;
-  --line-strong: #b8c0cb;
-  /* Ink: canon and primary actions */
-  --accent: #1f4f82;
-  --accent-strong: #173d66;
-  --accent-ink: #ffffff;
-  --accent-soft: #dde7f3;
-  /* Pencil: proposed, not yet canon */
-  --pencil: #5d6673;
-  --pencil-soft: #e3e6ea;
+  --line: #ddd4c6;
+  --line-strong: #c0b4a2;
+  /* Ink: canon and primary actions. Walnut / iron-gall brown, not blue. */
+  --accent: #733816;
+  --accent-strong: #542b13;
+  --accent-ink: #fdfbf7;
+  --accent-soft: #f0e2d2;
+  /* Pencil: proposed, not yet canon. Graphite, a touch cool against the warm paper. */
+  --pencil: #555b63;
+  --pencil-soft: #e5e2dc;
   /* Status */
-  --good: #2a6849;
-  --good-soft: #dbeee3;
-  --warn: #855a00;
-  --warn-soft: #f5e9cb;
-  --bad: #b5382a;
-  --bad-soft: #f8e0db;
+  --good: #2e5e4e;  /* moss: the green of a leather desk pad */
+  --good-soft: #dde9df;
+  --warn: #835c00;  /* ochre / brass */
+  --warn-soft: #f4e6c4;
+  --bad: #b0321e;   /* vermilion */
+  --bad-soft: #f7ddd5;
   /* Research: outside sources, never canon (Ask's research answers) */
-  --research: #6a3d9a;
-  --research-soft: #ede4f6;
+  --research: #75366f;
+  --research-soft: #f2e2ef;
+  /* Behind modal sheets and the mobile drawer */
+  --scrim: rgb(30 22 14 / 0.45);
 
   /* Type */
   --font-ui: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
@@ -61,7 +63,7 @@
   --r-lg: 10px; /* panels */
 
   /* Elevation: panels are flat and bordered; only overlays float */
-  --elev-overlay: 0 12px 32px rgb(16 24 36 / 0.18), 0 2px 6px rgb(16 24 36 / 0.08);
+  --elev-overlay: 0 12px 32px rgb(40 28 16 / 0.18), 0 2px 6px rgb(40 28 16 / 0.08);
 
   /* Motion */
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -82,60 +84,60 @@
 /* Dark follows the system unless the person picked a theme (data-theme, set by the palette's "Toggle theme"). Screens only: print and PDF always use the light set. */
 @media screen and (prefers-color-scheme: dark) {
   :root:not([data-theme=light]) {
-    --canvas: #0f1318;
-    --surface: #141920;
-    --raised: #19202a;
-    --sunken: #0b0e12;
-    --quote-bg: #121820;
-    --ink: #e3e8ee;
-    --muted: #a8b2bf;
-    --faint: #8a95a3;
-    --line: #262e39;
-    --line-strong: #364151;
-    --accent: #84b2e6;
-    --accent-strong: #a6c8ee;
-    --accent-ink: #0c1724;
-    --accent-soft: #182a3e;
-    --pencil: #a0a9b5;
-    --pencil-soft: #222932;
-    --good: #7cc59c;
-    --good-soft: #15291f;
-    --warn: #e0b453;
-    --warn-soft: #2e2512;
-    --bad: #ee8b77;
-    --bad-soft: #351a16;
-    --research: #c3a3ea;
-    --research-soft: #261d33;
+    --canvas: #1b1815;
+    --surface: #161311;
+    --raised: #231f1b;
+    --sunken: #110f0d;
+    --quote-bg: #1f1b17;
+    --ink: #ebe3d6;
+    --muted: #bab1a4;
+    --faint: #9d9283;
+    --line: #352f29;
+    --line-strong: #4c443b;
+    --accent: #dba077;
+    --accent-strong: #e6c09f;
+    --accent-ink: #1b1815;
+    --accent-soft: #3a2a1d;
+    --pencil: #a4a9b1;
+    --pencil-soft: #2b2a28;
+    --good: #8fc3a6;
+    --good-soft: #1b2b23;
+    --warn: #e2bd5a;
+    --warn-soft: #382e19;
+    --bad: #f17e70;
+    --bad-soft: #3b1e18;
+    --research: #d7a6d1;
+    --research-soft: #2f1f2d;
     --elev-overlay: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
     color-scheme: dark;
   }
 }
 @media screen {
   :root[data-theme=dark] {
-    --canvas: #0f1318;
-    --surface: #141920;
-    --raised: #19202a;
-    --sunken: #0b0e12;
-    --quote-bg: #121820;
-    --ink: #e3e8ee;
-    --muted: #a8b2bf;
-    --faint: #8a95a3;
-    --line: #262e39;
-    --line-strong: #364151;
-    --accent: #84b2e6;
-    --accent-strong: #a6c8ee;
-    --accent-ink: #0c1724;
-    --accent-soft: #182a3e;
-    --pencil: #a0a9b5;
-    --pencil-soft: #222932;
-    --good: #7cc59c;
-    --good-soft: #15291f;
-    --warn: #e0b453;
-    --warn-soft: #2e2512;
-    --bad: #ee8b77;
-    --bad-soft: #351a16;
-    --research: #c3a3ea;
-    --research-soft: #261d33;
+    --canvas: #1b1815;
+    --surface: #161311;
+    --raised: #231f1b;
+    --sunken: #110f0d;
+    --quote-bg: #1f1b17;
+    --ink: #ebe3d6;
+    --muted: #bab1a4;
+    --faint: #9d9283;
+    --line: #352f29;
+    --line-strong: #4c443b;
+    --accent: #dba077;
+    --accent-strong: #e6c09f;
+    --accent-ink: #1b1815;
+    --accent-soft: #3a2a1d;
+    --pencil: #a4a9b1;
+    --pencil-soft: #2b2a28;
+    --good: #8fc3a6;
+    --good-soft: #1b2b23;
+    --warn: #e2bd5a;
+    --warn-soft: #382e19;
+    --bad: #f17e70;
+    --bad-soft: #3b1e18;
+    --research: #d7a6d1;
+    --research-soft: #2f1f2d;
     --elev-overlay: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
     color-scheme: dark;
   }
@@ -232,7 +234,7 @@ code, .mono { font-family: var(--font-code); font-size: 0.85em; }
     transition: transform var(--dur-2) var(--ease), visibility 0s linear var(--dur-2);
   }
   .nav-open .sidebar { transform: none; visibility: visible; transition: transform var(--dur-2) var(--ease); }
-  .nav-open .scrim { display: block; position: fixed; inset: 0; z-index: 30; background: rgb(8 12 18 / 0.45); }
+  .nav-open .scrim { display: block; position: fixed; inset: 0; z-index: 30; background: var(--scrim); }
   .nav-link { min-height: 42px; }
 }
 @media (min-width: 901px) {
@@ -343,7 +345,7 @@ input[type=text], input[type=number], input[type=search], input[type=email], inp
 input::placeholder, textarea::placeholder { color: var(--faint); }
 select {
   appearance: none; padding-right: 32px; cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%238a8a8a' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23857a6b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 10px center;
 }
 input:hover, textarea:hover, select:hover { border-color: var(--muted); }

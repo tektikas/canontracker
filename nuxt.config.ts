@@ -27,7 +27,7 @@ export default defineNuxtConfig({
         { name: 'twitter:description', content: 'Human-approved, source-cited narrative canon and change impact for anyone building a story world.' },
         { name: 'twitter:image', content: 'https://storybible.trythis.work/og-default.png' },
         { name: 'twitter:image:alt', content: 'Story Bible — Narrative canon, committed in ink.' },
-        { name: 'theme-color', content: '#1f4f82' },
+        { name: 'theme-color', content: '#733816' },
       ],
       // Apply a saved theme before first paint (see app/composables/theme.ts).
       script: [{ innerHTML: `try{var t=localStorage.getItem('sb-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}` }],
@@ -50,5 +50,11 @@ export default defineNuxtConfig({
     imageModelId: 'muse-image-1.0', // NUXT_IMAGE_MODEL_ID
     metaApiKey: '', // NUXT_META_API_KEY, used as stored in pass
     metaBaseUrl: 'https://api.meta.ai/v1', // NUXT_META_BASE_URL
+    // Muse Voice Transcribe. Base URL and key default to the ones above; mode ENDPOINTING (turns with times) or DIARIZATION.
+    transcribeModelId: 'muse-voice-transcribe-1.0', // NUXT_TRANSCRIBE_MODEL_ID
+    transcribeMode: 'ENDPOINTING', // NUXT_TRANSCRIBE_MODE
+    transcribeBaseUrl: '', // NUXT_TRANSCRIBE_BASE_URL
+    transcribeApiKey: '', // NUXT_TRANSCRIBE_API_KEY
+    transcribeApi: 'meta', // NUXT_TRANSCRIBE_API: meta (/asr/transcribe) | openai (an /audio/transcriptions stand-in, for tests)
   },
 })

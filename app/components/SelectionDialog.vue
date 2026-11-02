@@ -240,7 +240,7 @@ const TITLE = { fact: 'Add a fact', entity: 'Add an entity', note: 'Add a note' 
   width: min(640px, calc(100vw - 32px)); max-height: calc(100dvh - 32px); padding: var(--s-5); overflow-y: auto;
   border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--raised); color: var(--ink); box-shadow: var(--elev-overlay);
 }
-.sel-dialog::backdrop { background: rgb(16 24 36 / 0.45); }
+.sel-dialog::backdrop { background: var(--scrim); }
 .sel-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); }
 .sel-head h2 { margin: 0; font-size: var(--text-lg); }
 .sel-quote { margin: 0; display: grid; gap: 6px; }

@@ -256,6 +256,8 @@ const chipIcon = (c: ChatChip) => (c.type === 'entity' ? 'entities' : c.type ===
           ref="box" v-model="text" rows="1" maxlength="2000" :aria-label="chat.mode === 'research' ? 'Research question' : 'Question for the canon'"
           :placeholder="chat.quote ? 'What do you want to know about this?' : chat.mode === 'research' ? 'Ask about the real world…' : 'Ask the canon…'" @keydown="onKey"
         />
+        <!-- Voice fills the box; the person reads it and sends it themselves. -->
+        <MicButton label="Speak" :max="60" :compact="contained" @text="t => (text = `${text.trim()} ${t}`.trim())" />
         <UiButton type="submit" variant="primary" icon="send" :disabled="sending || !text.trim()" :loading="sending" aria-label="Send">{{ contained ? '' : 'Send' }}</UiButton>
       </div>
     </form>

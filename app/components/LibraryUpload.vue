@@ -9,7 +9,8 @@ const { data: stats } = useNuxtData<{ model: { mode: string } }>('stats')
 
 interface Item {
   key: number, name: string, size: number, state: 'queued' | 'uploading' | 'done' | 'error', error?: string
-  result?: { status: string, document_id?: string, version?: number, folder?: string | null, same_name_in?: { folder: string | null } | null, passages?: number, candidates?: number, skipped?: number, stale_facts?: number, outdated_facts?: number, evidence_moved?: number, word_notes?: number, extraction_error?: string | null, same_as?: { filename: string, title: string, version: number }, error?: string }
+  audio?: boolean
+  result?: { status: string, duration_ms?: number, document_id?: string, version?: number, folder?: string | null, same_name_in?: { folder: string | null } | null, passages?: number, candidates?: number, skipped?: number, stale_facts?: number, outdated_facts?: number, evidence_moved?: number, word_notes?: number, extraction_error?: string | null, same_as?: { filename: string, title: string, version: number }, error?: string }
 }
 const items = ref<Item[]>([])
 const busy = computed(() => items.value.some(i => i.state === 'queued' || i.state === 'uploading'))
@@ -23,7 +24,7 @@ async function add(files: File[]) {
   if (!files.length) return
   const fresh: Item[] = files.map((f) => {
     const problem = uploadProblem(f)
-    return { key: ++seq, name: f.name, size: f.size, state: problem ? 'error' : 'queued', error: problem ?? undefined }
+    return { key: ++seq, name: f.name, size: f.size, audio: AUDIO_UPLOAD.test(f.name), state: problem ? 'error' : 'queued', error: problem ?? undefined }
   })
   // Newest batch on top; finished rows from earlier batches stay until cleared.
   items.value = [...fresh, ...items.value]
@@ -42,10 +43,11 @@ async function drain() {
     if (!it) continue
     it.state = 'uploading'
     const form = new FormData()
-    form.append('files', file, file.name)
+    // Audio goes to /api/recordings: transcribed there, and the transcript is the document.
+    form.append(it.audio ? 'file' : 'files', file, file.name)
     if (folderId) form.append('folder_id', folderId)
     try {
-      const r = (await $fetch<{ results: Item['result'][] }>('/api/documents', { method: 'POST', body: form })).results[0]!
+      const r = (await $fetch<{ results: Item['result'][] }>(it.audio ? '/api/recordings' : '/api/documents', { method: 'POST', body: form })).results[0]!
       it.result = r
       it.state = r.status === 'error' ? 'error' : 'done'
       if (r.status === 'error') it.error = r.error
@@ -131,7 +133,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
       <div class="drop-card">
         <UiIcon name="upload" :size="28" />
         <b>Drop to add {{ folder ? `to ${folder.label}` : 'to the Library' }}</b>
-        <span>Markdown, plain text or Word (.docx), up to 1 MB each. A file with the same name as one {{ folder ? `in ${folder.label}` : 'in the Library root' }} becomes its next version.</span>
+        <span>Markdown, plain text or Word (.docx) up to 1 MB, or audio up to 30 minutes (transcribed into a read-only transcript). A file with the same name as one {{ folder ? `in ${folder.label}` : 'in the Library root' }} becomes its next version.</span>
       </div>
     </div>
   </Teleport>
@@ -161,7 +163,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
           <div class="bar" :class="i.state" role="progressbar" :aria-label="`${i.name}: ${i.state}`" :aria-busy="i.state === 'uploading' || undefined"><span /></div>
           <p class="up-result small">
             <template v-if="i.state === 'queued'">Waiting…</template>
-            <template v-else-if="i.state === 'uploading'">Importing and extracting candidates…</template>
+            <template v-else-if="i.state === 'uploading'">{{ i.audio ? 'Transcribing the audio, then extracting candidates…' : 'Importing and extracting candidates…' }}</template>
             <span v-else-if="i.state === 'error'" class="bad-text">{{ i.error }}</span>
             <template v-else-if="i.result?.status === 'duplicate'">
               Same text as {{ i.result.same_as?.filename === i.name ? '' : `${i.result.same_as?.title} ` }}v{{ i.result.same_as?.version }}, skipped.
@@ -169,7 +171,8 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
             <template v-else-if="i.result">
               <b>{{ i.result.version === 1 ? `Added to ${place(i.result.folder)}` : `New version v${i.result.version} of ${i.name} in ${place(i.result.folder)}` }}</b>
               <template v-if="i.result.same_name_in"> · a separate document: the {{ i.name }} {{ i.result.same_name_in.folder ? `in ${i.result.same_name_in.folder}` : 'in the Library root' }} is unchanged</template>
-              · {{ counted(i.result.passages ?? 0, 'passage') }}
+              <template v-if="i.result.duration_ms != null"> · {{ clockMs(i.result.duration_ms) }} transcribed</template>
+              · {{ counted(i.result.passages ?? 0, i.result.duration_ms != null ? 'timed passage' : 'passage') }}
               · {{ counted(i.result.candidates ?? 0, 'candidate') }}{{ i.result.candidates ? ' sent to Review' : '' }}<template v-if="i.result.skipped"> ({{ i.result.skipped }} already in the project)</template>
               <template v-if="i.result.word_notes"> · {{ counted(i.result.word_notes, 'Word comment') }} added as {{ i.result.word_notes === 1 ? 'a note' : 'notes' }}</template>
               <template v-if="i.result.evidence_moved"> · {{ counted(i.result.evidence_moved, 'pending candidate') }} now {{ i.result.evidence_moved === 1 ? 'cites' : 'cite' }} v{{ i.result.version }}</template>

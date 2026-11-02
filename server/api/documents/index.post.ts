@@ -34,7 +34,7 @@ export default defineEventHandler(async (event) => {
       if (/\.docx$/i.test(filename)) {
         if (p.type && ![DOCX_MIME, 'application/octet-stream', 'application/zip'].includes(p.type)) throw createError({ statusCode: 415, statusMessage: 'UNSUPPORTED_FILE', message: 'This is not a Word document (.docx).' })
         const { text, comments } = docxToText(p.data)
-        results.push(await importDocument(filename, text, undefined, folderId, { original: p.data, comments }))
+        results.push(await importDocument(filename, text, undefined, folderId, undefined, { original: p.data, comments }))
       } else results.push(await importDocument(filename, p.data.toString('utf8'), undefined, folderId))
     } catch (e) {
       const code = (e as { statusCode?: number }).statusCode

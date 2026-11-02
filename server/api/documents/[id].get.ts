@@ -25,5 +25,9 @@ export default defineEventHandler((event) => {
   const tags = db.prepare(`select t.id, t.name, t.color from document_tags dt join tags t on t.id = dt.tag_id
     where dt.project_id = ? and dt.filename = ? order by lower(t.name)`).all(pid(), doc.filename) as { id: string, name: string, color: string }[]
   const folder = doc.folder_id ? { id: doc.folder_id, path: folderPath(doc.folder_id) } : null
-  return { ...doc, created_by_name: author, versions: history, tags, folder, latest: { id: latest.id, version: latest.version }, passages, facts, notes, cover: appliedImage('document', doc.id), original: existsSync(originalPath(pid(), doc.sha256)) }
+  // A recording's transcript: its audio (guarded route), length, and the script it is compared with.
+  const rec = doc.origin === 'recording' ? getRecording(doc.id) : undefined
+  const script = rec?.script_key ? latestDocument(rec.script_key) : undefined
+  const recording = rec ? { audio: `/api/documents/${doc.id}/audio`, duration_ms: rec.duration_ms, mode: rec.mode, script: script ? { id: script.id, title: script.title } : null } : null
+  return { ...doc, recording, created_by_name: author, versions: history, tags, folder, latest: { id: latest.id, version: latest.version }, passages, facts, notes, cover: appliedImage('document', doc.id), original: existsSync(originalPath(pid(), doc.sha256)) }
 })
