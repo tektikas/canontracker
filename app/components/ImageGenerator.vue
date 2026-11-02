@@ -138,11 +138,11 @@ function uploadInstead() {
             <div class="art small">
               <template v-if="data.art_style">
                 <span class="label">Project art style</span> <span class="muted">{{ data.art_style }}</span>
-                <NuxtLink v-if="canManage(me)" to="/settings/projects">Edit</NuxtLink>
+                <NuxtLink v-if="canManage(me)" :to="`/settings/projects/${me?.current?.project.id}`">Edit</NuxtLink>
               </template>
               <span v-else class="muted">
                 No project art style yet.
-                <NuxtLink v-if="canManage(me)" to="/settings/projects">Set one in Settings</NuxtLink>
+                <NuxtLink v-if="canManage(me)" :to="`/settings/projects/${me?.current?.project.id}`">Set one in Settings</NuxtLink>
                 <template v-else>Owners and admins can set one in Settings.</template>
               </span>
             </div>

@@ -73,7 +73,7 @@ async function loadSample(s: typeof SAMPLES[number]) {
   sampleError.value = ''
   try {
     if (!isCurrent.value) await $fetch(`/api/projects/${id.value}/switch`, { method: 'POST' })
-    await $fetch('/api/demo/load', { method: 'POST', body: { set: s.set } })
+    await $fetch('/api/demo/load', { method: 'POST', body: { set: s.set, expect_project: id.value } })
     reloadNuxtApp({ path: '/', force: true })
   } catch (e) {
     sampleError.value = errorMessage(e)
