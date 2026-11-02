@@ -27,7 +27,7 @@ export default defineNuxtConfig({
         { name: 'twitter:description', content: 'Human-approved, source-cited narrative canon and change impact for anyone building a story world.' },
         { name: 'twitter:image', content: 'https://storybible.trythis.work/og-default.png' },
         { name: 'twitter:image:alt', content: 'Story Bible — Narrative canon, committed in ink.' },
-        { name: 'theme-color', content: '#1f4f82' },
+        { name: 'theme-color', content: '#733816' },
       ],
       // Apply a saved theme before first paint (see app/composables/theme.ts).
       script: [{ innerHTML: `try{var t=localStorage.getItem('sb-theme');if(t)document.documentElement.dataset.theme=t}catch(e){}` }],
