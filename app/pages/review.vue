@@ -11,10 +11,27 @@ const fill = useFillAction()
 const decided = reactive<Record<string, 'accepted' | 'rejected'>>({})
 const last = ref<{ decision: 'accepted' | 'rejected' | 'added', statement: string }>()
 const tour = useTourSignal()
-const queue = computed(() => (pending.value ?? []).filter(f => !decided[f.id]))
+const all = computed(() => (pending.value ?? []).filter(f => !decided[f.id]))
 // Every candidate ends up pending, canon or rejected; applying a change swaps one canon fact for another, so this sum stays the candidate count.
-const total = computed(() => (stats.value ? stats.value.canon - stats.value.authored_canon + stats.value.rejected + stats.value.pending : queue.value.length))
-const reviewed = computed(() => Math.max(0, total.value - queue.value.length))
+const total = computed(() => (stats.value ? stats.value.canon - stats.value.authored_canon + stats.value.rejected + stats.value.pending : all.value.length))
+const reviewed = computed(() => Math.max(0, total.value - all.value.length))
+
+// The AI critic's opinion is advice on a candidate: a badge and one line why. The queue can be narrowed or sorted by it.
+type Cand = NonNullable<typeof pending.value>[number]
+// A keep read before canon about its names changed is stale (it may now repeat a fact): no verdict here, like bulk accept.
+const verdictOf = (f: Cand) => (f.critic?.current && !(f.critic.verdict === 'keep' && f.critic.canon_changed) ? f.critic.verdict : null)
+const CRITIC_TONE = { keep: 'good', reject: 'bad', needs_edit: 'warn' } as const
+const CRITIC_ORDER = { reject: 0, needs_edit: 1, keep: 2 } as const
+const criticFilter = ref<'all' | CriticVerdict | 'none'>('all')
+const criticFirst = ref(false)
+const criticCount = (v: CriticVerdict | 'none') => all.value.filter(f => (verdictOf(f) ?? 'none') === v).length
+const queue = computed(() => {
+  const list = criticFilter.value === 'all' ? all.value : all.value.filter(f => (verdictOf(f) ?? 'none') === criticFilter.value)
+  const rank = (f: Cand) => { const v = verdictOf(f); return v ? CRITIC_ORDER[v] : 3 }
+  return criticFirst.value ? [...list].sort((a, b) => rank(a) - rank(b)) : list
+})
+// The last candidate of a filtered view was decided: show the whole queue again rather than an empty one.
+watch(() => queue.value.length, (n) => { if (!n && criticFilter.value !== 'all') criticFilter.value = 'all' })
 const decidedNow = computed(() => Object.values(decided))
 
 const selectedId = ref(typeof route.query.fact === 'string' ? route.query.fact : undefined)
@@ -27,7 +44,11 @@ const lowConfidence = (f: Record<string, any>) => f.confidence != null && f.conf
 
 type Mode = 'idle' | 'edit' | 'reject'
 const mode = ref<Mode>('idle')
-const form = reactive({ statement: '', subject: '', predicate: '', object: '', rationale: '' })
+const form = reactive({ statement: '', subject: '', predicate: '', object: '', time_from: '', time_to: '', approximate: false, rationale: '' })
+// The candidate's own story time, as the edit form opened with it: time is sent only when the person (or a suggestion) changed it.
+const timeAtOpen = ref('')
+const timeOf = () => JSON.stringify([form.time_from.trim(), form.time_to.trim(), form.approximate])
+const timeError = (v: string) => (v.trim() && !storyTime(v) ? 'Use a day, like D3, or a day and time, like D2 14:30.' : '')
 const error = ref('')
 const busy = ref(false)
 const evIndex = ref(0)
@@ -46,7 +67,8 @@ watch(() => current.value?.id, () => {
 
 const panel = ref<HTMLElement>()
 const firstField = ref<HTMLInputElement | HTMLTextAreaElement>()
-async function open(m: Mode) {
+// prefill: the AI critic's suggested edit, put in the form for the person to read, change and save (or cancel).
+async function open(m: Mode, prefill?: CriticSuggestion | null) {
   const f = current.value
   if (!f || busy.value) return
   if (m === 'edit' && !verified(f)) {
@@ -54,7 +76,13 @@ async function open(m: Mode) {
     return
   }
   error.value = ''
-  Object.assign(form, { statement: f.statement, subject: f.subject, predicate: f.predicate, object: f.object ?? '', rationale: '' })
+  const t = splitTimeLabel(f.time_label)
+  Object.assign(form, { statement: f.statement, subject: f.subject, predicate: f.predicate, object: f.object ?? '', time_from: t.from, time_to: t.to, approximate: t.approximate, rationale: '' })
+  timeAtOpen.value = timeOf()
+  if (prefill) {
+    const s = prefill.time === undefined ? t : splitTimeLabel(prefill.time)
+    Object.assign(form, { statement: prefill.statement, subject: prefill.subject, predicate: prefill.predicate, object: prefill.object ?? '', time_from: s.from, time_to: s.to, approximate: s.approximate, rationale: 'AI critic suggestion' })
+  }
   mode.value = m
   await nextTick()
   firstField.value?.focus()
@@ -89,6 +117,11 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
     error.value = 'Say why it is rejected.'
     return
   }
+  const retimed = decision === 'correct_and_accept' && timeOf() !== timeAtOpen.value
+  if (retimed && (timeError(form.time_from) || timeError(form.time_to))) {
+    error.value = timeError(form.time_from) || timeError(form.time_to)
+    return
+  }
   const i = queue.value.indexOf(f)
   busy.value = true
   error.value = ''
@@ -98,7 +131,10 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
       body: {
         decision,
         rationale: mode.value === 'idle' ? undefined : form.rationale,
-        corrected: decision === 'correct_and_accept' ? { statement: form.statement, subject: form.subject, predicate: form.predicate, object: form.object } : undefined,
+        corrected: decision === 'correct_and_accept'
+          ? { statement: form.statement, subject: form.subject, predicate: form.predicate, object: form.object,
+              ...(retimed && { time_from: storyTime(form.time_from) ?? '', time_to: storyTime(form.time_to) ?? '', precision: form.approximate ? 'approximate' : 'exact' }) }
+          : undefined,
       },
     })
   } catch (e) {
@@ -125,7 +161,12 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
 
 // Accept every verified candidate still waiting, as one informed decision: the sheet lists each one (statement and source)
 // before anything happens. Blocked candidates (quote not in the source) are never in the list; the server re-checks each.
-const verifiedLeft = computed(() => queue.value.filter(verified))
+const verifiedLeft = computed(() => all.value.filter(verified))
+// "Accept all the AI critic keeps": the verified candidates whose current opinion is keep, read against today's canon about
+// their names. Same sheet, same one human click; the fingerprint then covers the opinion shown too.
+const criticKeeps = computed(() => verifiedLeft.value.filter(f => verdictOf(f) === 'keep'))
+const bulkMode = ref<'verified' | 'critic'>('verified')
+const bulkList = () => (bulkMode.value === 'critic' ? criticKeeps.value : verifiedLeft.value)
 const bulkOpen = ref(false)
 const bulkBusy = ref(false)
 const bulkError = ref('')
@@ -138,10 +179,11 @@ const cite = (f: Record<string, any>) => {
   return e ? `${e.document_title}${e.start_ms != null ? `, at ${clockMs(e.start_ms)}` : e.start_line ? `, line ${e.start_line}` : ''}` : ''
 }
 // Merge decisions that rename names on accept, as the single review shows them; counted once per name.
-const bulkBlocked = computed(() => queue.value.length - verifiedLeft.value.length)
+const bulkBlocked = computed(() => all.value.length - verifiedLeft.value.length)
 const bulkMapped = computed(() => new Set(bulkShown.value.flatMap(f => f.identity.map(i => `${i.from}\u0000${i.to}`))).size)
-function openBulk() {
-  bulkShown.value = verifiedLeft.value
+function openBulk(mode: 'verified' | 'critic' = 'verified') {
+  bulkMode.value = mode
+  bulkShown.value = bulkList()
   bulkChanged.value = []
   bulkError.value = ''
   bulkOpen.value = !!bulkShown.value.length
@@ -159,10 +201,11 @@ async function acceptAll() {
   bulkError.value = ''
   try {
     // Each candidate goes with the fingerprint of what this sheet shows; the server refuses the lot if any of them changed.
-    const items = bulkShown.value.map(f => ({ id: f.id, fingerprint: candidateFingerprint(f) }))
-    const r = await $fetch('/api/facts/accept-verified', { method: 'POST', body: { items } })
+    const critic = bulkMode.value === 'critic'
+    const items = bulkShown.value.map(f => ({ id: f.id, fingerprint: candidateFingerprint(f, critic) }))
+    const r = await $fetch('/api/facts/accept-verified', { method: 'POST', body: { items, ...(critic && { critic }) } })
     for (const id of r.accepted) decided[id] = 'accepted'
-    last.value = { decision: 'accepted', statement: `${counted(r.accepted.length, 'candidate')}${r.skipped.length ? ` · ${r.skipped.length} skipped (already decided or quote not found)` : ''}` }
+    last.value = { decision: 'accepted', statement: `${counted(r.accepted.length, 'candidate')}${r.skipped.length ? ` · ${r.skipped.length} skipped (already decided, quote not found or no longer kept by the AI critic)` : ''}` }
     tour.value = { did: 'bulk' }
     bulkOpen.value = false
   } catch (e) {
@@ -171,7 +214,7 @@ async function acceptAll() {
       // Nothing was accepted. Show the fresh list without the changed ones; the person reads it and confirms again.
       await refresh()
       bulkChanged.value = bulkShown.value.filter(f => changed.includes(f.id))
-      bulkShown.value = verifiedLeft.value.filter(f => !changed.includes(f.id))
+      bulkShown.value = bulkList().filter(f => !changed.includes(f.id))
     } else bulkError.value = errorMessage(e)
     return
   } finally {
@@ -181,6 +224,25 @@ async function acceptAll() {
   refresh()
   refreshNuxtData('stats')
   refreshEntities()
+}
+
+// Ask the AI critic: one candidate, or every verified one in the queue without a current opinion. It writes opinions only.
+const criticBusy = ref(false)
+const criticNote = ref('')
+const unread = computed(() => verifiedLeft.value.filter(f => !f.critic?.current || f.critic.canon_changed))
+async function askCritic(ids: string[]) {
+  if (criticBusy.value || !ids.length) return
+  criticBusy.value = true
+  criticNote.value = ''
+  try {
+    const r = await $fetch('/api/facts/critic', { method: 'POST', body: { ids } })
+    criticNote.value = r.opinions ? `The AI critic gave ${counted(r.opinions, 'opinion')}${r.left ? `; ${r.left} more next time` : ''}.` : 'The AI critic had no opinion on this.'
+    await refresh()
+  } catch (e) {
+    criticNote.value = errorMessage(e)
+  } finally {
+    criticBusy.value = false
+  }
 }
 
 // Keyboard triage (desktop). Each key is one explicit decision; held keys don't repeat, and typing in a field never triggers one.
@@ -236,7 +298,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
       <div class="progress" role="status">
         <div class="progress-label">
           <b>{{ reviewed }} of {{ total }} reviewed</b>
-          <span class="faint">{{ queue.length }} left</span>
+          <span class="faint">{{ all.length }} left</span>
         </div>
         <div class="progress-bar" aria-hidden="true"><span :style="{ width: `${(reviewed / total) * 100}%` }" /></div>
       </div>
@@ -299,6 +361,31 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
         <SourceRef v-for="ev in current.evidence" :key="ev.id" :ev="ev" />
       </div>
 
+      <section v-if="current.critic" class="critic" :class="current.critic.current ? CRITIC_TONE[current.critic.verdict] : 'old'" aria-label="AI critic opinion" data-test="critic">
+        <div class="critic-head">
+          <UiIcon name="review" :size="15" />
+          <b>AI critic</b>
+          <UiBadge :tone="current.critic.current ? CRITIC_TONE[current.critic.verdict] : 'neutral'">{{ CRITIC_VERDICTS[current.critic.verdict] }}</UiBadge>
+          <span class="small muted">{{ CRITIC_REASONS[current.critic.reason] }}</span>
+        </div>
+        <p class="critic-why">{{ current.critic.explanation }}</p>
+        <p v-if="current.critic.duplicate_of" class="small">Same as canon: <NuxtLink :to="`/canon#fact-${current.critic.duplicate_of}`">“{{ current.critic.duplicate_statement ?? current.critic.duplicate_of }}”</NuxtLink></p>
+        <div v-if="current.critic.suggestion && current.critic.current" class="critic-edit small">
+          <span>Suggested: “{{ current.critic.suggestion.statement }}”
+            <span class="faint">{{ current.critic.suggestion.subject }} → {{ current.critic.suggestion.predicate }}<template v-if="current.critic.suggestion.object"> → {{ current.critic.suggestion.object }}</template><template v-if="(current.critic.suggestion.time ?? null) !== current.time_label"> · {{ current.critic.suggestion.time ?? 'no time' }}</template></span></span>
+          <UiButton v-if="editor && mode === 'idle' && verified(current)" size="sm" @click="open('edit', current.critic.suggestion)">Use in Edit &amp; accept</UiButton>
+        </div>
+        <p class="small faint critic-foot">
+          <template v-if="!current.critic.current">This opinion is about an earlier form of the candidate (its source, wording or names changed since). </template>
+          <template v-else-if="current.critic.canon_changed">Canon about these names changed since the AI critic read this, so it may now repeat a fact. </template>
+          Advice only: you decide.
+          <button v-if="editor && (!current.critic.current || current.critic.canon_changed)" type="button" class="linklike" :disabled="criticBusy" @click="askCritic([current.id])">Ask again</button>
+        </p>
+      </section>
+      <p v-else-if="editor && verified(current)" class="small faint critic-none">
+        No AI critic opinion yet. <button type="button" class="linklike" :disabled="criticBusy" @click="askCritic([current.id])">{{ criticBusy ? 'Asking…' : 'Ask the AI critic' }}</button>
+      </p>
+
       <p v-if="!verified(current)" class="notice bad" data-tour="blocked" :class="{ refused: error === BLOCKED }">
         <UiIcon name="conflicts" :size="16" />
         <span><b v-if="error === BLOCKED" role="alert">Accept refused. </b>The model's quote doesn't appear in the source, so this can't become canon. Reject it, or leave it pending until the source says it.</span>
@@ -312,6 +399,11 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
           <UiField label="Subject"><input v-model="form.subject" type="text" required></UiField>
           <UiField label="Predicate"><input v-model="form.predicate" type="text" required></UiField>
           <UiField label="Object"><input v-model="form.object" type="text"></UiField>
+        </div>
+        <div class="triple-fields">
+          <UiField label="From" :error="timeError(form.time_from)"><input v-model="form.time_from" type="text" placeholder="e.g. D2 14:30" autocomplete="off"></UiField>
+          <UiField label="Until" :error="timeError(form.time_to)"><input v-model="form.time_to" type="text" placeholder="Optional" autocomplete="off"></UiField>
+          <label class="check"><input v-model="form.approximate" type="checkbox"> Roughly</label>
         </div>
         <UiField label="Note" hint="Optional. Saved to the audit log.">
           <input v-model="form.rationale" type="text" placeholder="e.g. Fixed the time to match the scene">
@@ -371,16 +463,33 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
       <p v-else class="source-body faint small loading">Loading source…</p>
     </UiPanel>
 
-    <UiPanel class="queue" flush title="Queue" :description="`${queue.length} waiting`">
+    <UiPanel class="queue" flush title="Queue" :description="queue.length === all.length ? `${all.length} waiting` : `${queue.length} of ${all.length} waiting`">
       <template v-if="editor && verifiedLeft.length" #actions>
-        <UiButton size="sm" icon="check" data-tour="bulk" @click="openBulk">Accept all {{ verifiedLeft.length }} verified…</UiButton>
+        <UiButton v-if="criticKeeps.length" size="sm" icon="check" data-test="bulk-critic" @click="openBulk('critic')">Accept {{ criticKeeps.length }} the AI critic keeps…</UiButton>
+        <UiButton size="sm" icon="check" data-tour="bulk" @click="openBulk()">Accept all {{ verifiedLeft.length }} verified…</UiButton>
       </template>
+      <div class="criticbar small">
+        <label>AI critic
+          <select v-model="criticFilter" aria-label="Filter by AI critic opinion">
+            <option value="all">All candidates</option>
+            <option value="reject" :disabled="!criticCount('reject')">Says reject ({{ criticCount('reject') }})</option>
+            <option value="needs_edit" :disabled="!criticCount('needs_edit')">Says needs edit ({{ criticCount('needs_edit') }})</option>
+            <option value="keep" :disabled="!criticCount('keep')">Says keep ({{ criticCount('keep') }})</option>
+            <option value="none" :disabled="!criticCount('none')">No current opinion ({{ criticCount('none') }})</option>
+          </select>
+        </label>
+        <label><input v-model="criticFirst" type="checkbox"> Rejects first</label>
+        <UiButton v-if="editor && unread.length" size="sm" variant="ghost" :loading="criticBusy" @click="askCritic(unread.map(f => f.id))">Ask the AI critic ({{ unread.length }})</UiButton>
+        <span v-if="criticNote" class="muted" role="status">{{ criticNote }}</span>
+      </div>
       <ol ref="list" class="queue-list">
         <TransitionGroup name="q">
           <li v-for="(f, i) in queue" :key="f.id">
             <button type="button" class="queue-item" :aria-current="f.id === current.id ? 'true' : undefined" @click="selectedId = f.id">
               <span class="q-n faint">{{ i + 1 }}</span>
               <span class="q-text">{{ f.statement }}</span>
+              <UiBadge v-if="verdictOf(f)" :tone="CRITIC_TONE[verdictOf(f)!]" class="q-critic" :title="`AI critic: ${CRITIC_VERDICTS[verdictOf(f)!]} (${CRITIC_REASONS[f.critic!.reason]}). ${f.critic!.explanation}`">{{ verdictOf(f) === 'needs_edit' ? 'Edit' : CRITIC_VERDICTS[verdictOf(f)!] }}</UiBadge>
+              <span v-else />
               <UiBadge v-if="!verified(f)" tone="bad" dot title="Quote not found in source">Blocked</UiBadge>
               <span v-else-if="f.origin === 'human'" class="q-conf" title="Added by a person">by hand</span>
               <span v-else-if="f.agent_name" class="q-conf" :title="`Proposed by agent ${f.agent_name}`">agent</span>
@@ -392,7 +501,12 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
     </UiPanel>
   </div>
 
-  <UiDialog v-model:open="bulkOpen" wide :title="`Accept ${counted(bulkShown.length, 'verified candidate')}?`" @submit="acceptAll">
+  <UiDialog v-model:open="bulkOpen" wide :title="bulkMode === 'critic' ? `Accept ${counted(bulkShown.length, 'candidate')} the AI critic keeps?` : `Accept ${counted(bulkShown.length, 'verified candidate')}?`" @submit="acceptAll">
+    <p v-if="bulkMode === 'critic'" class="notice info">
+      <UiIcon name="review" :size="16" />
+      <span>The AI critic read each of these against its source and said keep. That is advice: accepting is your decision.
+        {{ counted(verifiedLeft.length - bulkShown.length, 'other verified candidate') }} {{ verifiedLeft.length - bulkShown.length === 1 ? 'stays' : 'stay' }} in the queue.</span>
+    </p>
     <p>Each one becomes canon with your name on it in the audit log. Every quote below appears word for word in its source.
       <template v-if="bulkBlocked"> {{ counted(bulkBlocked, 'blocked candidate') }} (quote not found) {{ bulkBlocked === 1 ? 'stays' : 'stay' }} in the queue.</template>
       Read the list first; anything you’re unsure of, close this and decide it on its own.</p>
@@ -414,6 +528,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
           {{ cite(f) }}
           <UiBadge v-if="citeEv(f) && citeEv(f).latest_version > citeEv(f).document_version" tone="warn">Stale: source now v{{ citeEv(f).latest_version }}</UiBadge>
         </span>
+        <span v-if="bulkMode === 'critic' && f.critic" class="small muted">AI critic: {{ f.critic.explanation }}</span>
         <span v-for="i in f.identity" :key="i.role" class="small mapping">
           <UiIcon name="merge" :size="14" /> Saved with {{ i.role }} <b>{{ i.from }} → {{ i.to }}</b>
         </span>
@@ -463,6 +578,8 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 .notice.refused { border-color: var(--bad); box-shadow: inset 3px 0 0 var(--bad); }
 .decision { padding-top: var(--s-3); border-top: 1px solid var(--line); }
 .triple-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); }
+.check { display: flex; align-items: center; gap: 6px; align-self: end; min-height: 36px; font-weight: 400; }
+.check input { width: auto; }
 .keys { margin: 0; }
 
 .source-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-2); flex-wrap: wrap; padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); background: var(--surface); }
@@ -474,7 +591,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 
 .queue-list { list-style: none; margin: 0; padding: 0 0 var(--s-2); max-height: 360px; overflow-y: auto; position: relative; }
 .queue-item {
-  display: grid; grid-template-columns: 22px minmax(0, 1fr) auto; gap: var(--s-2); align-items: center;
+  display: grid; grid-template-columns: 22px minmax(0, 1fr) auto auto; gap: var(--s-2); align-items: center;
   width: 100%; min-height: 36px; padding: 6px var(--s-5); border: 0; background: none; text-align: left;
   font: inherit; font-size: var(--text-sm); color: var(--muted); cursor: pointer;
 }
@@ -482,6 +599,21 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 .queue-item[aria-current="true"] { background: var(--accent-soft); color: var(--ink); box-shadow: inset 3px 0 0 var(--accent); }
 .q-n { font-family: var(--font-code); font-size: var(--text-xs); text-align: right; }
 .q-text { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.criticbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); padding: var(--s-2) var(--s-5); border-bottom: 1px solid var(--line); }
+.criticbar label { display: flex; align-items: center; gap: 6px; }
+.criticbar input[type=checkbox] { width: auto; }
+.criticbar select { width: auto; }
+.critic { display: grid; gap: 6px; padding: var(--s-2) var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: inset 3px 0 0 var(--faint); }
+.critic.good { box-shadow: inset 3px 0 0 var(--good); }
+.critic.bad { box-shadow: inset 3px 0 0 var(--bad); }
+.critic.warn { box-shadow: inset 3px 0 0 var(--warn); }
+.critic-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font-size: var(--text-sm); }
+.critic-head svg { color: var(--faint); }
+.critic-why, .critic p { margin: 0; }
+.critic-edit { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); }
+.critic-none { margin: 0; }
+.linklike { background: none; border: 0; padding: 0; color: var(--accent); cursor: pointer; text-decoration: underline; font: inherit; }
+.q-critic { font-size: var(--text-xs); }
 .q-conf { font-size: var(--text-xs); color: var(--faint); font-variant-numeric: tabular-nums; }
 .q-conf.low { color: var(--warn); font-weight: 600; }
 /* A decided row folds away in place instead of the rows below jumping up (DESIGN: motion answers a user action). */
@@ -513,6 +645,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
   .source-head .row { flex: none; }
   .triple-fields { grid-template-columns: 1fr; }
   .queue-item { padding: 8px var(--s-4); min-height: 42px; }
+  .criticbar { padding: var(--s-2) var(--s-4); }
   .progress { min-width: 0; width: 100%; }
 }
 /* Shortcuts are a desktop affordance; touch users get the same buttons without the key hints. */

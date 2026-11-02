@@ -50,6 +50,9 @@ export default defineNuxtConfig({
     imageModelId: 'muse-image-1.0', // NUXT_IMAGE_MODEL_ID
     metaApiKey: '', // NUXT_META_API_KEY, used as stored in pass
     metaBaseUrl: 'https://api.meta.ai/v1', // NUXT_META_BASE_URL
+    criticModelId: '', // NUXT_CRITIC_MODEL_ID: the AI critic's model; empty = modelId
+    criticEffort: 'low', // NUXT_CRITIC_EFFORT=off | low | high: candidates per AI critic call and per run (server/utils/critic.ts)
+    criticReasoningEffort: '', // NUXT_CRITIC_REASONING_EFFORT=minimal | low | medium | high; empty = by NUXT_CRITIC_EFFORT (low: low, flags re-read at medium; high: medium, re-read at high)
     // Muse Voice Transcribe. Base URL and key default to the ones above; mode ENDPOINTING (turns with times) or DIARIZATION.
     transcribeModelId: 'muse-voice-transcribe-1.0', // NUXT_TRANSCRIBE_MODEL_ID
     transcribeMode: 'ENDPOINTING', // NUXT_TRANSCRIBE_MODE
