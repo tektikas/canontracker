@@ -222,7 +222,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                 </form>
                 <div v-else class="side-row">
                   <button type="button" class="side-item" :class="{ on: folderSel === x.id }" :aria-pressed="folderSel === x.id" @click="pickFolder(x.id)">
-                    <UiIcon name="folder" :size="16" /><span class="name">{{ x.name }}</span><span class="n">{{ folderCount(x.id) }}</span>
+                    <UiIcon name="folder" :size="16" /><span class="name" :title="x.name">{{ x.name }}</span><span class="n">{{ folderCount(x.id) }}</span>
                   </button>
                   <UiMenu v-if="editor" :label="`Folder actions for ${x.name}`" class="row-menu">
                     <template #trigger><UiIcon name="more" :size="16" /></template>
@@ -261,7 +261,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
               </form>
               <div v-else class="side-row">
                 <button type="button" class="side-item" :class="{ on: tagSel === t.id }" :aria-pressed="tagSel === t.id" @click="pickTag(t.id)">
-                  <span class="swatch" :class="t.color" aria-hidden="true" /><span class="name">{{ t.name }}</span><span class="n">{{ tagCount(t.id) }}</span>
+                  <span class="swatch" :class="t.color" aria-hidden="true" /><span class="name" :title="t.name">{{ t.name }}</span><span class="n">{{ tagCount(t.id) }}</span>
                 </button>
                 <UiMenu v-if="editor" :label="`Tag actions for ${t.name}`" class="row-menu">
                   <template #trigger><UiIcon name="more" :size="16" /></template>
@@ -328,8 +328,8 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
             <template #default="{ close }">
               <button type="button" class="menu-item" @click="close(); moveTo(null)"><UiIcon name="file" :size="16" />Library root</button>
               <template v-for="f in tops" :key="f.id">
-                <button type="button" class="menu-item" @click="close(); moveTo(f.id)"><UiIcon name="folder" :size="16" />{{ f.name }}</button>
-                <button v-for="c in childrenOf(f.id)" :key="c.id" type="button" class="menu-item indent" @click="close(); moveTo(c.id)"><UiIcon name="folder" :size="16" />{{ c.name }}</button>
+                <button type="button" class="menu-item" :title="f.name" @click="close(); moveTo(f.id)"><UiIcon name="folder" :size="16" />{{ f.name }}</button>
+                <button v-for="c in childrenOf(f.id)" :key="c.id" type="button" class="menu-item indent" :title="c.name" @click="close(); moveTo(c.id)"><UiIcon name="folder" :size="16" />{{ c.name }}</button>
               </template>
               <p v-if="!folders.length" class="menu-label">No folders yet. Add one on the left.</p>
             </template>
@@ -337,7 +337,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
           <UiMenu label="Tag" class="bar-menu">
             <template #trigger><UiIcon name="tag" :size="16" />Tag</template>
             <template #default>
-              <button v-for="t in tags" :key="t.id" type="button" class="menu-item" role="menuitemcheckbox" :aria-checked="tagState(t.id) === 'all' ? 'true' : tagState(t.id) === 'some' ? 'mixed' : 'false'" @click="toggleTag(t.id)">
+              <button v-for="t in tags" :key="t.id" type="button" class="menu-item" :title="t.name" role="menuitemcheckbox" :aria-checked="tagState(t.id) === 'all' ? 'true' : tagState(t.id) === 'some' ? 'mixed' : 'false'" @click="toggleTag(t.id)">
                 <UiIcon :name="tagState(t.id) === 'all' ? 'checked' : 'square'" :size="16" /><span class="swatch" :class="t.color" />{{ t.name }}
                 <span v-if="tagState(t.id) === 'some'" class="faint small">some</span>
               </button>
@@ -417,7 +417,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                   <span v-else class="faint">—</span>
                 </td>
                 <td v-if="editor" class="act">
-                  <UiMenu :label="`Actions for ${d.title}`" class="row-menu" fixed>
+                  <UiMenu :label="`Actions for ${d.title}`" class="row-menu">
                     <template #trigger><UiIcon name="more" :size="16" /></template>
                     <template #default="{ close }">
                       <NuxtLink :to="`/documents/${d.id}`" class="menu-item"><UiIcon name="file" :size="16" />Open</NuxtLink>
@@ -425,7 +425,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                       <NuxtLink :to="`/write?doc=${d.id}`" class="menu-item"><UiIcon name="review" :size="16" />Edit text</NuxtLink>
                       <button type="button" class="menu-item" @click="close(); startRename(d)"><UiIcon name="review" :size="16" />Rename</button>
                       <p class="menu-label">Tags</p>
-                      <button v-for="t in tags" :key="t.id" type="button" class="menu-item" role="menuitemcheckbox" :aria-checked="d.tags.includes(t.id)" @click="organise(d.tags.includes(t.id) ? { remove_tags: [t.id] } : { add_tags: [t.id] }, `${d.tags.includes(t.id) ? 'Removed' : 'Added'} “${t.name}” ${d.tags.includes(t.id) ? 'from' : 'to'} “${d.title}”.`, [d.id])">
+                      <button v-for="t in tags" :key="t.id" type="button" class="menu-item" :title="t.name" role="menuitemcheckbox" :aria-checked="d.tags.includes(t.id)" @click="organise(d.tags.includes(t.id) ? { remove_tags: [t.id] } : { add_tags: [t.id] }, `${d.tags.includes(t.id) ? 'Removed' : 'Added'} “${t.name}” ${d.tags.includes(t.id) ? 'from' : 'to'} “${d.title}”.`, [d.id])">
                         <UiIcon :name="d.tags.includes(t.id) ? 'checked' : 'square'" :size="16" /><span class="swatch" :class="t.color" />{{ t.name }}
                       </button>
                       <p v-if="!tags.length" class="menu-label">No tags yet. Add one on the left.</p>
@@ -447,10 +447,11 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .up-wrap :deep(.uploads) { margin-bottom: var(--s-4); }
 .lib-grid { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: var(--s-4); align-items: start; }
-.side { display: grid; gap: var(--s-5); padding: var(--s-4) var(--s-3); position: sticky; top: var(--s-5); max-height: calc(100vh - 2 * var(--s-5)); overflow-y: auto; }
+.side { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); padding: var(--s-4) var(--s-3); position: sticky; top: var(--s-5); max-height: calc(100vh - 2 * var(--s-5)); overflow-y: auto; }
 .side-head { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 6px; }
 .side-head h2 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--faint); }
 .icon-btn.sm { width: 28px; height: 28px; color: var(--muted); }
+.side-list li { min-width: 0; }
 .side-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
 .side-list li.sub { padding-left: 18px; }
 .side-row { display: flex; align-items: center; gap: 2px; }
@@ -469,8 +470,6 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
 .side-row .row-menu { opacity: 0; }
 .side-row:hover .row-menu, .side-row:focus-within .row-menu, .row-menu:has([aria-expanded=true]) { opacity: 1; }
 @media (hover: none) { .side-row .row-menu { opacity: 1; } }
-.lib :deep(.menu-pop) { left: auto; right: 0; min-width: 220px; }
-.side :deep(.menu-pop) { left: 0; right: auto; }
 .lib :deep(.menu-item.danger) { color: var(--bad); }
 .lib :deep(.menu-item.danger svg) { color: var(--bad); }
 .lib :deep(.menu-item.indent) { padding-left: 30px; }
@@ -498,7 +497,6 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
 .selbar b { margin-right: var(--s-2); color: var(--accent); }
 .bar-menu :deep(.menu-trigger) { gap: 6px; min-height: 30px; padding: 3px 10px; border: 1px solid var(--line-strong); background: var(--raised); font-size: var(--text-sm); font-weight: 500; }
 .bar-menu :deep(.menu-trigger svg) { color: var(--muted); }
-.selbar :deep(.menu-pop) { left: 0; right: auto; }
 .status-line { display: flex; align-items: center; gap: 6px; margin: 0; padding: var(--s-2) var(--s-4); border-bottom: 1px solid var(--line); color: var(--good); }
 .status-line.field-error { color: var(--bad); }
 
@@ -537,7 +535,7 @@ tbody tr.picked { background: var(--accent-soft); }
 
 @media (max-width: 900px) {
   .lib-grid { grid-template-columns: minmax(0, 1fr); }
-  .side { order: 2; position: static; max-height: none; grid-template-columns: 1fr 1fr; gap: var(--s-4); }
+  .side { order: 2; position: static; max-height: none; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); }
   .only-sm { display: revert !important; }
 }
 @media (max-width: 720px) {
