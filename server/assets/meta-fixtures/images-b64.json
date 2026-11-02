@@ -1,0 +1,35 @@
+{
+  "_note": "Muse Image, default response_format: data[0].b64_json (webp). size \"512x512\" returned 1600x1600; b64 here is the real image downscaled to 64x64 (the raw body was 1.36 MB).",
+  "request": {
+    "method": "POST",
+    "path": "/images/generations",
+    "body": {
+      "model": "muse-image-1.0",
+      "prompt": "A small stone lighthouse on a rocky shore at dusk, simple ink sketch.",
+      "n": 1,
+      "size": "512x512"
+    }
+  },
+  "status": 200,
+  "latency_ms": 17920,
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit-requests": "150",
+    "x-ratelimit-remaining-requests": "149"
+  },
+  "body": {
+    "created": 1793638019,
+    "data": [
+      {
+        "b64_json": "UklGRnYFAABXRUJQVlA4WAoAAAAEAAAAPwAAPwAAVlA4IM4DAAAwEgCdASpAAEAAPq1Gl0mmI6GhMfxskMAViWkA06Ly/lD/XGYG+3OOaOq97odQnpZtLjrhinQ1ovWdwGnTn0iT2V/LxOqYpU8A+TV7TQCZI353I8vzKqCGsHvR6w8NhewuyUSjq8l4nOrrTwBHfqSj3AYXOeC+m/MGUgRrenfWpu32vyIYuCX+blLJwV7nPnNmIrqCU3uxWDoAAP7+YEu1FaGhTxUF6GgWrLC2ZfQfFx172NkOH3ckElupPNkvI1NHMPgdPRkfCYbBBIFHHrD3F3Gutv3QMTnJCB4dR5d9kutQ+zUL9WLWxGmxLBmeoktsTfGjF3cgaST/0igeOKeiR5gR5x0yGtsQtEm1XwSCovklEJfCgG/bQsQwd7shvNdi0gKwEiAIfAq9CB6iscMsd6jJKq2llcFqWSoYS7sVccJzoJ7fR0bRcg+1ugjy1YfARF7hwhs5KPtGpmVWRqudSXohVe3Duqawrr0EceEplNQ1SyfByOmm5TPfUoA84/6uo/Sf4wFuLKfKzsOBV3ncfjweyeDLoHvi+FWzmiI/pt99yOsmmx/QUFTjkeFpZxHqCuIeurZ1d43HC+pz3D7CQ80o39/BptVtNhVudNYoSua38UaFpKOJbjekrzKLtZyEZcs4Zha7RNY9QYKlASDUh/xmRXYa60SCBmyZV/aBgYqPwA1e3Vg5S9ndrMsQvVWuP63qCeHT6KTVcgmr1wnACF1gW3j5zDb9wbhBEusCLECQdP1GWZkccbzdxt27gS667IqG+UmLczQBkmuVV8Kot3sknQm+iIjc0pD4/YlLQ5VJ8bpxCMm3JFgEXb3mGv+6fa8S2tqcZ6+SluD5ln+6LLiib7Sff5aZ2iaYsVecORn+Fxqj5poTPn6MXZx5tQwQUY7IL9KJkqI8tBSNLWMq0x4X+USsZ/Gm6kwuMPase/IMVqt055FmZOhgtxli7CUrtgS0v9Mc8tfg9UvgmWbS7r8ttNfLn+1JKb1RFbxrxAhSj+8hQz/VQkTDM7UI9CzuN4nS7YLHMtydHHMnu5v8RQi0CuQnOJSEgXgDyOe/ua7DesM09WzbD8m7TwYfd4dR+toeTu9mXZ7U6PTV6zSmmLS3Cze6ab+lxbidNwhzo2TTYu7zzVjp7TMfQQtUDtKvFy+Em+y76eRmRYijKcFMiwQ7FddsbH6439FQ5Uo09Q0VU6cOL1HjH8+W+I6GKJsQdKG0TpDVvIjvletfU7RCaytQaiwbGf6i73kH4+D0/I0jcU4JMxgOrzIQt7i0MolmNzTWXNUZvrAJ3ZhAAFhNUCCBAQAAPD94cGFja2V0IGJlZ2luPSLvu78iIGlkPSJXNU0wTXBDZWhpSHpyZVN6TlRjemtjOWQiPz48eDp4bXBtZXRhIHhtbG5zOng9ImFkb2JlOm5zOm1ldGEvIj48cmRmOlJERiB4bWxuczpyZGY9Imh0dHA6Ly93d3cudzMub3JnLzE5OTkvMDIvMjItcmRmLXN5bnRheC1ucyMiPjxyZGY6RGVzY3JpcHRpb24gcmRmOmFib3V0PSIiIHhtbG5zOmlwdGNFeHQ9Imh0dHA6Ly9pcHRjLm9yZy9zdGQvSXB0YzR4bXBFeHQvMjAwOC0wMi0yOS8iIGlwdGNFeHQ6RGlnaXRhbFNvdXJjZVR5cGU9Imh0dHA6Ly9jdi5pcHRjLm9yZy9uZXdzY29kZXMvZGlnaXRhbHNvdXJjZXR5cGUvdHJhaW5lZEFsZ29yaXRobWljTWVkaWEiLz48L3JkZjpSREY+PC94OnhtcG1ldGE+PD94cGFja2V0IGVuZD0idyI/PgA="
+      }
+    ],
+    "output_format": "webp",
+    "background": "opaque",
+    "usage": {
+      "input_tokens": 9896,
+      "output_tokens": 790,
+      "total_tokens": 10686
+    }
+  }
+}
