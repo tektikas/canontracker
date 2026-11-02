@@ -182,7 +182,7 @@ let db: DatabaseSync | undefined
 export function useDb() {
   if (db) return db
   mkdirSync('.data', { recursive: true })
-  const conn = new DatabaseSync('.data/storybible.db')
+  const conn = new DatabaseSync('.data/storybible.db', { timeout: 5000 }) // another process's write: wait for it, don't fail
   try {
     const user_version = schemaVersion(conn)
     if (user_version === 12) migrate12(conn)

@@ -24,13 +24,26 @@ function start(t?: EntityType) {
   Object.assign(form, t ? { one: t.one, many: t.many, color: t.color, icon: t.icon } : { one: '', many: '', color: 'neutral', icon: 'other' })
   editing.value = t?.key ?? 'new'
 }
-function startRemove(t: EntityTypeItem) {
+// Page counts come from the server at the moment of asking: a page made since this list loaded must not pass as "unused".
+onMounted(refreshEntityTypes)
+const removePages = ref(0)
+function startRemove(t: EntityTypeItem, pages: number) {
   editing.value = ''
   error.value = ''
   moveTo.value = types.value.find(x => x.key !== t.key && x.key === 'other')?.key ?? types.value.find(x => x.key !== t.key)?.key ?? ''
+  removePages.value = pages
   removing.value = t.key
 }
-async function run(fn: () => Promise<unknown>) {
+async function askRemove(t: EntityTypeItem) {
+  editing.value = ''
+  removing.value = ''
+  error.value = ''
+  await refreshEntityTypes()
+  const fresh = types.value.find(x => x.key === t.key)
+  if (fresh?.pages) startRemove(fresh, fresh.pages)
+  else if (fresh) remove(fresh)
+}
+async function run(fn: () => Promise<unknown>, rethrow = false) {
   busy.value = true
   error.value = ''
   try {
@@ -39,6 +52,7 @@ async function run(fn: () => Promise<unknown>) {
     editing.value = ''
     removing.value = ''
   } catch (e) {
+    if (rethrow) throw e
     error.value = errorMessage(e)
   } finally {
     busy.value = false
@@ -50,8 +64,17 @@ const save = () => run(() => editing.value === 'new'
   ? $fetch('/api/entity-types', { method: 'POST', body: form })
   : $fetch(`/api/entity-types/${editing.value}`, { method: 'PATCH', body: form }))
 async function remove(t: EntityTypeItem) {
-  if (!t.pages && !(await askConfirm({ title: `Remove the ${t.one} type?`, body: 'No page uses it. You can add it again later.', confirm: 'Remove type', danger: true }))) return
-  run(() => $fetch(`/api/entity-types/${t.key}`, { method: 'DELETE', query: t.pages ? { move_to: moveTo.value } : {} }))
+  const pages = removing.value === t.key ? removePages.value : 0
+  if (!pages && !(await askConfirm({ title: `Remove the ${t.one} type?`, body: 'No page uses it. You can add it again later.', confirm: 'Remove type', danger: true }))) return
+  try {
+    await run(() => $fetch(`/api/entity-types/${t.key}`, { method: 'DELETE', query: pages ? { move_to: moveTo.value } : {} }), true)
+  } catch (e) {
+    // Pages took this type after the count was read: the server refuses and says how many; ask where they go instead.
+    const inUse = (e as { data?: { data?: { pages?: number } } }).data?.data?.pages
+    if (!inUse) return (error.value = errorMessage(e))
+    await refreshEntityTypes()
+    startRemove(t, inUse)
+  }
 }
 </script>
 
@@ -68,7 +91,7 @@ async function remove(t: EntityTypeItem) {
           <span class="small muted count">{{ counted(t.pages, 'page') }}</span>
           <span v-if="editable" class="row acts">
             <UiButton size="sm" variant="ghost" icon="review" :aria-label="`Edit ${t.one}`" :title="`Edit ${t.one}`" @click="start(t)" />
-            <UiButton size="sm" variant="ghost" icon="trash" :aria-label="`Remove ${t.one}`" :title="`Remove ${t.one}`" :disabled="types.length === 1" @click="t.pages ? startRemove(t) : remove(t)" />
+            <UiButton size="sm" variant="ghost" icon="trash" :aria-label="`Remove ${t.one}`" :title="`Remove ${t.one}`" :disabled="types.length === 1" @click="askRemove(t)" />
           </span>
         </div>
         <form v-if="editing === t.key" class="type-form" novalidate @submit.prevent="save">
@@ -103,7 +126,7 @@ async function remove(t: EntityTypeItem) {
           </div>
         </form>
         <form v-else-if="removing === t.key" class="type-form" novalidate @submit.prevent="remove(t)">
-          <p class="small">{{ counted(t.pages, 'page') }} {{ t.pages === 1 ? 'is' : 'are' }} {{ t.many }}. Choose the type {{ t.pages === 1 ? 'it becomes' : 'they become' }}; nothing else on {{ t.pages === 1 ? 'the page' : 'those pages' }} changes.</p>
+          <p class="small">{{ counted(removePages, 'page') }} {{ removePages === 1 ? 'is' : 'are' }} {{ t.many }}. Choose the type {{ removePages === 1 ? 'it becomes' : 'they become' }}; nothing else on {{ removePages === 1 ? 'the page' : 'those pages' }} changes.</p>
           <UiField label="Move pages to">
             <select v-model="moveTo">
               <option v-for="x in types.filter(x => x.key !== t.key)" :key="x.key" :value="x.key">{{ x.one }}</option>

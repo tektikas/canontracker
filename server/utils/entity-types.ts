@@ -2,11 +2,26 @@
 
 const fail = (statusCode: number, statusMessage: string, message: string) => createError({ statusCode, statusMessage, message })
 
-// Upgrade and new projects in one place, idempotent: a project with no types yet (made before types were per project, or just
-// created) gets its medium's defaults plus every kind its pages already use, so no existing page changes type. `insert or
-// ignore` on (project_id, key) keeps a concurrent first read harmless. A project always keeps at least one type (the API
-// refuses to remove the last), so this never runs twice for the same project.
+// Upgrade and new projects in one place: a project with no types yet (made before types were per project, or just created)
+// gets its medium's defaults plus every kind its pages already use, so no existing page changes type. The whole set is
+// written in one transaction, so its rows are the "seeded" marker: a reader (this process or another) sees none or all of
+// them, and a crash mid-seed leaves none. `begin immediate` takes the write lock before the re-check, so two first reads
+// can't both seed. A project always keeps at least one type (the API refuses to remove the last), so it never re-seeds.
 export function seedEntityTypes(projectId: string) {
+  const d = useDb()
+  const own = !d.isTransaction // inside a caller's transaction (sync, project PATCH) its commit covers the seed
+  if (own) d.exec('begin immediate')
+  try {
+    if (!d.prepare('select 1 from entity_types where project_id = ? limit 1').get(projectId)) insertDefaults(projectId)
+    if (own) d.exec('commit')
+  } catch (e) {
+    if (own) d.exec('rollback')
+    throw e
+  }
+}
+
+// `insert or ignore` on (project_id, key): types the project already has (kept by retypeForMedium) stay as they are.
+function insertDefaults(projectId: string) {
   const d = useDb()
   const p = d.prepare('select medium from projects where id = ?').get(projectId) as { medium: string } | undefined
   const inUse = (d.prepare('select distinct kind from entities where project_id = ? order by kind').all(projectId) as { kind: string }[]).map(r => r.kind)
@@ -27,7 +42,7 @@ export function retypeForMedium(projectId: string) {
   const untouched = rows.filter(r => (['one', 'many', 'color', 'icon'] as const).every(k => DEFAULT_TYPES[r.key]?.[k] === r[k]))
   const del = d.prepare('delete from entity_types where project_id = ? and key = ?')
   for (const r of untouched) del.run(projectId, r.key)
-  seedEntityTypes(projectId)
+  insertDefaults(projectId) // runs inside the PATCH's transaction, so the swap is all or nothing
 }
 
 export function entityTypes(): EntityType[] {

@@ -153,13 +153,15 @@ async function migrate(port) {
     server = spawn(process.execPath, [join(root, '.output/server/index.mjs')], { cwd: dir, stdio: 'ignore',
       env: { ...process.env, PORT: String(port), HOST: 'localhost', NUXT_SESSION_PASSWORD: randomBytes(24).toString('hex'), NUXT_MODEL_MODE: 'mock' } })
     const base = `http://localhost:${port}`
+    let health
     for (let i = 0; ; i++) {
-      try { await fetch(`${base}/api/health`); break } catch {}
+      try { health = await (await fetch(`${base}/api/health`)).json(); break } catch {}
       if (i > 100) throw new Error('server did not start')
       await new Promise(r => setTimeout(r, 100))
     }
     const peek = fn => { const d = new DatabaseSync(file, { readOnly: true }); try { return fn(d) } finally { d.close() } }
-    check('upgrade in place: still v14, table added, no rebuild', peek(d => [d.prepare('pragma user_version').get().user_version, !!d.prepare(`select 1 from sqlite_master where name = 'entity_types'`).get(), d.prepare('select count(*) n from entities').get().n]), [14, true, rows.length])
+    // The build's own schema (a later card may bump it and migrate v14 in place): the file must be at it, never rebuilt.
+    check('upgrade in place: server schema ≥ 14, file at it, table added, no rebuild', peek(d => [health.schema >= 14, d.prepare('pragma user_version').get().user_version, !!d.prepare(`select 1 from sqlite_master where name = 'entity_types'`).get(), d.prepare('select count(*) n from entities').get().n]), [true, health.schema, true, rows.length])
     const a = client(base)
     check('log in', (await a('/api/auth/login', { method: 'POST', body: { email: 'mig@probe.test', password: 'correct horse' } })).status, 200)
     check('game project: game defaults', (await a('/api/entity-types')).data.map(t => [t.key, t.pages]), GAME.map(k => [k, ['character', 'location', 'item', 'faction', 'event', 'other'].includes(k) ? 1 : 0]))
