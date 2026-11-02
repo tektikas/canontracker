@@ -324,8 +324,8 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
     <div class="layout">
       <UiPanel class="doc">
         <ReaderTools :content="doc.content" :passages="doc.passages" :target="readerBox" />
-        <p v-if="annotate" class="small faint hint"><UiIcon name="canon" :size="14" />Select words to add a fact, an entity or a note, or to research them. <span class="hide-sm">Then press <kbd>F</kbd>, <kbd>E</kbd>, <kbd>N</kbd> or <kbd>R</kbd>.</span></p>
-        <p v-else class="small faint hint"><UiIcon name="research" :size="14" />Select words to research them. <span class="hide-sm">Then press <kbd>R</kbd>.</span></p>
+        <p v-if="annotate" class="small faint hint"><UiIcon name="canon" :size="14" />Select words to add a fact, an entity or a note, to research them or to check their continuity. <span class="hide-sm">Then press <kbd>F</kbd>, <kbd>E</kbd>, <kbd>N</kbd>, <kbd>R</kbd> or <kbd>C</kbd>.</span></p>
+        <p v-else class="small faint hint"><UiIcon name="research" :size="14" />Select words to research them or check their continuity. <span class="hide-sm">Then press <kbd>R</kbd> or <kbd>C</kbd>.</span></p>
         <div ref="readerBox">
           <PassageReader :doc="doc" :active="active" :quote="activeQuote" :annotate="annotate" research :notes="doc.notes" @saved="onSaved" @notes="showNotes" />
         </div>

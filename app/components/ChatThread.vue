@@ -60,7 +60,7 @@ onBeforeUnmount(() => clearInterval(poll))
 // Composer. Chips: a quoted selection (Research this) and what the current page is about; each can be removed.
 const text = ref('')
 const sending = ref(false)
-const outgoing = ref<{ text: string, mode: ChatMode, context: ChatChip[] } | null>(null)
+const outgoing = ref<{ text: string, mode: ChatMode, context: ChatChip[], check: boolean } | null>(null)
 const removed = ref<string[]>([])
 const key = (c: ChatChip) => `${c.type}:${c.id}`
 watch(page, () => { removed.value = [] })
@@ -70,30 +70,40 @@ function removeChip(c: ChatChip) {
   else removed.value.push(key(c))
 }
 const box = ref<HTMLTextAreaElement>()
-watch(() => chat.value.tick, () => {
+// A request from the page: text to prefill, or a continuity check of the quote to run now.
+function takeRequest() {
   if (chat.value.prefill) {
     text.value = chat.value.prefill
     chat.value.prefill = ''
   }
+  if (chat.value.check) {
+    chat.value.check = false
+    nextTick(checkContinuity)
+  }
+}
+watch(() => chat.value.tick, () => {
+  takeRequest()
   nextTick(() => box.value?.focus())
 })
-onMounted(() => {
-  if (chat.value.prefill) {
-    text.value = chat.value.prefill
-    chat.value.prefill = ''
-  }
-})
+onMounted(takeRequest)
 
-async function send(t = text.value) {
+// Quick action in Canon mode: check the quoted selection (or else the typed text) against canon instead of asking about it.
+const canCheck = computed(() => chat.value.mode === 'canon' && (chips.value.some(c => c.quote) || !!text.value.trim()))
+function checkContinuity() {
+  if (!canCheck.value) return
+  send(text.value.trim() || 'Check this passage against canon.', true)
+}
+
+async function send(t = text.value, check = false) {
   t = t.trim()
   if (!t || sending.value) return
   const mode = chat.value.mode
   const context = chips.value
-  const body = { text: t, mode, context: context.map(({ type, id, quote }) => ({ type, id, quote })) }
+  const body = { text: t, mode, context: context.map(({ type, id, quote }) => ({ type, id, quote })), ...(check && { action: 'continuity' }) }
   sending.value = true
   error.value = ''
   text.value = ''
-  outgoing.value = { text: t, mode, context }
+  outgoing.value = { text: t, mode, context, check }
   scrollEnd()
   try {
     if (!conv.value) {
@@ -199,13 +209,19 @@ const chipIcon = (c: ChatChip) => (c.type === 'entity' ? 'entities' : c.type ===
                   <FactSummary :fact="f" sources />
                 </div>
               </details>
-              <span class="small faint model">AI ·<span class="mono">{{ p.trace_id }}</span></span>
+              <span class="small faint model">AI · <NuxtLink :to="`/agents/runs?run=${p.trace_id}`">How was this made?</NuxtLink></span>
             </div>
 
             <div v-else-if="p.type === 'research'" class="from research">
               <div class="from-head"><span class="from-label"><UiIcon name="research" :size="14" />From research — outside sources, not canon</span></div>
               <p class="answer-text">{{ p.text }}</p>
               <NuxtLink v-for="id in p.note_ids" :key="id" :to="`/research/${id}`" class="small note-link">Open the research note: sources, calculations, promote</NuxtLink>
+              <NuxtLink v-for="id in p.note_ids" :key="`run-${id}`" :to="`/agents/runs?run=${id}`" class="small faint">How was this made?</NuxtLink>
+            </div>
+
+            <div v-else-if="p.type === 'continuity'" class="from canon continuity">
+              <ContinuityReport v-if="p.report" :report="p.report" :compact="contained" />
+              <p v-else class="small muted">{{ p.summary }}</p>
             </div>
 
             <div v-else-if="p.type === 'followup'" class="from followup" :class="m.mode">
@@ -227,7 +243,7 @@ const chipIcon = (c: ChatChip) => (c.type === 'entity' ? 'entities' : c.type ===
           <div class="who small"><span class="avatar" aria-hidden="true">{{ initials(me?.user?.name ?? '') }}</span><b>You</b><span class="faint">just now</span></div>
           <p class="bubble">{{ outgoing.text }}</p>
         </div>
-        <p class="small faint thinking" role="status"><span class="spinner" aria-hidden="true" />{{ outgoing.mode === 'research' ? 'Researching…' : 'Searching the canon…' }}</p>
+        <p class="small faint thinking" role="status"><span class="spinner" aria-hidden="true" />{{ outgoing.check ? 'Checking against canon… this can take a minute.' : outgoing.mode === 'research' ? 'Researching…' : 'Searching the canon…' }}</p>
       </template>
     </div>
 
@@ -242,6 +258,13 @@ const chipIcon = (c: ChatChip) => (c.type === 'entity' ? 'entities' : c.type ===
           </button>
         </div>
         <span class="small faint mode-hint">{{ modeHint }}</span>
+        <button
+          v-if="chat.mode === 'canon'" type="button" class="quick" :disabled="!canCheck || sending"
+          :title="canCheck ? 'Check the quoted words (or what you typed) against accepted canon: contradictions, with sources and suggested fixes' : 'Select words in a document, or type or paste a passage, to check it against canon'"
+          @click="checkContinuity"
+        >
+          <UiIcon name="conflicts" :size="14" />Check continuity
+        </button>
       </div>
       <ul v-if="chips.length" class="chips" aria-label="Attached to your message">
         <li v-for="c in chips" :key="`${c.type}:${c.id}`" class="ctx-chip" :title="c.quote ?? c.label">
@@ -318,6 +341,10 @@ const chipIcon = (c: ChatChip) => (c.type === 'entity' ? 'entities' : c.type ===
 .mode[aria-checked="true"].canon { background: var(--raised); color: var(--accent); box-shadow: 0 0 0 1px var(--line); }
 .mode[aria-checked="true"].research { background: var(--raised); color: var(--research); box-shadow: 0 0 0 1px var(--line); }
 .mode-hint { flex: 1 1 200px; min-width: 0; }
+.quick { display: inline-flex; align-items: center; gap: 5px; min-height: 30px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: 999px; background: var(--raised); color: var(--ink); font: 500 var(--text-sm) var(--font-ui); cursor: pointer; }
+.quick:hover:not(:disabled) { border-color: var(--accent); color: var(--accent); }
+.quick:disabled { opacity: 0.55; cursor: default; }
+.contained .quick { margin-left: auto; }
 .contained .mode-hint { display: none; }
 .composer-row { display: flex; gap: var(--s-2); align-items: flex-end; }
 .composer-row textarea { flex: 1; min-width: 0; min-height: 0; padding-block: 9px; resize: none; field-sizing: content; max-height: 8lh; font: inherit; }

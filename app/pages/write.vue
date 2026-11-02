@@ -336,6 +336,28 @@ function researchSelection() {
   openChat({ fresh: true, mode: 'research', prefill: `“${q}”\n\n` })
 }
 
+// Continuity: the selection, or else the whole draft, checked against accepted canon by the AI. The check is as private as the
+// draft; its report only proposes fixes, it never edits the text.
+const continuity = ref<Record<string, any> | null>(null)
+const checking = ref(false)
+const checkError = ref('')
+async function checkContinuity() {
+  const text = selected.value || f.content.trim()
+  if (!text || checking.value) return
+  checking.value = true
+  checkError.value = ''
+  continuity.value = null
+  nextTick(() => document.querySelector('.continuity-panel')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }))
+  try {
+    continuity.value = await $fetch('/api/continuity', { method: 'POST', body: { text } })
+  } catch (e) {
+    checkError.value = errorMessage(e)
+  } finally {
+    checking.value = false
+  }
+}
+const closeContinuity = () => { continuity.value = null; checkError.value = '' }
+
 // The text area grows with the text, so the page scrolls instead of a box inside it.
 const body = ref<HTMLTextAreaElement>()
 function grow() {
@@ -450,6 +472,15 @@ const time = (iso: string) => clock(iso).slice(0, 5)
     </UiPanel>
     <p class="small faint syntax">A blank line starts a new passage; facts and notes are pinned to passages by line. Start a line with # for a heading.</p>
 
+    <UiPanel v-if="checking || continuity || checkError" class="continuity-panel" aria-live="polite">
+      <p v-if="checking" class="small muted checking" role="status"><span class="spinner" aria-hidden="true" />Checking against canon. The AI looks things up step by step; this can take a minute.</p>
+      <template v-else>
+        <p v-if="checkError" class="notice bad" role="alert">{{ checkError }}</p>
+        <ContinuityReport v-if="continuity" :report="continuity" />
+        <div class="row"><UiButton size="sm" variant="ghost" icon="close" @click="closeContinuity">Close</UiButton></div>
+      </template>
+    </UiPanel>
+
     <footer class="bar">
       <p v-if="error" class="notice bad save-error" role="alert">{{ error }}</p>
       <span class="small muted bar-status" role="status">
@@ -463,6 +494,7 @@ const time = (iso: string) => clock(iso).slice(0, 5)
       <div class="row">
         <MicButton v-if="!loading" @text="insertText" />
         <UiButton v-if="selected" variant="ghost" icon="research" class="research-btn" title="Ask Research about the selected words" @mousedown.prevent @click="researchSelection">Research this</UiButton>
+        <UiButton variant="ghost" icon="conflicts" :loading="checking" :disabled="loading || !f.content.trim()" :title="selected ? 'Check the selected words against accepted canon' : 'Check this draft against accepted canon'" @mousedown.prevent @click="checkContinuity">{{ selected ? 'Check selection' : 'Check continuity' }}</UiButton>
         <UiButton v-if="wide && !chatOpen" variant="ghost" icon="ask" title="Show the chat beside the text" @click="chatOpen = true">Ask</UiButton>
         <UiButton variant="ghost" icon="focus" :disabled="loading" title="Only the text on screen (Ctrl+Shift+F)" @click="enterFocus">Focus</UiButton>
         <UiButton v-if="draftId" variant="ghost" :disabled="saving" @click="discard">{{ editing ? 'Discard changes' : 'Discard draft' }}</UiButton>
@@ -519,6 +551,9 @@ const time = (iso: string) => clock(iso).slice(0, 5)
 }
 .body-input.body-input:focus-visible { outline: none; }
 .syntax { margin: calc(-1 * var(--s-2)) 0 0; }
+.continuity-panel { display: grid; gap: var(--s-3); }
+.continuity-panel .notice, .checking { margin: 0; }
+.checking { display: flex; align-items: center; gap: var(--s-2); }
 .bar {
   position: sticky; bottom: var(--bottom-nav-h, 0px); z-index: 5; display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: center; justify-content: space-between;
   padding: var(--s-3) 0; background: var(--canvas); border-top: 1px solid var(--line);

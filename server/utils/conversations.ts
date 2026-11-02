@@ -9,6 +9,8 @@ export type Part =
   // filled in who "she" is. The cited facts are re-read on every view (fact_ids), so a superseded one shows as such.
   | { type: 'canon', status: 'supported' | 'source_only' | 'unknown', answer: string | null, fact_ids: string[], asked_as: string | null, trace_id: string, model: string, model_error: string | null }
   | { type: 'research', text: string, note_ids: string[] }
+  // A continuity check of the attached passage or the message's text (server/utils/continuity.ts); the report is re-read on view.
+  | { type: 'continuity', run_id: string, summary: string }
   // A question back instead of an answer; the next message in the same mode continues the same turn (about = the question asked).
   | { type: 'followup', question: string, options: string[], about: string }
   | { type: 'error', text: string }
@@ -78,17 +80,22 @@ function cleanContext(v: unknown): Chip[] {
   return out
 }
 
-/** Validates a post (text, mode, context) and counts it against the rate limit. */
+/** Validates a post (text, mode, context, action) and counts it against the rate limit. action "continuity" (Canon mode): check
+ * the attached passage's quote, or else the message's text, against canon instead of answering it. */
 export async function readPost(event: Parameters<typeof readObject>[0]) {
-  const b = await readObject<{ text: string, mode: string, context: unknown }>(event)
+  const b = await readObject<{ text: string, mode: string, context: unknown, action: unknown }>(event)
   const text = optText(b.text, 'Message', 2000)
   if (!text) throw fail(400, 'MESSAGE_REQUIRED', 'Write a message.')
   if (b.mode != null && b.mode !== 'canon' && b.mode !== 'research') throw fail(400, 'INVALID', 'mode must be "canon" or "research".')
   const mode: Mode = b.mode === 'research' ? 'research' : 'canon'
   const context = cleanContext(b.context)
+  if (b.action != null && b.action !== 'continuity') throw fail(400, 'INVALID', 'action must be "continuity".')
+  const continuity = b.action === 'continuity'
+  if (continuity && mode !== 'canon') throw fail(400, 'INVALID', 'A continuity check runs in Canon mode.')
   if (posts(access().user.id)) throw fail(429, 'TOO_MANY_REQUESTS', 'Asking too fast. Wait a moment.')
   if (mode === 'research') researchThrottle()
-  return { text, mode, context }
+  if (continuity) continuityThrottle()
+  return { text, mode, context, continuity }
 }
 
 export function createConversation(post: { text: string, mode: Mode }) {
@@ -117,7 +124,7 @@ function insertMessage(conv: ConversationRow, m: Omit<MessageRow, 'id' | 'conver
 
 // Posts a person's message and the assistant's reply to it. The reply never throws away the question: a failure is stored
 // as an error message the whole team sees.
-export async function postToConversation(conv: ConversationRow, post: { text: string, mode: Mode, context: Chip[] }) {
+export async function postToConversation(conv: ConversationRow, post: { text: string, mode: Mode, context: Chip[], continuity?: boolean }) {
   const db = useDb()
   const user = access().user
   const earlier = (db.prepare('select * from messages where conversation_id = ? order by rowid').all(conv.id) as unknown as MessageRow[])
@@ -129,7 +136,7 @@ export async function postToConversation(conv: ConversationRow, post: { text: st
 
   let parts: Part[]
   try {
-    parts = post.mode === 'canon' ? await canonReply(post, followup, earlier) : await researchReply(conv, post, followup, earlier)
+    parts = post.continuity ? await continuityReply(post) : post.mode === 'canon' ? await canonReply(post, followup, earlier) : await researchReply(conv, post, followup, earlier)
   } catch (e) {
     parts = [{ type: 'error', text: (e as { message?: string }).message || 'Something went wrong; no answer was written.' }]
   }
@@ -155,6 +162,16 @@ async function canonReply(post: { text: string, context: Chip[] }, followup: Ext
   return [{ type: 'canon', status: r.status, answer: r.answer, fact_ids: r.cited.map(f => f.id), asked_as: asked, trace_id: r.trace_id, model: r.model.label, model_error: r.model_error }]
 }
 
+// The attached passage's quote is the text when there is one (a selection in the reader); otherwise the message itself.
+async function continuityReply(post: { text: string, context: Chip[] }): Promise<Part[]> {
+  const chip = post.context.find(c => c.type === 'passage' && c.quote)
+  const p = chip && useDb().prepare('select document_id from passages where id = ?').get(chip.id) as { document_id: string } | undefined
+  const run = chip && p
+    ? await runContinuity({ text: chip.quote!, source: 'passage', documentId: p.document_id, passageId: chip.id, where: `from ${chip.label}` })
+    : await runContinuity({ text: post.text, source: 'text' })
+  return [{ type: 'continuity', run_id: run.id, summary: run.summary }]
+}
+
 async function researchReply(conv: ConversationRow, post: { text: string, context: Chip[] }, followup: Extract<Part, { type: 'followup' }> | undefined, earlier: MessageRow[]): Promise<Part[]> {
   const names = authorNames(earlier)
   const question = followup ? `${followup.about}\n\n${followup.question}\n${post.text}` : post.text
@@ -170,6 +187,7 @@ async function researchReply(conv: ConversationRow, post: { text: string, contex
 // The plain text of a reply, for search and for the history the next answer reads.
 function partsText(parts: Part[]) {
   return parts.map(p => p.type === 'text' || p.type === 'research' || p.type === 'error' ? p.text
+    : p.type === 'continuity' ? `Continuity check: ${p.summary}`
     : p.type === 'followup' ? `${p.question} ${p.options.join(' / ')}`
     : p.answer ?? (p.status === 'unknown' ? 'Unknown: no accepted canon fact answers this.' : listFacts(`f.id in (${p.fact_ids.map(() => '?').join(', ') || "''"})`, ...p.fact_ids).map(f => f.statement).join(' '))).join('\n')
 }
@@ -193,12 +211,21 @@ export function present(rows: MessageRow[]) {
     author: { id: m.author_id, name: names.get(m.author_id) ?? 'Unknown user' },
     context: JSON.parse(m.context) as Chip[],
     pending: m.role === 'user' && !answered.has(m.id),
-    parts: parse(m).map(p => (p.type === 'canon' ? { ...p, cited: p.fact_ids.map(id => facts.get(id)).filter(f => !!f) } : p)),
+    parts: parse(m).map(p => (p.type === 'canon' ? { ...p, cited: p.fact_ids.map(id => facts.get(id)).filter(f => !!f) }
+      : p.type === 'continuity' ? { ...p, report: continuityOrNull(p.run_id) } : p)),
   })
   const byQuestion = new Map<string, MessageRow[]>()
   for (const m of rows) if (m.role === 'assistant' && m.reply_to) byQuestion.set(m.reply_to, [...byQuestion.get(m.reply_to) ?? [], m])
   const placed = new Set(rows.filter(m => m.role === 'user').flatMap(m => byQuestion.get(m.id) ?? []).map(m => m.id))
   return rows.filter(m => m.role === 'user' || !placed.has(m.id)).flatMap(m => [m, ...(m.role === 'user' ? byQuestion.get(m.id) ?? [] : [])]).map(shape)
+}
+
+const continuityOrNull = (id: string) => {
+  try {
+    return getContinuityRun(id)
+  } catch {
+    return null
+  }
 }
 
 export function conversationWithMessages(conv: ConversationRow) {

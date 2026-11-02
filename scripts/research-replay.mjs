@@ -16,8 +16,9 @@ const accepted = new Set(Object.values(fixtures).filter(f => f.status < 300 && f
 const check = (label, actual, expected) => { assert.deepEqual(actual, expected, label); console.log(`ok  ${label}`) }
 
 const rows = []
+let baseUrl = `${fake}/v1`
 Object.assign(globalThis, {
-  useRuntimeConfig: () => ({ metaBaseUrl: `${fake}/v1`, modelId: 'muse-spark-1.3', metaApiKey: 'fixture', modelMode: 'meta' }),
+  useRuntimeConfig: () => ({ metaBaseUrl: baseUrl, modelId: 'muse-spark-1.3', metaApiKey: 'fixture', modelMode: 'meta' }),
   useDb: () => ({ prepare: () => ({ run: (...a) => rows.push({ purpose: a[1], status: a[7], summary: a[9], error: a[10], step: a[13], tool: a[14] }) }) }),
   newId: p => `${p}_${rows.length}`,
   now: () => new Date().toISOString(),
@@ -91,5 +92,26 @@ await assert.rejects(agent(), e => /^Research failed: Meta Model API error 400 â
 console.log('ok  a real 400 is shown as is')
 await sent('refused request', 1)
 check('one failed trace row', rows.map(r => [r.step, r.status]), [[0, 'failed']])
+
+// 4. A 400 that names max_tool_calls (the shape the OmniRoute test proxy returns; no network here, $fetch is stubbed): from
+// api.meta.ai it fails once; only another gateway gets one retry without max_tool_calls, and later requests leave it out.
+const realFetch = globalThis.$fetch
+const bodies = []
+globalThis.$fetch = async (url, o) => {
+  bodies.push(o.body)
+  throw Object.assign(new Error('HTTP 400'), { statusCode: 400, data: { error: { message: 'Unsupported parameter: max_tool_calls', type: 'invalid_request_error' } } })
+}
+baseUrl = 'https://api.meta.ai/v1'
+await assert.rejects(agent(), /Meta Model API error 400/)
+check('api.meta.ai: a 400 naming max_tool_calls is not retried', bodies.map(b => 'max_tool_calls' in b), [true])
+bodies.length = 0
+baseUrl = 'https://omniroute.example/v1'
+await assert.rejects(agent(), /error 400/)
+check('another gateway: one retry without max_tool_calls', bodies.map(b => 'max_tool_calls' in b), [true, false])
+bodies.length = 0
+await assert.rejects(agent())
+check('â€¦and it is left out from then on', bodies.map(b => 'max_tool_calls' in b), [false])
+globalThis.$fetch = realFetch
+baseUrl = `${fake}/v1`
 
 console.log('\nall research replay checks passed')

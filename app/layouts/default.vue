@@ -53,6 +53,7 @@ const groups = computed<{ label?: string, links: NavLink[] }[]>(() => [
       { to: '/ask', label: 'Ask', icon: 'ask' },
       { to: '/research', label: 'Research', icon: 'research' },
       { to: '/metrics', label: 'Metrics', icon: 'metrics' },
+      { to: '/agents/runs', label: 'Agent activity', icon: 'history' },
       { to: '/audit', label: 'Audit log', icon: 'audit' },
       { to: '/export', label: 'Export & share', icon: 'link' },
     ],

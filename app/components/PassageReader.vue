@@ -4,7 +4,8 @@ import type { SelectionMode, TextSelection } from './SelectionDialog.vue'
 // A source document read as passages with line numbers. `active` highlights one passage; `quote` marks the cited words inside it.
 // `contained`: the reader is its own scroll box (review split view) and keeps the active passage centred in it.
 // `annotate`: selecting words offers "Add fact", "Add entity" and "Add note" (keys F, E and N). `research`: it offers "Research this"
-// (key R), which opens the chat in Research mode with the selection quoted. `notes` puts a marker beside passages that have one.
+// (key R), which opens the chat in Research mode with the selection quoted, and "Check continuity" (key C), which checks the
+// selection against canon in the chat (Canon mode). `notes` puts a marker beside passages that have one.
 const props = defineProps<{
   doc: { id?: string, title?: string, content: string, passages: Record<string, any>[] }
   active?: string | null, quote?: string, contained?: boolean, annotate?: boolean, research?: boolean
@@ -77,19 +78,19 @@ function start(mode: SelectionMode) {
   open.value = { selection: { doc: s.doc, passage: s.passage, quote: s.quote }, mode }
   sel.value = null
 }
-function startResearch() {
+function startChat(mode: 'research' | 'canon') {
   const s = sel.value
   if (!s || 'multi' in s) return
   const lines = `line ${s.passage.start_line}${s.passage.end_line !== s.passage.start_line ? `–${s.passage.end_line}` : ''}`
-  openChat({ fresh: true, mode: 'research', quote: { type: 'passage', id: s.passage.id, label: `${s.doc.title}, ${lines}`, quote: s.quote } })
+  openChat({ fresh: true, mode, check: mode === 'canon', quote: { type: 'passage', id: s.passage.id, label: `${s.doc.title}, ${lines}`, quote: s.quote } })
   sel.value = null
 }
 function onKey(e: KeyboardEvent) {
   if (!sel.value || 'multi' in sel.value || open.value || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return
   if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable]')) return
-  if (props.research && e.key.toLowerCase() === 'r') {
+  if (props.research && (e.key.toLowerCase() === 'r' || e.key.toLowerCase() === 'c')) {
     e.preventDefault()
-    return startResearch()
+    return startChat(e.key.toLowerCase() === 'r' ? 'research' : 'canon')
   }
   const mode = props.annotate && ({ f: 'fact', e: 'entity', n: 'note' } as const)[e.key.toLowerCase() as 'f' | 'e' | 'n']
   if (!mode) return
@@ -147,7 +148,8 @@ onBeforeUnmount(() => {
           <button type="button" class="sel-btn" @click="start('entity')"><UiIcon name="entities" :size="16" />Add entity <kbd>E</kbd></button>
           <button type="button" class="sel-btn" @click="start('note')"><UiIcon name="note" :size="16" />Add note <kbd>N</kbd></button>
         </template>
-        <button v-if="research" type="button" class="sel-btn research" @click="startResearch"><UiIcon name="research" :size="16" />Research this <kbd>R</kbd></button>
+        <button v-if="research" type="button" class="sel-btn research" @click="startChat('research')"><UiIcon name="research" :size="16" />Research this <kbd>R</kbd></button>
+        <button v-if="research" type="button" class="sel-btn" title="Check the selected words against accepted canon" @click="startChat('canon')"><UiIcon name="conflicts" :size="16" />Check continuity <kbd>C</kbd></button>
       </template>
     </div>
     <SelectionDialog v-if="open" :selection="open.selection" :mode="open.mode" @close="open = null" @saved="saved" />
@@ -187,7 +189,8 @@ mark { background: color-mix(in srgb, var(--accent) 22%, transparent); color: in
 .sel-btn.research:hover, .sel-btn.research:focus-visible { background: var(--research-soft); color: var(--research); }
 .sel-multi { padding: 6px 10px; font-size: var(--text-sm); color: var(--muted); white-space: nowrap; }
 @media (max-width: 720px) {
-  .sel-bar { flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100vw - 16px); }
+  /* Five actions wrap to two rows: centre the bar on the screen so it never runs off the edge. */
+  .sel-bar { flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100vw - 16px); left: 50% !important; }
   .passage { grid-template-columns: max(30px, var(--gutter)) 1fr; gap: var(--s-2); padding: 6px 8px; }
   .sel-btn { min-height: 40px; }
 }
