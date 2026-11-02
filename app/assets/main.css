@@ -272,7 +272,7 @@ code, .mono { font-family: var(--font-code); font-size: 0.85em; }
 /* ---------- Page header ---------- */
 .page-head { display: flex; gap: var(--s-4); align-items: flex-end; justify-content: space-between; flex-wrap: wrap; padding: 0 0 var(--s-5); }
 .page-head > :first-child { min-width: 0; flex: 1 1 420px; }
-.page-head p { color: var(--muted); max-width: 68ch; margin: 0; }
+.page-head p, .page-head .page-sub { color: var(--muted); max-width: 68ch; margin: 0; }
 .page-head h1 + p, .page-head h1 + .page-sub { margin-top: var(--s-1); }
 /* legacy markup: <div class="page-head"><h1/><p/></div> */
 .page-head:has(> h1) { display: block; }
