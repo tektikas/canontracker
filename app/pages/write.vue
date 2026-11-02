@@ -13,7 +13,6 @@ const draftId = ref<string | null>(null)
 // base: the version the text came from (null = unknown, an older draft); latest: the newest version now.
 const editing = ref<{ id: string, title: string, base: number | null, baseId: string | null, latest: number } | null>(null)
 const stale = computed(() => !!editing.value && editing.value.base !== editing.value.latest)
-const overwrite = ref(false)
 const loading = ref(true)
 const loadError = ref('')
 const status = ref<'' | 'saving' | 'saved' | 'error'>('')
@@ -126,7 +125,8 @@ const error = ref('')
 // A failed "Save to story" stays next to the button until a draft save goes through again (or fails: the status line says so).
 watch(status, (s) => { if (s === 'saved' || s === 'error') error.value = '' }) // an autosave failure shows in the status line instead
 const canSave = computed(() => !!f.title.trim() && !!f.content.trim())
-async function saveToStory() {
+// anyway: only the "Save anyway" click sets it, and it names the version the writer saw as latest; the server overwrites only if that is still latest.
+async function saveToStory(anyway: true | undefined = undefined) {
   if (!canSave.value || saving.value) return
   saving.value = true
   error.value = ''
@@ -135,7 +135,7 @@ async function saveToStory() {
     await persist()
     // Never save an older copy of the text than the one on screen.
     if (!draftId.value || dirty) throw new Error(saveError.value || 'The draft could not be saved.')
-    const r = await $fetch(`/api/drafts/${draftId.value}/save`, { method: 'POST', body: overwrite.value ? { overwrite: true } : undefined })
+    const r = await $fetch(`/api/drafts/${draftId.value}/save`, { method: 'POST', body: anyway && editing.value ? { overwrite_base: editing.value.id } : undefined })
     draftId.value = null
     await refreshNuxtData('stats')
     // Replace: Back from the saved document shouldn't land on a draft that no longer exists.
@@ -331,7 +331,7 @@ const time = (iso: string) => clock(iso).slice(0, 5)
   <form
     v-else ref="root" class="write" :class="{ focusing: focus, typing: focus && typing && status !== 'error' }"
     :role="focus ? 'dialog' : undefined" :aria-modal="focus || undefined" :aria-label="focus ? 'Focus mode' : undefined"
-    @keydown="keys" @mousemove="onPointer" @submit.prevent="saveToStory"
+    @keydown="keys" @mousemove="onPointer" @submit.prevent="saveToStory()"
   >
     <div v-if="focus" class="focus-bar small" role="toolbar" aria-label="Focus mode">
       <span class="focus-status" role="status">
@@ -371,7 +371,7 @@ const time = (iso: string) => clock(iso).slice(0, 5)
         <div class="row">
           <UiButton size="sm" :to="diffLink" target="_blank">See what changed</UiButton>
           <UiButton size="sm" type="button" @click="startOver">Start over from v{{ editing.latest }}</UiButton>
-          <UiButton size="sm" type="button" :disabled="saving" @click="overwrite = true; saveToStory()">Save anyway as v{{ editing.latest + 1 }}</UiButton>
+          <UiButton size="sm" type="button" :disabled="saving" @click="saveToStory(true)">Save anyway as v{{ editing.latest + 1 }}</UiButton>
         </div>
       </div>
     </div>

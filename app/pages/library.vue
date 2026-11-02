@@ -417,7 +417,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                   <span v-else class="faint">—</span>
                 </td>
                 <td v-if="editor" class="act">
-                  <UiMenu :label="`Actions for ${d.title}`" class="row-menu">
+                  <UiMenu :label="`Actions for ${d.title}`" class="row-menu" fixed>
                     <template #trigger><UiIcon name="more" :size="16" /></template>
                     <template #default="{ close }">
                       <NuxtLink :to="`/documents/${d.id}`" class="menu-item"><UiIcon name="file" :size="16" />Open</NuxtLink>
@@ -443,8 +443,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
 </template>
 
 <style scoped>
-/* The row menu is taller than a one- or two-row table: on desktop (where the table fits) it may hang below the panel; phones scroll the table sideways instead. */
-@media (min-width: 721px) { .main.main, .main .table-wrap { overflow: visible; } }
+.main .table-wrap { position: relative; } /* contains the absolute .sr-only spans, which would otherwise widen the page */
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .up-wrap :deep(.uploads) { margin-bottom: var(--s-4); }
 .lib-grid { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: var(--s-4); align-items: start; }

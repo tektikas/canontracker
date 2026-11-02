@@ -162,7 +162,7 @@ check('v1 of the upload is unchanged', (await a(`/api/documents/${upload.results
 check('v2 of the upload is a written version', (await a(`/api/documents/${upSave.document_id}`)).data.origin, 'written')
 
 // A draft remembers the version it started from: saving it after a newer version landed is refused (409, nothing saved) unless overwrite is set.
-const upload2 = async (text) => (await (await fetch(`${base}/api/documents`, { method: 'POST', headers: { cookie: a.cookie() }, body: (() => { const f = new FormData(); f.append('files', new Blob([text], { type: 'text/markdown' }), 'staleDraft-lore.md'); return f })() })).json()).results[0].document_id
+const upload2 = async (text, name = 'staleDraft-lore.md') => (await (await fetch(`${base}/api/documents`, { method: 'POST', headers: { cookie: a.cookie() }, body: (() => { const f = new FormData(); f.append('files', new Blob([text], { type: 'text/markdown' }), name); return f })() })).json()).results[0].document_id
 const sv1 = await upload2('# Stale Lore\n\nThe gate is shut.')
 const staleDraft = (await a('/api/drafts', { method: 'POST', body: { document_id: sv1 } })).data
 check('edit draft records its base version', (await a(`/api/drafts/${staleDraft.id}`)).data.base.id, sv1)
@@ -173,8 +173,21 @@ check('stale draft save is 409 DRAFT_STALE', `${refused.status} ${refused.data.s
 check('409 names both versions', `${refused.data.data.base_version}>${refused.data.data.latest_version}`, '1>2')
 check('nothing was saved', (await a(`/api/documents/${sv2}`)).data.latest.version, 2)
 check('the draft is still there', (await a(`/api/drafts/${staleDraft.id}`)).status, 200)
-const forced = await a(`/api/drafts/${staleDraft.id}/save`, { method: 'POST', body: { overwrite: true } })
-check('overwrite saves it as v3', `${forced.status} v${forced.data.version}`, '200 v3')
+const forced = await a(`/api/drafts/${staleDraft.id}/save`, { method: 'POST', body: { overwrite_base: sv1 } })
+check('overwrite naming an older version is refused again', `${forced.status} ${forced.data.statusMessage}`, '409 DRAFT_STALE')
+const forced2 = await a(`/api/drafts/${staleDraft.id}/save`, { method: 'POST', body: { overwrite_base: sv2 } })
+check('overwrite naming the latest saves it as v3', `${forced2.status} v${forced2.data.version}`, '200 v3')
+// Lead's repro: a refused "Save anyway" must not carry over: a later v3 + plain save is refused, not v4.
+const rv1 = await upload2('# Repro Lore\n\nA.', 'repro-lore.md')
+const rd = (await a('/api/drafts', { method: 'POST', body: { document_id: rv1 } })).data
+await a(`/api/drafts/${rd.id}`, { method: 'PUT', body: { content: '# Repro Lore\n\nA edited.' } })
+const rv2 = await upload2('# Repro Lore\n\nB.', 'repro-lore.md')
+const rv3 = await upload2('# Repro Lore\n\nC.', 'repro-lore.md')
+const rplain = await a(`/api/drafts/${rd.id}/save`, { method: 'POST' })
+check('plain save after newer uploads is 409', rplain.status, 409)
+const rstale = await a(`/api/drafts/${rd.id}/save`, { method: 'POST', body: { overwrite_base: rv2 } })
+check('overwrite for a version that is no longer latest is 409', rstale.status, 409)
+check('nothing was saved', (await a(`/api/documents/${rv3}`)).data.latest.version, 3)
 
 // 6. Drafts are private: a teammate in the same studio can't open them.
 const own = (await a('/api/drafts', { method: 'POST', body: { title: 'Secret', content: 'Not yet.' } })).data
