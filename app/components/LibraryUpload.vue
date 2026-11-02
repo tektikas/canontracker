@@ -10,7 +10,7 @@ const recorded = computed(() => stats.value?.model.mode === 'mock')
 
 interface Item {
   key: number, name: string, size: number, state: 'queued' | 'uploading' | 'done' | 'error', error?: string
-  result?: { status: string, document_id?: string, version?: number, folder?: string | null, same_name_in?: { folder: string | null } | null, passages?: number, candidates?: number, skipped?: number, stale_facts?: number, evidence_moved?: number, extraction_error?: string | null, same_as?: { filename: string, title: string, version: number }, error?: string }
+  result?: { status: string, document_id?: string, version?: number, folder?: string | null, same_name_in?: { folder: string | null } | null, passages?: number, candidates?: number, skipped?: number, stale_facts?: number, outdated_facts?: number, evidence_moved?: number, extraction_error?: string | null, same_as?: { filename: string, title: string, version: number }, error?: string }
 }
 const items = ref<Item[]>([])
 const busy = computed(() => items.value.some(i => i.state === 'queued' || i.state === 'uploading'))
@@ -177,7 +177,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
               · {{ counted(i.result.candidates ?? 0, 'candidate') }}{{ i.result.candidates ? ' sent to Review' : '' }}<template v-if="i.result.skipped"> ({{ i.result.skipped }} already in the project)</template>
               <template v-if="i.result.evidence_moved"> · {{ counted(i.result.evidence_moved, 'pending candidate') }} now {{ i.result.evidence_moved === 1 ? 'cites' : 'cite' }} v{{ i.result.version }}</template>
               <template v-if="i.result.stale_facts">
-                · <NuxtLink :to="`/documents/${i.result.document_id}/history`" class="warn-text">{{ counted(i.result.stale_facts, 'canon fact') }} to re-check</NuxtLink>
+                · <NuxtLink to="/canon?recheck=1" class="warn-text">{{ i.result.outdated_facts ? `${counted(i.result.outdated_facts, 'canon fact')} lost ${i.result.outdated_facts === 1 ? 'its' : 'their'} quote` : 'no canon quote lost' }}<template v-if="i.result.stale_facts - (i.result.outdated_facts ?? 0)">, {{ i.result.stale_facts - (i.result.outdated_facts ?? 0) }} unchanged to confirm</template></NuxtLink>
               </template>
               <span v-if="i.result.extraction_error" class="bad-text"> · Extraction failed: {{ i.result.extraction_error }}</span>
             </template>

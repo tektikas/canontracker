@@ -27,3 +27,7 @@ export function uploadProblem(f: File) {
   if (!f.size) return 'Empty file.'
   return null
 }
+
+/** Why a canon quote is outdated in version `v` of its source: gone (count 0) or no longer in one place (count 2+). */
+export const quoteLost = (count: number, v: number) =>
+  count === 0 ? `Quote not in v${v}` : `Quote appears ${count === 2 ? 'twice' : `${count} times`} in v${v}`

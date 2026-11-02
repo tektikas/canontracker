@@ -2,9 +2,10 @@ import { DatabaseSync } from 'node:sqlite'
 import { copyFileSync, existsSync, mkdirSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
+import type { RecheckState, StaleCitation } from './recheck'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-export const SCHEMA_VERSION = 14
+export const SCHEMA_VERSION = 15
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -96,9 +97,12 @@ create table if not exists facts (
   created_by text, -- set when a person authored it by hand
   proposed_by_token text, proposed_by_user text -- set when an agent proposed it over MCP
 );
+-- checked_version: a canon citation whose quote is gone from a newer version of its source, and that a person chose to keep
+-- as it is: the source version they checked it against. A later version asks again. (server/utils/recheck.ts)
 create table if not exists evidence (
   id text primary key, fact_id text not null references facts(id), document_id text not null,
-  passage_id text, quote text not null, verified integer not null, support text not null default 'states', project_id text not null
+  passage_id text, quote text not null, verified integer not null, support text not null default 'states', project_id text not null,
+  checked_version integer
 );
 -- origin: rule (deterministic code) | model (model-suggested, labeled as such)
 -- severity: hard (breaks canon) | soft (worth a look); set from the rule's default, a person can change it (audited)
@@ -178,9 +182,11 @@ export function useDb() {
   const conn = new DatabaseSync('.data/storybible.db')
   try {
     const user_version = schemaVersion(conn)
-    if (user_version === 12) migrate12(conn)
-    if (user_version === 12 || user_version === 13) migrate13(conn)
-    else if (user_version !== SCHEMA_VERSION) {
+    if (user_version >= 12 && user_version < SCHEMA_VERSION) {
+      if (user_version === 12) migrate12(conn)
+      if (user_version <= 13) migrate13(conn)
+      migrate14(conn)
+    } else if (user_version !== SCHEMA_VERSION) {
       const tables = conn.prepare(`select name from sqlite_master where type = 'table'`).all() as { name: string }[]
       conn.exec('pragma foreign_keys = off')
       for (const t of tables) conn.exec(`drop table "${t.name}"`)
@@ -252,6 +258,20 @@ function migrate13(db: DatabaseSync) {
       if (m && Number(m[1]) >= Number(m[2]) / 2) soften.run(c.id)
     }
     db.exec('pragma user_version = 14')
+    db.exec('commit')
+  } catch (err) {
+    db.exec('rollback')
+    throw err
+  }
+}
+
+// v14 → v15: evidence gains checked_version (a kept outdated citation; null everywhere before). Idempotent; nothing else changes.
+function migrate14(db: DatabaseSync) {
+  const has = (db.prepare('pragma table_info(evidence)').all() as { name: string }[]).some(r => r.name === 'checked_version')
+  db.exec('begin')
+  try {
+    if (!has) db.exec('alter table evidence add column checked_version integer')
+    db.exec('pragma user_version = 15')
     db.exec('commit')
   } catch (err) {
     db.exec('rollback')
@@ -336,6 +356,10 @@ export interface EvidenceRow {
   // document's identity (documents.filename), for matching only; never shown, since it can carry an older folder.
   id: string, passage_id: string | null, quote: string, verified: number, support: string, document_id: string, document_filename: string
   document_key: string, document_folder: string | null, document_title: string, document_kind: string, document_version: number, latest_version: number, start_line: number | null, end_line: number | null
+  // Canon only, on a citation of an older version (server/utils/recheck.ts); null otherwise. latest_document_id: the source's
+  // latest version; recheck_line: where an unchanged quote now sits in it; recheck_count: how many times the quote appears in
+  // it (0 = gone, 2+ = ambiguous, so outdated).
+  recheck: RecheckState | null, latest_document_id: string | null, recheck_line: number | null, recheck_count: number | null
 }
 export interface ConflictRow {
   id: string, left_fact_id: string, right_fact_id: string, rule: string, origin: string, model_id: string | null, rationale: string
@@ -400,8 +424,19 @@ export function listFacts(where = '1 = 1', ...params: (string | number)[]) {
     if (!folders.has(id)) folders.set(id, folderPath(id))
     return folders.get(id)!
   }
-  return facts.map(f => ({ ...f, evidence: (ev.all(f.id) as unknown as (EvidenceRow & { folder_id: string | null })[])
-    .map(({ folder_id, ...e }) => ({ ...e, document_folder: folderOf(folder_id) }) as EvidenceRow) }))
+  // Only the listed canon facts are classified, so a page asking for one fact pays for one fact, not the whole project.
+  const canonIds = facts.filter(f => f.status === 'canon').map(f => f.id)
+  const stale = canonIds.length ? new Map(staleCanonCitations(canonIds).map(c => [c.evidence_id, c])) : new Map<string, StaleCitation>()
+  return facts.map((f) => {
+    const evidence = (ev.all(f.id) as unknown as (EvidenceRow & { folder_id: string | null })[]).map(({ folder_id, ...e }) => {
+      const c = stale.get(e.id)
+      return { ...e, document_folder: folderOf(folder_id), recheck: c?.state ?? null, latest_document_id: c?.latest_id ?? null, recheck_line: c?.to?.start_line ?? null, recheck_count: c?.count ?? null } as EvidenceRow
+    })
+    // A fact needs re-checking when a citation's quote is gone from the latest version (outdated), or only a confirmation when
+    // every such quote still reads the same (unchanged). Kept citations need nothing.
+    const recheck = evidence.some(e => e.recheck === 'outdated') ? 'outdated' as const : evidence.some(e => e.recheck === 'unchanged') ? 'unchanged' as const : null
+    return { ...f, recheck, evidence }
+  })
 }
 
 export const normEntity = (s: string | null | undefined) => s?.trim().toLowerCase() || null

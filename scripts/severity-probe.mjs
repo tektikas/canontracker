@@ -1,6 +1,7 @@
 // Severity migration probe: node scripts/severity-probe.mjs migrate|explicit [port]   (default 3999; run `pnpm build` first)
 // Builds a schema-13 database (the shape on master, read from git) with conflicts of every rule, starts the built server
 // on it in a temp folder, and checks the in-place v13→14 upgrade: every conflict gets its rule's severity, nothing is lost.
+// Then v14 → 15 (evidence.checked_version, c32) from a v14 database: rows and severities kept.
 // An upgrade failure is injected with a trigger on conflicts: the DB must stay v13 and the next request must retry.
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
@@ -76,14 +77,15 @@ try {
   fix.exec('drop trigger boom')
   fix.close()
   const h = await fetch(`${base}/api/health`)
-  check('fixed: next request upgrades without restart; health reports 14', [h.status, (await h.json()).schema, version()], [200, 14, 14])
+  check('fixed: next request upgrades without restart; health reports 15', [h.status, (await h.json()).schema, version()], [200, 15, 15])
+  check('evidence gains checked_version (v15)', peek(d => d.prepare('pragma table_info(evidence)').all().some(c => c.name === 'checked_version')), true)
   const after = peek(d => d.prepare('select * from conflicts order by id').all())
   check('no conflict lost, no other column changed', after.map(({ severity, ...r }) => ({ ...r })), before)
   check('every conflict has the severity of its rule (travel near the limit is soft)', after.map(r => [r.id, r.severity]), rows.map(r => [r[0], r[5]]))
   check('project has severity_defaults, empty', peek(d => d.prepare('select severity_defaults from projects').all().map(r => ({ ...r }))), [{ severity_defaults: '{}' }])
   check('user and project rows kept', peek(d => [d.prepare('select count(*) n from users').get().n, d.prepare('select count(*) n from projects').get().n]), [1, 1])
   await fetch(`${base}/api/health`)
-  check('later boots leave it at 14', version(), 14)
+  check('later boots leave it at 15', version(), 15)
 } finally {
   server?.kill()
   await new Promise(r => setTimeout(r, 300))
@@ -93,8 +95,47 @@ try {
 if (mode === 'migrate') {
   await migrate(13, '6177e3d') // master at v13
   await migrate(12, '7108423^') // before c23: v12
+  await upgrade14()
   console.log('severity migration probe: all checks passed')
 } else await explicit()
+
+// v14 → v15 (c32): evidence gains checked_version, in place; every row and the rest of the schema are kept.
+async function upgrade14() {
+  console.log('-- upgrade from v14')
+  const dir = mkdtempSync(join(tmpdir(), 'sb-sev-'))
+  mkdirSync(join(dir, '.data'))
+  const file = join(dir, '.data/storybible.db')
+  let server
+  try {
+    const old = execFileSync('git', ['show', 'fd7369b:server/utils/db.ts'], { cwd: root, encoding: 'utf8' })
+    assert.ok(/SCHEMA_VERSION = 14\b/.test(old), 'v14 schema found')
+    const db = new DatabaseSync(file)
+    db.exec(old.slice(old.indexOf('const SCHEMA = `') + 16, old.indexOf('`\n\nlet db')))
+    db.exec('pragma user_version = 14; pragma foreign_keys = off')
+    db.prepare(`insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values ('ev_m', 'f_m', 'doc_m', 'psg_m', 'The lamp burns all night.', 1, 'prj_m')`).run()
+    db.prepare(`insert into conflicts (id, left_fact_id, right_fact_id, rule, origin, rationale, confidence, status, pair_hash, created_at, project_id, severity)
+      values ('c_m', 'f_l', 'f_r', 'WORLD_RULE_VIOLATION', 'model', 'x', 0.5, 'open', 'h_m', '2026-10-30', 'prj_m', 'hard')`).run()
+    db.close()
+    server = spawn(process.execPath, [join(root, '.output/server/index.mjs')], { cwd: dir, stdio: 'ignore',
+      env: { ...process.env, PORT: String(port), HOST: 'localhost', NUXT_SESSION_PASSWORD: randomBytes(24).toString('hex'), NUXT_MODEL_MODE: 'mock' } })
+    for (let i = 0; ; i++) {
+      try { await fetch(`http://localhost:${port}/api/health`); break } catch {}
+      if (i > 100) throw new Error('server did not start')
+      await new Promise(r => setTimeout(r, 100))
+    }
+    const h = await (await fetch(`http://localhost:${port}/api/health`)).json()
+    const d = new DatabaseSync(file, { readOnly: true })
+    try {
+      check('v14 upgrades in place to 15', [h.schema, d.prepare('pragma user_version').get().user_version], [15, 15])
+      check('evidence row kept, checked_version empty', { ...d.prepare('select id, quote, verified, checked_version from evidence').get() }, { id: 'ev_m', quote: 'The lamp burns all night.', verified: 1, checked_version: null })
+      check('a person’s severity choice is kept (no v13 backfill)', d.prepare(`select severity from conflicts where id = 'c_m'`).get().severity, 'hard')
+    } finally { d.close() }
+  } finally {
+    server?.kill()
+    await new Promise(r => setTimeout(r, 300))
+    rmSync(dir, { recursive: true, force: true })
+  }
+}
 
 // Project defaults: no override → a travel gap of at least half the trip is soft; an explicit Hard (or Soft) always wins,
 // even when it equals the built-in default. Real server, real scan over canon facts written into the DB.

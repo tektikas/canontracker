@@ -9,6 +9,8 @@ export default defineEventHandler(() => {
       and rowid > coalesce((select max(rowid) from audit_events where project_id = ?1 and event_type = 'project.reset'), 0) order by rowid desc limit 1`).get(pid()) as { created_at: string, detail: string } | undefined
     return r ? { at: r.created_at, facts: (JSON.parse(r.detail) as { facts: number }).facts } : null
   }
+  // Canon facts whose citation of an older source version a person has not re-checked yet (server/utils/recheck.ts).
+  const recheck = [...recheckByFact(staleCanonCitations()).values()]
   return {
     model: modelInfo(),
     data_model_id: dataModelIds(),
@@ -22,6 +24,8 @@ export default defineEventHandler(() => {
     authored_canon: count(`select count(*) n from facts f where f.project_id = ? and f.status = 'canon' and (f.origin = 'sample' or exists (select 1 from audit_events a
       where a.project_id = f.project_id and a.target_id = f.id and a.event_type = 'fact.authored' and json_extract(a.detail, '$.to') = 'canon'))`),
     sample_canon: count(`select count(*) n from facts where project_id = ? and status = 'canon' and origin = 'sample'`),
+    recheck_outdated: recheck.filter(s => s === 'outdated').length,
+    recheck_unchanged: recheck.filter(s => s === 'unchanged').length,
     rejected: count(`select count(*) n from facts where project_id = ? and status = 'rejected'`),
     open_conflicts: count(`select count(*) n from conflicts where project_id = ? and status = 'open'`),
     open_hard: count(`select count(*) n from conflicts where project_id = ? and status = 'open' and severity = 'hard'`),
