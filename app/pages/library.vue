@@ -357,7 +357,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
         <p v-if="actionError" class="field-error status-line" role="alert">{{ actionError }}</p>
 
         <UiEmptyState v-if="!docs.length" icon="upload" :title="editor ? 'Drop your lore here' : 'No sources yet'">
-          <template v-if="editor">Drag Markdown or text files anywhere on this page, or pick them. A file with a name you already have becomes its next version.</template>
+          <template v-if="editor">Drag Markdown, text or Word (.docx) files anywhere on this page, or pick them. A file with a name you already have becomes its next version.</template>
           <template v-else>An editor on your team adds lore and scenes. They show up here as soon as they do.</template>
           <template v-if="editor" #actions>
             <UiButton variant="primary" icon="upload" @click="uploader?.pick()">Upload files</UiButton>

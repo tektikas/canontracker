@@ -1,13 +1,19 @@
-// Word import probe against a running server: node scripts/docx-probe.mjs <baseUrl>
+// Word import probe against a running server: node scripts/docx-probe.mjs <baseUrl> [server cwd, default: here]
 // Builds small .docx files here (no third-party documents) and uploads them: headings, bold/italic, lists, a footnote, a
 // tracked insertion + deletion, a table and an image convert to the expected text; the same file again is skipped (same text,
 // same hash); the original .docx is served byte for byte and only inside its project; a Word comment becomes a note by the
 // uploader; v2 with one changed sentence flags only the fact citing it; zip bombs, too many parts, encrypted, macro-enabled,
-// old .doc, wrong MIME and damaged files are refused with 415/422 and nothing is stored.
+// old .doc, wrong MIME and damaged files are refused with 415/422 and nothing is stored; so are invalid or undeclared XML
+// entities, a DOCTYPE, duplicate zip entries, a local header that disagrees with the central directory and a wrong checksum.
+// The original is written before the import commits: with the project's originals folder read-only, the upload fails, stores
+// nothing, and the retry imports (needs the server's cwd to reach .data/originals).
 import assert from 'node:assert/strict'
+import { chmodSync, existsSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 import { crc32, deflateRawSync } from 'node:zlib'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
+const serverCwd = process.argv[3] ?? process.cwd()
 const run = Date.now().toString(36)
 const DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
@@ -27,7 +33,7 @@ function client() {
 }
 const check = (label, actual, expected) => { assert.deepEqual(actual, expected, label); console.log(`ok  ${label} (${JSON.stringify(actual).slice(0, 80)})`) }
 
-// ---- a minimal zip writer (deflate), with knobs to build broken archives ----
+// ---- a minimal zip writer (deflate), with knobs to build broken archives (`local` overrides the local header only) ----
 function zip(files) {
   const locals = [], centrals = []
   let offset = 0
@@ -37,15 +43,17 @@ function zip(files) {
     const name = Buffer.from(f.name)
     const size = f.claimSize ?? data.length
     const head = (sig, central) => {
+      const o9 = central ? {} : (f.local ?? {})
+      const nm = o9.name !== undefined ? Buffer.from(o9.name) : name
       const b = Buffer.alloc(central ? 46 : 30)
       b.writeUInt32LE(sig, 0)
       let o = 4
       if (central) { b.writeUInt16LE(20, o); o += 2 }
-      b.writeUInt16LE(20, o); b.writeUInt16LE(f.flags ?? 0, o + 2); b.writeUInt16LE(f.stored ? 0 : 8, o + 4)
-      b.writeUInt16LE(0, o + 6); b.writeUInt16LE(0x21, o + 8); b.writeUInt32LE(crc32(data), o + 10)
-      b.writeUInt32LE(body.length, o + 14); b.writeUInt32LE(size, o + 18); b.writeUInt16LE(name.length, o + 22)
+      b.writeUInt16LE(20, o); b.writeUInt16LE(o9.flags ?? f.flags ?? 0, o + 2); b.writeUInt16LE(o9.method ?? (f.stored ? 0 : 8), o + 4)
+      b.writeUInt16LE(0, o + 6); b.writeUInt16LE(0x21, o + 8); b.writeUInt32LE(f.crc ?? crc32(data), o + 10)
+      b.writeUInt32LE(o9.csize ?? body.length, o + 14); b.writeUInt32LE(o9.size ?? size, o + 18); b.writeUInt16LE(nm.length, o + 22)
       if (central) b.writeUInt32LE(offset, 42)
-      return Buffer.concat([b, name])
+      return Buffer.concat([b, nm])
     }
     const local = Buffer.concat([head(0x04034B50, false), body])
     centrals.push(head(0x02014B50, true))
@@ -210,6 +218,44 @@ await refused('a truncated archive refused', 'cut.docx', v1bytes.subarray(0, v1b
 await refused('a zip without a Word document refused', 'nodoc.docx', zip([{ name: '[Content_Types].xml', data: '<Types/>' }]), 422)
 await refused('malformed XML refused', 'badxml.docx', zip([{ name: '[Content_Types].xml', data: types() }, { name: 'word/document.xml', data: `<w:document ${NS}><w:body><w:p></w:body></w:document>` }]), 422)
 await refused('a Word file with no text refused', 'empty.docx', zip([{ name: '[Content_Types].xml', data: types() }, { name: 'word/document.xml', data: `<w:document ${NS}><w:body><w:p/></w:body></w:document>` }]), 422)
+
+// 7. Malformed XML and self-contradicting archives (review c66r): 422, never an untyped error, never accepted text.
+const withDoc = (xml, extra = []) => zip([{ name: '[Content_Types].xml', data: types() }, { name: 'word/document.xml', data: xml }, ...extra])
+const one = t => `<w:document ${NS}><w:body>${p(r(t))}</w:body></w:document>`
+await refused('a numeric reference past Unicode refused', 'bigref.docx', withDoc(one('Mira &#999999999999; waits.')), 422)
+await refused('a surrogate reference refused', 'surrogate.docx', withDoc(one('Mira &#xD800; waits.')), 422)
+await refused('a NUL reference refused', 'nul.docx', withDoc(one('Mira &#0; waits.')), 422)
+await refused('a DOCTYPE with an external entity refused', 'xxe.docx', withDoc(`<?xml version="1.0"?><!DOCTYPE w:document [<!ENTITY ext SYSTEM "file:///etc/hostname">]><w:document ${NS}><w:body>${p(r('Mira &ext; waits.'))}</w:body></w:document>`), 422)
+await refused('an undeclared entity refused', 'undeclared.docx', withDoc(one('Mira &ext; waits.')), 422)
+await refused('a bare ampersand refused', 'amp.docx', withDoc(one('Salt & rope')), 422)
+const plain = one('Mira waits.')
+const parts = local => zip([{ name: '[Content_Types].xml', data: types() }, { name: 'word/document.xml', data: plain, ...local }])
+await refused('a duplicate word/document.xml refused', 'dup.docx', withDoc(plain, [{ name: 'word/document.xml', data: one('Another text.') }]), 422)
+await refused('a local file name unlike the central one refused', 'lname.docx', parts({ local: { name: 'word/documenX.xml' } }), 422)
+await refused('a local encrypted flag under a clear central one refused', 'lflag.docx', parts({ local: { flags: 1 } }), 422)
+await refused('a local compression method unlike the central one refused', 'lmethod.docx', parts({ local: { method: 0 } }), 422)
+await refused('a local size unlike the central one refused', 'lsize.docx', parts({ local: { size: 5 } }), 422)
+await refused('a wrong checksum refused', 'crc.docx', parts({ crc: 1234 }), 422)
 check('nothing refused was stored', (await a('/api/documents')).data.length, before)
+const ok = await up('entities.docx', withDoc(one('Salt &amp; rope &#x2014; Mira&#8217;s &lt;lamp&gt; &quot;lit&quot;')))
+check('valid built-in and numeric references still import', [ok.status, (await a(`/api/documents/${ok.document_id}`)).data.content], ['imported', 'Salt & rope — Mira’s <lamp> "lit"\n'])
+
+// 8. The original is stored before anything commits: a failed write leaves no document, and the retry imports.
+const project = (await a('/api/me')).data.current.project.id
+const dir = join(serverCwd, '.data', 'originals', project)
+if (!existsSync(dir)) console.log(`SKIP write failure: ${dir} not found (pass the server's cwd as the second argument)`)
+else {
+  const retryBytes = docx('short summer')
+  const count = (await a('/api/documents')).data.length
+  chmodSync(dir, 0o555)
+  let failed
+  try { failed = await up('retry.docx', retryBytes) } finally { chmodSync(dir, 0o755) }
+  check('original not writable → the upload fails, saying nothing was imported', [failed.status, failed.code, /nothing was imported/.test(failed.error)], ['error', 500, true])
+  check('…and stores no document', (await a('/api/documents')).data.length, count)
+  check('…and leaves no temp file behind', readdirSync(dir).filter(f => !/^[0-9a-f]{64}\.docx$/.test(f)), [])
+  const retry = await up('retry.docx', retryBytes)
+  check('the retry imports (not skipped as a duplicate)', [retry.status, retry.version], ['imported', 1])
+  check('…with its original', (await a(`/api/documents/${retry.document_id}`)).data.original, true)
+}
 
 console.log('\ndocx probe: all checks passed')

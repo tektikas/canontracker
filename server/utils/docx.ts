@@ -1,9 +1,10 @@
-import { inflateRawSync } from 'node:zlib'
+import { crc32, inflateRawSync } from 'node:zlib'
 
 // Word (.docx) → the Markdown-ish text that becomes the document's source text. No dependency: a .docx is a zip of XML parts,
 // and only five or six of them matter. The zip is read defensively (a 1 MB upload can claim to unpack to gigabytes): entry
 // count, declared total size and every part we actually inflate are capped, encrypted / macro-enabled / non-zip files are
-// refused. Deterministic: same bytes → same text → same hash.
+// refused, and so is an archive that contradicts itself (duplicate names, a local header that disagrees with the central
+// directory, a wrong checksum). The XML reader refuses DOCTYPEs and any entity but the five built-ins and valid numeric ones. Deterministic: same bytes → same text → same hash.
 // Output: headings `#`, bold `**`, italic `*`, lists `-` / `1.`, one paragraph per passage (blank line between), tables as one
 // line per row (cells joined by " | "), footnotes and endnotes as `[^n]` with a "Notes" section at the end. Tracked changes are
 // read as accepted (insertions in, deletions out). Images, text boxes and field codes are dropped.
@@ -31,20 +32,23 @@ function readZip(buf: Buffer) {
   const count = buf.readUInt16LE(eocd + 10), cdSize = buf.readUInt32LE(eocd + 12), cdOffset = buf.readUInt32LE(eocd + 16)
   if (count === 0xFFFF || cdOffset === 0xFFFFFFFF || cdOffset + cdSize > eocd) throw invalid()
   if (count > MAX_ENTRIES) throw invalid(`This Word file holds more than ${MAX_ENTRIES} parts; it is not imported.`)
-  const entries = new Map<string, { flags: number, method: number, size: number, csize: number, offset: number }>()
+  const entries = new Map<string, { flags: number, method: number, crc: number, size: number, csize: number, offset: number, name: Buffer }>()
   let at = cdOffset, declared = 0
   for (let n = 0; n < count; n++) {
     if (at + 46 > eocd || buf.readUInt32LE(at) !== 0x02014B50) throw invalid()
-    const flags = buf.readUInt16LE(at + 8), method = buf.readUInt16LE(at + 10)
+    const flags = buf.readUInt16LE(at + 8), method = buf.readUInt16LE(at + 10), crc = buf.readUInt32LE(at + 16)
     const csize = buf.readUInt32LE(at + 20), size = buf.readUInt32LE(at + 24), offset = buf.readUInt32LE(at + 42)
     const nameLen = buf.readUInt16LE(at + 28), skip = nameLen + buf.readUInt16LE(at + 30) + buf.readUInt16LE(at + 32)
     if (at + 46 + skip > cdOffset + cdSize) throw invalid()
-    if (flags & 1) throw unsupported('This Word file is encrypted. Save it without a password and upload it again.')
+    if (flags & 0x41) throw unsupported('This Word file is encrypted. Save it without a password and upload it again.')
     if (csize === 0xFFFFFFFF || size === 0xFFFFFFFF) throw invalid()
     declared += size
     if (declared > MAX_DECLARED) throw invalid('This Word file unpacks to more than 64 MB; it is not imported.')
-    const name = buf.toString('utf8', at + 46, at + 46 + nameLen)
-    entries.set(name, { flags, method, size, csize, offset })
+    const raw = buf.subarray(at + 46, at + 46 + nameLen)
+    const name = raw.toString('utf8')
+    // Two entries under one name: which one a reader takes differs between readers, so the file is refused.
+    if (entries.has(name)) throw invalid('This Word file lists the same part twice; it is not imported.')
+    entries.set(name, { flags, method, crc, size, csize, offset, name: raw })
     at += 46 + skip
   }
   let budget = MAX_READ
@@ -52,8 +56,15 @@ function readZip(buf: Buffer) {
     const e = entries.get(name)
     if (!e) return null
     if (e.offset + 30 > buf.length || buf.readUInt32LE(e.offset) !== 0x04034B50) throw invalid()
-    const start = e.offset + 30 + buf.readUInt16LE(e.offset + 26) + buf.readUInt16LE(e.offset + 28)
+    // The local header must agree with the central directory: name, encryption, method, and sizes (a data descriptor, flag
+    // bit 3, may leave the local sizes zero).
+    const lflags = buf.readUInt16LE(e.offset + 6), lmethod = buf.readUInt16LE(e.offset + 8)
+    const lcsize = buf.readUInt32LE(e.offset + 18), lsize = buf.readUInt32LE(e.offset + 22), lnameLen = buf.readUInt16LE(e.offset + 26)
+    const start = e.offset + 30 + lnameLen + buf.readUInt16LE(e.offset + 28)
     if (start + e.csize > buf.length) throw invalid()
+    const sizesOk = (lcsize === e.csize && lsize === e.size) || (lflags & 8 && lcsize === 0 && lsize === 0)
+    if ((lflags & 0x49) !== (e.flags & 0x49) || lmethod !== e.method || !sizesOk || !buf.subarray(e.offset + 30, e.offset + 30 + lnameLen).equals(e.name))
+      throw invalid('This Word file is inconsistent inside (its parts are listed differently in two places); it is not imported.')
     const raw = buf.subarray(start, start + e.csize)
     const cap = Math.min(MAX_PART, budget)
     if (e.size > cap) throw invalid('A part of this Word file is too large once unpacked; it is not imported.')
@@ -63,7 +74,7 @@ function readZip(buf: Buffer) {
       // maxOutputLength stops a part that lies about its size (a zip bomb) as soon as it inflates past the cap.
       try { out = inflateRawSync(raw, { maxOutputLength: cap }) } catch { throw invalid('A part of this Word file could not be unpacked (damaged or too large).') }
     } else throw invalid()
-    if (out.length !== e.size) throw invalid()
+    if (out.length !== e.size || crc32(out) !== e.crc) throw invalid()
     budget -= out.length
     return out.toString('utf8').replace(/^﻿/, '')
   }
@@ -72,8 +83,17 @@ function readZip(buf: Buffer) {
 
 // ---- XML: a small, non-validating reader. No DTD, no entity expansion beyond the five built-ins and numeric references. ----
 interface El { name: string, attrs: Record<string, string>, kids: (El | string)[] }
-const decode = (s: string) => s.replace(/&(#x[0-9a-f]+|#\d+|lt|gt|amp|quot|apos);/gi, (_, e: string) =>
-  e[0] === '#' ? String.fromCodePoint(Number(e[1] === 'x' || e[1] === 'X' ? `0x${e.slice(2)}` : e.slice(1))) : ({ lt: '<', gt: '>', amp: '&', quot: '"', apos: '\'' } as Record<string, string>)[e.toLowerCase()]!)
+const ENTITIES: Record<string, string> = { lt: '<', gt: '>', amp: '&', quot: '"', apos: '\'' }
+// A character XML allows (Char production): no NUL or other C0 controls but tab/LF/CR, no surrogates, no U+FFFE/U+FFFF.
+const xmlChar = (c: number) => c === 0x9 || c === 0xA || c === 0xD || (c >= 0x20 && c <= 0xD7FF) || (c >= 0xE000 && c <= 0xFFFD) || (c >= 0x10000 && c <= 0x10FFFF)
+const badEntity = () => invalid('This Word file uses XML entities Word does not write; it is not imported.')
+const decode = (s: string) => s.replace(/&(?:#x([0-9a-fA-F]{1,6})|#([0-9]{1,7})|(lt|gt|amp|quot|apos));|&/g, (all, hex?: string, dec?: string, named?: string) => {
+  if (named) return ENTITIES[named]!
+  if (!hex && !dec) throw badEntity() // `&ext;`, `&#999999999999;`, a bare `&`
+  const c = hex ? Number.parseInt(hex, 16) : Number(dec)
+  if (!xmlChar(c)) throw badEntity()
+  return String.fromCodePoint(c)
+})
 const local = (n: string) => n.slice(n.indexOf(':') + 1)
 
 function parseXml(xml: string): El {
@@ -84,7 +104,12 @@ function parseXml(xml: string): El {
     const top = stack.at(-1)!
     if (m[6] !== undefined) { top.kids.push(decode(m[6])); continue }
     if (m[5] !== undefined) { top.kids.push(m[5]); continue }
-    if (!m[2]) { if (m[0] === '<') throw invalid(); continue }
+    if (!m[2]) {
+      if (m[0] === '<') throw invalid()
+      // A DOCTYPE (with its entity declarations) or any other <!…> declaration: Word never writes one.
+      if (m[0].startsWith('<!') && !m[0].startsWith('<!--')) throw invalid('This Word file declares a DOCTYPE, which Word does not write; it is not imported.')
+      continue
+    }
     const name = local(m[2])
     if (m[1]) {
       if (stack.length < 2 || top.name !== name) throw invalid()
