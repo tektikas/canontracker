@@ -6,10 +6,11 @@ const editor = computed(() => canEdit(useMe().value))
 const router = useRouter()
 const fill = useFillAction()
 
-type Tab = 'facts' | 'graph' | 'entities' | 'timeline' | 'superseded'
-const tab = ref<Tab>(route.query.entity ? 'entities' : 'facts')
+// Names live on Entities now; an old ?entity= link opens the graph focused on that entity.
+type Tab = 'facts' | 'graph' | 'timeline' | 'superseded'
+const tab = ref<Tab>(route.query.entity ? 'graph' : 'facts')
 const filter = ref('')
-const entity = ref<string | null>(typeof route.query.entity === 'string' ? route.query.entity : null)
+const entity = typeof route.query.entity === 'string' ? route.query.entity : undefined
 const KINDS = ['rule', 'character', 'relationship', 'event', 'location', 'claim']
 
 // Re-check after a source changed (server/utils/recheck.ts): ?recheck=1 lists exactly the facts whose quote is gone from the
@@ -23,10 +24,61 @@ const unchanged = computed(() => (canon.value ?? []).filter(f => f.recheck === '
 // Confirm re-pins every unchanged citation of these facts, so the button counts citations, not facts.
 const unchangedCitations = computed(() => unchanged.value.reduce((n, f) => n + f.evidence.filter((e: Ev) => e.recheck === 'unchanged').length, 0))
 watch(recheckOnly, (v) => { if (v) tab.value = 'facts' }, { immediate: true })
-const filtered = computed(() => {
+const matches = (f: { statement: string, subject: string, object: string | null }) => {
   const q = filter.value.trim().toLowerCase()
-  return (recheckOnly.value && tab.value === 'facts' ? outdated.value : canon.value ?? []).filter(f => !q || `${f.statement} ${f.subject} ${f.object ?? ''}`.toLowerCase().includes(q))
+  return !q || `${f.statement} ${f.subject} ${f.object ?? ''}`.toLowerCase().includes(q)
+}
+const timelineFacts = computed(() => (canon.value ?? []).filter(matches))
+
+// Facts list: one line per fact (expand for its evidence), filtered, grouped and paged so a big canon never scrolls forever.
+type Fact = NonNullable<typeof canon.value>[number]
+type Group = 'kind' | 'entity' | 'document'
+const groupBy = ref<Group>('kind')
+const kindF = ref('')
+const docF = ref('')
+const originF = ref<'' | 'people' | 'sample'>('')
+const hasSample = computed(() => (canon.value ?? []).some(f => f.origin === 'sample'))
+const docOf = (f: Fact) => f.evidence[0]?.document_title ?? 'No source'
+const docs = computed(() => [...new Set((canon.value ?? []).flatMap(f => f.evidence.map((e: Ev) => e.document_title)))].sort())
+const filtering = computed(() => !!(filter.value || kindF.value || docF.value || originF.value))
+function clearFilters() {
+  filter.value = kindF.value = docF.value = originF.value = ''
+}
+const filtered = computed(() => (recheckOnly.value ? outdated.value : canon.value ?? []).filter(f => matches(f)
+  && (!kindF.value || f.kind === kindF.value)
+  && (!docF.value || f.evidence.some((e: Ev) => e.document_title === docF.value))
+  && (!originF.value || (originF.value === 'sample') === (f.origin === 'sample'))))
+const keyOf = (f: Fact) => (groupBy.value === 'kind' ? f.kind : groupBy.value === 'entity' ? f.subject : docOf(f))
+const kindName = (k: string) => `${k[0]!.toUpperCase()}${k.slice(1)}s`
+const labelOf = (k: string) => (groupBy.value === 'kind' ? kindName(k) : k)
+const sorted = computed(() => {
+  const rank = (k: string) => (groupBy.value === 'kind' ? String(KINDS.indexOf(k)).padStart(2, '0') : k.toLowerCase())
+  return filtered.value.map((f, i) => ({ f, i, k: rank(keyOf(f)) })).sort((a, b) => a.k.localeCompare(b.k) || a.i - b.i).map(x => x.f)
 })
+const totals = computed(() => sorted.value.reduce((m, f) => m.set(keyOf(f), (m.get(keyOf(f)) ?? 0) + 1), new Map<string, number>()))
+const PAGE = 50
+const page = ref(1)
+const pages = computed(() => Math.max(1, Math.ceil(sorted.value.length / PAGE)))
+watch([filter, kindF, docF, originF, groupBy, recheckOnly], () => { page.value = 1 })
+// The page's facts in runs of one group each; a group cut by a page break shows its header again on the next page.
+const pageGroups = computed(() => {
+  const out: { key: string, facts: Fact[] }[] = []
+  for (const f of sorted.value.slice((page.value - 1) * PAGE, page.value * PAGE)) {
+    const k = keyOf(f)
+    if (out.at(-1)?.key !== k) out.push({ key: k, facts: [] })
+    out.at(-1)!.facts.push(f)
+  }
+  return out
+})
+const range = computed(() => `${(page.value - 1) * PAGE + 1}–${Math.min(page.value * PAGE, sorted.value.length)} of ${sorted.value.length}`)
+function goPage(n: number) {
+  page.value = n
+  nextTick(() => document.getElementById('canon-list')?.scrollIntoView({ block: 'start' }))
+}
+const open = ref(new Set<string>())
+const toggle = (id: string) => { open.value.has(id) ? open.value.delete(id) : open.value.add(id) }
+// Re-check mode opens every outdated fact, so each citation's actions are in view.
+watch(recheckOnly, (v) => { if (v) for (const f of outdated.value) open.value.add(f.id) }, { immediate: true })
 type Ev = NonNullable<typeof canon.value>[number]['evidence'][number]
 // Each outdated citation is decided on its own: its source, its diff, its Keep. Keeping one source says nothing about another.
 const outdatedEvs = (f: { evidence: Ev[] }) => f.evidence.filter(e => e.recheck === 'outdated')
@@ -56,25 +108,9 @@ async function keep(f: { evidence: Ev[] }, ev: Ev) {
   }))) return
   recheck('keep', [ev.id])
 }
-const groups = computed(() => KINDS.map(kind => ({ kind, facts: filtered.value.filter(f => f.kind === kind) })).filter(g => g.facts.length))
-const entities = computed(() => {
-  const counts = new Map<string, number>()
-  for (const f of canon.value ?? []) for (const e of [f.subject, f.object]) if (e) counts.set(e, (counts.get(e) ?? 0) + 1)
-  return [...counts].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-})
-function showEntity(name: string) {
-  entity.value = name
-  tab.value = 'entities'
-  router.replace({ query: { entity: name } })
-}
-// Every canon name has a wiki page (filed automatically); aliases resolve too.
-const lookup = useEntityLookup()
-const wiki = computed(() => (entity.value ? lookup.value.byName.get(normName(entity.value)) : undefined))
 const tabs = computed(() => [
   { value: 'facts' as Tab, label: 'Facts', count: canon.value?.length ?? 0 },
   { value: 'graph' as Tab, label: 'Graph' },
-  // Names canon uses; the Entities section counts wiki pages, which include pages made by hand.
-  { value: 'entities' as Tab, label: 'Names', count: entities.value.length },
   { value: 'timeline' as Tab, label: 'Timeline' },
   { value: 'superseded' as Tab, label: 'Superseded', count: superseded.value?.length ?? 0 },
 ])
@@ -83,7 +119,12 @@ const target = computed(() => (route.hash.startsWith('#fact-') ? route.hash.slic
 async function jump() {
   if (!target.value) return
   tab.value = 'facts'
-  filter.value = ''
+  clearFilters()
+  await nextTick() // let the filter watcher reset the page first
+  const i = sorted.value.findIndex(f => f.id === target.value)
+  if (i < 0) return
+  page.value = Math.floor(i / PAGE) + 1
+  open.value.add(target.value)
   await nextTick()
   document.getElementById(`fact-${target.value}`)?.scrollIntoView({ block: 'center' })
 }
@@ -100,12 +141,27 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 
   <UiTabs v-model="tab" :items="tabs" />
 
-  <div v-if="tab === 'facts' || tab === 'timeline'" class="filter">
-    <input v-model="filter" type="search" placeholder="Filter by character, place, word…" aria-label="Filter canon">
-    <UiButton v-if="filter" @click="filter = ''">Clear</UiButton>
-    <button v-if="tab === 'facts' && (outdated.length || unchanged.length || recheckOnly)" type="button" class="recheck-toggle" :class="{ on: recheckOnly, bad: outdated.length }" :aria-pressed="recheckOnly" @click="recheckOnly = !recheckOnly">
-      <UiIcon name="history" :size="14" />Needs re-check <b>{{ outdated.length }}</b>
-    </button>
+  <div v-if="(tab === 'facts' || tab === 'timeline') && canon?.length" class="filter">
+    <input v-model="filter" type="search" placeholder="Search by character, place, word…" aria-label="Search canon">
+    <template v-if="tab === 'facts'">
+      <select v-model="kindF" aria-label="Fact kind">
+        <option value="">All kinds</option>
+        <option v-for="k in KINDS" :key="k" :value="k">{{ kindName(k) }}</option>
+      </select>
+      <select v-if="docs.length > 1" v-model="docF" aria-label="Source document">
+        <option value="">All documents</option>
+        <option v-for="d in docs" :key="d" :value="d">{{ d }}</option>
+      </select>
+      <select v-if="hasSample" v-model="originF" aria-label="Origin">
+        <option value="">All canon</option>
+        <option value="people">Accepted by people</option>
+        <option value="sample">Sample canon</option>
+      </select>
+      <button v-if="outdated.length || unchanged.length || recheckOnly" type="button" class="recheck-toggle" :class="{ on: recheckOnly, bad: outdated.length }" :aria-pressed="recheckOnly" @click="recheckOnly = !recheckOnly">
+        <UiIcon name="history" :size="14" />Needs re-check <b>{{ outdated.length }}</b>
+      </button>
+    </template>
+    <UiButton v-if="filtering" variant="ghost" @click="clearFilters">Clear</UiButton>
   </div>
 
   <div v-if="tab === 'facts' && recheckOnly" class="recheck-head">
@@ -137,46 +193,71 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
       Nothing left to re-check.
       <template #actions><UiButton @click="recheckOnly = false">Show all canon</UiButton></template>
     </UiEmptyState>
-    <p v-else-if="!groups.length" class="muted">No canon fact matches “{{ filter }}”.</p>
-    <section v-for="g in groups" :key="g.kind" class="kind">
-      <h2>{{ g.kind }}s</h2>
-      <div class="stack">
-        <UiPanel v-for="f in g.facts" :id="`fact-${f.id}`" :key="f.id" class="stack" :class="{ target: f.id === target }">
-          <FactSummary :fact="f" sources />
-          <template v-if="f.recheck === 'outdated'">
-            <ul class="outdated-evs" :aria-label="`Outdated evidence of this fact`">
-              <li v-for="ev in outdatedEvs(f)" :key="ev.id">
-                <span class="small"><UiIcon name="file" :size="14" /><b>{{ ev.document_title }}</b><span class="faint">v{{ ev.document_version }}</span><span class="bad-text">{{ quoteLost(ev.recheck_count ?? 0, ev.latest_version) }}</span></span>
-                <div class="row">
-                  <UiButton size="sm" icon="history" :to="`/documents/${ev.latest_document_id}/history?from=${ev.document_id}&to=${ev.latest_document_id}`">See what changed</UiButton>
-                  <UiButton v-if="editor" size="sm" variant="ghost" :loading="busy === ev.id" :disabled="!!busy" @click="keep(f, ev)">Keep as is</UiButton>
-                </div>
-              </li>
-            </ul>
-            <div v-if="editor"><UiButton size="sm" icon="changes" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
-          </template>
-          <div v-else-if="editor"><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
-        </UiPanel>
+    <p v-else-if="!sorted.length" class="muted">No canon fact matches these filters. <button type="button" class="link" @click="clearFilters">Clear filters</button></p>
+    <template v-else>
+      <div id="canon-list" class="list-head">
+        <span class="small muted">{{ counted(sorted.length, 'fact') }}<template v-if="pages > 1"> · showing {{ range }}</template></span>
+        <label class="group-by small">Group by
+          <select v-model="groupBy">
+            <option value="kind">Kind</option>
+            <option value="entity">Entity</option>
+            <option value="document">Document</option>
+          </select>
+        </label>
       </div>
-    </section>
+      <section v-for="g in pageGroups" :key="g.key" class="group">
+        <h2><span>{{ labelOf(g.key) }}</span><span class="faint">{{ totals.get(g.key) }}</span></h2>
+        <ul class="facts">
+          <li v-for="f in g.facts" :id="`fact-${f.id}`" :key="f.id" class="fact" :class="{ open: open.has(f.id), target: f.id === target }">
+            <button type="button" class="line" :aria-expanded="open.has(f.id)" @click="toggle(f.id)">
+              <UiIcon name="down" :size="14" class="chev" />
+              <UiBadge v-if="groupBy !== 'kind'">{{ f.kind }}</UiBadge>
+              <span class="text">{{ f.statement }}</span>
+              <span class="flags">
+                <UiBadge v-if="f.recheck === 'outdated'" tone="bad" dot>Evidence outdated</UiBadge>
+                <UiBadge v-else-if="f.recheck === 'unchanged'" tone="warn">Source updated</UiBadge>
+                <UiBadge v-if="f.origin === 'sample'" tone="pencil" title="Sample canon (preloaded): its quote is verified, but no person reviewed or decided it.">Sample</UiBadge>
+                <span v-if="groupBy !== 'document'" class="src faint small">{{ docOf(f) }}</span>
+              </span>
+            </button>
+            <div v-if="open.has(f.id)" class="more">
+              <div class="row">
+                <UiBadge v-if="f.time_label" :tone="f.precision === 'approximate' ? 'warn' : 'neutral'">{{ f.time_label }}</UiBadge>
+                <UiBadge v-if="f.version > 1">v{{ f.version }}</UiBadge>
+                <UiBadge v-if="f.origin === 'sample'" tone="pencil">Sample canon (preloaded)</UiBadge>
+              </div>
+              <FactSummary :fact="f" sources details />
+              <template v-if="f.recheck === 'outdated'">
+                <ul class="outdated-evs" :aria-label="`Outdated evidence of this fact`">
+                  <li v-for="ev in outdatedEvs(f)" :key="ev.id">
+                    <span class="small"><UiIcon name="file" :size="14" /><b>{{ ev.document_title }}</b><span class="faint">v{{ ev.document_version }}</span><span class="bad-text">{{ quoteLost(ev.recheck_count ?? 0, ev.latest_version) }}</span></span>
+                    <div class="row">
+                      <UiButton size="sm" icon="history" :to="`/documents/${ev.latest_document_id}/history?from=${ev.document_id}&to=${ev.latest_document_id}`">See what changed</UiButton>
+                      <UiButton v-if="editor" size="sm" variant="ghost" :loading="busy === ev.id" :disabled="!!busy" @click="keep(f, ev)">Keep as is</UiButton>
+                    </div>
+                  </li>
+                </ul>
+                <div v-if="editor"><UiButton size="sm" icon="changes" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
+              </template>
+              <div v-else-if="editor"><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
+            </div>
+          </li>
+        </ul>
+      </section>
+      <nav v-if="pages > 1" class="pager" aria-label="Pages">
+        <UiButton size="sm" :disabled="page === 1" @click="goPage(page - 1)">Previous</UiButton>
+        <span class="small muted">Page {{ page }} of {{ pages }}</span>
+        <UiButton size="sm" :disabled="page === pages" @click="goPage(page + 1)">Next</UiButton>
+      </nav>
+    </template>
   </template>
 
   <UiPanel v-else-if="tab === 'graph'">
-    <EntityGraph :facts="canon!" :selected="entity ?? undefined" @select="showEntity" />
-  </UiPanel>
-
-  <UiPanel v-else-if="tab === 'entities'" description="Characters, places and objects named in canon. Pick one to see everything known about it.">
-    <div class="picker">
-      <button v-for="[name, n] in entities" :key="name" type="button" class="pick" :class="{ on: name === entity }" :aria-pressed="name === entity" @click="showEntity(name)">
-        {{ name }} <span class="faint">{{ n }}</span>
-      </button>
-    </div>
-    <div v-if="entity && wiki" class="wiki-link"><UiButton size="sm" icon="entities" :to="`/entities/${wiki.id}`">Open {{ entity }}’s page</UiButton></div>
-    <EntityCard v-if="entity" class="profile" :name="entity" :facts="canon!" @select="showEntity" />
+    <EntityGraph :facts="canon!" :selected="entity" />
   </UiPanel>
 
   <UiPanel v-else-if="tab === 'timeline'" title="Story timeline" description="By story time, one lane per character. Day 1 starts at 00:00; earlier days are D0, D-1, ….">
-    <StoryTimeline v-if="filtered.some(f => f.t_from != null || f.t_to != null)" :facts="filtered" :all-facts="canon!" />
+    <StoryTimeline v-if="timelineFacts.some(f => f.t_from != null || f.t_to != null)" :facts="timelineFacts" :all-facts="canon!" />
     <p v-else class="muted">No timed canon facts{{ filter ? ' match this filter' : '' }}.</p>
   </UiPanel>
 
@@ -213,16 +294,39 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 .outdated-evs li > span { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
 .bad-text { color: var(--bad); font-weight: 600; }
 @media (max-width: 720px) { .recheck-toggle { min-height: 44px; } }
-.target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); scroll-margin-top: 72px; }
-.kind { margin-bottom: var(--s-5); }
-.kind h2 { text-transform: capitalize; }
-.picker { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-5); }
-.pick { min-height: 34px; padding: 0 var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--raised); color: var(--ink); font: inherit; font-weight: 500; cursor: pointer; }
-.pick:hover { background: var(--sunken); }
-.pick.on { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
-.pick.on .faint { color: inherit; }
+.filter select { width: auto; max-width: 220px; }
+.list-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); margin-bottom: var(--s-3); scroll-margin-top: 72px; }
+.group-by { display: inline-flex; flex-direction: row; align-items: center; gap: var(--s-2); color: var(--muted); font-weight: 500; }
+.group-by select { width: auto; }
+.group { margin-bottom: var(--s-5); }
+.group h2 { display: flex; align-items: baseline; gap: var(--s-2); margin: 0 0 var(--s-2); font-size: var(--text-sm); font-weight: 600; color: var(--muted); }
+.facts { list-style: none; margin: 0; padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--raised); overflow: hidden; }
+.fact + .fact { border-top: 1px solid var(--line); }
+.line { display: flex; align-items: center; gap: var(--s-2); width: 100%; min-height: 44px; padding: 6px var(--s-4) 6px var(--s-3); border: 0; background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; }
+.line:hover { background: var(--surface); }
+.line:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.chev { flex: none; color: var(--faint); transform: rotate(-90deg); transition: transform var(--dur-1) var(--ease); }
+.open .chev { transform: none; }
+.text { flex: 1 1 auto; min-width: 0; font-family: var(--font-story); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.open .text { white-space: normal; }
+.flags { flex: none; display: inline-flex; align-items: center; gap: 6px; }
+.src { max-width: 160px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.more { display: grid; gap: var(--s-3); padding: 0 var(--s-4) var(--s-4) calc(var(--s-3) + 22px); }
+.more > .row:empty { display: none; }
+.target { box-shadow: inset 3px 0 0 var(--accent); background: var(--accent-soft); scroll-margin-top: 72px; }
+.target .line:hover { background: none; }
+.pager { display: flex; align-items: center; justify-content: center; gap: var(--s-3); }
+.link { padding: 0; border: 0; background: none; color: var(--accent); font: inherit; text-decoration: underline; cursor: pointer; }
 .lineage { margin: 0; padding-left: var(--s-3); border-left: 3px solid var(--line-strong); }
 .story { font-family: var(--font-story); color: var(--ink); }
-.wiki-link { margin-bottom: var(--s-3); }
-.profile { border-top: 1px solid var(--line); padding-top: var(--s-5); }
+@media (max-width: 720px) {
+  .line { flex-wrap: wrap; padding: 10px var(--s-3); }
+  .text { flex-basis: calc(100% - 30px); white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
+  .open .text { display: block; }
+  .flags { padding-left: 22px; flex-wrap: wrap; }
+  .flags:not(:has(.chip)) { display: none; }
+  .src { display: none; }
+  .more { padding-left: var(--s-3); }
+  .filter select { flex: 1 1 140px; max-width: none; min-height: 44px; }
+}
 </style>
