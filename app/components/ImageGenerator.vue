@@ -172,7 +172,7 @@ function uploadInstead() {
             </div>
             <div class="row">
               <UiButton type="submit" variant="primary" icon="image" :loading="generating" :disabled="!live">
-                {{ generating ? `Generating… ${elapsed} s` : genError ? 'Try again' : `Generate ${counted(count, 'image')}` }}
+                {{ generating ? `Generating… ${elapsed} s` : genError ? 'Try again' : `Generate ${counted(count, 'image')}` }}<UiSendKey v-if="!generating" />
               </UiButton>
               <UiButton type="button" icon="upload" @click="uploadInstead">Upload instead</UiButton>
             </div>

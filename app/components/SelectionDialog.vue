@@ -220,10 +220,10 @@ const TITLE = { fact: 'Add a fact', entity: 'Add an entity', note: 'Add a note' 
       <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
 
       <footer class="sel-actions">
-        <UiButton v-if="mode === 'note'" type="submit" variant="primary" icon="note" :loading="busy === 'note'" :disabled="!canSave || !!busy">Add note</UiButton>
-        <UiButton v-else-if="mode === 'entity'" type="submit" variant="primary" icon="entities" :loading="busy === 'entity'" :disabled="!canSave || !!busy">{{ existing ? 'Open page' : 'Create page' }}</UiButton>
+        <UiButton v-if="mode === 'note'" type="submit" variant="primary" icon="note" :loading="busy === 'note'" :disabled="!canSave || !!busy">Add note<UiSendKey /></UiButton>
+        <UiButton v-else-if="mode === 'entity'" type="submit" variant="primary" icon="entities" :loading="busy === 'entity'" :disabled="!canSave || !!busy">{{ existing ? 'Open page' : 'Create page' }}<UiSendKey /></UiButton>
         <template v-else>
-          <UiButton type="submit" variant="primary" icon="canon" :loading="busy === 'canon'" :disabled="!canSave || !!busy">Add to canon</UiButton>
+          <UiButton type="submit" variant="primary" icon="canon" :loading="busy === 'canon'" :disabled="!canSave || !!busy">Add to canon<UiSendKey /></UiButton>
           <UiButton icon="review" :loading="busy === 'review'" :disabled="!canSave || !!busy" @click="submit('review')">Send to review</UiButton>
         </template>
         <UiButton variant="ghost" @click="dialog?.close()">Cancel</UiButton>
