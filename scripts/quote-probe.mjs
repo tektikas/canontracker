@@ -78,6 +78,12 @@ assert.equal(r4.status, 200, JSON.stringify(r4.data))
 assert.equal((await evidenceOf(r4.data.id)).quote, '*Bright*star shines all night')
 ok('Add fact: a closing * against the next word still pairs', '*Bright*star shines all night')
 
+// A clause quoted the way models quote it: first letter capitalised, full stop added. Only those two characters may differ.
+const r6 = await a('/api/facts', { method: 'POST', body: fact({ passage_id: oath.id, quote: 'Nobody in Saltmere argued with her.', subject: 'Saltmere', predicate: 'did_not_argue', object: null, statement: 'Nobody argued.' }) })
+assert.equal(r6.status, 200, JSON.stringify(r6.data))
+assert.equal((await evidenceOf(r6.data.id)).quote, 'nobody in Saltmere\nargued with her')
+ok('Add fact: a capitalised first letter and an added full stop still cite the source', 'nobody in Saltmere\\nargued with her')
+
 // Inside a code span * is literal: typed with its marks it is cited exactly, typed without them it is refused.
 const r5 = await a('/api/facts', { method: 'POST', body: fact({ passage_id: code.id, quote: 'The `*never*` flag stays disabled', subject: 'Never flag', predicate: 'stays', object: null, statement: 'The never flag stays disabled.' }) })
 assert.equal(r5.status, 200, JSON.stringify(r5.data))
@@ -91,7 +97,7 @@ for (const [label, passage, quote] of [['unpaired * typed without it', star, '2 
   ok(`Add fact: ${label} is refused`, r.status)
 }
 
-for (const [label, quote] of [['absent quote', 'Mara said the sea is hers'], ['quote across two paragraphs', 'argued with her that night. The Lantern is never lit'], ['snake_case typed without _', 'snakecase and 2*3'], ['2*3 typed without *', 'snake_case and 23 are']]) {
+for (const [label, quote] of [['absent quote', 'Mara said the sea is hers'], ['quote across two paragraphs', 'argued with her that night. The Lantern is never lit'], ['snake_case typed without _', 'snakecase and 2*3'], ['2*3 typed without *', 'snake_case and 23 are'], ['a capital inside the quote', 'nobody in Saltmere Argued']]) {
   const r = await a('/api/facts', { method: 'POST', body: fact({ quote, statement: `Refused ${label}.` }) })
   assert.equal(r.status, 422, label)
   ok(`Add fact: ${label} is refused`, r.status)
