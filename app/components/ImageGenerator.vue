@@ -105,7 +105,7 @@ function uploadInstead() {
           <h2 id="gen-title">{{ title }}</h2>
           <span v-if="data" class="small faint">
             <UiBadge v-if="live" tone="accent" dot>{{ data.model.label }}</UiBadge>
-            <UiBadge v-else tone="warn">Image model offline</UiBadge>
+            <UiBadge v-else tone="warn">Image model not connected</UiBadge>
           </span>
         </div>
         <button type="button" class="x" aria-label="Close" @click="close"><UiIcon name="close" /></button>
@@ -117,7 +117,7 @@ function uploadInstead() {
         <form class="gen-form stack" novalidate @submit.prevent="generate">
           <p v-if="!live" class="notice warn" role="status">
             <UiIcon name="lock" :size="16" />
-            <span>Image generation needs the live Meta Model API. This workspace runs on recorded demo output, which has no image model, so nothing can be generated here. You can still upload your own images.</span>
+            <span>Muse Image generates portraits from accepted canon once a Meta Model API key is connected. Demo mode has no image model, so nothing can be generated here. You can still upload your own images.</span>
           </p>
           <fieldset :disabled="!live || generating" class="stack">
             <UiField label="Prompt" hint="Drafted from accepted canon and your page’s own fields. Edit it freely; canon doesn’t change.">

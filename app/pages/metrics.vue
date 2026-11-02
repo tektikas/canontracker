@@ -74,7 +74,7 @@ const tone = (id: string) => ({ recorded: 'warn', live: 'good', mixed: 'pencil',
       <div class="score-meta small muted">
         {{ dateTime(latest!.created_at) }} · dataset <span class="mono">{{ latest!.dataset }}</span> ·
         scored data: <UiBadge :tone="tone(latest!.model_id)" dot>{{ provenance(latest!.model_id).label }}</UiBadge>
-        <span class="faint">Scores the database as it is now. Ask checks use retrieval only; no model is called.</span>
+        <span class="faint">Scores the database as it is now. Ask checks run against accepted canon, with no model call in the scoring.</span>
       </div>
     </section>
 

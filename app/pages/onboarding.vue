@@ -119,7 +119,7 @@ const tryAshbell = () => run('ashbell', async () => {
         <NuxtLink to="/" class="option" :class="{ disabled: !!busy }">
           <span class="option-icon"><UiIcon name="upload" :size="20" /></span>
           <span class="option-title">Bring your own story</span>
-          <span class="option-text">Import Markdown or plain text lore docs and scene scripts (up to 1 MB each), or write and paste scenes in the app. Saved sources are read-only and never changed.</span>
+          <span class="option-text">Import Markdown or plain text lore docs and scene scripts (up to 1 MB each), or write and paste scenes in the app. The AI proposes facts with quotes for you to review. Saved sources are read-only and never changed.</span>
           <span class="option-cta">Go to {{ me?.current?.project.name }}<UiIcon name="arrow" :size="16" /></span>
         </NuxtLink>
       </div>
@@ -127,8 +127,8 @@ const tryAshbell = () => run('ashbell', async () => {
         Want a bigger story? <button type="button" class="linkish" :disabled="!!busy" @click="tryAshbell">{{ busy === 'ashbell' ? 'Loading 28 sources…' : 'Load The Ashbell Pass' }}</button>,
         a mountain-town game with NPC schedules, quests and items, in its own project.
       </p>
-      <p v-if="me?.model.mode === 'mock'" class="notice warn">
-        <span><b>Recorded run.</b> The model is offline in this instance, so extraction replays a recorded run of the demo story. Your own files import fine but get no candidates until a live model is connected; you can add facts from their text by hand.</span>
+      <p v-if="me?.model.mode !== 'meta'" class="notice warn">
+        <span><b>Demo mode.</b> Extraction replays a recorded run for the sample stories. Connect a model key to extract from your own files.</span>
       </p>
       <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
       <p class="small muted center"><NuxtLink to="/">Skip for now</NuxtLink> · you can load the demo, import files or write a document any time from Home.</p>

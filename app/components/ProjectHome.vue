@@ -90,12 +90,12 @@ const next = computed(() => {
       ? { title: `Review ${s?.pending} ${plural(s?.pending ?? 0, 'candidate')}`, text: 'The model proposed these facts with a quote. Nothing becomes canon until you accept it.', to: '/review', action: 'Start review' }
       : { title: `${s?.pending} ${plural(s?.pending ?? 0, 'candidate')} waiting for review`, text: 'The model proposed these facts with a quote. An editor on your team decides which become canon.', to: '/review', action: 'See candidates' }
     case 'canon': return s?.rejected
-      ? { title: 'Nothing is canon yet', text: 'Every candidate was rejected. Add facts by hand from your sources, or check the rejected list.', to: '/review', action: 'Open review' }
+      ? { title: 'Nothing is canon yet', text: 'Every candidate was rejected. Check the rejected list, or add a fact from a selection in a source.', to: '/review', action: 'Open review' }
       : !editor.value
         ? { title: 'Nothing is canon yet', text: 'No facts have been added from these sources yet. An editor on your team adds them; you’ll see them here as soon as they do.', to: '/library', action: 'Open the library' }
         : recordedMode.value
-          ? { title: 'Add facts by hand', text: 'No model proposed facts from your sources: the recorded run only covers the demo stories’ files. Open a source, select the words that say something, and add them as a fact. Or use the live model to propose facts for you.', manual: true }
-          : { title: 'Add facts by hand', text: 'The model found no facts it could quote from your sources. Open a source, select the words that say something, and add them as a fact.', manual: true }
+          ? { title: 'Build your canon', text: 'Demo mode: extraction replays a recorded run for the sample stories only. Connect a model key to propose facts from your own files, or select words in a source to add a fact.', manual: true }
+          : { title: 'Build your canon', text: 'The model found no facts it could quote from your sources. Open a source and select the words that say something to add a fact, or re-extract after adding more.', manual: true }
     // only reachable with open conflicts: zero open is `done` or `skip`
     case 'conflicts': return editor.value
       ? { title: `Decide on ${s?.open_conflicts} possible ${plural(s?.open_conflicts ?? 0, 'conflict')}`, text: `${s?.open_hard} hard (breaks canon) and ${s?.open_soft} soft (worth a look). Start with the hard ones. Deciding never edits canon.`, to: '/conflicts', action: 'Resolve conflicts' }
@@ -117,7 +117,7 @@ const next = computed(() => {
       <template v-else>Canon holds only facts a person accepted, each tied to its exact passage.</template>
     </template>
     <template v-else-if="editor">
-      Import or write lore and scenes. The model proposes facts with a quote, or you add them from the text yourself; only facts a person accepts become canon.
+      Import or write lore and scenes. The AI proposes facts with a quote for you to review; only facts a person accepts become canon.
     </template>
     <template v-else>
       Your team’s lore and scenes show up here. Canon holds only facts a person accepted, each tied to its exact passage.
@@ -125,7 +125,7 @@ const next = computed(() => {
   </UiPageHeader>
 
   <p v-if="['recorded', 'mixed'].includes(provenance(stats?.data_model_id).kind)" class="notice warn home-notice">
-    <span><b>Recorded run.</b> Candidates and model checks are replayed from a recorded extraction, not a live model call.</span>
+    <span><b>Recorded run.</b> These candidates and model checks are replayed from a recorded extraction, not a live model call.</span>
   </p>
 
   <GettingStarted v-if="editor" :demo="demoLoaded" />
@@ -159,14 +159,14 @@ const next = computed(() => {
           <UiButton v-if="editor" icon="review" to="/write">Write a document</UiButton>
         </template>
         <template v-else-if="'manual' in next">
-          <UiButton v-if="firstSource" variant="primary" icon="canon" :to="`/documents/${firstSource.id}`">Add facts by hand</UiButton>
-          <UiButton v-if="recordedMode" :aria-expanded="liveHelp" @click="liveHelp = !liveHelp">Use the live model</UiButton>
+          <UiButton v-if="firstSource" variant="primary" icon="canon" :to="`/documents/${firstSource.id}`">Add a fact from a selection</UiButton>
+          <UiButton v-if="recordedMode" :aria-expanded="liveHelp" @click="liveHelp = !liveHelp">Connect a model</UiButton>
         </template>
         <UiButton v-else variant="primary" :to="next.to">{{ next.action }}<UiIcon name="arrow" :size="16" /></UiButton>
       </div>
       <p v-if="liveHelp && 'manual' in next" class="live-help small">
-        The live model (Muse Spark via the Meta Model API) reads your own files and proposes facts, each with a quote, for you to review.
-        It is turned on where Story Bible is hosted, with the studio’s Meta Model API key. Once it’s on, import a file or save a document again and its candidates show up in Review.
+        Muse Spark (Meta Model API) reads your own files and proposes facts, each with a quote, for you to review.
+        It is turned on where Story Bible is hosted, with a Meta Model API key. Once it’s on, import a file or save a document again and its candidates show up in Review.
       </p>
     </div>
   </section>
@@ -191,9 +191,9 @@ const next = computed(() => {
                   <UiBadge v-else tone="bad">{{ r.error }}</UiBadge>
                   <div v-if="r.extraction_error" class="field-error">Extraction failed: {{ r.extraction_error }}</div>
                   <div v-else-if="r.status === 'imported' && r.candidates === 0" class="small muted">{{ stats?.model.mode === 'mock'
-                    ? 'No candidates: the recorded run only covers the demo stories’ files. Open the file to add facts by hand, or use the live model.'
-                    : stats?.model.mode === 'meta' ? 'No candidates: the model found no facts it could quote from this file. Open it to add facts by hand.'
-                      : 'No candidates were proposed from this file. Open it to add facts by hand.' }}</div>
+                    ? 'No candidates: demo mode only replays a recorded run for the sample stories. Open the file and select words to add a fact, or connect a model key.'
+                    : stats?.model.mode === 'meta' ? 'No candidates: the model found no facts it could quote from this file. Open it and select words to add a fact.'
+                      : 'No candidates were proposed from this file. Open it and select words to add a fact.' }}</div>
                 </td>
                 <td class="num">{{ r.passages ?? '—' }}</td>
                 <td class="num">
