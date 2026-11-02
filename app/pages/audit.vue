@@ -54,7 +54,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'project.reset': return [`${who} cleared this project to load ${SAMPLE_NAME[d.set] ?? d.set}`, 'Sources, facts, conflicts and changes were removed; earlier events stay in the trail']
     case 'sample.loaded': return [`${who} loaded ${d.name ?? SAMPLE_NAME[d.set] ?? d.set}: ${counted(d.documents ?? 0, 'document')}, ${d.facts?.length ? counted(d.facts.length, 'preloaded fact') : counted(d.candidates ?? 0, 'candidate')}`,
       d.facts?.length ? 'Sample canon, preloaded with verified quotes; no person decided it' : d.candidates ? 'Candidates wait for a human decision' : '']
-    case 'research.created': return [`${who} researched ${q(d.question)}`, `Verdict: ${d.verdict}${d.sources ? ` · ${d.sources.verified} of ${d.sources.total} sources verified` : ''}${d.recorded ? ' · recorded run' : ''} · outside research, not canon`]
+    case 'research.created': return [`${who} researched ${q(d.question)}`, `Verdict: ${d.verdict}${d.sources ? ` · ${d.sources.verified} of ${d.sources.total} sources verified` : ''} · outside research, not canon`]
     case 'research.promoted': return [`${who} promoted a research note to a ${d.as === 'rule' ? 'world rule' : 'fact'} candidate`, q(d.statement)]
     case 'research.pinned': return [`${who} pinned a research note to a passage`, d.quote ? `On ${q(d.quote)}` : 'Editorial, not canon']
     case 'research.unpinned': return [`${who} unpinned a research note`, 'Editorial, not canon']
