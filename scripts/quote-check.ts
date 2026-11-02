@@ -107,4 +107,18 @@ assert.equal(quoteMatches('the tide—the tide', 'the tide').length, 2)
 assert.deepEqual(quoteMatches('Mara said “the tide is ours”.', 'the tide is mine'), [])
 assert.deepEqual(quoteMatches('Arin waits.', 'arin waits'), [], 'case still matters')
 assert.deepEqual(quoteMatches('Arin waits.', '** __'), [])
+// A retried quote (first letter lowered, added full stop dropped) must start / end on a word boundary in the source.
+assert.deepEqual(quoteMatches('the compass near the edge', 'pass near the edge', undefined, { start: true }), [])
+assert.deepEqual(quoteMatches('let goats roam', 'let go', undefined, { end: true }), [])
+assert.deepEqual(quoteMatches('😀pass near 𝔸', 'pass near', undefined, { start: true, end: true }), ['pass near'])
+assert.deepEqual(quoteMatches('𝔸pass near', 'pass near', undefined, { start: true }), [], 'a letter outside the BMP is a word char')
+Object.assign(globalThis, { foldQuoteText, quoteMatches }) // db.ts reaches them as Nitro auto-imports
+const { findQuotePassage } = await import('../server/utils/db.ts')
+const harbor = [{ text: 'They dropped the compass near the edge of the harbor and let goats roam.' }]
+assert.equal(findQuotePassage(harbor, 'Pass near the edge.'), undefined, 'a lowered first letter must not land inside "compass"')
+assert.equal(findQuotePassage(harbor, 'Pass near the edge'), undefined)
+assert.equal(findQuotePassage(harbor, 'The harbor and let go.'), undefined, 'a dropped full stop must not end inside "goats"')
+assert.equal(findQuotePassage(harbor, 'Compass near the edge.')?.quote, 'compass near the edge')
+assert.equal(findQuotePassage([{ text: 'He said nobody would let go, and left.' }], 'Nobody would let go.')?.quote, 'nobody would let go')
+assert.equal(findQuotePassage([{ text: 'He said *nobody* would let go.' }], 'Nobody would let go.')?.quote, '*nobody* would let go.')
 console.log('ok  quote folding: quotes, dashes, ellipsis, Markdown (emphasis only; code spans and escapes literal), line breaks, NFD, Hangul, emoji offsets, absent')

@@ -44,6 +44,8 @@ const scene = [
   '2 - -3 equals five today.',
   '',
   'The `*never*` flag stays disabled all night.',
+  '',
+  'They dropped the compass near the edge of the harbor and let goats roam.',
 ].join('\n')
 const draft = (await a('/api/drafts', { method: 'POST', body: { title: 'The Keeper’s Oath', kind: 'lore', content: scene } })).data
 const saved = (await a(`/api/drafts/${draft.id}/save`, { method: 'POST' })).data
@@ -97,7 +99,7 @@ for (const [label, passage, quote] of [['unpaired * typed without it', star, '2 
   ok(`Add fact: ${label} is refused`, r.status)
 }
 
-for (const [label, quote] of [['absent quote', 'Mara said the sea is hers'], ['quote across two paragraphs', 'argued with her that night. The Lantern is never lit'], ['snake_case typed without _', 'snakecase and 2*3'], ['2*3 typed without *', 'snake_case and 23 are'], ['a capital inside the quote', 'nobody in Saltmere Argued']]) {
+for (const [label, quote] of [['absent quote', 'Mara said the sea is hers'], ['quote across two paragraphs', 'argued with her that night. The Lantern is never lit'], ['snake_case typed without _', 'snakecase and 2*3'], ['2*3 typed without *', 'snake_case and 23 are'], ['a capital inside the quote', 'nobody in Saltmere Argued'], ['a lowered first letter inside a word (compass)', 'Pass near the edge.'], ['a dropped full stop inside a word (goats)', 'The harbor and let go.']]) {
   const r = await a('/api/facts', { method: 'POST', body: fact({ quote, statement: `Refused ${label}.` }) })
   assert.equal(r.status, 422, label)
   ok(`Add fact: ${label} is refused`, r.status)

@@ -414,12 +414,13 @@ export function findQuotePassage<T extends { text: string, id?: string }>(passag
   if (!q || foldQuoteText(q).str.normalize('NFC').replace(/\s/g, '').length < MIN_QUOTE_CHARS) return undefined
   // A model quoting part of a sentence tends to capitalise its first letter ("His judgement…" for "…his judgement…") and end it
   // with a full stop ("…does not let go." for "…does not let go, and…"). Only those two may differ, and only when the quote as
-  // given is nowhere; the hit is still the source's own characters.
-  const starts = /^\p{Lu}/u.test(q) ? [q, q.charAt(0).toLowerCase() + q.slice(1)] : [q]
-  const tries = [...starts, ...starts.filter(s => s.endsWith('.') && !s.endsWith('..')).map(s => s.slice(0, -1))]
+  // given is nowhere; the hit is still the source's own characters. A changed edge must sit on a word boundary in the source,
+  // so "Pass near the edge." never cites "pass near the edge" inside "compass near the edge".
+  const starts = [{ q, start: false }, ...(/^\p{Lu}/u.test(q) ? [{ q: q.charAt(0).toLowerCase() + q.slice(1), start: true }] : [])]
+  const tries = [...starts.map(s => ({ ...s, end: false })), ...starts.filter(s => s.q.endsWith('.') && !s.q.endsWith('..')).map(s => ({ q: s.q.slice(0, -1), start: s.start, end: true }))]
   for (const attempt of tries) {
     for (const passage of [...passages.filter(p => prefer && p.id === prefer), ...passages]) {
-      const hit = quoteMatches(passage.text, attempt).find(raw => isVerbatimQuote(passage.text, raw))
+      const hit = quoteMatches(passage.text, attempt.q, undefined, attempt).find(raw => isVerbatimQuote(passage.text, raw))
       if (hit) return { passage, quote: hit }
     }
   }

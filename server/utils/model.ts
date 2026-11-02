@@ -136,28 +136,39 @@ export async function hasRecordedExtraction(text: string) {
 }
 
 // Live output is checked before it reaches the review queue: an item without the text fields a fact needs is dropped (and
-// counted in model_calls), a kind outside the six becomes "event" (located_at) or "claim", and a story time that isn't
-// "D<day>" / "D<day> HH:MM" is removed rather than stored half-parsed. The quote itself is judged later, verbatim, by extractInto.
+// counted in model_calls), a kind outside the six becomes "event" (located_at) or "claim". A story time that isn't
+// "D<day>" / "D<day> HH:MM" drops the whole item, with the raw time in model_calls: the time is part of what the fact claims
+// (where someone is *when*), so keeping it timeless would change its meaning, and a half-read fact never reaches review.
+// The quote itself is judged later, verbatim, by extractInto.
 const KINDS = ['character', 'location', 'relationship', 'event', 'rule', 'claim']
 const field = (v: unknown) => (typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '')
-function cleanCandidates(raw: unknown) {
+export function cleanCandidates(raw: unknown) {
   const list = Array.isArray(raw) ? raw : []
+  const badTimes: string[] = []
   const kept = list.flatMap((c): CandidateDraft[] => {
     const subject = field(c?.subject), predicate = field(c?.predicate), statement = field(c?.statement), quote = typeof c?.quote === 'string' ? c.quote : ''
     if (!subject || !predicate || !statement || !quote.trim()) return []
     const kind = KINDS.includes(c.kind) ? c.kind : predicate === 'located_at' ? 'event' : 'claim'
     const t = c.time && typeof c.time === 'object' ? { from: field(c.time.from) || undefined, to: field(c.time.to) || undefined } : null
+    // null / "" / {} (or only a precision) mean no time; anything else must parse.
+    if ((c.time != null && c.time !== '' && !t) || ((t?.from || t?.to) && parseStoryRange(t.from, t.to).bad)) {
+      badTimes.push(JSON.stringify(t ? [t.from, t.to].filter(Boolean).join(' – ') : c.time))
+      return []
+    }
     if (t?.to && t.to === t.from) delete t.to // a point in time, not a range
-    const timeOk = t && (t.from || t.to) && !parseStoryRange(t.from, t.to).bad
     const confidence = typeof c.confidence === 'number' && c.confidence >= 0 && c.confidence <= 1 ? c.confidence : undefined
     return [{ kind, subject, predicate, object: field(c.object) || null, value: field(c.value) || null, statement, quote, confidence,
-      ...(timeOk && { time: { ...t, precision: c.time.precision === 'approximate' ? 'approximate' : 'exact' } }) }]
+      ...(t && (t.from || t.to) && { time: { ...t, precision: c.time.precision === 'approximate' ? 'approximate' : 'exact' } }) }]
   })
-  return { kept, dropped: list.length - kept.length }
+  return { kept, malformed: list.length - kept.length - badTimes.length, badTimes }
 }
+const dropNote = (d: { malformed: number, badTimes: string[] }) => [
+  d.malformed && `${d.malformed} malformed`,
+  d.badTimes.length && `${d.badTimes.length} with unreadable time ${d.badTimes.slice(0, 3).join(', ')}${d.badTimes.length > 3 ? ', …' : ''}`,
+].filter(Boolean).join('; ')
 
 export function extractCandidates(doc: { id: string, filename: string, title: string, text: string }) {
-  let dropped = 0
+  let dropped = ''
   return traced('extract', { type: 'document', id: doc.id }, [doc.id], null, async (): Promise<CandidateDraft[]> => {
     if (modelInfo().mode === 'mock') return (await recordedCandidates(doc.text)) ?? []
     const out = await chatJson(
@@ -177,10 +188,10 @@ Time: only for facts that happen on a stated story day ("on Day 3", "D-3650"). I
 Do not invent facts. Figurative language ("my sister in all but blood") is NOT a literal relationship; skip it or give it low confidence.`,
       `Document: ${doc.title}\n\n${doc.text}`,
     )
-    const { kept, dropped: bad } = cleanCandidates(out.candidates)
-    dropped = bad
+    const { kept, ...bad } = cleanCandidates(out.candidates)
+    dropped = dropNote(bad)
     return kept
-  }, r => `${plural(r.length, 'candidate')}${dropped ? ` (${dropped} malformed, dropped)` : ''}`)
+  }, r => `${plural(r.length, 'candidate')}${dropped ? ` (dropped: ${dropped})` : ''}`)
 }
 
 // Returns a null answer when the model is offline; the caller then shows related sources only.
