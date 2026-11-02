@@ -15,10 +15,11 @@ export default defineEventHandler(async (event) => {
   if (body.length > 4000) throw createError({ statusCode: 400, statusMessage: 'TOO_LONG', message: 'Keep a note under 4,000 characters.' })
   const id = newId('note')
   const user = access().user.id
+  const stored = match?.quote ?? (passage.text.includes(quote) ? quote : '')
   tx(() => {
     db.prepare(`insert into notes (id, document_id, passage_id, quote, body, status, created_by, created_at, updated_at, project_id)
-      values (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`).run(id, doc.id, passage.id, match?.quote ?? (passage.text.includes(quote) ? quote : ''), body, user, now(), now(), pid())
-    audit('note.created', 'note', id, { document_id: doc.id, passage_id: passage.id, quote, body })
+      values (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`).run(id, doc.id, passage.id, stored, body, user, now(), now(), pid())
+    audit('note.created', 'note', id, { document_id: doc.id, passage_id: passage.id, quote: stored, body })
   })
   return getNote(id)
 })

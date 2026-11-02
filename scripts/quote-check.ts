@@ -7,7 +7,9 @@ const one = (text: string, quote: string, want: string) => {
   const hits = quoteMatches(text, quote)
   assert.deepEqual(hits, [want], `${JSON.stringify(quote)} in ${JSON.stringify(text)}`)
   assert.ok(text.includes(hits[0]!), 'hit is a raw substring')
+  assert.equal(foldQuoteText(hits[0]!).str, foldQuoteText(quote).str, 'hit re-folds to the submitted quote')
 }
+const none = (text: string, quote: string) => assert.deepEqual(quoteMatches(text, quote), [], `${JSON.stringify(quote)} must not match ${JSON.stringify(text)}`)
 
 // Curly quotes, both directions.
 one('Mara said “the tide is ours” and left.', 'said "the tide is ours"', 'said “the tide is ours”')
@@ -28,6 +30,23 @@ one('The *Lantern* is **never** lit.', 'Lantern is never', '*Lantern* is **never
 one('The *Lantern* is lit *at dusk*; then dark.', 'lit at dusk', 'lit *at dusk*')
 one('Set keeper_mode on the lamp now.', 'keeper_mode on the lamp', 'keeper_mode on the lamp')
 one('Run foo_bar before the lamp.', 'Run foo', 'Run foo')
+// Not emphasis: intra-word _, * between digits/letters, free-standing * stay as text and must be typed.
+none('snake_case is forbidden.', 'snakecase is forbidden')
+none('2*3 equals six today.', '23 equals six today')
+none('Use foo*bar here.', 'foobar here')
+none('Rate 5 * 3 now.', 'Rate 5 3 now')
+one('snake_case is forbidden.', 'snake_case is forbidden', 'snake_case is forbidden')
+one('2*3 equals six today.', '2*3 equals six', '2*3 equals six')
+one('Rate 5 * 3 now.', 'Rate 5 * 3', 'Rate 5 * 3')
+// Emphasis next to punctuation still folds: (*x*), *"y"*, **bold**,
+one('A (*small*) boat, **never**, sails.', 'A (small) boat, never, sails', 'A (*small*) boat, **never**, sails')
+one('She said *“go”* twice.', 'said "go" twice', 'said *“go”* twice')
+// Astral chars (emoji, 2 UTF-16 units) before, inside and after the hit keep the offsets right.
+one('😀 Arin waits by the harbour.', 'Arin waits by the harbour', 'Arin waits by the harbour')
+one('😀😀 Arin waits by the harbour.', 'Arin waits by the harbour', 'Arin waits by the harbour')
+one('😀 “Arin” 🌊 waits — 𝔸 by the harbour 😀.', '"Arin" 🌊 waits - 𝔸 by', '“Arin” 🌊 waits — 𝔸 by')
+one('Arin waits 😀\nby the harbour 🌊', 'waits 😀 by the harbour 🌊', 'waits 😀\nby the harbour 🌊')
+none('😀 Arin waits.', '😁 Arin waits')
 // Line breaks and whitespace runs, NBSP.
 one('Arin waits on the\nharbour wall  until\r\ndawn.', 'waits on the harbour wall until dawn', 'waits on the\nharbour wall  until\r\ndawn')
 one('Arin waits by the wall.', 'Arin waits by', 'Arin waits by')
@@ -46,4 +65,4 @@ assert.equal(quoteMatches('the tide—the tide', 'the tide').length, 2)
 assert.deepEqual(quoteMatches('Mara said “the tide is ours”.', 'the tide is mine'), [])
 assert.deepEqual(quoteMatches('Arin waits.', 'arin waits'), [], 'case still matters')
 assert.deepEqual(quoteMatches('Arin waits.', '** __'), [])
-console.log('ok  quote folding: quotes, dashes, ellipsis, Markdown, line breaks, NFC, offsets, absent')
+console.log('ok  quote folding: quotes, dashes, ellipsis, Markdown (emphasis only), line breaks, NFC, emoji offsets, absent')

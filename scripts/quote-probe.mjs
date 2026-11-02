@@ -32,12 +32,14 @@ const scene = [
   'The *Lantern* is **never** lit at dusk; the keeper’s rule… holds.',
   '',
   'Days 3–5 pass at sea.',
+  '',
+  '😀 Arin waits by the harbour; snake_case and 2*3 are written as is.',
 ].join('\n')
 const draft = (await a('/api/drafts', { method: 'POST', body: { title: 'The Keeper’s Oath', kind: 'lore', content: scene } })).data
 const saved = (await a(`/api/drafts/${draft.id}/save`, { method: 'POST' })).data
 assert.equal(saved.status, 'imported')
 const doc = (await a(`/api/documents/${saved.document_id}`)).data
-const [, oath, lantern] = doc.passages
+const [, oath, lantern, , emoji] = doc.passages
 const fact = over => ({ to: 'canon', document_id: doc.id, kind: 'claim', subject: 'Mara', predicate: 'claims', object: 'Tide', ...over })
 const evidenceOf = async id => (await a('/api/facts?status=canon')).data.concat((await a('/api/facts?status=pending')).data).find(f => f.id === id).evidence[0]
 
@@ -56,7 +58,12 @@ assert.equal(r2.status, 200, JSON.stringify(r2.data))
 assert.equal((await evidenceOf(r2.data.id)).quote, 'The *Lantern* is **never** lit at dusk; the keeper’s rule…')
 ok('Add fact: Markdown emphasis, apostrophe and ellipsis', 'The *Lantern* is **never** lit at dusk; the keeper’s rule…')
 
-for (const [label, quote] of [['absent quote', 'Mara said the sea is hers'], ['quote across two paragraphs', 'argued with her that night. The Lantern is never lit']]) {
+const r3 = await a('/api/facts', { method: 'POST', body: fact({ passage_id: emoji.id, quote: 'Arin waits by the harbour', subject: 'Arin', predicate: 'waits_at', object: 'Harbour', statement: 'Arin waits by the harbour.' }) })
+assert.equal(r3.status, 200, JSON.stringify(r3.data))
+assert.equal((await evidenceOf(r3.data.id)).quote, 'Arin waits by the harbour')
+ok('Add fact: an emoji before the quote does not shift it', 'Arin waits by the harbour')
+
+for (const [label, quote] of [['absent quote', 'Mara said the sea is hers'], ['quote across two paragraphs', 'argued with her that night. The Lantern is never lit'], ['snake_case typed without _', 'snakecase and 2*3'], ['2*3 typed without *', 'snake_case and 23 are']]) {
   const r = await a('/api/facts', { method: 'POST', body: fact({ quote, statement: `Refused ${label}.` }) })
   assert.equal(r.status, 422, label)
   ok(`Add fact: ${label} is refused`, r.status)
@@ -66,6 +73,8 @@ for (const [label, quote] of [['absent quote', 'Mara said the sea is hers'], ['q
 const note = (await a('/api/notes', { method: 'POST', body: { document_id: doc.id, passage_id: lantern.id, quote: 'Lantern is never lit', body: 'Check with design.' } })).data
 assert.equal(note.quote, '*Lantern* is **never** lit')
 ok('note quote keeps the source characters', note.quote)
+assert.equal((await a('/api/audit')).data.find(x => x.event_type === 'note.created' && x.target_id === note.id)?.detail.quote, '*Lantern* is **never** lit')
+ok('note.created audit stores the source characters too')
 
 // MCP proposal with an ASCII quote.
 const tok = (await a('/api/agent-tokens', { method: 'POST', body: { name: 'Quote probe' } })).data
