@@ -175,6 +175,16 @@ create table if not exists model_calls (
   target_type text not null, target_id text not null, input_refs text not null, input text, status text not null,
   latency_ms integer not null, output_summary text, error text, created_at text not null, project_id text not null
 );
+-- The AI critic's opinions on pending candidates (server/utils/critic.ts): advice a person reads, never a decision; nothing
+-- here changes a fact. One row per opinion, the newest per fact counts. verdict: keep | reject | needs_edit; reason: see
+-- shared/utils/review.ts; duplicate_of: a canon fact the Critic was shown; suggestion: JSON {statement, subject, predicate, object,
+-- time} for needs_edit (no quote: the quote stays the verified one). seen: the candidate's fingerprint when the Critic read it, so
+-- an opinion on an older form of the candidate shows as such; canon_seen: a hash of the canon that could repeat it then, same subject and object (a keep stops
+-- counting once that canon changes). A new table only, so an existing database gains it in place.
+create table if not exists critic_opinions (
+  id text primary key, fact_id text not null, verdict text not null, reason text not null, duplicate_of text, explanation text not null,
+  suggestion text, seen text not null, canon_seen text not null default '', model_id text not null, prompt_version text not null, created_at text not null, project_id text not null
+);
 -- Research notes: a real-world question answered from outside sources and deterministic calculators (server/utils/research.ts).
 -- Never canon. verdict: established | speculative | contradicts | unknown. claims, sources, calculations, searches: JSON (see
 -- ResearchNote). recorded = 1: replayed from the probe fixture, not a live run. conversation_id: the conversation it was asked
@@ -218,6 +228,7 @@ create index if not exists memberships_user on memberships(user_id);
 create index if not exists notes_project on notes(project_id, status);
 create index if not exists tasks_project on tasks(project_id, status);
 create index if not exists tasks_change on tasks(change_id);
+create index if not exists critic_fact on critic_opinions(project_id, fact_id);
 `
 
 let db: DatabaseSync | undefined
@@ -242,11 +253,11 @@ export function useDb() {
     conn.exec(SCHEMA)
     // Columns added in place, no version bump: drafts.base_document_id (the version an edit draft started from; null on older
     // drafts = unknown); model_calls.step/tool/tokens (an agent run's step index, the tool a row ran, tokens the model used);
-    // projects.research_profile (JSON, see shared/utils/research.ts).
+    // projects.research_profile (JSON, see shared/utils/research.ts); critic_opinions.canon_seen (for a table from before it).
     // passages.start_ms/end_ms/speaker (recording transcripts); null on every text document.
     for (const [table, column, type] of [['drafts', 'base_document_id', 'text'], ['model_calls', 'step', 'integer'], ['model_calls', 'tool', 'text'],
       ['model_calls', 'tokens', 'integer'], ['projects', 'research_profile', `text not null default '{}'`],
-      ['passages', 'start_ms', 'integer'], ['passages', 'end_ms', 'integer'], ['passages', 'speaker', 'text']] as const) {
+      ['critic_opinions', 'canon_seen', `text not null default ''`], ['passages', 'start_ms', 'integer'], ['passages', 'end_ms', 'integer'], ['passages', 'speaker', 'text']] as const) {
       if (!(conn.prepare(`pragma table_info(${table})`).all() as { name: string }[]).some(r => r.name === column))
         conn.exec(`alter table ${table} add column ${column} ${type}`)
     }
@@ -379,7 +390,7 @@ export function audit(eventType: string, targetType: string, targetId: string, d
 // the caller appends a project.reset event, and events before it whose target was cleared read as removed (listAudit).
 export function resetData() {
   tx(() => {
-    for (const t of ['research_notes', 'messages', 'conversations', 'document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'recordings', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['critic_opinions', 'research_notes', 'messages', 'conversations', 'document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'recordings', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })
