@@ -1,6 +1,7 @@
 // A person adds a fact from text they selected in a source. The quote must appear in that passage (findQuotePassage folds
 // typography and returns the passage's own characters, which are stored; the same check extraction, MCP proposals and accept use). to = canon: the person creating and confirming it is the human decision (audited as fact.authored);
-// to = review: it waits in the review queue like any candidate.
+// to = review: it waits in the review queue like any candidate. continuity_id (to = review only): a finding of that continuity
+// check sent to review; the candidate's origin is continuity:<id> (the check must be one this person can read).
 const KINDS = ['character', 'location', 'relationship', 'event', 'rule', 'claim']
 const fail = (statusCode: number, statusMessage: string, message: string) => createError({ statusCode, statusMessage, message })
 
@@ -10,6 +11,8 @@ export default defineEventHandler(async (event) => {
   const to = b.to === 'review' ? 'review' : b.to === 'canon' ? 'canon' : null
   if (!to) throw fail(400, 'BAD_TARGET', 'to must be canon or review.')
   const db = useDb()
+  const continuity = b.continuity_id == null ? null : getContinuityRun(idOf(b.continuity_id)).id
+  if (continuity && to !== 'review') throw fail(400, 'BAD_TARGET', 'A continuity finding goes to review, not straight to canon.')
 
   const doc = db.prepare('select * from documents where id = ? and project_id = ?').get(String(b.document_id ?? ''), pid()) as unknown as DocumentRow | undefined
   if (!doc) throw fail(404, 'NOT_FOUND', 'Document not found.')
@@ -61,14 +64,14 @@ export default defineEventHandler(async (event) => {
   const id = newId('fact')
   tx(() => {
     db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision, status, confidence,
-      origin, model_id, created_at, decided_at, decided_by, created_by, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, 'human', null, ?, ?, ?, ?, ?)`)
+      origin, model_id, created_at, decided_at, decided_by, created_by, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?, null, ?, ?, ?, ?, ?)`)
       .run(id, kind, names.subject, predicate, names.object, value, statement, tFrom, tTo, timeLabel(tFrom, tTo, precision, day), precision,
-        to === 'canon' ? 'canon' : 'pending', now(), to === 'canon' ? now() : null, to === 'canon' ? user : null, user, pid())
+        to === 'canon' ? 'canon' : 'pending', continuity ? `continuity:${continuity}` : 'human', now(), to === 'canon' ? now() : null, to === 'canon' ? user : null, user, pid())
     db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, 1, ?)')
       .run(newId('ev'), id, doc.id, passage.id, match.quote, pid())
     audit('fact.authored', 'fact', id, {
       to, statement, subject: names.subject, predicate, object: names.object, document_id: doc.id, passage_id: passage.id, quote: match.quote,
-      ...(linked.length && { linked }),
+      ...(linked.length && { linked }), ...(continuity && { continuity_id: continuity }),
       ...(identity.length && { identity: identity.map(i => ({ role: i.role, from: i.from, to: i.to, merge_audit_id: i.audit_id })) }),
     })
   })

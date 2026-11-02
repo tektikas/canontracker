@@ -216,6 +216,15 @@ create table if not exists messages (
   id text primary key, conversation_id text not null, role text not null, author_id text not null, mode text not null,
   text text not null, parts text not null, context text not null default '[]', reply_to text, created_at text not null, project_id text not null
 );
+-- Continuity checks (server/utils/continuity.ts): a text checked against accepted canon by the agent, and its grounded report.
+-- source: draft (the writer's private draft: only its author reads the run) | passage (a selection in an imported document;
+-- document_id/passage_id) | text (typed or pasted in Ask). report: JSON {summary, findings, checks, dropped}; every finding's
+-- facts and every check were re-read from canon here, never taken from the model. Nothing else is stored: candidates exist
+-- only if a person sends a finding to review (facts.origin = continuity:<id>). A new table only (no version bump).
+create table if not exists continuity_runs (
+  id text primary key, source text not null, document_id text, passage_id text, text text not null, report text not null,
+  model_id text not null, prompt_version text not null, created_by text not null, created_at text not null, project_id text not null
+);
 create index if not exists conversations_project on conversations(project_id, updated_at);
 create index if not exists messages_conversation on messages(conversation_id);
 create index if not exists facts_project on facts(project_id, status);
@@ -252,11 +261,11 @@ export function useDb() {
     }
     conn.exec(SCHEMA)
     // Columns added in place, no version bump: drafts.base_document_id (the version an edit draft started from; null on older
-    // drafts = unknown); model_calls.step/tool/tokens (an agent run's step index, the tool a row ran, tokens the model used);
+    // drafts = unknown); model_calls.step/tool/tokens/effort (an agent run's step index, the tool a row ran, tokens the model used, its effort level);
     // projects.research_profile (JSON, see shared/utils/research.ts); critic_opinions.canon_seen (for a table from before it).
     // passages.start_ms/end_ms/speaker (recording transcripts); null on every text document.
     for (const [table, column, type] of [['drafts', 'base_document_id', 'text'], ['model_calls', 'step', 'integer'], ['model_calls', 'tool', 'text'],
-      ['model_calls', 'tokens', 'integer'], ['projects', 'research_profile', `text not null default '{}'`],
+      ['model_calls', 'tokens', 'integer'], ['model_calls', 'effort', 'text'], ['projects', 'research_profile', `text not null default '{}'`],
       ['critic_opinions', 'canon_seen', `text not null default ''`], ['passages', 'start_ms', 'integer'], ['passages', 'end_ms', 'integer'], ['passages', 'speaker', 'text']] as const) {
       if (!(conn.prepare(`pragma table_info(${table})`).all() as { name: string }[]).some(r => r.name === column))
         conn.exec(`alter table ${table} add column ${column} ${type}`)
@@ -390,7 +399,7 @@ export function audit(eventType: string, targetType: string, targetId: string, d
 // the caller appends a project.reset event, and events before it whose target was cleared read as removed (listAudit).
 export function resetData() {
   tx(() => {
-    for (const t of ['critic_opinions', 'research_notes', 'messages', 'conversations', 'document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'recordings', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['continuity_runs', 'critic_opinions', 'research_notes', 'messages', 'conversations', 'document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'recordings', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })
@@ -448,7 +457,7 @@ export interface AuditRow { id: string, event_type: string, target_type: string,
 export interface ModelCallRow {
   id: string, purpose: string, model_id: string, prompt_version: string, target_type: string, target_id: string, input_refs: string, input: string | null
   status: string, latency_ms: number, output_summary: string | null, error: string | null, created_at: string
-  step: number | null, tool: string | null, tokens: number | null
+  step: number | null, tool: string | null, tokens: number | null, effort: string | null
 }
 
 export function getFact(id: string) {

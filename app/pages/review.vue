@@ -343,6 +343,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
       </header>
       <p v-if="current.origin === 'human'" class="small faint model">Added by {{ current.created_by_name ?? 'a teammate' }} from the source, not proposed by a model</p>
       <p v-else-if="current.origin.startsWith('research:')" class="small faint model">Promoted by {{ current.created_by_name ?? 'a teammate' }} from a <NuxtLink :to="`/research/${current.origin.slice(9)}`">research note</NuxtLink> (outside sources, not canon until you accept it)</p>
+      <p v-else-if="current.origin.startsWith('continuity:')" class="small faint model">Sent by {{ current.created_by_name ?? 'a teammate' }} from a <NuxtLink :to="`/agents/runs?run=${current.origin.slice(11)}`">continuity check</NuxtLink> (the AI’s reading of the source; not canon until you accept it)</p>
       <p v-else-if="current.agent_name" class="small faint model">Proposed by agent <strong>{{ current.agent_name }}</strong> for {{ current.proposed_by_name }}</p>
       <p v-else class="small faint model">Proposed by AI</p>
 

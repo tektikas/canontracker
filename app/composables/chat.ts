@@ -11,15 +11,17 @@ interface ChatState {
   quote: ChatChip | null // a selection to ask about (Research this)
   prefill: string // text to put in the composer (the writer's selection)
   tick: number // bumped on every open request: the visible chat focuses its composer
+  check: boolean // run a continuity check of the quote as soon as the chat shows it (the reader's "Check continuity")
   dock: string | null // a page showing its own chat panel (reader, writer): requests go there instead of the drawer
 }
-export const useChat = () => useState<ChatState>('chat', () => ({ open: false, conv: null, picked: false, mode: 'canon', quote: null, prefill: '', tick: 0, dock: null }))
+export const useChat = () => useState<ChatState>('chat', () => ({ open: false, conv: null, picked: false, mode: 'canon', quote: null, prefill: '', tick: 0, check: false, dock: null }))
 // What the current page is about (document, passage, entity): offered as removable chips on the next message.
 export const useChatPage = () => useState<ChatChip[]>('chat-page', () => [])
 
-export function openChat(o: { fresh?: boolean, mode?: ChatMode, quote?: ChatChip, prefill?: string } = {}) {
+export function openChat(o: { fresh?: boolean, mode?: ChatMode, quote?: ChatChip, prefill?: string, check?: boolean } = {}) {
   const s = useChat().value
   if (o.fresh) Object.assign(s, { conv: null, picked: true })
+  if (o.check) s.check = true
   if (o.mode) s.mode = o.mode
   if (o.quote) s.quote = o.quote
   if (o.prefill) s.prefill = o.prefill

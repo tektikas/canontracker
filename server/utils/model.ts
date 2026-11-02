@@ -13,7 +13,7 @@ export interface CandidateDraft {
 
 export interface RuleViolation { fact_id: string, rationale: string, confidence: number }
 
-export const PROMPT_VERSIONS = { extract: 'extract-v2', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', research: 'research-v1', critic: 'critic-v2', transcribe: 'transcribe-v1' } as const
+export const PROMPT_VERSIONS = { extract: 'extract-v2', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', research: 'research-v1', continuity: 'continuity-v1', critic: 'critic-v2', transcribe: 'transcribe-v1' } as const
 
 export function modelInfo() {
   const { modelMode, modelId } = useRuntimeConfig()
@@ -30,14 +30,14 @@ export function imageModelInfo() {
 
 async function traced<T>(
   purpose: keyof typeof PROMPT_VERSIONS, target: { type: string, id: string }, inputRefs: string[], input: string | null,
-  fn: () => Promise<T>, summarize: (r: T) => string, modelId = modelInfo().id,
+  fn: () => Promise<T>, summarize: (r: T) => string, modelId = modelInfo().id, effort: string | null = null,
 ): Promise<T> {
   const started = Date.now()
   const record = (status: string, summary: string | null, error: string | null) =>
     useDb().prepare(`insert into model_calls (id, purpose, model_id, prompt_version, target_type, target_id, input_refs, input, status,
-      latency_ms, output_summary, error, created_at, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+      latency_ms, output_summary, error, created_at, project_id, effort) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(newId('mc'), purpose, modelId, PROMPT_VERSIONS[purpose], target.type, target.id, JSON.stringify(inputRefs), input,
-        status, Date.now() - started, summary, error, now(), pid())
+        status, Date.now() - started, summary, error, now(), pid(), effort)
   try {
     const result = await fn()
     record('ok', summarize(result), null)
@@ -337,7 +337,7 @@ export function critiqueCandidates(items: CriticItem[], reasoning: string) {
     dropped = out.why
     softened = out.softened
     return out.kept
-  }, r => `${plural(r.length, 'opinion')} on ${plural(items.length, 'candidate')}${dropped.length ? ` (dropped ${dropped.length}: ${dropped.join(', ')})` : ''}${softened ? ` (${softened} wording-only edits read as keep)` : ''}${modelInfo().mode === 'mock' ? '' : ` · reasoning effort ${reasoning}${usage?.completion_tokens != null ? `, ${usage.completion_tokens} output tokens (${usage.completion_tokens_details?.reasoning_tokens ?? '?'} reasoning)` : ''}`}`, criticModelId())
+  }, r => `${plural(r.length, 'opinion')} on ${plural(items.length, 'candidate')}${dropped.length ? ` (dropped ${dropped.length}: ${dropped.join(', ')})` : ''}${softened ? ` (${softened} wording-only edits read as keep)` : ''}${modelInfo().mode === 'mock' ? '' : ` · reasoning effort ${reasoning}${usage?.completion_tokens != null ? `, ${usage.completion_tokens} output tokens (${usage.completion_tokens_details?.reasoning_tokens ?? '?'} reasoning)` : ''}`}`, criticModelId(), modelInfo().mode === 'mock' ? null : reasoning)
 }
 
 // Muse Image via the OpenAI-style images endpoint. The success shape is not documented yet, so both data[].b64_json and

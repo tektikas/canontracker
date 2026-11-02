@@ -45,7 +45,7 @@ Every model call goes through one file, `server/utils/model.ts`. The Meta Model 
 | MCP bridge | Lets Muse Spark read canon and propose candidates through Story Bible's `/mcp` tools (16 tools, one write: `sb_propose_candidate`). A small script from Settings > Agents & API relays Muse's function calls to `/mcp`. Not yet run against a live Meta key. | Muse Spark 1.3 | Chat completions with function calling | User's machine (the script); `/mcp` runs on the server |
 | Research | Answers real-world questions (science, history, crime scenes, period travel) with a verdict, sources whose quotes are checked on the fetched page, and numbers from deterministic calculators (orbits, light delay, moon phase, sunrise, calendars, time since death). A bounded multi-step agent on the server; results are research notes, promoted to canon only through review. Run live through an OpenAI-compatible gateway; not yet against a funded Meta key. | Muse Spark 1.3 | Responses API (`/responses`) with built-in `web_search` and function calling | Story Bible server |
 | Critic | Gives a second opinion on each verified candidate in Review: keep / reject / needs edit, a reason (figurative, not stated in the passage, ambiguous time or place, duplicate of a canon fact, wrong subject) and one line why, plus a corrected fact for "needs edit". It reads the candidate, its source passage and nearby canon; it never sees a blocked candidate, never writes a quote and never changes a fact. Review filters and sorts by it and offers "Accept N the AI critic keeps" (still one human confirmation). | Muse Spark 1.3 | Chat completions (JSON output) | Story Bible server, in batches after extraction and on demand |
-| Continuity | In progress: story-wide continuity pass over canon. | Muse Spark | Planned | Planned: server |
+| Continuity | Checks a draft scene, a selected passage or lines typed in Ask against accepted canon. A bounded agent calls Story Bible's own MCP read tools step by step (`sb_get_entity`, `sb_search_facts`, `sb_get_fact`, `sb_get_timeline`, `sb_read_document`, `sb_check_facts`), then reports each finding: the sentence, the canon fact it contradicts or rests on (with its source quote), the rule-engine conflict behind it and a suggested fix that is never applied. The server checks every finding before it is shown. Every run, with each step, is on the Agent activity page. Run live through an OpenAI-compatible gateway; not yet against a funded Meta key. | Muse Spark 1.3 | Responses API (`/responses`) with function calling | Story Bible server |
 
 Rows marked "in progress" are not in the app yet.
 
@@ -87,6 +87,7 @@ node scripts/samples-probe.mjs http://localhost:3000
 node scripts/isolation-probe.mjs http://localhost:3000
 node scripts/mcp-probe.mjs http://localhost:3000
 node scripts/research-probe.mjs http://localhost:3000
+node scripts/continuity-probe.mjs http://localhost:3000
 node scripts/calculators-check.ts
 ```
 

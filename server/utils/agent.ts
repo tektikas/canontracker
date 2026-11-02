@@ -10,7 +10,11 @@
 // Commentary messages (phase "commentary": "I'll look up…") are progress notes, never part of the answer.
 // Every model step and every tool run is one model_calls row (step index, tool, args, result summary, latency, tokens), so a
 // trace can be shown. Live failures surface; there is no recorded fallback here.
-import type { Calculator } from './calculators/index'
+// A tool the model may call: a calculator, or one of our MCP read tools (server/utils/continuity.ts). run may be async.
+export interface AgentTool {
+  name: string, description: string, parameters: Record<string, unknown>
+  run: (args: any) => { result: unknown, assumptions: string[] } | Promise<{ result: unknown, assumptions: string[] }>
+}
 
 export const EFFORT = {
   low: { maxSteps: 3, maxMs: 60_000, maxOutputTokens: 4_000, maxSearches: 3, calcsPerStep: 4 },
@@ -40,17 +44,20 @@ const short = (v: unknown, max = 400) => {
 
 export function recordStep(row: {
   purpose: keyof typeof PROMPT_VERSIONS, target: { type: string, id: string }, modelId: string, projectId: string, step: number, tool: string | null
-  input: string | null, status: 'ok' | 'failed', latency: number, summary: string | null, error: string | null, tokens: number | null
+  input: string | null, status: 'ok' | 'failed', latency: number, summary: string | null, error: string | null, tokens: number | null, effort?: string
 }) {
   useDb().prepare(`insert into model_calls (id, purpose, model_id, prompt_version, target_type, target_id, input_refs, input, status,
-    latency_ms, output_summary, error, created_at, project_id, step, tool, tokens) values (?, ?, ?, ?, ?, ?, '[]', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
+    latency_ms, output_summary, error, created_at, project_id, step, tool, tokens, effort) values (?, ?, ?, ?, ?, ?, '[]', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
     .run(newId('mc'), row.purpose, row.modelId, PROMPT_VERSIONS[row.purpose], row.target.type, row.target.id, row.input, row.status,
-      row.latency, row.summary, row.error, now(), row.projectId, row.step, row.tool, row.tokens)
+      row.latency, row.summary, row.error, now(), row.projectId, row.step, row.tool, row.tokens, row.effort ?? null)
 }
 
 // One Responses request with the Meta API's retry rules: 429/500/503 are retried with backoff and jitter (3 attempts), never
 // 400/401/402/403/404/413; a 504 (a long non-streaming run) is not resent unchanged but resubmitted as a background
 // response and polled. ponytail: the 504 → background path follows the Meta docs but has not been exercised live.
+// The Meta API takes max_tool_calls; an OpenAI-compatible gateway that refuses it with a 400 (the OmniRoute test proxy does) gets
+// the request again without it, and this process leaves it out from then on. The loop caps function calls per step itself.
+let noMaxToolCalls = false
 async function responses(body: Record<string, unknown>, deadline: number): Promise<Reply> {
   const { metaBaseUrl } = useRuntimeConfig()
   const headers = { Authorization: `Bearer ${apiKey()}` }
@@ -61,10 +68,18 @@ async function responses(body: Record<string, unknown>, deadline: number): Promi
     return ms
   }
   for (let attempt = 1; ; attempt++) {
+    if (noMaxToolCalls) {
+      const { max_tool_calls: _, ...rest } = body
+      body = rest
+    }
     try {
       return await $fetch<Reply>(`${metaBaseUrl}/responses`, { method: 'POST', timeout: Math.min(180_000, left()), headers, body })
     } catch (e) {
       const status = (e as { statusCode?: number }).statusCode
+      if (status === 400 && 'max_tool_calls' in body && /unsupported parameter: max_tool_calls/i.test(JSON.stringify((e as { data?: unknown }).data ?? ''))) {
+        noMaxToolCalls = true
+        continue
+      }
       if ([429, 500, 503].includes(status ?? 0) && attempt < 3) {
         await new Promise(r => setTimeout(r, Math.min(left(), 500 * 2 ** (attempt - 1) + Math.random() * 250)))
         continue
@@ -86,8 +101,10 @@ const URL_IN_TEXT = /https?:\/\/[^\s<>"')\]]+/g
 
 export async function runAgent(o: {
   purpose: keyof typeof PROMPT_VERSIONS, target: { type: string, id: string }, projectId: string
-  instructions: string, input: string, tools: Calculator[], webSearch: boolean, effort: Effort
+  instructions: string, input: string, tools: AgentTool[], webSearch: boolean, effort: Effort
+  label?: string // names the run in error messages: "<label> failed: …" (default Research)
 }): Promise<AgentRun> {
+  const label = o.label ?? 'Research'
   const { modelId } = useRuntimeConfig()
   const limit = EFFORT[o.effort]
   const deadline = Date.now() + limit.maxMs // hard: requests in flight are aborted at it
@@ -97,7 +114,7 @@ export async function runAgent(o: {
   const run: AgentRun = { text: '', toolCalls: [], searches: [], citations: [], steps: 0, tokens: 0 }
   const search = o.webSearch ? [{ type: 'web_search' }] : []
   const functions = o.tools.map(t => ({ type: 'function', name: t.name, description: t.description, parameters: t.parameters }))
-  const base = { purpose: o.purpose, target: o.target, modelId, projectId: o.projectId }
+  const base = { purpose: o.purpose, target: o.target, modelId, projectId: o.projectId, effort: o.effort }
   let searchCalls = 0
 
   for (let step = 0; ; step++) {
@@ -117,8 +134,8 @@ export async function runAgent(o: {
         include: ['reasoning.encrypted_content', ...(searchesLeft && search.length ? ['web_search_call.results'] : [])] }, deadline)
     } catch (e) {
       const err = Date.now() >= deadline
-        ? createError({ statusCode: 504, statusMessage: 'RESEARCH_TIMEOUT', message: `Research failed: it ran past its ${limit.maxMs / 60_000}-minute time limit. Nothing was stored.` })
-        : apiFailure(e as Parameters<typeof apiFailure>[0], 'Research failed', 'Nothing was stored.')
+        ? createError({ statusCode: 504, statusMessage: `${label.toUpperCase()}_TIMEOUT`, message: `${label} failed: it ran past its ${limit.maxMs / 60_000}-minute time limit. Nothing was stored.` })
+        : apiFailure(e as Parameters<typeof apiFailure>[0], `${label} failed`, 'Nothing was stored.')
       recordStep({ ...base, step, tool: null, input: step ? null : o.input, status: 'failed', latency: Date.now() - t0, summary: null, tokens: null, error: err.message })
       throw err
     }
@@ -153,7 +170,7 @@ export async function runAgent(o: {
         const why = reply.incomplete_details?.reason === 'max_output_tokens' ? `reached its output limit (${limit.maxOutputTokens} tokens) before answering`
           : calls.length ? `did not finish within ${plural(limit.maxSteps, 'step')}` : 'returned no answer'
         recordStep({ ...base, step, tool: null, input: null, status: 'failed', latency: 0, summary: null, error: `The model ${why}.`, tokens: null })
-        throw createError({ statusCode: 502, statusMessage: 'MODEL_BAD_OUTPUT', message: `Research failed: the model ${why}. Nothing was stored.` })
+        throw createError({ statusCode: 502, statusMessage: 'MODEL_BAD_OUTPUT', message: `${label} failed: the model ${why}. Nothing was stored.` })
       }
       run.text = text
       return run
@@ -163,7 +180,12 @@ export async function runAgent(o: {
     // Search results (asked for with include, for the trace) are not sent back: replayed web_search_call items are recorded
     // as accepted without them (agent-stateless-search-turn2).
     items.push(...out.filter(i => ['reasoning', 'web_search_call', 'function_call', 'message'].includes(i.type)).map(({ results: _, ...i }) => i))
-    for (const c of calls) {
+    for (const [k, c] of calls.entries()) {
+      // Past the step's allowance a call is answered "not run", so the step stays bounded even where max_tool_calls isn't honoured.
+      if (k >= limit.calcsPerStep) {
+        items.push({ type: 'function_call_output', call_id: c.call_id, output: JSON.stringify({ error: `Not run: at most ${limit.calcsPerStep} tool calls per step. Call it again in your next step if you still need it.` }) })
+        continue
+      }
       const t1 = Date.now()
       const tool = o.tools.find(t => t.name === c.name)
       let args: Record<string, unknown> = {}
@@ -172,7 +194,7 @@ export async function runAgent(o: {
         const parsed = JSON.parse(c.arguments || '{}')
         args = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
         if (!tool) throw new Error(`no tool named ${c.name}`)
-        const r = tool.run(args)
+        const r = await tool.run(args)
         call = { name: c.name!, args, result: r.result, assumptions: r.assumptions, error: null }
       } catch (e) {
         call = { name: c.name!, args, result: null, assumptions: [], error: (e as Error).message }

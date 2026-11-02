@@ -31,7 +31,7 @@ interface Cmd { icon: IconName, title: string, words?: string, edit?: boolean, t
 const NAV: [string, string, IconName][] = [
   ['/', 'Home', 'home'], ['/library', 'Library', 'library'], ['/review', 'Review', 'review'], ['/canon', 'Canon', 'canon'], ['/entities', 'Entities', 'entities'],
   ['/conflicts', 'Conflicts', 'conflicts'], ['/changes', 'Changes', 'changes'], ['/notes', 'Notes', 'note'], ['/ask', 'Ask', 'ask'],
-  ['/metrics', 'Metrics', 'metrics'], ['/audit', 'Audit log', 'audit'], ['/settings/projects', 'Projects', 'folder'], ['/settings/team', 'Team', 'team'], ['/settings', 'Studio settings', 'settings'],
+  ['/metrics', 'Metrics', 'metrics'], ['/agents/runs', 'Agent activity', 'history'], ['/audit', 'Audit log', 'audit'], ['/settings/projects', 'Projects', 'folder'], ['/settings/team', 'Team', 'team'], ['/settings', 'Studio settings', 'settings'],
 ]
 const commands = computed<Cmd[]>(() => {
   const cur = me.value?.current
