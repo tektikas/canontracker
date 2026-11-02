@@ -9,7 +9,8 @@ const cssString = (s: string) => `"${s.replace(/[\\"]/g, '\\$&').replace(/\s+/g,
 const margins = `font: 9pt "Instrument Sans", Arial, sans-serif; color: #666;`
 const pages = computed(() => [
   `@page cover, front { @top-left { content: none; } @top-right { content: none; } @bottom-center { content: none; } }`,
-  ...b.value.chapters.map((c, i) => `@page ch${i} { size: A4; margin: 22mm 20mm 20mm; @top-left { content: ${cssString(b.value.title)}; ${margins} } @top-right { content: ${cssString(c.title)}; ${margins} } @bottom-center { content: counter(page); ${margins} } }`),
+  // flow (manuscript): chapters share one page style, so a short chapter follows the last one on the same page; the running header is the book title.
+  ...(b.value.flow ? [`@page body { size: A4; margin: 22mm 20mm 20mm; @top-left { content: ${cssString(b.value.title)}; ${margins} } @top-right { content: none; } @bottom-center { content: counter(page); ${margins} } }`] : b.value.chapters.map((c, i) => `@page ch${i} { size: A4; margin: 22mm 20mm 20mm; @top-left { content: ${cssString(b.value.title)}; ${margins} } @top-right { content: ${cssString(c.title)}; ${margins} } @bottom-center { content: counter(page); ${margins} } }`)),
 ].join('\n'))
 useHead(() => ({ style: [{ key: 'book-pages', innerHTML: pages.value }] }))
 const portrait = (s: BookSection) => (s.portrait ? s.portrait : null)
@@ -40,7 +41,7 @@ const portrait = (s: BookSection) => (s.portrait ? s.portrait : null)
       </ol>
     </nav>
 
-    <section v-for="(c, i) in book.chapters" :id="`ch-${c.id}`" :key="c.id" class="chapter" :style="{ page: `ch${i}`, counterReset: i === 0 ? 'page 1' : undefined }">
+    <section v-for="(c, i) in book.chapters" :id="`ch-${c.id}`" :key="c.id" class="chapter" :class="{ flow: book.flow }" :style="{ page: book.flow ? 'body' : `ch${i}` }">
       <h2>{{ c.title }}</h2>
       <p v-if="c.intro" class="intro">{{ c.intro }}</p>
       <article v-for="s in c.sections" :id="s.id" :key="s.id" class="sec">
@@ -120,7 +121,8 @@ h1 { font-size: 2.6rem; line-height: 1.15; margin: 0 0 var(--s-3); overflow-wrap
   .book .titlepage { page: front; height: 240mm; display: flex; flex-direction: column; justify-content: center; margin: 0; border: 0; break-after: page; }
   .book .toc { page: front; break-after: page; margin: 0; }
   .book .chapter { break-before: page; margin: 0 !important; }
-  .book .chapter:first-of-type { break-before: auto; }
+  .book .chapter:first-of-type, .book .chapter.flow { break-before: auto; }
+  .book .chapter.flow:not(:first-of-type) { margin-top: 12mm !important; }
   .book .sec { margin: 6mm 0; }
   .book a { color: inherit; }
   .book .ref a { color: inherit; }

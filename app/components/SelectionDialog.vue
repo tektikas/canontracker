@@ -75,7 +75,7 @@ const detailError = computed(() => !f.subject.trim() ? 'Say who or what this is 
 const checkNote = computed(() => {
   if (pred.value === 'located_at') return f.object.trim() && f.time_from.trim() ? known.value!.hint : 'Add where and when, so this is checked for being in two places at once.'
   if (known.value) return known.value.hint
-  if (f.object.trim() && f.time_from.trim()) return 'If this says where they are, use “is at”, so it is checked for being in two places at once.'
+  if (f.object.trim()) return `Saved as a plain statement, so ${f.time_from.trim() ? 'it' : 'a place'} is not checked for being in two places at once. If this says where they are, choose “is at”${f.time_from.trim() ? '' : ' and add when'}.`
   return ''
 })
 const summary = computed(() => [f.subject, f.relation, f.object, [f.time_from, f.time_to].filter(Boolean).join(' – ')].map(s => s.trim()).filter(Boolean).join(' · '))

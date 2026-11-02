@@ -549,7 +549,7 @@ const ago = (iso: string) => {
 .app-title { font-weight: 600; color: var(--ink); }
 .passages { list-style: none; margin: 0; padding: 0; }
 .passages li + li { border-top: 1px solid var(--line); }
-.p-link { display: grid; grid-template-columns: 52px minmax(0, 1fr) auto; gap: var(--s-3); padding: var(--s-3) var(--s-4); color: var(--ink); text-decoration: none; }
+.p-link { display: grid; grid-template-columns: 10ch minmax(0, 1fr) auto; gap: var(--s-3); padding: var(--s-3) var(--s-4); color: var(--ink); text-decoration: none; }
 .p-link:hover { background: var(--surface); color: var(--ink); }
 .p-link:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 .cited { align-self: start; margin-top: 3px; }

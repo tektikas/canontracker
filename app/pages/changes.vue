@@ -305,7 +305,7 @@ async function reanalyze(id: string) {
                     </details>
                   </li>
                 </ul>
-                <details v-if="g.facts.length" class="deps" :open="g.facts.length <= 3">
+                <details v-if="g.facts.length" class="deps" :open="!g.scenes.length || g.facts.length <= 3">
                   <summary class="expand">Related canon facts to re-check ({{ g.facts.length }})</summary>
                   <ul class="items">
                     <li v-for="i in g.facts" :key="i.target_id" class="item fact-item">

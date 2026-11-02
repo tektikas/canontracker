@@ -16,12 +16,12 @@ interface Folded { str: string, start: number[], end: number[], marks: Set<numbe
  * the same char and length (`*x*`, `**x**`, `_x_`, `__x__`), CommonMark flanking rules. An unpaired mark is text and stays,
  * so `2 *3` or a stray leading `*` must be typed. `_` opens/closes only at a word boundary (snake_case is text); a pair of two
  * intra-word `*` runs (2*3 and 4*5) is text too, but one intra-word side is fine (`*Bright*star`). A `*` / `_` inside a
- * backtick code span or after a backslash is literal and never pairs.
+ * backtick code span or after a backslash is literal (an escaped backtick \` never closes a span) and never pairs.
  */
 function emphasisMarks(source: string): Set<number> {
   const marks = new Set<number>()
   // Code spans (matching backtick runs) and backslash escapes, scanned left to right: their marks become '#' (literal punctuation).
-  const raw = source.replace(/(?<!`)(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)|\\[\s\S]/g, m => m.replace(/[*_]/g, '#'))
+  const raw = source.replace(/(?<!`)(`+)(?!`)[\s\S]*?(?<![`\\])\1(?!`)|\\[\s\S]/g, m => m.replace(/[*_]/g, '#'))
   const ws = (c: string | undefined) => c === undefined || /\s/u.test(c)
   const punct = (c: string | undefined) => c !== undefined && /[\p{P}\p{S}]/u.test(c)
   const open: { i: number, run: string, both: boolean }[] = []

@@ -1,7 +1,7 @@
 // Re-check read cost on a big source: node scripts/recheck-timing.mjs <baseUrl> [passages=2105] [citations=20]
 // One document of N paragraphs, C canon facts citing it, then a v2 that changes one uncited line, so all C citations are
 // stale and unchanged (re-classified on every read). Prints the v2 upload time (its import classifies them first, cold) and
-// the first and warm (median of 5) times of GET /api/facts?status=canon and GET /api/stats. Read-only after the upload.
+// the first read after that upload (the upload already warmed the memo, so it is not a cold read) and warm (median of 5) times of GET /api/facts?status=canon and GET /api/stats. Read-only after the upload.
 import assert from 'node:assert/strict'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
@@ -56,6 +56,6 @@ for (const path of ['/api/facts?status=canon', '/api/stats']) {
     if (path.startsWith('/api/facts')) assert.equal(data.filter(f => f.recheck === 'unchanged').length, C, 'all unchanged')
     times.push(ms)
   }
-  console.log(`${path}: first ${times[0].toFixed(0)} ms, warm median ${median(times.slice(1)).toFixed(0)} ms (${times.slice(1).map(t => t.toFixed(0)).join(', ')})`)
+  console.log(`${path}: first read after upload (memo already warm) ${times[0].toFixed(0)} ms, warm median ${median(times.slice(1)).toFixed(0)} ms (${times.slice(1).map(t => t.toFixed(0)).join(', ')})`)
 }
 console.log(`v2 upload (${N} passages, ${C} citations classified): ${upMs.toFixed(0)} ms`)

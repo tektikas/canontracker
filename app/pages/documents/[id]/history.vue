@@ -61,6 +61,8 @@ const blocks = computed(() => {
 const unfolded = ref(new Set<string>())
 const unfold = (k: string) => { unfolded.value = new Set([...unfolded.value, k]) }
 const lineOf = (p?: { start_line: number, end_line: number }) => (p ? `${p.start_line}${p.end_line !== p.start_line ? `–${p.end_line}` : ''}` : '')
+// Gutter fits the longest line label in this diff (a changed passage reads "113–115→143–145").
+const gutter = computed(() => `${Math.max(4, ...(diff.value?.rows ?? []).map(r => (r.from && r.to ? `${lineOf(r.from)}→${lineOf(r.to)}` : lineOf(r.from ?? r.to)).length)) + 1}ch`)
 const OP_LABEL = { changed: 'Changed', removed: 'Removed', added: 'Added', same: 'Unchanged' } as const
 const how = (v: { origin: string, created_by_name: string | null }) => `${v.origin === 'written' ? 'Written in Story Bible' : 'Uploaded'}${v.created_by_name ? ` by ${v.created_by_name}` : ''}`
 </script>
@@ -150,7 +152,7 @@ const how = (v: { origin: string, created_by_name: string | null }) => `${v.orig
               No canon cites the changed text.<template v-if="diff.unchanged_citations"> {{ counted(diff.unchanged_citations, 'citation') }} on v{{ diff.from.version }} {{ diff.unchanged_citations === 1 ? 'points' : 'point' }} at passages that read the same in v{{ diff.to.version }}.</template>
             </p>
 
-            <div class="rows" :class="view">
+            <div class="rows" :class="view" :style="{ '--gutter': gutter }">
               <div v-if="view === 'split'" class="split-head" aria-hidden="true"><span>v{{ diff.from.version }}</span><span>v{{ diff.to.version }}</span></div>
               <template v-for="b in blocks" :key="b.key">
                 <template v-if="b.kind === 'same'">
@@ -249,7 +251,7 @@ const how = (v: { origin: string, created_by_name: string | null }) => `${v.orig
 .changed .op-label { color: var(--warn); }
 .added .op-label { color: var(--good); }
 .removed .op-label { color: var(--bad); }
-.cell { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: var(--s-2); min-width: 0; }
+.cell { display: grid; grid-template-columns: var(--gutter, 52px) minmax(0, 1fr); gap: var(--s-2); min-width: 0; }
 .ln { font-family: var(--font-code); font-size: var(--text-xs); color: var(--faint); padding-top: 3px; text-align: right; white-space: nowrap; }
 .txt { font-family: var(--font-story); font-size: var(--text-md); line-height: 1.65; white-space: pre-wrap; overflow-wrap: anywhere; }
 del { background: var(--bad-soft); color: var(--bad); text-decoration: line-through; text-decoration-color: color-mix(in srgb, var(--bad) 60%, transparent); border-radius: 2px; }
@@ -267,7 +269,8 @@ ins { background: var(--good-soft); color: var(--good); text-decoration: none; b
 @media (max-width: 720px) {
   .split .drow, .split-head { grid-template-columns: minmax(0, 1fr); }
   .split-head { display: none; }
-  .cell { grid-template-columns: 40px minmax(0, 1fr); }
+  .cell { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .ln { text-align: left; padding-top: 0; }
   .rows { padding: var(--s-3); }
   .diff-head { padding: var(--s-3); }
 }
