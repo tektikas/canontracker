@@ -158,8 +158,7 @@ export async function extractInto(doc: { id: string, filename: string, title: st
   const skipped: Record<string, number> = {}
   tx(() => {
     for (const c of drafts) {
-      const tFrom = parseStoryTime(c.time?.from)
-      const tTo = parseStoryTime(c.time?.to)
+      const { from: tFrom, to: tTo, day } = parseStoryRange(c.time?.from, c.time?.to)
       const keys = [`s:${norm(c.statement)}`, `k:${keyOf({ ...c, t_from: tFrom, t_to: tTo, precision: c.time ? (c.time.precision ?? 'exact') : null })}`]
       const already = keys.map(k => seen.get(k)).find(Boolean)
       if (already) {
@@ -174,7 +173,7 @@ export async function extractInto(doc: { id: string, filename: string, title: st
       db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision,
         status, confidence, origin, model_id, created_at, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`)
         .run(factId, c.kind, c.subject, c.predicate, c.object ?? null, c.value == null ? null : String(c.value), c.statement, tFrom, tTo,
-          timeLabel(tFrom, tTo, precision), precision, c.confidence ?? null, `model:${PROMPT_VERSIONS.extract}`, model.id, now(), projectId)
+          timeLabel(tFrom, tTo, precision, day), precision, c.confidence ?? null, `model:${PROMPT_VERSIONS.extract}`, model.id, now(), projectId)
       db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, ?, ?)')
         .run(newId('ev'), factId, doc.id, passage?.id ?? null, match?.quote ?? c.quote ?? '', passage ? 1 : 0, projectId)
       audit('candidate.created', 'fact', factId, { document_id: doc.id, quote_verified: !!passage, model_id: model.id })

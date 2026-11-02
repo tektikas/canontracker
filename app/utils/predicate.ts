@@ -37,22 +37,24 @@ export function relationFor(text: string) {
 }
 
 // Story time as a writer types or writes it ("Day 1 20:30", "20:30 on Day 1", "d1 9:05") -> "D1 20:30", the form the API
-// takes. Null when there is no day or no clock time in it.
-const DAY = /\b(?:d|day)\s*(\d+)\b/i
+// takes. Days may be zero or negative ("Day -3650"); a day with no clock stays day-only ("D-3650"). Null when there is no day
+// or more than one clock time.
+const DAY = /\b(?:d|day)\s*(-?\d+)\b/i
 const CLOCK = /\b([01]?\d|2[0-3]):([0-5]\d)\b/g
 const label = (day: string, h: string, m: string) => `D${Number(day)} ${h.padStart(2, '0')}:${m}`
 export function storyTime(text: string) {
   const day = text.match(DAY)?.[1]
   const clock = [...text.matchAll(CLOCK)]
-  return day && clock.length === 1 ? label(day, clock[0]![1]!, clock[0]![2]!) : null
+  if (!day || clock.length > 1) return null
+  return clock[0] ? label(day, clock[0][1]!, clock[0][2]!) : `D${Number(day)}`
 }
 // The times a sentence states: "from 20:00 to 21:00 on Day 1" -> D1 20:00 / D1 21:00. Each clock takes the day written next to
 // it ("08:00 on Day 1", "Day 2 09:00"); a clock without one takes the sentence's only day, or nothing when there are several.
 export function timesIn(text: string) {
   const days = [...text.matchAll(new RegExp(DAY, 'gi'))]
   const at = (m: RegExpMatchArray) => {
-    const own = text.slice(0, m.index).match(/\b(?:d|day)\s*(\d+)\s*,?\s*(?:at\s+)?$/i)?.[1]
-      ?? text.slice(m.index! + m[0].length).match(/^\s*(?:on\s+)?(?:d|day)\s*(\d+)\b/i)?.[1]
+    const own = text.slice(0, m.index).match(/\b(?:d|day)\s*(-?\d+)\s*,?\s*(?:at\s+)?$/i)?.[1]
+      ?? text.slice(m.index! + m[0].length).match(/^\s*(?:on\s+)?(?:d|day)\s*(-?\d+)\b/i)?.[1]
     const day = own ?? (days.length === 1 ? days[0]![1] : undefined)
     return day ? label(day, m[1]!, m[2]!) : ''
   }

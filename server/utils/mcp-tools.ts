@@ -136,7 +136,7 @@ export function buildMcpServer(token: { id: string, name: string }) {
       kind: z.enum(['character', 'claim', 'event', 'relationship', 'rule']),
       subject: z.string().min(1), predicate: z.string().min(1),
       object: z.string().optional(), value: z.string().optional(),
-      time_from: z.string().optional().describe('Story time "D<day> HH:MM", e.g. "D2 14:30"'),
+      time_from: z.string().optional().describe('Story time "D<day> HH:MM" or day-only "D<day>" (whole day); day may be 0 or negative for before D1, e.g. "D2 14:30", "D-3650"'),
       time_to: z.string().optional(),
       time_precision: z.enum(['exact', 'approximate']).optional(),
     },
@@ -157,9 +157,8 @@ export function buildMcpServer(token: { id: string, name: string }) {
     if (!doc) return refuse('DOCUMENT_NOT_FOUND', `No imported document "${p.document}" in this project. Candidates must cite an imported document.`)
     const match = findQuotePassage(db.prepare('select id, text from passages where document_id = ? order by ordinal').all(doc.id) as { id: string, text: string }[], p.quote)
     if (!match) return denied('QUOTE_NOT_VERBATIM', `The quote was blank, too short (min ${MIN_QUOTE_CHARS} characters) or not found in one paragraph of ${doc.name} (only curly quotes, dashes, line breaks and Markdown * _ marks may differ). Copy the exact text; nothing was stored.`)
-    const tFrom = p.time_from ? parseStoryTime(p.time_from) : null
-    const tTo = p.time_to ? parseStoryTime(p.time_to) : null
-    if ((p.time_from && tFrom == null) || (p.time_to && tTo == null)) return refuse('BAD_TIME', 'Story time must look like "D2 14:30".')
+    const { from: tFrom, to: tTo, bad, day } = parseStoryRange(p.time_from, p.time_to)
+    if (bad) return refuse('BAD_TIME', 'Story time must look like "D2 14:30" or "D-3650" (day 0 and earlier are allowed).')
     const dup = db.prepare(`select id, status from facts where project_id = ? and status in ('pending', 'canon') and lower(statement) = lower(?)`).get(pid(), p.statement.trim()) as { id: string, status: string } | undefined
     if (dup) return refuse('DUPLICATE', `The same statement already exists as ${dup.status} fact ${dup.id}.`)
 
@@ -169,7 +168,7 @@ export function buildMcpServer(token: { id: string, name: string }) {
       db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision, status, confidence, origin, model_id,
         created_at, project_id, proposed_by_token, proposed_by_user) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', null, 'agent:mcp', null, ?, ?, ?, ?)`)
         .run(id, p.kind, p.subject.trim(), p.predicate.trim(), p.object?.trim() || null, p.value?.trim() || null, p.statement.trim(), tFrom, tTo,
-          timeLabel(tFrom, tTo, precision), precision, now(), pid(), token.id, a.user.id)
+          timeLabel(tFrom, tTo, precision, day), precision, now(), pid(), token.id, a.user.id)
       db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, 1, ?)')
         .run(newId('ev'), id, doc.id, match.passage.id, match.quote, pid())
       audit('candidate.created', 'fact', id, { via: 'mcp', token_id: token.id, token_name: token.name, document_id: doc.id, quote_verified: true })

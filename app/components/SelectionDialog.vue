@@ -64,7 +64,7 @@ const suggestion = (role: Role) => {
 // With no relation given the fact is a plain statement about its subject.
 const pred = computed(() => relationFor(f.relation) || 'about')
 const known = computed(() => PREDICATES.find(p => p.value === pred.value))
-const timeError = (v: string) => (v.trim() && !storyTime(v) ? 'Use a day and a time, like Day 2 14:30.' : '')
+const timeError = (v: string) => (v.trim() && !storyTime(v) ? 'Use a day, like Day -3650, or a day and time, like Day 2 14:30.' : '')
 const detailError = computed(() => !f.subject.trim() ? 'Say who or what this is about.'
   : pred.value === 'is' && !f.object.trim() ? 'Say what they are, for example “keeper of the lighthouse”.'
     : pred.value === 'travel_time' && !f.value.trim() ? 'Say how many minutes the trip takes.'

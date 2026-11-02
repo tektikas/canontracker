@@ -97,7 +97,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
     <EntityCard v-if="entity" class="profile" :name="entity" :facts="canon!" @select="showEntity" />
   </UiPanel>
 
-  <UiPanel v-else-if="tab === 'timeline'" title="Story timeline" description="By story time, one lane per character. Day 1 starts at 00:00.">
+  <UiPanel v-else-if="tab === 'timeline'" title="Story timeline" description="By story time, one lane per character. Day 1 starts at 00:00; earlier days are D0, D-1, ….">
     <StoryTimeline v-if="filtered.some(f => f.t_from != null || f.t_to != null)" :facts="filtered" :all-facts="canon!" />
     <p v-else class="muted">No timed canon facts{{ filter ? ' match this filter' : '' }}.</p>
   </UiPanel>
