@@ -70,7 +70,7 @@ const ago = (iso: string | null) => {
         <UiField label="Story or project name" :error="createError">
           <input ref="createInput" v-model="newName" type="text" maxlength="80" placeholder="e.g. Saltmarsh Chronicles" @keydown.esc="creating = false">
         </UiField>
-        <UiField label="Start with" :hint="HINTS[startWith] + (startWith !== 'empty' && startWith !== 'lantern-row' && me?.model.mode === 'mock' ? ' Its candidates replay a recorded run.' : '')">
+        <UiField label="Start with" :hint="HINTS[startWith]">
           <select v-model="startWith">
             <option value="empty">An empty project</option>
             <option value="broken-tide">The Broken Tide demo</option>
