@@ -4,6 +4,7 @@
 const props = withDefaults(defineProps<{ label: string, placement?: 'down' | 'up', fixed?: boolean }>(), { placement: 'down' })
 const open = ref(false)
 const root = ref<HTMLElement>()
+const panel = ref<HTMLElement>()
 const trigger = ref<HTMLButtonElement>()
 const pos = ref<Record<string, string>>({})
 const close = () => { open.value = false }
@@ -15,11 +16,12 @@ function toggle() {
   }
   open.value = !open.value
 }
+const onScroll = (e: Event) => { if (!panel.value?.contains(e.target as Node)) close() } // scrolling inside the panel must not close it
 const outside = (e: Event) => { if (!root.value?.contains(e.target as Node)) close() }
 watch(open, (o) => {
   const f = o ? 'addEventListener' : 'removeEventListener'
   document[f]('pointerdown', outside)
-  if (props.fixed) { window[f]('scroll', close, true); window[f]('resize', close) } // a fixed panel would drift from its trigger
+  if (props.fixed) { window[f]('scroll', onScroll, true); window[f]('resize', close) } // a fixed panel would drift from its trigger
 })
 onBeforeUnmount(() => { open.value = false })
 watch(() => useRoute().fullPath, close)
@@ -36,7 +38,7 @@ function esc(e: KeyboardEvent) {
     <button ref="trigger" type="button" class="menu-trigger" :aria-label="label" :aria-expanded="open" @click="toggle">
       <slot name="trigger" :open="open" />
     </button>
-    <div v-if="open" class="menu-pop" :class="[placement, { fixed }]" :style="fixed ? pos : undefined">
+    <div v-if="open" ref="panel" class="menu-pop" :class="[placement, { fixed }]" :style="fixed ? pos : undefined">
       <slot :close="close" />
     </div>
   </div>
