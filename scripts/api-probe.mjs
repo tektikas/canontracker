@@ -1,7 +1,8 @@
 // API probe against a running server: node scripts/api-probe.mjs <baseUrl>
 // Walks every route file under server/api and sends it bad input: no body, JSON null / array / string / number, and an object
 // whose usual fields have the wrong type. No route may answer 5xx. Then: every content write as a viewer is 403 (except Ask
-// and leaving), every content route signed out is 401, project ids from another studio are 404, oversized JSON is 413, and
+// and leaving), every content route signed out is 401, project ids from another studio are 404, oversized JSON is 413 (also
+// chunked), log-in and sign-up are throttled, and
 // downloads work for a project whose name is not Latin-1. Creates throwaway accounts (unique emails per run).
 import assert from 'node:assert/strict'
 import { readdirSync } from 'node:fs'
@@ -79,7 +80,36 @@ assert.equal((await ada('/api/qa', { method: 'POST', raw: JSON.stringify({ quest
 assert.equal((await ada('/api/qa', { method: 'POST', body: { question: 'x'.repeat(600) } })).status, 400)
 assert.equal((await ada('/api/changes', { method: 'POST', body: { target_fact_id: canon[2].id, proposed_statement: 'x'.repeat(600), rationale: 'r' } })).status, 400)
 assert.equal((await web()('/api/auth/signup', { method: 'POST', body: { name: 'Long', email: `${'x'.repeat(300)}@probe.test`, password: 'correct horse' } })).status, 400)
-ok('size caps: 413 over 4 MB; long question / statement / email 400')
+// Chunked (no Content-Length): the cap holds while the body streams in.
+const chunked = (path, text, headers = {}) => fetch(base + path, { method: 'POST', duplex: 'half', headers: { 'content-type': 'application/json', ...headers },
+  body: new ReadableStream({ start(ctl) { const b = Buffer.from(text); for (let i = 0; i < b.length; i += 65536) ctl.enqueue(b.subarray(i, i + 65536)); ctl.close() } }) })
+  .then(r => r.status, e => `error ${e.cause?.code ?? e.message}`)
+assert.equal(await chunked('/api/auth/login', JSON.stringify({ email: 'a@b.c', password: 'x'.repeat(4_100_000) })), 413)
+assert.equal(await chunked('/api/auth/login', JSON.stringify({ email: `nobody-${run}@probe.test`, password: 'x'.repeat(1000) })), 401)
+ok('size caps: 413 over 4 MB (also chunked); long question / statement / email 400')
+
+// Log-in and sign-up throttles. Fake client IPs (X-Forwarded-For, as the proxy sets it) keep this probe's misses away from the
+// IP every other probe signs up from.
+const ipBase = `10.${parseInt(run.slice(-4), 36) % 250}.${Math.floor(Math.random() * 250)}`
+const login = (email, password, ip) => web()('/api/auth/login', { method: 'POST', body: { email, password }, headers: { 'x-forwarded-for': `203.0.113.9, ${ip}` } })
+await account('Deb')
+const debEmail = `deb-${run}@probe.test`
+for (let i = 0; i < 9; i++) assert.equal((await login(debEmail, 'wrong horse', `${ipBase}.${i + 1}`)).status, 401)
+for (let i = 0; i < 3; i++) assert.equal((await login(debEmail, 'correct horse', `${ipBase}.20`)).status, 200)
+assert.equal((await login(debEmail, 'wrong horse', `${ipBase}.21`)).status, 401) // 10th failure: successes did not count
+const locked = await login(debEmail, 'correct horse', `${ipBase}.22`)
+assert.deepEqual([locked.status, /Try again in \d+ min/.test(locked.data.message)], [429, true])
+ok('log-in: 10 failures per email in 5 min, then 429 even with the right password; successes don\'t count')
+for (let i = 0; i < 30; i++) assert.equal((await login(`ghost${i}-${run}@probe.test`, 'wrong horse', `${ipBase}.30`)).status, 401)
+assert.equal((await login(`ghost-x-${run}@probe.test`, 'wrong horse', `${ipBase}.30`)).status, 429)
+assert.equal((await login(`ada-${run}@probe.test`, 'correct horse', `${ipBase}.30`)).status, 429)
+assert.equal((await login(`ada-${run}@probe.test`, 'correct horse', `${ipBase}.31`)).status, 200)
+ok('log-in: 30 failures per IP in 5 min, then 429 for that IP only')
+const signup = ip => web()('/api/auth/signup', { method: 'POST', body: { name: 'S', email: 'not-an-email', password: 'x' }, headers: { 'x-forwarded-for': ip } })
+for (let i = 0; i < 100; i++) assert.equal((await signup(`${ipBase}.40`)).status, 400)
+assert.equal((await signup(`${ipBase}.40`)).status, 429)
+assert.equal((await signup(`${ipBase}.41`)).status, 400)
+ok('sign-up: 100 per IP in 10 min, then 429')
 
 // Viewer: every content write is 403, except Ask and leaving the studio.
 const ACCOUNT = ['/api/auth/', '/api/invites', '/api/studios', '/api/account', '/api/projects', '/api/agent-tokens', '/api/public/']

@@ -228,14 +228,14 @@ export function buildMcpServer(token: { id: string, name: string }) {
 
   server.registerTool('sb_read_document', {
     title: 'Read a source document',
-    description: 'Source text of one document, passage by passage (a passage is a paragraph or heading), with line numbers and the canon facts citing each passage. Latest version unless you pass version. Narrow with a line range or passage ids; long results are paged (next_cursor) and capped by max_chars. Copy quotes for sb_propose_candidate from here, character for character. Example: {"document": "S03-the-kettle-and-coal.md", "from_line": 1, "to_line": 40}',
+    description: 'Source text of one document, passage by passage (a passage is a paragraph or heading), with line numbers and the canon facts citing each passage. Latest version unless you pass version. Narrow with a line range or passage ids; long results are paged (next_cursor) and capped by max_chars; a passage longer than max_chars comes in parts (part.from_char/to_char), join them before quoting. Copy quotes for sb_propose_candidate from here, character for character. Example: {"document": "S03-the-kettle-and-coal.md", "from_line": 1, "to_line": 40}',
     inputSchema: {
       document: z.string().min(1).max(200).describe('Document id (any version) or file name'),
       version: z.number().int().min(1).optional().describe('A specific version; default: the latest (or the version the id names)'),
       from_line: z.number().int().min(1).optional(), to_line: z.number().int().min(1).optional(),
       passage_ids: z.array(z.string().max(64)).min(1).max(50).optional().describe('Only these passages (ids from evidence or a previous read)'),
       max_chars: z.number().int().min(500).max(30_000).default(12_000).optional().describe('Text budget per page'),
-      cursor,
+      cursor: z.string().regex(/^\d{1,7}(:\d{1,9})?$/).optional().describe('next_cursor from the previous page; omit for the first page'),
     },
     annotations: read,
   }, ({ document, version, from_line, to_line, passage_ids, max_chars, cursor: at }) => {
@@ -245,18 +245,27 @@ export function buildMcpServer(token: { id: string, name: string }) {
     const ids = passage_ids && new Set(passage_ids)
     const chosen = all.filter(p => (!ids || ids.has(p.id)) && (from_line == null || p.end_line >= from_line) && (to_line == null || p.start_line <= to_line))
     const budget = max_chars ?? 12_000
-    const from = Number(at ?? 0)
-    const out: { id: string, lines: string, text: string, truncated?: true }[] = []
+    // Cursor "i" = start at chosen passage i; "i:c" = continue passage i from character c (a passage longer than the budget
+    // comes in parts, so every character is reachable; join the parts before quoting).
+    const [from, start] = (at ?? '0').split(':').map(Number) as [number, number | undefined]
+    const out: { id: string, lines: string, text: string, part?: { from_char: number, to_char: number, of: number } }[] = []
     let used = 0
     let i = from
-    // Whole passages until the budget is spent; the first one always comes back (cut to the budget if it alone is longer).
-    for (; i < chosen.length; i++) {
+    let off = start ?? 0
+    let next: string | null = null
+    // Whole passages until the budget is spent; the first one on a page always comes back, in parts if it alone is longer.
+    for (; i < chosen.length; i++, off = 0) {
       const p = chosen[i]!
-      if (out.length && used + p.text.length > budget) break
-      const cut = p.text.length > budget
-      out.push({ id: p.id, lines: `${p.start_line}-${p.end_line}`, text: cut ? p.text.slice(0, budget) : p.text, ...(cut ? { truncated: true as const } : {}) })
-      used += Math.min(p.text.length, budget)
+      off = Math.min(off, p.text.length)
+      const rest = p.text.length - off
+      if (out.length && used + rest > budget) break
+      const take = Math.min(rest, budget)
+      const part = take < p.text.length ? { part: { from_char: off, to_char: off + take, of: p.text.length } } : {}
+      out.push({ id: p.id, lines: `${p.start_line}-${p.end_line}`, text: p.text.slice(off, off + take), ...part })
+      used += take
+      if (take < rest) { next = `${i}:${off + take}`; break }
     }
+    if (!next && i < chosen.length) next = String(i)
     const cited = new Map<string, string[]>()
     if (out.length) {
       for (const r of db.prepare(`select e.passage_id, e.fact_id from evidence e join facts f on f.id = e.fact_id
@@ -269,7 +278,7 @@ export function buildMcpServer(token: { id: string, name: string }) {
         latest_id: latest.id, lines: all.at(-1)?.end_line ?? 0, passages: all.length },
       ...(doc.version < latest.version ? { note: `This is version ${doc.version}; the latest is ${latest.version} (${latest.id}). New candidates must quote the latest version.` } : {}),
       ...(missing.length ? { not_in_this_version: missing } : {}),
-      matched_passages: chosen.length, next_cursor: i < chosen.length ? String(i) : null,
+      matched_passages: chosen.length, next_cursor: next,
       passages: out.map(p => ({ ...p, canon_fact_ids: cited.get(p.id) ?? [] })),
     })
   })

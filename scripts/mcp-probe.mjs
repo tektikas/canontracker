@@ -94,6 +94,10 @@ ok('no token / bad token / wrong scheme', '401')
 const big = await rawMcp({ authorization: `Bearer ${adaTok.secret}` }, JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: { pad: 'x'.repeat(300_000) } }))
 assert.equal(big.status, 413)
 ok('oversized request body', '413 TOO_LARGE')
+const chunked = await fetch(base + '/mcp', { method: 'POST', duplex: 'half', headers: { authorization: `Bearer ${adaTok.secret}`, 'content-type': 'application/json', accept: 'application/json, text/event-stream' },
+  body: new ReadableStream({ start(ctl) { const b = Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list', params: { pad: 'x'.repeat(300_000) } })); for (let i = 0; i < b.length; i += 65536) ctl.enqueue(b.subarray(i, i + 65536)); ctl.close() } }) })
+assert.equal(chunked.status, 413)
+ok('oversized chunked request body (no Content-Length)', '413 TOO_LARGE')
 
 // --- Discovery: tools with examples and schemas, prompts
 const c = await connect(adaTok.secret)
@@ -167,6 +171,25 @@ assert.deepEqual(pages.map(p => p.id), whole.data.passages.map(p => p.id))
 refused(await call(c, 'sb_read_document', { document: 'no-such-file.md' }), 'NOT_FOUND', 'unknown document')
 refused(await call(c, 'sb_read_document', { document: s03.id, version: 9 }), 'NOT_FOUND', 'unknown version')
 ok('sb_read_document: latest, older version, line range, passage ids, paging', `${longest.file} in ${pages.length} passages`)
+// A single paragraph longer than the page budget comes in parts, and every character is reachable.
+const longText = 'The bell rang over the pass and nobody spoke. '.repeat(800).slice(0, 35_001) + '!'
+const lfd = new FormData()
+lfd.append('files', new Blob([longText], { type: 'text/markdown' }), `long-paragraph-${run}.md`)
+const longId = (await ada('/api/documents', { method: 'POST', form: lfd })).data.results[0].document_id
+for (const [budget, want] of [[30_000, 2], [12_000, 3], [5_000, 8]]) {
+  const parts = []
+  let at
+  do {
+    const r = await call(c, 'sb_read_document', { document: longId, max_chars: budget, ...(at ? { cursor: at } : {}) })
+    assert.ok(r.data.passages?.length === 1, `one part per page: ${JSON.stringify(r.data).slice(0, 200)}`)
+    parts.push(r.data.passages[0]); at = r.data.next_cursor
+  } while (at)
+  assert.equal(parts.length, want)
+  assert.ok(parts.every((p, i) => p.id === parts[0].id && p.part.from_char === (i ? parts[i - 1].part.to_char : 0) && p.part.of === longText.length))
+  assert.equal(parts.map(p => p.text).join(''), longText, `budget ${budget}: the joined parts are the passage, character for character`)
+}
+refused(await call(c, 'sb_read_document', { document: longId, cursor: 'x:1' }), 'BAD_INPUT', 'malformed cursor')
+ok('sb_read_document: a 35,002-character paragraph pages inside the passage', 'parts join back exactly')
 
 // --- Entities
 const chars = await call(c, 'sb_list_entities', { type: 'character' })
