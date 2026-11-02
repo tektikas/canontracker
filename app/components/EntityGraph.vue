@@ -84,6 +84,8 @@ function fit() {
   // Room on the right for the longest label, so the outermost names fit too.
   const right = 30 + Math.min(W.value * 0.2, Math.max(...nodes.value.map(n => labelW(n.name))))
   const k = Math.min(3, (W.value - 30 - right) / Math.max(1, x1 - x0), (H.value - 60) / Math.max(1, y1 - y0))
+  // On a phone the width decides the scale; the canvas then takes only the height the graph needs.
+  if (W.value < 560) H.value = Math.round(Math.max(300, Math.min(460, (y1 - y0) * k + 80)))
   Object.assign(view, { k, x: 30 - x0 * k + (W.value - 30 - right - (x1 - x0) * k) / 2, y: H.value / 2 - ((y0 + y1) / 2) * k })
 }
 onMounted(() => {
@@ -257,7 +259,7 @@ const summary = computed(() => `${counted(nodes.value.length, 'entity', 'entitie
           ><title>{{ e.facts.map(f => f.statement).join('\n') }}</title></line>
           <g
             v-for="n in placed.nodes" :key="n.name" class="node" :class="{ dim: n.dim, sel: n.name === focus }" :style="{ '--tone': n.type.tone }"
-            tabindex="0" role="button" :aria-pressed="n.name === focus" :aria-label="`${n.name}, ${n.type.label.toLowerCase()}, ${counted(n.degree, 'link')}`"
+            tabindex="0" role="button" :aria-pressed="n.name === focus" :aria-label="`${n.name}, ${n.type.one.toLowerCase()}, ${counted(n.degree, 'link')}`"
             @click.stop="clickNode(n.name)" @keydown.enter.prevent="select(n.name)" @keydown.space.prevent="select(n.name)"
             @mouseenter="hover = n.name" @mouseleave="hover = null" @focus="hover = n.name" @blur="hover = null"
           >

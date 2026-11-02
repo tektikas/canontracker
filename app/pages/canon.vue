@@ -211,7 +211,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
           <li v-for="f in g.facts" :id="`fact-${f.id}`" :key="f.id" class="fact" :class="{ open: open.has(f.id), target: f.id === target }">
             <button type="button" class="line" :aria-expanded="open.has(f.id)" @click="toggle(f.id)">
               <UiIcon name="down" :size="14" class="chev" />
-              <UiBadge v-if="groupBy !== 'kind'">{{ f.kind }}</UiBadge>
+              <UiBadge v-if="groupBy !== 'kind'" class="kb">{{ f.kind }}</UiBadge>
               <span class="text">{{ f.statement }}</span>
               <span class="flags">
                 <UiBadge v-if="f.recheck === 'outdated'" tone="bad" dot>Evidence outdated</UiBadge>
@@ -323,7 +323,9 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
   .line { flex-wrap: wrap; padding: 10px var(--s-3); }
   .text { flex-basis: calc(100% - 30px); white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; }
   .open .text { display: block; }
-  .flags { padding-left: 22px; flex-wrap: wrap; }
+  .kb { order: 1; margin-left: 22px; } /* phones: statement first, its badges on the line below */
+  .flags { order: 2; flex-wrap: wrap; }
+  .line:not(:has(.kb)) .flags { padding-left: 22px; }
   .flags:not(:has(.chip)) { display: none; }
   .src { display: none; }
   .more { padding-left: var(--s-3); }
