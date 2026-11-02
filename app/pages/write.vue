@@ -159,7 +159,7 @@ function keys(e: KeyboardEvent) {
     persistQuietly()
   }
   // The page is one form, so a bare Enter in the title or a radio must not submit it (Ctrl/⌘+Enter does, via the app-wide shortcut).
-  if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey) && e.target instanceof HTMLInputElement) e.preventDefault()
+  if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey) && !e.isComposing && e.keyCode !== 229 && e.target instanceof HTMLInputElement) e.preventDefault()
 }
 
 // Focus mode: only the text on screen. The same textarea stays mounted, so autosave and the caret carry over; the
