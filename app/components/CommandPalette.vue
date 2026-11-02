@@ -226,7 +226,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', global))
   width: min(640px, calc(100vw - 32px)); height: min(560px, calc(100dvh - 96px)); max-height: none; margin: 72px auto auto; padding: 0;
   border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--raised); color: var(--ink); box-shadow: var(--elev-overlay); overflow: hidden;
 }
-.palette::backdrop { background: rgb(8 12 18 / 0.45); }
+.palette::backdrop { background: var(--scrim); }
 /* A fixed height: results come and go without the sheet resizing. */
 .palette-sheet { display: flex; flex-direction: column; height: 100%; }
 .palette-head { display: flex; align-items: center; gap: var(--s-2); padding: 0 var(--s-2) 0 var(--s-4); border-bottom: 1px solid var(--line); color: var(--faint); }

@@ -192,7 +192,7 @@ function uploadInstead() {
 
 <style scoped>
 .gen { width: min(1040px, calc(100vw - 32px)); height: min(760px, calc(100vh - 48px)); padding: 0; border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--raised); color: var(--ink); box-shadow: var(--elev-overlay); }
-.gen::backdrop { background: rgb(8 12 18 / 0.45); }
+.gen::backdrop { background: var(--scrim); }
 .sheet { display: flex; flex-direction: column; height: 100%; }
 .gen-head { display: flex; gap: var(--s-3); align-items: flex-start; justify-content: space-between; padding: var(--s-4) var(--s-5); border-bottom: 1px solid var(--line); }
 .gen-title { display: grid; gap: 6px; min-width: 0; }

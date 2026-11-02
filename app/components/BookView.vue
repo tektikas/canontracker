@@ -6,7 +6,7 @@ const props = defineProps<{ book: Book }>()
 const b = computed(() => props.book)
 const cssString = (s: string) => `"${s.replace(/[\\"]/g, '\\$&').replace(/\s+/g, ' ')}"`
 // Named pages give each chapter its own running header (Chromium has no string-set), so the rules are generated per chapter.
-const margins = `font: 9pt "Instrument Sans", Arial, sans-serif; color: #666;`
+const margins = `font: 9pt "Instrument Sans", Arial, sans-serif; color: #675d50;`
 const pages = computed(() => [
   `@page cover, front { @top-left { content: none; } @top-right { content: none; } @bottom-center { content: none; } }`,
   // flow (manuscript): chapters share one page style, so a short chapter follows the last one on the same page; the running header is the book title.
@@ -71,8 +71,8 @@ h1 { font-size: 2.6rem; line-height: 1.15; margin: 0 0 var(--s-3); overflow-wrap
 .cover { position: relative; aspect-ratio: 210 / 297; width: min(100%, 70vh); margin-inline: auto; display: flex; align-items: flex-end; padding: var(--s-7) var(--s-6); border: 1px solid var(--line-strong); margin-bottom: var(--s-7); overflow: hidden; }
 .cover-art { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
 .cover-text { position: relative; width: 100%; }
-.cover.art .cover-text { padding: var(--s-5); background: rgb(255 255 255 / .88); color: #1a1a1a; }
-.cover.art .studio, .cover.art .kicker { color: #444; }
+.cover.art .cover-text { padding: var(--s-5); background: rgb(253 251 247 / .88); color: #2a241d; }
+.cover.art .studio, .cover.art .kicker { color: #524b42; }
 .titlepage { padding: var(--s-7) 0; text-align: center; margin-bottom: var(--s-7); border-bottom: 1px solid var(--line); }
 .line { color: var(--muted); font-size: var(--text-sm); }
 .toc { margin-bottom: var(--s-7); }
@@ -113,7 +113,7 @@ h1 { font-size: 2.6rem; line-height: 1.15; margin: 0 0 var(--s-3); overflow-wrap
 @page cover { size: A4; margin: 0; }
 @page front { size: A4; margin: 24mm 22mm; }
 @media print {
-  .book { max-width: none; font-size: 11pt; color: #1a1a1a; }
+  .book { max-width: none; font-size: 11pt; color: #2a241d; }
   .book .cover { page: cover; height: 296mm; width: auto; aspect-ratio: auto; min-height: 0; margin: 0; padding: 0 0 24mm; border: 0; break-after: page; align-items: flex-end; }
   .book .cover.art .cover-text { margin: 0 18mm; width: auto; }
   .book .cover:not(.art) { padding: 0 22mm 40mm; background: #f4efe6; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
