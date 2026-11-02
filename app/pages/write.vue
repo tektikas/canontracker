@@ -345,14 +345,14 @@ function grow() {
   el.style.height = `${el.scrollHeight + 2}px`
 }
 watch(() => f.content, () => nextTick(grow), { flush: 'post' })
-// Dictation lands where the caret was (or replaces the selection), with a space on either side when the words would touch.
+// Dictation lands where the caret was (or replaces the selection), with a space before it and before a following word.
 function insertText(text: string) {
   const el = body.value
   const at = el?.selectionStart ?? f.content.length
   const before = f.content.slice(0, at)
   const after = f.content.slice(el?.selectionEnd ?? at)
   const head = `${before}${before && !/\s$/.test(before) ? ' ' : ''}${text}`
-  f.content = `${head}${after && !/^\s/.test(after) ? ' ' : ''}${after}`
+  f.content = `${head}${/^[\p{L}\p{N}]/u.test(after) ? ' ' : ''}${after}`
   nextTick(() => {
     el?.focus()
     el?.setSelectionRange(head.length, head.length)

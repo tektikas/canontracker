@@ -397,7 +397,8 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
 .cover .prompt { margin: var(--s-2) 0 0; padding: var(--s-2) var(--s-3); border-left: 2px solid var(--line-strong); white-space: pre-line; color: var(--muted); overflow-wrap: anywhere; max-width: 70ch; }
 .rec { display: grid; gap: var(--s-3); margin-bottom: var(--s-4); }
 .rec-audio { width: 100%; }
-.rec-info p { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 0; }
+.rec-info p { margin: 0; }
+.rec-info svg { vertical-align: -2px; }
 .rec .notice { margin: 0; }
 .layout { display: grid; gap: var(--s-4); grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
 .doc { padding: var(--s-5) var(--s-4); align-self: stretch; }

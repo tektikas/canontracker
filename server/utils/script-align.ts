@@ -34,11 +34,15 @@ export function scriptLines(passages: PassageRow[], content: string): ScriptUnit
 type Piece = { text: string, mark: boolean }
 // The unit's text cut at word starts, so punctuation and spaces stay with the word before them; `marked` words are highlighted.
 function pieces(u: Unit, toks: Tok[], marked: Set<Tok>): Piece[] {
-  return toks.map((t) => {
+  const out: Piece[] = []
+  for (const t of toks) {
     const next = u.toks[u.toks.indexOf(t) + 1]
-    const from = u.toks[0] === t ? 0 : t.start
-    return { text: u.text.slice(from, next ? next.start : u.text.length), mark: marked.has(t) }
-  })
+    const text = u.text.slice(u.toks[0] === t ? 0 : t.start, next ? next.start : u.text.length)
+    const mark = marked.has(t)
+    if (out.at(-1)?.mark === mark) out.at(-1)!.text += text // one highlight per run of words
+    else out.push({ text, mark })
+  }
+  return out
 }
 
 export type AlignRow = {

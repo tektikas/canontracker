@@ -111,7 +111,7 @@ check('a text document has no audio', (await a(`/api/documents/${script.id}/audi
 const cmp = (await a(`/api/documents/${doc.id}/script`)).data
 check('compared with the latest script', cmp.script.title, script.title)
 const line1 = cmp.rows.find(x => x.script?.pieces.map(p => p.text).join('').startsWith('Hear ye'))
-check('line 1: "Hear ye, hear ye!" not said, the rest as written', [line1.kind, line1.script.pieces.filter(p => p.mark).map(p => p.text.trim())], ['changed', ['Hear', 'ye,', 'hear', 'ye!']])
+check('line 1: "Hear ye, hear ye!" not said, the rest as written', [line1.kind, line1.script.pieces.filter(p => p.mark).map(p => p.text.trim())], ['changed', ['Hear ye, hear ye!']])
 const rourke = cmp.rows.find(x => x.script?.pieces.map(p => p.text).join('').includes('Captain Rourke'))
 check('the Rourke bark is changed, spoken over two turns', [rourke.kind, rourke.spoken.passages.length, rourke.spoken.start_ms], ['changed', 2, 22620])
 check('the ad-lib is marked as inserted words', rourke.spoken.pieces.filter(p => p.mark).map(p => p.text).join('').includes('Ember Well'), true)

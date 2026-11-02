@@ -79,7 +79,7 @@ const RULE: Record<string, string> = {
         <UiBadge tone="warn">{{ data.counts.changed }} changed</UiBadge>
         <UiBadge tone="accent">{{ data.counts.added }} added</UiBadge>
         <UiBadge tone="pencil">{{ data.counts.missing }} not said</UiBadge>
-        <UiBadge :tone="data.flagged ? 'bad' : 'good'" dot>{{ data.flagged ? `${counted(data.flagged, 'line')} contradict canon` : 'No canon conflict found' }}</UiBadge>
+        <UiBadge :tone="data.flagged ? 'bad' : 'good'" dot>{{ data.flagged ? `${counted(data.flagged, 'line')} ${data.flagged === 1 ? 'contradicts' : 'contradict'} canon` : 'No canon conflict found' }}</UiBadge>
         <label class="only small"><input v-model="onlyDiffs" type="checkbox"> Only differences</label>
       </div>
       <p class="small faint">
