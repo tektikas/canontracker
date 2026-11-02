@@ -112,11 +112,13 @@ check('accept an S04 candidate', (await a(`/api/facts/${cand.id}/review`, { meth
 const s04v1 = (await a(`/api/documents/${s04.id}`)).data
 const cited = s04v1.passages.find(p => p.id === cand.evidence[0].passage_id)
 const text = s04v1.content.replace(cited.text, `${cited.text} Then the bell rang twice.`)
+// Extraction dedup (lead c18r #3): re-extracting S04 replays its recorded candidates; the accepted one and the still pending
+// one are already in the project, so nothing new waits for review.
+check('re-extracting S04 adds no candidate the project already has', ((r) => [r.created, r.skipped])((await a(`/api/documents/${s04.id}/extract`, { method: 'POST' })).data), [0, 2])
 const s04v2 = (await a('/api/documents', { method: 'POST', form: filesForm([['S04.md', text]], sub.id) })).data.results[0]
 check('S04 v2 imported', s04v2.version, 2)
-// Upload dedup (lead c18r #3): the recorded extraction proposes S04's candidates again; the accepted one and the still pending
-// one are already in the project, so nothing new waits for review.
-check('S04 v2 adds no candidate the project already has', [s04v2.candidates, s04v2.skipped], [0, 2])
+// Recorded output belongs to the sample's own text: the edited v2 has none, so its upload proposes nothing.
+check('S04 v2 (edited text) gets no recorded candidates', [s04v2.candidates, s04v2.skipped], [0, 0])
 check('the accepted candidate does not come back as pending', (await a('/api/facts?status=pending')).data.filter(f => f.statement === cand.statement).length, 0)
 // Pending evidence follows the new version when its quote appears exactly once there (lead c18r2 ruling b); canon never moves.
 const pendingS04 = pending.filter(f => f.id !== cand.id && f.evidence.some(e => e.document_id === s04.id && e.verified))
@@ -243,15 +245,17 @@ const sceneRoot = await upTo('scene.md', '# Scene\n\nOne more, not in a folder.'
 check('a scene.md not in a folder is its own document too', [sceneRoot.version, sceneRoot.folder], [1, null])
 
 // 6. Re-extract: only pending candidates, deduplicated.
+// S05 still holds the demo's own text (S04 v2 does not, so recorded mode has nothing for it).
+const s05 = demoDocs.find(d => d.filename === 'S05.md')
 const stats0 = (await a('/api/stats')).data
-const re1 = (await a(`/api/documents/${s04v2.document_id}/extract`, { method: 'POST' })).data
+const re1 = (await a(`/api/documents/${s05.id}/extract`, { method: 'POST' })).data
 check('re-extract of an already extracted document adds nothing', re1.created, 0)
 check('it says what it skipped', re1.skipped > 0, true)
 check('it says recorded mode covers this demo file', [re1.mode, re1.recorded_covers], ['mock', true])
 const stats1 = (await a('/api/stats')).data
 check('pending and canon counts are unchanged', [stats1.pending, stats1.canon], [stats0.pending, stats0.canon])
+check('recorded mode has no output for the edited S04 v2', (await a(`/api/documents/${s04v2.document_id}/extract`, { method: 'POST' })).data.recorded_covers, false)
 // A candidate a person corrected into something else: the model's original reading is new to the project again.
-const s05 = demoDocs.find(d => d.filename === 'S05.md')
 const c5 = pending.find(f => f.status === 'pending' && f.evidence.some(e => e.document_filename === 'S05.md' && e.verified))
 await a(`/api/facts/${c5.id}/review`, { method: 'POST', body: { decision: 'correct_and_accept', corrected: { statement: `Probe correction ${run}.`, subject: `Probe ${run}`, object: null } } })
 const stats2 = (await a('/api/stats')).data

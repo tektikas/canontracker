@@ -1,7 +1,7 @@
 // Seeded random merge-identity sequence against a running server:
 //   node scripts/merge-fuzz.mjs <baseUrl> <path to the server's .data/storybible.db> [seed] [steps] [--uncapped]
 // Loads the demo into a throwaway account, then creates/deletes pages by hand, renames pages, adds/removes aliases, merges,
-// re-imports scenes and accepts candidates in random order. --uncapped lets merges run until one page is left (by default
+// re-extracts scenes and accepts candidates in random order. --uncapped lets merges run until one page is left (by default
 // they stop at 5). After every step it asserts that analysis follows the merge decisions and nothing else:
 // canon never names a merged-away name, every mapping is terminal (its target is a live entity's analysis name, or a
 // canonical name whose page was deleted, which then stays as it is until a merge moves it), analysis names never change,
@@ -141,13 +141,11 @@ const actions = {
     const dst = pick(ents.filter(e => e.id !== src.id))
     return ok(await api(`/api/entities/${src.id}/merge`, { method: 'POST', body: { into: dst.id } }), `merge ${src.name} → ${dst.name}`, [200, 409])
   },
-  async reimport() {
+  // Recorded output replays only for the sample's own text, so candidates come back by re-extracting an unchanged scene.
+  async reextract() {
     const docs = (await api('/api/documents')).data.filter(d => /^S\d+\.md$/.test(d.filename))
     const doc = rand() < 0.6 ? docs.find(d => d.filename === 'S06.md') : pick(docs)
-    const content = (await api(`/api/documents/${doc.id}`)).data.content
-    const form = new FormData()
-    form.append('files', new Blob([`${content}\n\nDraft ${Math.floor(rand() * 1e6)}.\n`], { type: 'text/markdown' }), doc.filename)
-    return ok(await api('/api/documents', { method: 'POST', form }), `reimport ${doc.filename}`)
+    return ok(await api(`/api/documents/${doc.id}/extract`, { method: 'POST' }), `re-extract ${doc.filename}`)
   },
   async accept() {
     const pending = (await api('/api/facts?status=pending')).data.filter(f => f.evidence.some(e => e.verified))
@@ -156,7 +154,7 @@ const actions = {
     return ok(await api(`/api/facts/${f.id}/review`, { method: 'POST', body: { decision: 'accept' } }), `accept ${f.statement}`)
   },
 }
-const weights = [['rename', 3], ['addAlias', 2], ['removeAlias', 2], ['create', 2], ['remove', 2], ['merge', 3], ['reimport', 2], ['accept', 3]]
+const weights = [['rename', 3], ['addAlias', 2], ['removeAlias', 2], ['create', 2], ['remove', 2], ['merge', 3], ['reextract', 2], ['accept', 3]]
 const total = weights.reduce((a, [, w]) => a + w, 0)
 
 let step = 0

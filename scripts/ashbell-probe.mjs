@@ -3,7 +3,8 @@
 // Throwaway account (unique email per run), its own project. Follows the bible's §9 live-probe steps 1–12: load (folders,
 // kinds, tags, wiki pages), review (figurative reject, bulk accept skipping only the invented quote), scan (exactly C1–C5,
 // M1 and the A1 false alarm), the two merges (M1 closes, M2 appears), the R1 change (impact S02/S05/S11/S13 only, tasks,
-// C6 after apply, revert), the S03 v2 re-check, Ask, MCP and the gold-set evaluation. Expectations come from
+// C6 after apply, revert), the S03 v2 re-check, Ask, MCP and the gold-set evaluation; step 13 checks that unrelated files
+// named like a sample (S01-homecoming.md, S01.md) get no recorded output. Expectations come from
 // server/assets/ashbell-pass/gold.json and manifest.json, so the probe and the corpus agree by construction.
 // The db path is optional: with it, the probe also checks that model_calls rows exist for every extraction and rule check.
 import assert from 'node:assert/strict'
@@ -255,4 +256,23 @@ if (dbPath) {
   check('model_calls rows: 28 extractions, rule checks recorded', [db.prepare(`select count(*) n from model_calls where project_id = ? and purpose = 'extract'`).get(project).n >= 28,
     db.prepare(`select count(*) n from model_calls where project_id = ? and purpose = 'rule_check'`).get(project).n >= 2], [true, true])
 }
+// 13. Recorded output is keyed by the sample's own text, not its filename: unrelated files that share a demo name, in a fresh
+// project, get no candidates and no "Recorded demo run" provenance; re-extract says recorded mode has no output for them.
+step(13)
+const fresh = (await a('/api/projects', { method: 'POST', body: { name: `Unrelated ${run}`, studio_id: studio.id } })).data
+check('switch to a fresh project', (await a(`/api/projects/${fresh.id}/switch`, { method: 'POST' })).status, 200)
+const strangers = new FormData()
+for (const name of ['S01-homecoming.md', 'S01.md']) strangers.append('files', new Blob([`# ${name}\n\nA short, unrelated note about a lighthouse keeper named ${run}.\n`], { type: 'text/markdown' }), name)
+const strangerUp = (await a('/api/documents', { method: 'POST', form: strangers })).data.results
+check('unrelated S01-homecoming.md and S01.md: imported, 0 candidates', strangerUp.map(r => [r.filename, r.status, r.candidates]), [['S01-homecoming.md', 'imported', 0], ['S01.md', 'imported', 0]])
+check('no pending candidates in the fresh project', (await a('/api/facts?status=pending')).data.length, 0)
+for (const r of strangerUp) {
+  const re = (await a(`/api/documents/${r.document_id}/extract`, { method: 'POST' })).data
+  check(`re-extract ${r.filename}: recorded mode has no output, nothing created`, [re.recorded_covers, re.created], [false, 0])
+}
+if (dbPath) {
+  const db = new DatabaseSync(dbPath, { readOnly: true })
+  check('extraction calls in the fresh project ran but returned nothing', db.prepare(`select output_summary s from model_calls where project_id = ? and purpose = 'extract'`).all(fresh.id).map(r => r.s), ['0 candidates', '0 candidates', '0 candidates', '0 candidates'])
+}
+
 console.log(`\nashbell probe passed (${docs.length} docs, ${words} words)`)
