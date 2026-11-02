@@ -31,7 +31,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
       d.outdated_fact_ids ? `${d.outdated_fact_ids.length} lost their quote (evidence outdated) · ${d.unchanged_fact_ids?.length ?? 0} still read the same, waiting to be confirmed` : 'Re-check the facts that cite it']
     case 'citation.confirmed': return [`${who} confirmed ${d.citations?.length === 1 ? 'a citation' : `${d.citations?.length ?? 0} citations`}: the quote reads the same in ${d.citations?.[0]?.filename} v${d.citations?.[0]?.to?.version}`,
       `Now cites v${d.citations?.[0]?.to?.version}${d.citations?.[0]?.to?.line ? `, line ${d.citations[0].to.line}` : ''} (was v${d.citations?.[0]?.from?.version}): ${q(d.citations?.[0]?.quote)}`]
-    case 'citation.kept': return [`${who} kept a canon fact as it is after its quote left ${d.citations?.[0]?.filename} v${d.citations?.[0]?.checked_against?.version}`,
+    case 'citation.kept': return [`${who} kept a citation of a canon fact as it is after its quote ${d.citations?.[0]?.quote_count ? 'appeared more than once in' : 'left'} ${d.citations?.[0]?.filename} v${d.citations?.[0]?.checked_against?.version}`,
       `Still cites v${d.citations?.[0]?.from?.version}: ${q(d.citations?.[0]?.quote)}`]
     case 'candidate.created':
       if (d.via === 'mcp') return [`Agent “${d.token_name}” proposed a candidate for ${who}`, 'Quote found in source · waiting for a human decision']

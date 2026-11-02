@@ -1,11 +1,16 @@
-// Re-check probe against a running server: node scripts/recheck-probe.mjs [baseUrl]
+// Re-check probe against a running server: node scripts/recheck-probe.mjs <baseUrl> <server cwd>/.data/storybible.db
 // Broken Tide demo: accept every verified candidate of one scene and add facts from its other sentences by hand, then upload
 // a v2 with two cited sentences changed. Only the two facts resting on them show "evidence outdated" (API, stats, Library row,
 // upload result, audit, diff); the rest read the same and wait for one human confirmation that re-pins them to v2 (audited).
 // "Keep as is" leaves a citation on v1, marked as checked against v2, until a v3 asks again; a v4 restoring a sentence makes its fact unchanged again. Viewers cannot re-check.
+// A v5 repeating a confirmed quote as a new paragraph makes that fact outdated ("appears twice"), and the diff lists it though its passage reads the same.
+// Keep is per citation: a fact citing two documents, both quotes gone, keeps one citation and the other stays outdated.
 import assert from 'node:assert/strict'
+import { DatabaseSync } from 'node:sqlite'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
+const dbPath = process.argv[3]
+if (!dbPath) throw new Error('usage: node scripts/recheck-probe.mjs <baseUrl> <server cwd>/.data/storybible.db')
 const run = Date.now().toString(36)
 
 function client() {
@@ -98,7 +103,8 @@ check('Library row: all to re-check, 2 outdated', [(await row()).stale_facts, (a
 const staleEv = (await a('/api/audit')).data.find(e => e.event_type === 'citation.stale' && e.target_id === up2.document_id)
 check('audit citation.stale names the outdated and the unchanged', [sorted(staleEv.detail.outdated_fact_ids), sorted(staleEv.detail.unchanged_fact_ids)], [sorted(targets.map(t => t.id)), sorted(rest)])
 const diff = (await a(`/api/documents/${up2.document_id}/diff?from=${docV1.id}`)).data
-check('diff: the two facts on changed passages have their quote gone', sorted(diff.rows.flatMap(r => r.facts).filter(f => f.quote_gone).map(f => f.id)), sorted(targets.map(t => t.id)))
+check('diff: the two facts on changed passages are outdated, quote gone', sorted(diff.rows.flatMap(r => r.facts).filter(f => f.outdated).map(f => f.id)), sorted(targets.map(t => t.id)))
+check('diff: their quotes appear 0 times in v2', diff.rows.flatMap(r => r.facts).filter(f => f.outdated).map(f => f.quote_count), [0, 0])
 
 // 4. A viewer reads, cannot re-check; bad requests are refused.
 const link = (await a('/api/team/invites', { method: 'POST', body: { role: 'viewer', days: 1 } })).data
@@ -126,8 +132,10 @@ check('one citation.confirmed per fact, v1 → v2, by Ada', [sorted(confirmed.ma
 check('confirming again does nothing', (await a('/api/facts/recheck', { method: 'POST', body: { action: 'confirm', fact_ids: rest } })).data.done, [])
 
 // 6. Keep one outdated fact as it is: it stays on v1, checked against v2.
-check('keep refuses an unchanged fact', (await a('/api/facts/recheck', { method: 'POST', body: { action: 'keep', fact_ids: [rest[0]] } })).data.done, [])
-check('keep the first target', (await a('/api/facts/recheck', { method: 'POST', body: { action: 'keep', fact_ids: [targets[0].id] } })).data.done, [targets[0].id])
+const t0ev = canon.get(targets[0].id).evidence[0].id
+check('keep refuses an unchanged citation', (await a('/api/facts/recheck', { method: 'POST', body: { action: 'keep', evidence_ids: [canon.get(rest[0]).evidence[0].id] } })).data.done, [])
+check('keep needs evidence_ids', (await a('/api/facts/recheck', { method: 'POST', body: { action: 'keep', fact_ids: [targets[0].id] } })).status, 400)
+check('keep the first target’s citation', (await a('/api/facts/recheck', { method: 'POST', body: { action: 'keep', evidence_ids: [t0ev] } })).data.done, [t0ev])
 canon = new Map((await a('/api/facts?status=canon')).data.map(f => [f.id, f]))
 check('kept: still cites v1, citation marked kept, fact needs nothing', [canon.get(targets[0].id).evidence[0].document_id, canon.get(targets[0].id).evidence[0].recheck, state(targets[0].id)], [docV1.id, 'kept', null])
 stats = (await a('/api/stats')).data
@@ -148,4 +156,55 @@ const up4 = (await a('/api/documents', { method: 'POST', form: form(name, textV2
 canon = new Map((await a('/api/facts?status=canon')).data.map(f => [f.id, f]))
 check('v4: the restored sentence’s fact is unchanged, the other still outdated', [up4.version, state(targets[1].id), state(targets[0].id)], [4, 'unchanged', 'outdated'])
 check('pending candidates were never touched by re-check', (await a('/api/facts?status=pending')).data.every(f => f.recheck === null), true)
+
+// 9. v5 repeats a confirmed quote as a new paragraph. Its own passage reads the same, but the quote no longer sits in one place.
+const textV4 = (await a(`/api/documents/${up4.document_id}`)).data.content
+// A confirmed fact (cites v2) whose passage reads the same in v5: not the passage v4 restored.
+const dup = rest.map(id => canon.get(id)).find(f => !v2doc.passages.find(p => p.id === f.evidence[0].passage_id).text.includes(changeOf(quote(targets[1]))))
+check('the repeated quote is once in v4', count(textV4, quote(dup)), 1)
+const up5 = (await a('/api/documents', { method: 'POST', form: form(name, `${textV4.trimEnd()}\n\n${quote(dup)}\n`) })).data.results[0]
+canon = new Map((await a('/api/facts?status=canon')).data.map(f => [f.id, f]))
+const dupEv = canon.get(dup.id).evidence[0]
+check('v5: the repeated quote makes its fact outdated, appearing twice', [up5.version, state(dup.id), dupEv.recheck, dupEv.recheck_count], [5, 'outdated', 'outdated', 2])
+check('v5: the gone quote counts 0', canon.get(targets[0].id).evidence[0].recheck_count, 0)
+const diff5 = (await a(`/api/documents/${up5.document_id}/diff?from=${dupEv.document_id}`)).data
+const dupRow = diff5.rows.find(r => r.facts.some(f => f.id === dup.id))
+check('diff v2→v5 lists it on its unchanged passage, outdated, quote twice', [dupRow?.op, dupRow?.facts.find(f => f.id === dup.id)?.outdated, dupRow?.facts.find(f => f.id === dup.id)?.quote_count], ['same', true, 2])
+check('diff v2→v5 counts it', [diff5.recheck >= 1, diff5.outdated >= 1], [true, true])
+
+// 10. Keep is per citation. A fact citing two documents, both quotes changed: keeping one leaves the other outdated.
+const docs = (await a('/api/documents')).data.filter(d => d.name !== name && d.kind === 'scene').slice(0, 2)
+assert.equal(docs.length, 2, 'two other scenes')
+const pick = async (d) => {
+  const full = (await a(`/api/documents/${d.id}`)).data
+  const t = full.passages.filter(p => !p.text.startsWith('#')).flatMap(p => p.text.match(/[^.!?\n]+[.!?]/g) ?? []).map(x => x.trim()).find(x => x.length >= 20 && count(full.content, x) === 1)
+  return { full, t }
+}
+const [p1, p2] = [await pick(docs[0]), await pick(docs[1])]
+const two = (await a('/api/facts', { method: 'POST', body: { to: 'canon', document_id: p1.full.id, quote: p1.t, kind: 'claim', subject: 'Scene', predicate: 'says', statement: `Two sources (${run})` } })).data
+check('fact authored on the first scene', two.status, 'canon')
+// The second citation: no route adds a second source to a fact yet, so the probe writes one evidence row the way the app
+// stores it (verified, the passage holding the quote verbatim) straight into the server's database.
+const passage2 = p2.full.passages.find(p => p.text.includes(p2.t))
+{
+  const db = new DatabaseSync(dbPath)
+  db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, 1, (select project_id from facts where id = ?))')
+    .run(`ev_probe${run}`, two.id, p2.full.id, passage2.id, p2.t, two.id)
+  db.close()
+}
+for (const { full, t } of [p1, p2]) {
+  const r = (await a('/api/documents', { method: 'POST', form: form(full.name ?? full.filename, full.content.replace(t, changeOf(t))) })).data.results[0]
+  assert.equal(r.version, full.version + 1, `new version of ${full.filename}`)
+}
+let twoF = (await a('/api/facts?status=canon')).data.find(f => f.id === two.id)
+check('two sources, both quotes gone: both citations outdated', twoF.evidence.map(e => [e.recheck, e.recheck_count]), [['outdated', 0], ['outdated', 0]])
+const [evA, evB] = twoF.evidence.map(e => e.id)
+check('keep one citation', (await a('/api/facts/recheck', { method: 'POST', body: { action: 'keep', evidence_ids: [evA] } })).data.done, [evA])
+twoF = (await a('/api/facts?status=canon')).data.find(f => f.id === two.id)
+check('only that citation is kept; the other is still outdated, so is the fact', [twoF.evidence.map(e => e.recheck), twoF.recheck], [['kept', 'outdated'], 'outdated'])
+const keptTwo = (await a('/api/audit')).data.filter(e => e.event_type === 'citation.kept' && e.target_id === two.id)
+check('one citation.kept, naming that citation only', keptTwo.map(e => e.detail.citations.map(c => c.evidence_id)), [[evA]])
+check('keep the other one', (await a('/api/facts/recheck', { method: 'POST', body: { action: 'keep', evidence_ids: [evB] } })).data.done, [evB])
+twoF = (await a('/api/facts?status=canon')).data.find(f => f.id === two.id)
+check('both kept: the fact needs nothing; two audit events', [twoF.recheck, (await a('/api/audit')).data.filter(e => e.event_type === 'citation.kept' && e.target_id === two.id).length], [null, 2])
 console.log('recheck probe: all checks passed')

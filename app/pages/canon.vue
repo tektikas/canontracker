@@ -26,15 +26,17 @@ const filtered = computed(() => {
   return (recheckOnly.value && tab.value === 'facts' ? outdated.value : canon.value ?? []).filter(f => !q || `${f.statement} ${f.subject} ${f.object ?? ''}`.toLowerCase().includes(q))
 })
 type Ev = NonNullable<typeof canon.value>[number]['evidence'][number]
-const outdatedEv = (f: { evidence: Ev[] }) => f.evidence.find(e => e.recheck === 'outdated')
+// Each outdated citation is decided on its own: its source, its diff, its Keep. Keeping one source says nothing about another.
+const outdatedEvs = (f: { evidence: Ev[] }) => f.evidence.filter(e => e.recheck === 'outdated')
 const busy = ref('')
 const done = ref('')
 const failed = ref('')
+// confirm: fact ids (every unchanged citation of each); keep: one citation's evidence id.
 async function recheck(action: 'confirm' | 'keep', ids: string[]) {
   busy.value = action === 'keep' ? ids[0]! : 'confirm'
   done.value = failed.value = ''
   try {
-    const r = await $fetch('/api/facts/recheck', { method: 'POST', body: { action, fact_ids: ids } })
+    const r = await $fetch('/api/facts/recheck', { method: 'POST', body: action === 'confirm' ? { action, fact_ids: ids } : { action, evidence_ids: ids } })
     done.value = action === 'confirm' ? `${counted(r.done.length, 'fact now cites', 'facts now cite')} the newer version.` : 'Kept as it is. A later version of the source will ask again.'
     await Promise.all([refreshCanon(), refreshNuxtData('stats')])
   } catch (e) {
@@ -43,10 +45,14 @@ async function recheck(action: 'confirm' | 'keep', ids: string[]) {
     busy.value = ''
   }
 }
-async function keep(f: { id: string, evidence: Ev[] }) {
-  const ev = outdatedEv(f)
-  if (!(await askConfirm({ title: 'Keep this fact as it is?', body: `It keeps citing v${ev?.document_version}, where its quote still stands. Nothing in canon changes; the audit records your decision. A later version of the source asks again.`, confirm: 'Keep as is' }))) return
-  recheck('keep', [f.id])
+async function keep(f: { evidence: Ev[] }, ev: Ev) {
+  const others = outdatedEvs(f).length - 1
+  if (!(await askConfirm({
+    title: 'Keep this citation as it is?',
+    body: `It keeps citing ${ev.document_title} v${ev.document_version}, where its quote still stands (${quoteLost(ev.recheck_count ?? 0, ev.latest_version).toLowerCase()}). Nothing in canon changes; the audit records your decision. A later version of the source asks again.${others ? ` This fact has ${counted(others, 'other outdated citation')}; ${others === 1 ? 'it stays' : 'they stay'} outdated until you decide ${others === 1 ? 'it' : 'them'} too.` : ''}`,
+    confirm: 'Keep as is',
+  }))) return
+  recheck('keep', [ev.id])
 }
 const groups = computed(() => KINDS.map(kind => ({ kind, facts: filtered.value.filter(f => f.kind === kind) })).filter(g => g.facts.length))
 const entities = computed(() => {
@@ -135,13 +141,18 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
       <div class="stack">
         <UiPanel v-for="f in g.facts" :id="`fact-${f.id}`" :key="f.id" class="stack" :class="{ target: f.id === target }">
           <FactSummary :fact="f" sources />
-          <div v-if="f.recheck === 'outdated'" class="row">
-            <UiButton size="sm" icon="history" :to="`/documents/${outdatedEv(f)!.latest_document_id}/history?from=${outdatedEv(f)!.document_id}&to=${outdatedEv(f)!.latest_document_id}`">See what changed</UiButton>
-            <template v-if="editor">
-              <UiButton size="sm" icon="changes" :to="`/changes?target=${f.id}`">Propose change…</UiButton>
-              <UiButton size="sm" variant="ghost" :loading="busy === f.id" :disabled="!!busy" @click="keep(f)">Keep as is</UiButton>
-            </template>
-          </div>
+          <template v-if="f.recheck === 'outdated'">
+            <ul class="outdated-evs" :aria-label="`Outdated evidence of this fact`">
+              <li v-for="ev in outdatedEvs(f)" :key="ev.id">
+                <span class="small"><UiIcon name="file" :size="14" /><b>{{ ev.document_title }}</b><span class="faint">v{{ ev.document_version }}</span><span class="bad-text">{{ quoteLost(ev.recheck_count ?? 0, ev.latest_version) }}</span></span>
+                <div class="row">
+                  <UiButton size="sm" icon="history" :to="`/documents/${ev.latest_document_id}/history?from=${ev.document_id}&to=${ev.latest_document_id}`">See what changed</UiButton>
+                  <UiButton v-if="editor" size="sm" variant="ghost" :loading="busy === ev.id" :disabled="!!busy" @click="keep(f, ev)">Keep as is</UiButton>
+                </div>
+              </li>
+            </ul>
+            <div v-if="editor"><UiButton size="sm" icon="changes" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
+          </template>
           <div v-else-if="editor"><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
         </UiPanel>
       </div>
@@ -195,6 +206,10 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 .unchanged svg { flex: none; margin-top: 2px; }
 .stack-tight { display: grid; gap: 4px; flex: 1 1 260px; min-width: 0; }
 .unchanged ul { margin: 6px 0 0; padding-left: 18px; }
+.outdated-evs { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
+.outdated-evs li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2); padding: var(--s-2) var(--s-3); border: 1px solid color-mix(in srgb, var(--bad) 35%, transparent); border-radius: var(--r-md); background: var(--bad-soft); }
+.outdated-evs li > span { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; min-width: 0; }
+.bad-text { color: var(--bad); font-weight: 600; }
 @media (max-width: 720px) { .recheck-toggle { min-height: 44px; } }
 .target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); scroll-margin-top: 72px; }
 .kind { margin-bottom: var(--s-5); }

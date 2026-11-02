@@ -357,8 +357,9 @@ export interface EvidenceRow {
   id: string, passage_id: string | null, quote: string, verified: number, support: string, document_id: string, document_filename: string
   document_key: string, document_folder: string | null, document_title: string, document_kind: string, document_version: number, latest_version: number, start_line: number | null, end_line: number | null
   // Canon only, on a citation of an older version (server/utils/recheck.ts); null otherwise. latest_document_id: the source's
-  // latest version; recheck_line: where an unchanged quote now sits in it.
-  recheck: RecheckState | null, latest_document_id: string | null, recheck_line: number | null
+  // latest version; recheck_line: where an unchanged quote now sits in it; recheck_count: how many times the quote appears in
+  // it (0 = gone, 2+ = ambiguous, so outdated).
+  recheck: RecheckState | null, latest_document_id: string | null, recheck_line: number | null, recheck_count: number | null
 }
 export interface ConflictRow {
   id: string, left_fact_id: string, right_fact_id: string, rule: string, origin: string, model_id: string | null, rationale: string
@@ -416,11 +417,13 @@ export function listFacts(where = '1 = 1', ...params: (string | number)[]) {
     if (!folders.has(id)) folders.set(id, folderPath(id))
     return folders.get(id)!
   }
-  const stale = facts.some(f => f.status === 'canon') ? new Map(staleCanonCitations().map(c => [c.evidence_id, c])) : new Map<string, StaleCitation>()
+  // Only the listed canon facts are classified, so a page asking for one fact pays for one fact, not the whole project.
+  const canonIds = facts.filter(f => f.status === 'canon').map(f => f.id)
+  const stale = canonIds.length ? new Map(staleCanonCitations(canonIds).map(c => [c.evidence_id, c])) : new Map<string, StaleCitation>()
   return facts.map((f) => {
     const evidence = (ev.all(f.id) as unknown as (EvidenceRow & { folder_id: string | null })[]).map(({ folder_id, ...e }) => {
       const c = stale.get(e.id)
-      return { ...e, document_folder: folderOf(folder_id), recheck: c?.state ?? null, latest_document_id: c?.latest_id ?? null, recheck_line: c?.to?.start_line ?? null } as EvidenceRow
+      return { ...e, document_folder: folderOf(folder_id), recheck: c?.state ?? null, latest_document_id: c?.latest_id ?? null, recheck_line: c?.to?.start_line ?? null, recheck_count: c?.count ?? null } as EvidenceRow
     })
     // A fact needs re-checking when a citation's quote is gone from the latest version (outdated), or only a confirmation when
     // every such quote still reads the same (unchanged). Kept citations need nothing.
