@@ -3,9 +3,13 @@
 // - lantern-row: a tiny second sample with no recorded run. Its canon is a handful of preloaded facts (origin 'sample'): nobody
 //   authored or decided them, so they carry no author or decider and the audit says they were loaded, not added by hand.
 //   Each quote is still checked verbatim against its passage (findQuotePassage) before its evidence row is written.
+// - ashbell-pass: the long game demo (28 documents). Its manifest.json files each document in a folder with a kind and tags,
+//   and entities.json preloads the wiki pages (editorial metadata, never canon). In recorded mode its candidates replay a recorded run.
 // The audit is append-only: a reset keeps earlier events and appends project.reset, then sample.loaded.
-const SETS = ['broken-tide', 'lantern-row'] as const
-const NAMES = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample' }
+const SETS = ['broken-tide', 'lantern-row', 'ashbell-pass'] as const
+const NAMES = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample', 'ashbell-pass': 'the Ashbell Pass demo' }
+interface Manifest { tags: Record<string, string>, docs: Record<string, { kind: string, folder: string, tags: string[] }> }
+interface SampleEntity { name: string, kind: string, summary: string, fields?: Record<string, string> }
 // ponytail: in-process lock, good for the single Nitro instance this app runs as; move it into the database if it ever scales out.
 const loading = new Set<string>()
 
@@ -40,19 +44,69 @@ export default defineEventHandler(async (event) => {
     const assets = useStorage('assets:server')
     const files = (await assets.getKeys(`${set}:docs`)).map(k => k.split(':').pop()!)
       .sort((a, b) => Number(/^S\d/.test(a)) - Number(/^S\d/.test(b)) || a.localeCompare(b))
+    const manifest = await assets.getItem<Manifest>(`${set}:manifest.json`)
+    const entities = await assets.getItem<SampleEntity[]>(`${set}:entities.json`)
+    const shelf = manifest ? organise(manifest, entities ?? []) : null
     const results = []
     for (const filename of files) {
       const content = await assets.getItem<string>(`${set}:docs:${filename}`)
-      if (content) results.push(await importDocument(filename, String(content)))
+      if (!content) continue
+      const r = await importDocument(filename, String(content), undefined, shelf?.folderOf(filename))
+      shelf?.label(r.document_id, filename)
+      results.push(r)
     }
     const facts = set === 'lantern-row' ? preload((await assets.getItem<Record<string, string>[]>('lantern-row:facts.json')) ?? [], results) : []
     const candidates = results.reduce((n, r) => n + (('candidates' in r && r.candidates) || 0), 0)
-    audit('sample.loaded', 'project', project, { set, name: NAMES[set], documents: results.length, candidates, facts })
+    audit('sample.loaded', 'project', project, { set, name: NAMES[set], documents: results.length, candidates, facts, ...(entities && { entities: entities.length }) })
     return { results, facts: facts.length }
   } finally {
     loading.delete(project)
   }
 })
+
+// A sample with a manifest is a game: its folders, tags and wiki pages are written before the imports, and each imported
+// document then gets its folder (passed to the import), kind and tags. All editorial labels, never part of a text or its hash.
+function organise(manifest: Manifest, entities: SampleEntity[]) {
+  const db = useDb()
+  const user = access().user.id
+  const folders = new Map<string, string>()
+  const tags = new Map<string, string>()
+  tx(() => {
+    const p = db.prepare('select medium from projects where id = ?').get(pid()) as { medium: string }
+    if (p.medium !== 'game') {
+      db.prepare(`update projects set medium = 'game' where id = ?`).run(pid())
+      retypeForMedium(pid()) // the project is empty after the reset, so its untouched default types become the game ones
+    }
+    const folder = db.prepare('insert into folders (id, name, parent_id, created_by, created_at, project_id) values (?, ?, ?, ?, ?, ?)')
+    for (const path of new Set(Object.values(manifest.docs).map(d => d.folder))) {
+      let parent: string | null = null
+      for (const [i, name] of path.split('/').entries()) {
+        const key = path.split('/').slice(0, i + 1).join('/')
+        if (!folders.has(key)) folder.run(folders.set(key, newId('fld')).get(key)!, name, parent, user, now(), pid())
+        parent = folders.get(key)!
+      }
+    }
+    const tag = db.prepare('insert into tags (id, name, color, created_by, created_at, project_id) values (?, ?, ?, ?, ?, ?)')
+    for (const [name, color] of Object.entries(manifest.tags)) tag.run(tags.set(name, newId('tag')).get(name)!, name, color, user, now(), pid())
+    // Pages a person would otherwise file by hand; analysis knows each by its name (the name canon uses for it).
+    const page = db.prepare(`insert into entities (id, name, analysis_name, kind, summary, fields, origin, created_at, updated_at, project_id)
+      values (?, ?, ?, ?, ?, ?, 'manual', ?, ?, ?)`)
+    for (const e of entities) page.run(newId('ent'), e.name, e.name, e.kind, e.summary, JSON.stringify(e.fields ?? {}), now(), now(), pid())
+  })
+  return {
+    folderOf: (filename: string) => { const f = manifest.docs[filename]?.folder; return f ? folders.get(f) ?? null : null },
+    label(documentId: string, filename: string) {
+      const doc = manifest.docs[filename]
+      if (!doc) return
+      const key = (db.prepare('select filename from documents where id = ?').get(documentId) as { filename: string }).filename
+      tx(() => {
+        db.prepare('update documents set kind = ? where project_id = ? and filename = ?').run(doc.kind, pid(), key)
+        const tagged = db.prepare('insert or ignore into document_tags (project_id, filename, tag_id) values (?, ?, ?)')
+        for (const t of doc.tags) tagged.run(pid(), key, tags.get(t)!)
+      })
+    },
+  }
+}
 
 // Writes the sample's canon in one transaction. A quote missing from its passage is a broken fixture: fail, write nothing.
 function preload(facts: Record<string, string>[], docs: { filename: string, document_id: string }[]) {

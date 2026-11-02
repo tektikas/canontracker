@@ -126,4 +126,18 @@ for (let i = 1; i <= 5; i++) {
 // (real network calls during extraction) they do overlap, and this is where the 409 path is exercised.
 if (recorded) console.log(`note: recorded mode, loads did not overlap (${refused} refused); run against a meta-mode server to exercise 409`)
 else check('overlapping loads were refused at least once', refused > 0, true)
+
+// The Ashbell Pass: 28 documents filed in 8 folders with kinds and tags, preloaded wiki pages, recorded candidates, no canon.
+// Its beats are proven by scripts/ashbell-probe.mjs; here only that the set loads into its own project and leaves the others alone.
+check('create Ashbell project', (await a('/api/projects', { method: 'POST', body: { name: 'The Ashbell Pass (demo)', studio_id: studio.id } })).status, 200)
+check('load ashbell-pass', (await load(a, { set: 'ashbell-pass' })).status, 200)
+const ab = (await a('/api/stats')).data
+check('ashbell-pass documents, no canon', [ab.documents, ab.canon], [28, 0])
+if (recorded) check('ashbell-pass candidates wait for review', ab.pending > 0, true)
+const abDocs = (await a('/api/documents')).data
+check('ashbell-pass documents sit in 8 folders, quests and dialogue keep their kinds', [new Set(abDocs.map(d => d.folder_id)).size, abDocs.filter(d => d.kind === 'quest').length, abDocs.filter(d => d.kind === 'dialogue').length], [8, 3, 3])
+check('ashbell-pass wiki pages preloaded', (await a('/api/entities')).data.length >= 30, true)
+check('ashbell-pass audit names the set', (await a('/api/audit')).data.find(e => e.event_type === 'sample.loaded').detail.set, 'ashbell-pass')
+const btRow = (await a('/api/projects')).data.projects.find(p => p.name === 'Broken Tide (demo)')
+check('Broken Tide project untouched', [btRow.documents, btRow.pending, btRow.canon], [13, bt.pending, 0])
 console.log('samples probe passed')

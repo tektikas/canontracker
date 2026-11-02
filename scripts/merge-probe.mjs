@@ -31,7 +31,7 @@ const studio = (await a('/api/studios', { method: 'POST', body: { name: 'Merge S
 const project = (await a('/api/projects', { method: 'POST', body: { name: 'Merge Probe', studio_id: studio.id } })).data
 check('demo loads', (await a('/api/demo/load', { method: 'POST' })).status, 200)
 
-// Accept every candidate whose quote is verified, then scan. Two get other decisions so the re-imports below can tell
+// Accept every candidate whose quote is verified, then scan. Two get other decisions so the re-extractions below can tell
 // suppressed duplicates from a genuinely new candidate: the figurative "sisters" one is rejected (a decision must stand),
 // and S10's Lighthouse one is accepted corrected to another predicate (so the recorded S10 candidate matches no fact).
 let sisterDoc = null
@@ -46,11 +46,19 @@ for (const f of (await a('/api/facts?status=pending')).data) {
   else assert.equal((await a(`/api/facts/${f.id}/review`, { method: 'POST', body: { decision: 'accept' } })).status, 200)
 }
 assert.ok(sisterDoc, 'the rejected candidate has a source document')
-const reimport = async (filename, tail) => {
+// Recorded output replays only for the sample's own text, so later candidates come from re-extracting the unchanged document.
+const reextract = async (filename) => {
   const d = (await a('/api/documents')).data.filter(x => x.filename === filename).sort((x, y) => y.version - x.version)[0]
-  const form = new FormData()
-  form.append('files', new Blob([`${(await a(`/api/documents/${d.id}`)).data.content}\n${tail}\n`], { type: 'text/markdown' }), filename)
-  assert.equal((await a('/api/documents', { method: 'POST', form })).status, 200)
+  const r = await a(`/api/documents/${d.id}/extract`, { method: 'POST' })
+  assert.equal(r.status, 200)
+  return r
+}
+const upload = async (name, text) => {
+  const f = new FormData()
+  f.append('files', new Blob([text], { type: 'text/markdown' }), name)
+  const r = await a('/api/documents', { method: 'POST', form: f })
+  assert.equal(r.status, 200)
+  return r.data.results?.[0] ?? r.data[0] ?? r.data
 }
 await a('/api/conflicts/scan', { method: 'POST' })
 let canon = (await a('/api/facts?status=canon')).data
@@ -132,19 +140,15 @@ console.log(`    ${ruleWithLh.length} of ${ruleCalls.length} rule-check prompts 
 // Renaming the kept page is editorial: it must not change the name analysis uses for later candidates.
 check('rename the Causeway page', (await a(`/api/entities/${causeway.id}`, { method: 'PATCH', body: { name: 'Old Causeway Road' } })).status, 200)
 
-// 3. Re-importing S10 brings "Lighthouse" back as a candidate; the reviewer sees the mapping, accept saves it as Causeway.
-const s06 = (await a('/api/documents')).data.find(d => d.filename === 'S10.md')
-const content = (await a(`/api/documents/${s06.id}`)).data.content
-const form = new FormData()
-form.append('files', new Blob([`${content}\n\nRevised draft.\n`], { type: 'text/markdown' }), 'S10.md')
-check('S10 re-import', (await a('/api/documents', { method: 'POST', form })).status, 200)
+// 3. Re-extracting S10 brings "Lighthouse" back as a candidate; the reviewer sees the mapping, accept saves it as Causeway.
+check('S10 re-extract', (await reextract('S10.md')).status, 200)
 const cand = (await a('/api/facts?status=pending')).data.find(f => names(f).includes('Lighthouse') && f.evidence.some(e => e.verified))
 assert.ok(cand, 'S10 v2 has a verified Lighthouse candidate')
 // Duplicates of decided facts stay out: S06's candidate equals canon under the kept name, "sisters" was rejected.
 const pendingBefore = (await a('/api/facts?status=pending')).data.length
-await reimport('S06.md', 'Revised draft.')
-await reimport(sisterDoc, 'Revised draft.')
-check('re-import suppresses canon (S06) and rejected duplicates', (await a('/api/facts?status=pending')).data.length, pendingBefore)
+await reextract('S06.md')
+await reextract(sisterDoc)
+check('re-extract suppresses canon (S06) and rejected duplicates', (await a('/api/facts?status=pending')).data.length, pendingBefore)
 check('the new mapped candidate came from the changed fact only', (await a('/api/facts?status=pending')).data.filter(f => names(f).includes('Lighthouse')).length, 1)
 check('candidate shows the merge mapping (name fixed at merge)', cand.identity.map(i => `${i.from}->${i.to} ${i.audit_id} ${i.entity_id}`).join(), `Lighthouse->Causeway ${mergeEvent.id} ${causeway.id}`)
 const conflictsBefore = (await a('/api/conflicts')).data.length
@@ -183,8 +187,8 @@ check('re-merge maps both names', remerge.data.names_mapped.sort().join(), 'Caus
 canon = (await a('/api/facts?status=canon')).data
 check('no canon fact names Causeway or Lighthouse', canon.filter(f => names(f).some(n => n === 'Causeway' || n === 'Lighthouse')).length, 0)
 check('re-pointed facts name Salt Market', canon.filter(f => [atCauseway.id, cand.id, ...atLighthouse.map(x => x.id)].includes(f.id)).every(f => f.object === 'Salt Market'), true)
-await reimport('S10.md', 'Third draft.')
-check('re-import after re-merge finds no new candidate (its mapped form is canon)', (await a('/api/facts?status=pending')).data.filter(f => names(f).includes('Lighthouse')).length, 0)
+await reextract('S10.md')
+check('re-extract after re-merge finds no new candidate (its mapped form is canon)', (await a('/api/facts?status=pending')).data.filter(f => names(f).includes('Lighthouse')).length, 0)
 const cand3 = cand
 await a('/api/conflicts/scan', { method: 'POST' })
 const same = (await a('/api/conflicts')).data.filter(c => c.status === 'open' && /LOCATION|TRAVEL/.test(c.rule) && c.left.object === c.right.object)
@@ -205,6 +209,39 @@ check('no canon fact names Old Archive or Market Row', canon.filter(f => names(f
 check('a merged-away name cannot be reused as a page', (await a('/api/entities', { method: 'POST', body: { name: 'Lighthouse', kind: 'location' } })).status, 409)
 check('the kept page may take it back as an alias', (await a(`/api/entities/${market.id}`, { method: 'PATCH', body: { aliases: ['Lighthouse'] } })).status, 200)
 
+// 4. A new version imported after merges and aliases exist (lead c50r2 #1). A pending candidate on S10 still names the
+// merged-away "Lighthouse"; v2 edits another cited sentence and adds a line. The edited text has no recorded output, the
+// pending citation follows v2, the merge mapping still applies (not the page title or the hand alias), and the c32 re-check
+// marks exactly the canon facts whose quote is gone as outdated.
+const s10v1 = (await a('/api/documents')).data.find(d => d.filename === 'S10.md')
+const s10text = (await a(`/api/documents/${s10v1.id}`)).data.content
+const pendQuote = 'Mara\'s fiancé, Arin, opens the door at 10:00 on Day 3 and hands over the leather pouch.'
+const pend = (await a('/api/facts', { method: 'POST', body: { to: 'review', document_id: s10v1.id, quote: pendQuote, kind: 'event', subject: 'Arin', predicate: 'opens_door_at', object: 'Lighthouse', statement: `Arin opens the Lighthouse door on Day 3 (${run}).` } })).data
+check('pending candidate naming Lighthouse on S10 v1', `${pend.status} ${pend.object}`, 'pending Lighthouse')
+const s10canon = (await a('/api/facts?status=canon')).data.filter(f => f.evidence.some(e => e.document_id === s10v1.id))
+const editQuote = s10canon.map(f => f.evidence[0].quote).find(q => q !== pendQuote && !q.includes(pendQuote) && !pendQuote.includes(q))
+assert.ok(editQuote, 'S10 has a second cited sentence to edit')
+const s10v2text = `${s10text.replace(editQuote, `${editQuote.slice(0, 20)} (revised)${editQuote.slice(20)}`)}\n\nRevised draft.\n`
+const count = (t, q) => t.split(q).length - 1
+const pendingOnS10 = (await a('/api/facts?status=pending')).data.filter(f => f.evidence.some(e => e.document_id === s10v1.id && e.verified))
+const s10v2 = await upload('S10.md', s10v2text)
+check('S10 v2 imported after the merges', `${s10v2.status} v${s10v2.version}`, 'imported v2')
+check('edited text gets no recorded candidates', `${s10v2.candidates}/${s10v2.skipped}`, '0/0')
+check('the upload says how many pending candidates now cite v2', s10v2.evidence_moved, pendingOnS10.filter(f => count(s10v2text, f.evidence[0].quote) === 1).length)
+const pendNow = (await a('/api/facts?status=pending')).data.find(f => f.id === pend.id)
+check('the pending citation moved to v2, still verified', `${pendNow.evidence[0].document_id} ${pendNow.evidence[0].verified}`, `${s10v2.document_id} 1`)
+check('the pending candidate still maps Lighthouse to the identity fixed at merge', pendNow.identity.map(i => `${i.from}->${i.to}`).join(), 'Lighthouse->Salt Market')
+const recheck = new Map((await a('/api/facts?status=canon')).data.filter(f => s10canon.some(x => x.id === f.id)).map(f => [f.id, f.recheck]))
+const wantOutdated = s10canon.filter(f => f.evidence.some(e => count(s10v2text, e.quote) === 0)).map(f => f.id).sort()
+check('re-check: outdated are exactly the facts whose quote is gone', [...recheck].filter(([, r]) => r === 'outdated').map(([id]) => id).sort().join(), wantOutdated.join())
+check('re-check: every other S10 fact unchanged', [...recheck].filter(([id]) => !wantOutdated.includes(id)).every(([, r]) => r === 'unchanged'), true)
+check('some S10 facts on each side', wantOutdated.length > 0 && wantOutdated.length < s10canon.length, true)
+check('accept the re-pinned candidate', (await a(`/api/facts/${pend.id}/review`, { method: 'POST', body: { decision: 'accept' } })).status, 200)
+const pendSaved = (await a('/api/facts?status=canon')).data.find(f => f.id === pend.id)
+check('saved under the merged identity, not the title or the alias', `${pendSaved.object} ${pendSaved.evidence[0].document_id}`, `Salt Market ${s10v2.document_id}`)
+check('no page re-filed for Lighthouse after the new version', (await a('/api/entities')).data.some(e => e.name === 'Lighthouse'), false)
+check('no canon fact names a merged-away name', (await a('/api/facts?status=canon')).data.filter(f => names(f).some(n => ['Lighthouse', 'Causeway', 'Old Archive'].includes(n))).length, 0)
+
 // 5. Medium must be a real key.
 for (const bad of ['constructor', 'toString', '__proto__', 'hasOwnProperty'])
   check(`medium "${bad}" refused`, (await a(`/api/projects/${project.id}`, { method: 'PATCH', body: { medium: bad } })).status, 400)
@@ -213,16 +250,9 @@ check('entity page still renders', (await a(`/api/entities/${market.id}`)).statu
 check('unknown field "constructor" refused', (await a(`/api/entities/${market.id}`, { method: 'PATCH', body: { fields: { constructor: 'x' } } })).status, 400)
 // 6. Precision is part of a fact's identity (lead c22r): an exact reading is not the approximate one with the same bounds.
 // Fresh project, no demo: an approximate Lighthouse fact is authored from a scratch doc, then S06.md arrives and its exact
-// candidate (same names, same bounds) must still come; a second S06 version (same precision) collapses.
+// candidate (same names, same bounds) must still come; re-extracting S06 (same precision) collapses.
 const s06text = (await a(`/api/documents/${(await a('/api/documents')).data.find(d => d.filename === 'S06.md').id}`)).data.content
 await a('/api/projects', { method: 'POST', body: { name: 'Precision Probe', studio_id: studio.id } })
-const upload = async (name, text) => {
-  const f = new FormData()
-  f.append('files', new Blob([text], { type: 'text/markdown' }), name)
-  const r = await a('/api/documents', { method: 'POST', form: f })
-  assert.equal(r.status, 200)
-  return r.data.results?.[0] ?? r.data[0] ?? r.data
-}
 const quote = 'From 21:30 to 22:30 on Day 1, Arin keeps the lamp lit at the Lighthouse and never leaves the gallery.'
 await upload('Scratch.md', `# Scratch\n\n${quote}\n`)
 const scratchDoc = (await a('/api/documents')).data.find(d => d.filename === 'Scratch.md')
@@ -230,6 +260,10 @@ check('approximate twin authored', (await a('/api/facts', { method: 'POST', body
 await upload('S06.md', s06text)
 const exactNew = (await a('/api/facts?status=pending')).data.filter(f => f.predicate === 'located_at' && f.object === 'Lighthouse')
 check('exact candidate kept next to the approximate fact (same bounds)', `${exactNew.length}/${exactNew[0]?.precision}`, '1/exact')
-await upload('S06.md', `${s06text}\nRevised draft.\n`)
-check('same precision collapses on re-import', (await a('/api/facts?status=pending')).data.filter(f => f.predicate === 'located_at' && f.object === 'Lighthouse').length, 1)
+await reextract('S06.md')
+check('same precision collapses on re-extract', (await a('/api/facts?status=pending')).data.filter(f => f.predicate === 'located_at' && f.object === 'Lighthouse').length, 1)
+const s06v2 = await upload('S06.md', `${s06text}\nRevised draft.\n`)
+check('S06 v2 (edited text): no recorded candidates, the exact candidate follows it', `v${s06v2.version} ${s06v2.candidates} ${s06v2.evidence_moved}`, `v2 0 ${(await a('/api/facts?status=pending')).data.filter(f => f.evidence.some(e => e.document_filename === 'S06.md' && e.verified)).length}`)
+const exactV2 = (await a('/api/facts?status=pending')).data.filter(f => f.predicate === 'located_at' && f.object === 'Lighthouse')
+check('still one exact candidate, now citing v2', `${exactV2.length} ${exactV2[0].precision} ${exactV2[0].evidence[0].document_id}`, `1 exact ${s06v2.document_id}`)
 console.log('all checks passed')

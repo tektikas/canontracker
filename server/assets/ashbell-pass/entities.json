@@ -1,0 +1,161 @@
+[
+  {
+    "name": "Ves",
+    "kind": "character",
+    "summary": "Caravan scout for the Red Mule Caravan, 24, home after six years away; stubborn, observant, quiet."
+  },
+  {
+    "name": "Corin",
+    "kind": "character",
+    "summary": "Bellwarden of Kettlehold and keeper of the Ashbell; 40s, proud, dutiful, Ves's old mentor."
+  },
+  {
+    "name": "Ysolde",
+    "kind": "character",
+    "summary": "Captain of the Red Mule Caravan; charming, in debt, smuggles ember salt. Was Corin's sworn partner."
+  },
+  {
+    "name": "Hesper",
+    "kind": "character",
+    "summary": "Ninety-year-old head of the Order of the Quiet Flame; dry wit, never leaves Stillfire Abbey."
+  },
+  {
+    "name": "Rourke",
+    "kind": "character",
+    "summary": "Commander of the Pass Guard; tired, honest, drinks more than he should."
+  },
+  {
+    "name": "Aldous",
+    "kind": "character",
+    "summary": "Corin's father, Bellwarden before him; died ringing the Ashbell on the Night of Ash."
+  },
+  {
+    "name": "Mother Brisk",
+    "kind": "npc",
+    "summary": "Runs the Kettle & Coal; feeds every caravan; knows every rumour.",
+    "fields": {
+      "schedule": "06:00 kitchen · 07:30 Saltgate for salt · 12:00 lunch rush · 18:00 behind the bar · 23:00 locks up"
+    }
+  },
+  {
+    "name": "Odo",
+    "kind": "npc",
+    "summary": "The town lamplighter; limps, keeps tallies, owes Ysolde money.",
+    "fields": {
+      "schedule": "dusk: lights Kiln Street · midnight: snuffs Kiln Street · dawn: trims wicks"
+    }
+  },
+  {
+    "name": "Tamsin",
+    "kind": "npc",
+    "summary": "Sixteen-year-old courier between town and Abbey; fast, talkative, idolises Ves.",
+    "fields": {
+      "schedule": "08:00 Abbey gate · 09:00 Cinder Bridge drop · afternoons on Kiln Street"
+    }
+  },
+  {
+    "name": "Kettlehold",
+    "kind": "location",
+    "summary": "Mountain town on steam vents, the last town before the summit of the pass."
+  },
+  {
+    "name": "Bell Gate",
+    "kind": "location",
+    "summary": "Fortified gate tower at the top of town; the Ashbell hangs in it. The Pass Guard barracks are beside it."
+  },
+  {
+    "name": "Kiln Street",
+    "kind": "location",
+    "summary": "The long main street running down from the Bell Gate to Saltgate, lined with lamps."
+  },
+  {
+    "name": "Saltgate",
+    "kind": "location",
+    "summary": "The market square at the lower end of town by the old wall."
+  },
+  {
+    "name": "Kettle & Coal",
+    "kind": "location",
+    "summary": "Mother Brisk's inn, on the edge of Saltgate; its back door opens onto the market stalls."
+  },
+  {
+    "name": "Cinder Bridge",
+    "kind": "location",
+    "summary": "Iron bridge over the steam gorge, from mid–Kiln Street to the Abbey stair. Closed at dusk by the bell."
+  },
+  {
+    "name": "Stillfire Abbey",
+    "kind": "location",
+    "summary": "Seat of the Order of the Quiet Flame, above the gorge."
+  },
+  {
+    "name": "Ember Well",
+    "kind": "location",
+    "summary": "A hot spring in the Abbey's lower cloister. Its water grants Ashsight."
+  },
+  {
+    "name": "Old Mine",
+    "kind": "location",
+    "summary": "Ember-salt mine below the gorge, sealed since the Night of Ash."
+  },
+  {
+    "name": "Foot of the Pass",
+    "kind": "location",
+    "summary": "Caravan camp half a day's ride below Kettlehold."
+  },
+  {
+    "name": "Order of the Quiet Flame",
+    "kind": "faction",
+    "summary": "Monastic order that tends the Ember Well and seals dangerous places."
+  },
+  {
+    "name": "Pass Guard",
+    "kind": "faction",
+    "summary": "Town watch at the Bell Gate; enforces the bridge curfew."
+  },
+  {
+    "name": "Red Mule Caravan",
+    "kind": "faction",
+    "summary": "Ysolde's trading caravan: salt and lamp oil up, ember salt down (quietly)."
+  },
+  {
+    "name": "Ashbell",
+    "kind": "item",
+    "summary": "The great bronze bell in the Bell Gate tower. Rung every dusk to warn of ashfall and close the Cinder Bridge; ringing it costs the ringer their voice."
+  },
+  {
+    "name": "Bronze Clapper",
+    "kind": "item",
+    "summary": "The Ashbell's clapper, stolen on Day 2."
+  },
+  {
+    "name": "Cinder Key",
+    "kind": "item",
+    "summary": "A warm iron key that opens doors sealed by the Order."
+  },
+  {
+    "name": "Ashsight",
+    "kind": "other",
+    "summary": "Lets the bearer see heat left by footsteps for about a day. Granted by the Ember Well."
+  },
+  {
+    "name": "The Silent Bell",
+    "kind": "quest",
+    "summary": "Main quest of Act 2: find out why the bell is silent."
+  },
+  {
+    "name": "A Debt in Salt",
+    "kind": "quest",
+    "summary": "Side quest: Odo's debt to Ysolde."
+  },
+  {
+    "name": "The Well Before Dawn",
+    "kind": "quest",
+    "summary": "Side quest: earn the right to drink from the Ember Well."
+  },
+  {
+    "name": "Night of Ash",
+    "kind": "other",
+    "summary": "The eruption ten years before the story (D-3650)."
+  }
+]

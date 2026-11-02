@@ -1,0 +1,503 @@
+{
+  "dataset": "ashbell-pass@1",
+  "conflicts": [
+    {
+      "id": "C1",
+      "rule": "EXACT_TIME_LOCATION_OVERLAP",
+      "statements": [
+        "Captain Rourke stands watch at the Bell Gate from 21:00 to 22:00 on Day 2.",
+        "Captain Rourke is at the Kettle & Coal at 21:30 on Day 2."
+      ]
+    },
+    {
+      "id": "C2",
+      "rule": "RELATIONSHIP_AFTER_END",
+      "statements": [
+        "Ysolde and Corin were sworn partners until Ysolde broke the oath at 18:00 on Day 2.",
+        "Corin is Ysolde's sworn partner at 08:00 on Day 4."
+      ]
+    },
+    {
+      "id": "C3",
+      "rule": "TRAVEL_TIME_TOO_SHORT",
+      "statements": [
+        "Ves is at the Bell Gate at 14:00 on Day 3.",
+        "Ves is at Saltgate at 14:10 on Day 3."
+      ]
+    },
+    {
+      "id": "C4",
+      "rule": "TRAVEL_TIME_TOO_SHORT",
+      "statements": [
+        "Tamsin is at the Cinder Bridge at 09:00 on Day 3.",
+        "Tamsin is at Stillfire Abbey at 09:12 on Day 3."
+      ]
+    },
+    {
+      "id": "C5",
+      "rule": "WORLD_RULE_VIOLATION",
+      "statements": [
+        "Whoever rings the Ashbell loses their voice until the next sunrise.",
+        "Corin shouts a warning to the Pass Guard moments after ringing the Ashbell."
+      ]
+    },
+    {
+      "id": "M1",
+      "rule": "EXACT_TIME_LOCATION_OVERLAP",
+      "statements": [
+        "Mother Brisk is at the Salt Gate from 07:00 to 08:00 on Day 4.",
+        "Mother Brisk is at Saltgate at 07:30 on Day 4."
+      ]
+    }
+  ],
+  "false_alarms": [
+    {
+      "id": "A1",
+      "statements": [
+        "Mother Brisk is at the Kettle & Coal at 18:00 on Day 3.",
+        "Mother Brisk is at Saltgate around evening on Day 3."
+      ]
+    }
+  ],
+  "figurative": [
+    "Tamsin and Ves are sisters."
+  ],
+  "hallucinated": [
+    "Odo buries the Bronze Clapper under the third lamp on Kiln Street."
+  ],
+  "unknown_questions": [
+    "What is Corin's favourite song?",
+    "Where was Tamsin born?"
+  ],
+  "impact": {
+    "id": "D1",
+    "rule_contains": "until the next sunrise",
+    "expected_scenes": [
+      "S02-dusk-at-the-bell-gate.md",
+      "S05-the-silent-bell.md",
+      "S11-the-dawn-bell.md",
+      "S13-voiceless.md"
+    ],
+    "excluded_scenes": [
+      "S01-homecoming.md",
+      "S03-the-kettle-and-coal.md",
+      "S04-embers-and-oaths.md",
+      "S06-lamps-along-kiln-street.md",
+      "S07-the-ember-well.md",
+      "S08-tracks-in-the-ash.md",
+      "S09-the-old-mine.md",
+      "S10-saltgate-at-dusk.md",
+      "S12-the-broken-oath.md",
+      "S14-the-long-road-down.md"
+    ]
+  },
+  "passages": [
+    {
+      "statement": "Kettlehold is the last town before the summit of the Ashbell Pass.",
+      "file": "world-kettlehold.md",
+      "line": 3
+    },
+    {
+      "statement": "The Kettle & Coal stands on the edge of Saltgate market.",
+      "file": "world-kettlehold.md",
+      "line": 15
+    },
+    {
+      "statement": "The Old Mine has been sealed since the Night of Ash.",
+      "file": "world-kettlehold.md",
+      "line": 13
+    },
+    {
+      "statement": "Locals call Kettlehold's high road the Kettle's Spout.",
+      "file": "world-kettlehold.md",
+      "line": 27
+    },
+    {
+      "statement": "Whoever rings the Ashbell loses their voice until the next sunrise.",
+      "file": "lore-the-ashbell.md",
+      "line": 9
+    },
+    {
+      "statement": "Aldous Ashdown died ringing the Ashbell on the Night of Ash.",
+      "file": "lore-the-ashbell.md",
+      "line": 19
+    },
+    {
+      "statement": "The Night of Ash buried the lower town of Kettlehold.",
+      "file": "lore-the-ashbell.md",
+      "line": 21
+    },
+    {
+      "statement": "The Ember Well grants Ashsight only to those who drink from it before dawn.",
+      "file": "lore-ember-well.md",
+      "line": 7
+    },
+    {
+      "statement": "Ashsight lets its bearer see the heat left by footsteps for about a day.",
+      "file": "lore-ember-well.md",
+      "line": 13
+    },
+    {
+      "statement": "Only the Order of the Quiet Flame may draw water from the Ember Well.",
+      "file": "lore-ember-well.md",
+      "line": 19
+    },
+    {
+      "statement": "Hesper Quill leads the Order of the Quiet Flame.",
+      "file": "codex-factions.md",
+      "line": 7
+    },
+    {
+      "statement": "Captain Rourke Dale commands the Pass Guard.",
+      "file": "codex-factions.md",
+      "line": 19
+    },
+    {
+      "statement": "The Red Mule Caravan carries salt and lamp oil up the pass twice a year.",
+      "file": "codex-factions.md",
+      "line": 33
+    },
+    {
+      "statement": "Walking from the Bell Gate to Saltgate takes forty-five minutes.",
+      "file": "codex-roads.md",
+      "line": 33
+    },
+    {
+      "statement": "Climbing from the Cinder Bridge to Stillfire Abbey takes twenty minutes.",
+      "file": "codex-roads.md",
+      "line": 25
+    },
+    {
+      "statement": "The Red Mule Caravan camps at the Foot of the Pass on Day 0.",
+      "file": "codex-roads.md",
+      "line": 7
+    },
+    {
+      "statement": "The Cinder Bridge spans the steam gorge between Kiln Street and the Abbey stair.",
+      "file": "codex-roads.md",
+      "line": 19
+    },
+    {
+      "statement": "The Bronze Clapper weighs as much as a grown goat.",
+      "file": "codex-items-abilities.md",
+      "line": 7
+    },
+    {
+      "statement": "The Cinder Key is a warm iron key that never cools.",
+      "file": "codex-items-abilities.md",
+      "line": 17
+    },
+    {
+      "statement": "The Cinder Key opens any door sealed by the Order of the Quiet Flame.",
+      "file": "codex-items-abilities.md",
+      "line": 21
+    },
+    {
+      "statement": "Ashsight fades if its bearer sleeps before following the trail.",
+      "file": "codex-items-abilities.md",
+      "line": 35
+    },
+    {
+      "statement": "Ves Calloway is a caravan scout for the Red Mule Caravan.",
+      "file": "codex-characters.md",
+      "line": 7
+    },
+    {
+      "statement": "Corin Ashdown is the Bellwarden of Kettlehold.",
+      "file": "codex-characters.md",
+      "line": 19
+    },
+    {
+      "statement": "Ysolde Marr is the captain of the Red Mule Caravan.",
+      "file": "codex-characters.md",
+      "line": 29
+    },
+    {
+      "statement": "Ysolde and Corin were sworn partners until Ysolde broke the oath at 18:00 on Day 2.",
+      "file": "codex-characters.md",
+      "line": 35
+    },
+    {
+      "statement": "Captain Rourke Dale has served in the Pass Guard for nineteen winters.",
+      "file": "codex-characters.md",
+      "line": 49
+    },
+    {
+      "statement": "Abbess Hesper Quill has not left Stillfire Abbey since the Night of Ash.",
+      "file": "codex-characters.md",
+      "line": 39
+    },
+    {
+      "statement": "Aldous Ashdown was Corin's father.",
+      "file": "codex-characters.md",
+      "line": 59
+    },
+    {
+      "statement": "Mother Brisk is the innkeeper of the Kettle & Coal.",
+      "file": "codex-npc-schedules.md",
+      "line": 7
+    },
+    {
+      "statement": "Mother Brisk is at the Kettle & Coal at 18:00 on Day 3.",
+      "file": "codex-npc-schedules.md",
+      "line": 13
+    },
+    {
+      "statement": "Mother Brisk is at Saltgate at 07:30 on Day 4.",
+      "file": "codex-npc-schedules.md",
+      "line": 15
+    },
+    {
+      "statement": "Odo Fenn is the lamplighter of Kettlehold.",
+      "file": "codex-npc-schedules.md",
+      "line": 23
+    },
+    {
+      "statement": "Tamsin Wick is a courier between Kettlehold and Stillfire Abbey.",
+      "file": "codex-npc-schedules.md",
+      "line": 35
+    },
+    {
+      "statement": "Ves is at the Bell Gate at 16:00 on Day 1.",
+      "file": "S01-homecoming.md",
+      "line": 11
+    },
+    {
+      "statement": "Corin rings the Ashbell at dusk on Day 1.",
+      "file": "S02-dusk-at-the-bell-gate.md",
+      "line": 19
+    },
+    {
+      "statement": "Corin shouts a warning to the Pass Guard moments after ringing the Ashbell.",
+      "file": "S02-dusk-at-the-bell-gate.md",
+      "line": 27
+    },
+    {
+      "statement": "Ves is at the Kettle & Coal at 20:00 on Day 1.",
+      "file": "S03-the-kettle-and-coal.md",
+      "line": 9
+    },
+    {
+      "statement": "Mother Brisk refuses Ves's coin for the pine tea.",
+      "file": "S03-the-kettle-and-coal.md",
+      "line": 15
+    },
+    {
+      "statement": "The lamps on Kiln Street go dark at midnight every night.",
+      "file": "S03-the-kettle-and-coal.md",
+      "line": 23
+    },
+    {
+      "statement": "Mother Brisk will not open the cellar while ash is in the wind.",
+      "file": "S03-the-kettle-and-coal.md",
+      "line": 21
+    },
+    {
+      "statement": "Ysolde asks Corin to leave the Cinder Bridge open after dusk.",
+      "file": "S04-embers-and-oaths.md",
+      "line": 7
+    },
+    {
+      "statement": "The Ashbell makes no sound at dusk on Day 2.",
+      "file": "S05-the-silent-bell.md",
+      "line": 7
+    },
+    {
+      "statement": "Captain Rourke stands watch at the Bell Gate from 21:00 to 22:00 on Day 2.",
+      "file": "S05-the-silent-bell.md",
+      "line": 25
+    },
+    {
+      "statement": "Captain Rourke is at the Kettle & Coal at 21:30 on Day 2.",
+      "file": "S06-lamps-along-kiln-street.md",
+      "line": 7
+    },
+    {
+      "statement": "The Lamplighter is on the Cinder Bridge at 22:00 on Day 2.",
+      "file": "S06-lamps-along-kiln-street.md",
+      "line": 13
+    },
+    {
+      "statement": "Ves is at the Ember Well at 05:00 on Day 3.",
+      "file": "S07-the-ember-well.md",
+      "line": 15
+    },
+    {
+      "statement": "Ves gains Ashsight at the Ember Well.",
+      "file": "S07-the-ember-well.md",
+      "line": 17
+    },
+    {
+      "statement": "Hesper gives Ves the Cinder Key.",
+      "file": "S07-the-ember-well.md",
+      "line": 19
+    },
+    {
+      "statement": "Tamsin is at the Cinder Bridge at 09:00 on Day 3.",
+      "file": "S08-tracks-in-the-ash.md",
+      "line": 3
+    },
+    {
+      "statement": "Ves follows the heat trail from the Bell Gate toward the Old Mine.",
+      "file": "S08-tracks-in-the-ash.md",
+      "line": 15
+    },
+    {
+      "statement": "Ves opens the sealed door of the Old Mine with the Cinder Key.",
+      "file": "S09-the-old-mine.md",
+      "line": 7
+    },
+    {
+      "statement": "Odo is at the Old Mine at 22:00 on Day 2.",
+      "file": "S09-the-old-mine.md",
+      "line": 15
+    },
+    {
+      "statement": "The Bronze Clapper is hidden in the Old Mine.",
+      "file": "S09-the-old-mine.md",
+      "line": 17
+    },
+    {
+      "statement": "Ves is at the Bell Gate at 14:00 on Day 3.",
+      "file": "S09-the-old-mine.md",
+      "line": 21
+    },
+    {
+      "statement": "Ves is at Saltgate at 14:10 on Day 3.",
+      "file": "S10-saltgate-at-dusk.md",
+      "line": 5
+    },
+    {
+      "statement": "Mother Brisk is at Saltgate around evening on Day 3.",
+      "file": "S10-saltgate-at-dusk.md",
+      "line": 13
+    },
+    {
+      "statement": "Ves rings the Ashbell at 06:00 on Day 4.",
+      "file": "S11-the-dawn-bell.md",
+      "line": 13
+    },
+    {
+      "statement": "Corin is Ysolde's sworn partner at 08:00 on Day 4.",
+      "file": "S12-the-broken-oath.md",
+      "line": 5
+    },
+    {
+      "statement": "Ysolde paid Odo to steal the Bronze Clapper.",
+      "file": "S12-the-broken-oath.md",
+      "line": 11
+    },
+    {
+      "statement": "Ves still cannot speak at noon on Day 4 after ringing the Ashbell.",
+      "file": "S13-voiceless.md",
+      "line": 3
+    },
+    {
+      "statement": "Ves visits Stillfire Abbey on Day 5.",
+      "file": "S14-the-long-road-down.md",
+      "line": 7
+    },
+    {
+      "statement": "Ves is at the Bell Gate at 10:00 on Day 5.",
+      "file": "S14-the-long-road-down.md",
+      "line": 23
+    },
+    {
+      "statement": "The Silent Bell quest is given by Corin.",
+      "file": "quest-the-silent-bell.md",
+      "line": 9
+    },
+    {
+      "statement": "The Silent Bell is the main quest of Act 2.",
+      "file": "quest-the-silent-bell.md",
+      "line": 5
+    },
+    {
+      "statement": "Odo Fenn owes Ysolde forty silver marks.",
+      "file": "quest-a-debt-in-salt.md",
+      "line": 5
+    },
+    {
+      "statement": "A Debt in Salt is given by Mother Brisk.",
+      "file": "quest-a-debt-in-salt.md",
+      "line": 9
+    },
+    {
+      "statement": "Tamsin is at Stillfire Abbey at 09:12 on Day 3.",
+      "file": "quest-the-well-before-dawn.md",
+      "line": 38
+    },
+    {
+      "statement": "The Well Before Dawn rewards the player with Ashsight.",
+      "file": "quest-the-well-before-dawn.md",
+      "line": 28
+    },
+    {
+      "statement": "Mother Brisk is at the Salt Gate from 07:00 to 08:00 on Day 4.",
+      "file": "dlg-town-crier.md",
+      "line": 37
+    },
+    {
+      "statement": "Corin refuses to keep the Cinder Bridge open after the bell.",
+      "file": "dlg-ysolde-and-corin.md",
+      "line": 45
+    },
+    {
+      "statement": "Ysolde renounces her oath to Corin.",
+      "file": "dlg-ysolde-and-corin.md",
+      "line": 47
+    },
+    {
+      "statement": "Tamsin and Ves are sisters.",
+      "file": "dlg-tamsin-on-the-road.md",
+      "line": 51
+    }
+  ],
+  "after_merge": [
+    {
+      "id": "M2",
+      "rule": "EXACT_TIME_LOCATION_OVERLAP",
+      "merge": [
+        "Lamplighter",
+        "Odo"
+      ],
+      "statements": [
+        "The Lamplighter is on the Cinder Bridge at 22:00 on Day 2.",
+        "Odo is at the Old Mine at 22:00 on Day 2."
+      ]
+    }
+  ],
+  "after_change": [
+    {
+      "id": "C6",
+      "rule": "WORLD_RULE_VIOLATION",
+      "rule_statement": "Whoever rings the Ashbell loses their voice for one hour.",
+      "statements": [
+        "Ves still cannot speak at noon on Day 4 after ringing the Ashbell."
+      ]
+    },
+    {
+      "id": "C5v2",
+      "rule": "WORLD_RULE_VIOLATION",
+      "rule_statement": "Whoever rings the Ashbell loses their voice for one hour.",
+      "statements": [
+        "Corin shouts a warning to the Pass Guard moments after ringing the Ashbell."
+      ]
+    }
+  ],
+  "recheck": {
+    "file": "S03-the-kettle-and-coal.md",
+    "outdated_gone": "Mother Brisk refuses Ves's coin for the pine tea.",
+    "outdated_twice": "The lamps on Kiln Street go dark at midnight every night.",
+    "unchanged": [
+      "Mother Brisk will not open the cellar while ash is in the wind.",
+      "Ves is at the Kettle & Coal at 20:00 on Day 1."
+    ]
+  },
+  "no_conflict_pairs": [
+    [
+      "Ves visits Stillfire Abbey on Day 5.",
+      "Ves is at the Bell Gate at 10:00 on Day 5."
+    ]
+  ]
+}

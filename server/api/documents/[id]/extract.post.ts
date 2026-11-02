@@ -7,8 +7,8 @@ export default defineEventHandler(async (event) => {
   requireRole('editor')
   const latest = latestDocument(doc.filename)!
   const model = modelInfo()
-  // Recorded mode replays output recorded for the demo files only; say so instead of pretending to read this one.
-  const recordedCovers = model.mode === 'mock' ? await hasRecordedExtraction(latest.filename) : null
+  // Recorded mode replays output recorded for the demo files' own text only; say so instead of pretending to read this one.
+  const recordedCovers = model.mode === 'mock' ? await hasRecordedExtraction(latest.content) : null
   const passages = db.prepare('select id, text from passages where document_id = ? order by ordinal').all(latest.id) as { id: string, text: string }[]
   try {
     const r = await extractInto({ id: latest.id, filename: latest.filename, title: latest.title, content: latest.content }, passages)

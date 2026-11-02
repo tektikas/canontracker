@@ -1,0 +1,259 @@
+{
+  "tags": {
+    "main-quest": "accent",
+    "side-quest": "good",
+    "needs-vo": "warn",
+    "spoiler": "bad",
+    "draft": "pencil"
+  },
+  "docs": {
+    "world-kettlehold.md": {
+      "title": "Kettlehold and the Ashbell Pass",
+      "kind": "lore",
+      "folder": "Codex/World",
+      "tags": [],
+      "words": 900
+    },
+    "lore-the-ashbell.md": {
+      "title": "The Ashbell",
+      "kind": "lore",
+      "folder": "Codex/World",
+      "tags": [
+        "main-quest"
+      ],
+      "words": 700
+    },
+    "lore-ember-well.md": {
+      "title": "The Ember Well and Ashsight",
+      "kind": "lore",
+      "folder": "Codex/World",
+      "tags": [],
+      "words": 700
+    },
+    "codex-factions.md": {
+      "title": "Factions of the Pass",
+      "kind": "lore",
+      "folder": "Codex/World",
+      "tags": [],
+      "words": 800
+    },
+    "codex-roads.md": {
+      "title": "Roads, Bridges and Travel Times",
+      "kind": "lore",
+      "folder": "Codex/World",
+      "tags": [],
+      "words": 600
+    },
+    "codex-items-abilities.md": {
+      "title": "Items and Abilities",
+      "kind": "lore",
+      "folder": "Codex/Items",
+      "tags": [],
+      "words": 900
+    },
+    "codex-characters.md": {
+      "title": "Characters",
+      "kind": "character",
+      "folder": "Codex/People",
+      "tags": [],
+      "words": 1300
+    },
+    "codex-npc-schedules.md": {
+      "title": "NPC Schedules",
+      "kind": "character",
+      "folder": "Codex/People",
+      "tags": [
+        "needs-vo"
+      ],
+      "words": 1000
+    },
+    "S01-homecoming.md": {
+      "title": "S01 — Homecoming",
+      "kind": "scene",
+      "folder": "Act 1/Scenes",
+      "tags": [
+        "main-quest"
+      ],
+      "words": 800
+    },
+    "S02-dusk-at-the-bell-gate.md": {
+      "title": "S02 — Dusk at the Bell Gate",
+      "kind": "scene",
+      "folder": "Act 1/Scenes",
+      "tags": [
+        "main-quest",
+        "needs-vo"
+      ],
+      "words": 800
+    },
+    "S03-the-kettle-and-coal.md": {
+      "title": "S03 — The Kettle & Coal",
+      "kind": "scene",
+      "folder": "Act 1/Scenes",
+      "tags": [
+        "main-quest"
+      ],
+      "words": 700
+    },
+    "S04-embers-and-oaths.md": {
+      "title": "S04 — Embers and Oaths",
+      "kind": "scene",
+      "folder": "Act 1/Scenes",
+      "tags": [
+        "main-quest",
+        "draft"
+      ],
+      "words": 800
+    },
+    "S05-the-silent-bell.md": {
+      "title": "S05 — The Silent Bell",
+      "kind": "scene",
+      "folder": "Act 2/Scenes",
+      "tags": [
+        "main-quest"
+      ],
+      "words": 800
+    },
+    "S06-lamps-along-kiln-street.md": {
+      "title": "S06 — Lamps Along Kiln Street",
+      "kind": "scene",
+      "folder": "Act 2/Scenes",
+      "tags": [
+        "main-quest"
+      ],
+      "words": 700
+    },
+    "S07-the-ember-well.md": {
+      "title": "S07 — The Ember Well",
+      "kind": "scene",
+      "folder": "Act 2/Scenes",
+      "tags": [
+        "main-quest"
+      ],
+      "words": 800
+    },
+    "S08-tracks-in-the-ash.md": {
+      "title": "S08 — Tracks in the Ash",
+      "kind": "scene",
+      "folder": "Act 2/Scenes",
+      "tags": [
+        "main-quest"
+      ],
+      "words": 750
+    },
+    "S09-the-old-mine.md": {
+      "title": "S09 — The Old Mine",
+      "kind": "scene",
+      "folder": "Act 2/Scenes",
+      "tags": [
+        "main-quest",
+        "spoiler"
+      ],
+      "words": 750
+    },
+    "S10-saltgate-at-dusk.md": {
+      "title": "S10 — Saltgate at Dusk",
+      "kind": "scene",
+      "folder": "Act 3/Scenes",
+      "tags": [
+        "main-quest"
+      ],
+      "words": 800
+    },
+    "S11-the-dawn-bell.md": {
+      "title": "S11 — The Dawn Bell",
+      "kind": "scene",
+      "folder": "Act 3/Scenes",
+      "tags": [
+        "main-quest",
+        "spoiler"
+      ],
+      "words": 750
+    },
+    "S12-the-broken-oath.md": {
+      "title": "S12 — The Broken Oath",
+      "kind": "scene",
+      "folder": "Act 3/Scenes",
+      "tags": [
+        "main-quest",
+        "spoiler"
+      ],
+      "words": 750
+    },
+    "S13-voiceless.md": {
+      "title": "S13 — Voiceless",
+      "kind": "scene",
+      "folder": "Act 3/Scenes",
+      "tags": [
+        "main-quest",
+        "spoiler"
+      ],
+      "words": 1100
+    },
+    "S14-the-long-road-down.md": {
+      "title": "S14 — The Long Road Down",
+      "kind": "scene",
+      "folder": "Act 3/Scenes",
+      "tags": [
+        "main-quest",
+        "spoiler"
+      ],
+      "words": 1200
+    },
+    "quest-the-silent-bell.md": {
+      "title": "Quest: The Silent Bell",
+      "kind": "quest",
+      "folder": "Quests",
+      "tags": [
+        "main-quest"
+      ],
+      "words": 800
+    },
+    "quest-a-debt-in-salt.md": {
+      "title": "Quest: A Debt in Salt",
+      "kind": "quest",
+      "folder": "Quests",
+      "tags": [
+        "side-quest"
+      ],
+      "words": 750
+    },
+    "quest-the-well-before-dawn.md": {
+      "title": "Quest: The Well Before Dawn",
+      "kind": "quest",
+      "folder": "Quests",
+      "tags": [
+        "side-quest"
+      ],
+      "words": 750
+    },
+    "dlg-town-crier.md": {
+      "title": "Dialogue: The Town Crier",
+      "kind": "dialogue",
+      "folder": "Dialogue",
+      "tags": [
+        "needs-vo"
+      ],
+      "words": 750
+    },
+    "dlg-ysolde-and-corin.md": {
+      "title": "Dialogue: Ysolde and Corin",
+      "kind": "dialogue",
+      "folder": "Dialogue",
+      "tags": [
+        "needs-vo",
+        "spoiler"
+      ],
+      "words": 800
+    },
+    "dlg-tamsin-on-the-road.md": {
+      "title": "Dialogue: Tamsin on the Road",
+      "kind": "dialogue",
+      "folder": "Dialogue",
+      "tags": [
+        "needs-vo"
+      ],
+      "words": 750
+    }
+  }
+}

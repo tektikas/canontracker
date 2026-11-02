@@ -17,7 +17,7 @@ const stepIndex = computed(() => STEPS.findIndex(s => s.key === step.value))
 const studioName = ref(`${firstName.value}’s studio`)
 const projectName = ref('')
 const error = ref('')
-const busy = ref<'' | 'studio' | 'project' | 'demo'>('')
+const busy = ref<'' | 'studio' | 'project' | 'demo' | 'ashbell'>('')
 
 async function run(kind: typeof busy.value, fn: () => Promise<void>) {
   error.value = ''
@@ -54,6 +54,12 @@ const tryDemo = () => run('demo', async () => {
   await $fetch('/api/projects', { method: 'POST', body: { name: 'Broken Tide (demo)', studio_id: studioId } })
   await $fetch('/api/demo/load', { method: 'POST' })
   reloadNuxtApp({ path: '/?tour=1', force: true })
+})
+// The longer game demo (28 sources, folders, NPCs and quests) in a project of its own. The tour is Broken Tide's, so it opens Home.
+const tryAshbell = () => run('ashbell', async () => {
+  await $fetch('/api/projects', { method: 'POST', body: { name: 'The Ashbell Pass (demo)', studio_id: me.value?.current?.studio.id ?? adminStudio.value?.id } })
+  await $fetch('/api/demo/load', { method: 'POST', body: { set: 'ashbell-pass' } })
+  reloadNuxtApp({ path: '/', force: true })
 })
 </script>
 
@@ -104,7 +110,7 @@ const tryDemo = () => run('demo', async () => {
         <button type="button" class="option" :disabled="!!busy" @click="tryDemo">
           <span class="option-icon"><UiIcon name="demo" :size="20" /></span>
           <span class="option-title">Try the Broken Tide demo</span>
-          <span class="option-text">An original island story, 2 lore documents and 11 scenes, with planted contradictions. It also adds Lantern Row, a three-page sample that comes with five preloaded canon facts, so you can switch projects. Both open in their own projects; {{ me?.current?.project.name }} stays empty.</span>
+          <span class="option-text">An original island story, 2 lore documents and 11 scenes, with planted contradictions. It also adds Lantern Row, a three-page sample that comes with five preloaded canon facts, so you can switch projects. Both open in their own projects; nothing in {{ me?.current?.project.name }} changes.</span>
           <span class="option-cta">
             <template v-if="busy === 'demo'"><span class="spinner" aria-hidden="true" />Loading 16 sources…</template>
             <template v-else>Load demo and take the tour<UiIcon name="arrow" :size="16" /></template>
@@ -117,6 +123,10 @@ const tryDemo = () => run('demo', async () => {
           <span class="option-cta">Go to {{ me?.current?.project.name }}<UiIcon name="arrow" :size="16" /></span>
         </NuxtLink>
       </div>
+      <p class="small muted center">
+        Want a bigger story? <button type="button" class="linkish" :disabled="!!busy" @click="tryAshbell">{{ busy === 'ashbell' ? 'Loading 28 sources…' : 'Load The Ashbell Pass' }}</button>,
+        a mountain-town game with NPC schedules, quests and items, in its own project.
+      </p>
       <p v-if="me?.model.mode === 'mock'" class="notice warn">
         <span><b>Recorded run.</b> The model is offline in this instance, so extraction replays a recorded run of the demo story. Your own files import fine but get no candidates until a live model is connected; you can add facts from their text by hand.</span>
       </p>
@@ -142,6 +152,8 @@ const tryDemo = () => run('demo', async () => {
 .form { gap: var(--s-4) !important; padding: var(--s-5); }
 .form .btn { width: 100%; }
 .center { text-align: center; margin: 0; }
+.linkish { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
+.linkish:disabled { cursor: default; opacity: 0.6; }
 
 .steps { list-style: none; display: flex; gap: var(--s-2); margin: 0 0 var(--s-6); padding: 0; }
 .steps li { display: flex; align-items: center; gap: var(--s-2); color: var(--faint); font-size: var(--text-sm); font-weight: 500; }

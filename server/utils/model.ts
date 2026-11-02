@@ -1,3 +1,5 @@
+import { createHash } from 'node:crypto'
+
 // All model calls go through here. MODEL_MODE=mock replays recorded fixture output;
 // MODEL_MODE=meta calls the Meta Model API (OpenAI-compatible). The key never leaves the server.
 // Every call, mock or live, is written to model_calls so the UI can show what the model was asked and with which sources.
@@ -104,16 +106,38 @@ function identityNotes(facts: PromptFact[]) {
     : ''
 }
 
-const recorded = <T>(key: string) => useStorage('assets:server').getItem<T>(`broken-tide:${key}`)
+// The demo sets with a recorded run. Recorded output is replayed only for a sample's own text: the sha256 of the imported
+// content must equal the sha256 of one of the set's source files (docs/ or v2/). A file that merely shares a sample's name
+// gets nothing, so an unrelated upload never receives another story's candidates.
+const RECORDED_SETS = ['broken-tide', 'ashbell-pass']
+const sha = (text: string) => createHash('sha256').update(text).digest('hex')
+let sources: Promise<Map<string, { set: string, filename: string }>> | undefined
+const recordedSources = () => sources ??= (async () => {
+  const assets = useStorage('assets:server')
+  const map = new Map<string, { set: string, filename: string }>()
+  for (const set of RECORDED_SETS) {
+    for (const dir of ['docs', 'v2']) {
+      for (const key of await assets.getKeys(`${set}:${dir}`)) {
+        const text = await assets.getItem<string>(key)
+        if (text) map.set(sha(String(text)), { set, filename: key.split(':').pop()! })
+      }
+    }
+  }
+  return map
+})()
+const recordedCandidates = async (text: string) => {
+  const src = (await recordedSources()).get(sha(text))
+  return src && (await useStorage('assets:server').getItem<Record<string, CandidateDraft[]>>(`${src.set}:candidates.json`))?.[src.filename]
+}
 
-// Recorded mode only has extraction output for the Broken Tide demo files, keyed by filename.
-export async function hasRecordedExtraction(filename: string) {
-  return !!(await recorded<Record<string, CandidateDraft[]>>('candidates.json'))?.[filename]
+// Recorded mode only has extraction output for the demo sets' own source texts.
+export async function hasRecordedExtraction(text: string) {
+  return !!(await recordedCandidates(text))
 }
 
 export function extractCandidates(doc: { id: string, filename: string, title: string, text: string }) {
   return traced('extract', { type: 'document', id: doc.id }, [doc.id], null, async (): Promise<CandidateDraft[]> => {
-    if (modelInfo().mode === 'mock') return (await recorded<Record<string, CandidateDraft[]>>('candidates.json'))?.[doc.filename] ?? []
+    if (modelInfo().mode === 'mock') return (await recordedCandidates(doc.text)) ?? []
     const out = await chatJson(
       `You extract narrative canon candidates from game lore documents. Return JSON {"candidates":[...]}.
 Each candidate: {"kind":"character|location|relationship|event|rule|claim","subject":"short entity name","predicate":"snake_case verb","object":"entity name or null","value":"number for measurable rules (e.g. travel minutes) or null","statement":"one plain sentence","quote":"EXACT verbatim substring of the document that supports it","time":{"from":"D<day> HH:MM","to":"D<day> HH:MM","precision":"exact|approximate"} or omitted (day-only "D<day>" means the whole day; days before D1 are D0, D-1, D-3650 …),"confidence":0-1}.
@@ -145,8 +169,12 @@ export function checkRule(rule: PromptFact, facts: PromptFact[]) {
   const input = `Rule:\n${factLines([rule])}\n\nFacts:\n${factLines(facts)}${identityNotes([rule, ...facts])}`
   return traced('rule_check', { type: 'fact', id: rule.id }, facts.map(f => f.id), input, async (): Promise<RuleViolation[]> => {
     if (modelInfo().mode === 'mock') {
-      const runs = await recorded<{ rule_contains: string, violations: { statement: string, rationale: string, confidence: number }[] }[]>('rule-checks.json')
-      const run = runs?.find(r => rule.statement.includes(r.rule_contains))
+      // The recorded checks of the sample the rule is cited from (its evidence, prior sources included), and no other.
+      const hashes = useDb().prepare('select distinct d.sha256 from evidence e join documents d on d.id = e.document_id where e.fact_id = ?').all(rule.id) as { sha256: string }[]
+      const map = await recordedSources()
+      const set = hashes.map(h => map.get(h.sha256)?.set).find(Boolean)
+      const runs = set ? (await useStorage('assets:server').getItem<{ rule_contains: string, violations: { statement: string, rationale: string, confidence: number }[] }[]>(`${set}:rule-checks.json`)) ?? [] : []
+      const run = runs.find(r => rule.statement.includes(r.rule_contains))
       return (run?.violations ?? []).flatMap((v) => {
         const fact = facts.find(f => f.statement === v.statement)
         return fact ? [{ fact_id: fact.id, rationale: v.rationale, confidence: v.confidence }] : []

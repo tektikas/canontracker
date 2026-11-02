@@ -66,6 +66,7 @@ const setSeverity = (rule: string, e: Event) => patch({ severity_defaults: { [ru
 const SAMPLES = [
   { set: 'broken-tide', label: 'Broken Tide demo', hint: 'An island story in 13 sources with planted contradictions.' },
   { set: 'lantern-row', label: 'Lantern Row sample', hint: 'Three short sources with five preloaded canon facts.' },
+  { set: 'ashbell-pass', label: 'The Ashbell Pass demo', hint: 'A mountain-town game in 28 sources, in folders, with NPCs, quests and planted contradictions.' },
 ]
 const sampleError = ref('')
 async function loadSample(s: typeof SAMPLES[number]) {

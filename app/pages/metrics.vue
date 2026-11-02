@@ -6,9 +6,9 @@ const { data: calls, refresh: refreshCalls } = await useFetch('/api/model-calls'
 const busy = ref(false)
 const error = ref('')
 const latest = computed(() => runs.value?.[0])
-// The gold set is Broken Tide's; elsewhere a run would only score a story it doesn't describe.
+// The gold sets are the demo stories' (Broken Tide, The Ashbell Pass); elsewhere a run would only score a story it doesn't describe.
 const { data: docs } = await useFetch('/api/documents')
-const demo = computed(() => !!docs.value?.some(d => d.filename === 'lore-chord-stone.md'))
+const demo = computed(() => !!docs.value?.some(d => d.filename === 'lore-chord-stone.md' || d.filename === 'lore-the-ashbell.md'))
 
 async function run() {
   busy.value = true
@@ -47,7 +47,7 @@ const tone = (id: string) => ({ recorded: 'warn', live: 'good', mixed: 'pencil',
 
   <p class="notice info caveat">
     <UiIcon name="metrics" :size="16" />
-    <span>The gold set is small, hand-labeled and synthetic (Broken Tide). It checks that the system behaves as designed; it is not evidence of real-world accuracy.</span>
+    <span>The gold set is small, hand-labeled and synthetic (Broken Tide or The Ashbell Pass, whichever this project loaded). It checks that the system behaves as designed; it is not evidence of real-world accuracy.</span>
   </p>
 
   <p v-if="error" class="notice bad" role="alert" style="margin-bottom: var(--s-4)">{{ error }}</p>
@@ -57,7 +57,7 @@ const tone = (id: string) => ({ recorded: 'warn', live: 'good', mixed: 'pencil',
     <template v-if="editor" #actions><UiButton variant="primary" :loading="busy" @click="run">Run evaluation</UiButton></template>
   </UiEmptyState>
   <UiEmptyState v-else-if="!latest" title="Measured on the demo story" icon="metrics">
-    The targets are scored against a hand-labeled gold set for the Broken Tide demo, so this project has nothing to measure.
+    The targets are scored against a hand-labeled gold set for a demo story (Broken Tide or The Ashbell Pass), so this project has nothing to measure.
     Load the demo into a project of its own to see a run.
     <template #actions><UiButton variant="primary" icon="folder" to="/settings/projects">Open projects</UiButton></template>
   </UiEmptyState>

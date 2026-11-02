@@ -1,0 +1,134 @@
+{
+  "world-kettlehold.md": [
+    "Kettlehold is the last town before the summit of the Ashbell Pass.",
+    "The Kettle & Coal stands on the edge of Saltgate, so its back door opens straight onto the market stalls.",
+    "The Old Mine has been sealed since the Night of Ash.",
+    "Locals call the high road “the Kettle’s Spout” because steam rises from every crack in it."
+  ],
+  "lore-the-ashbell.md": [
+    "Whoever rings the *Ashbell* loses their voice until the next sunrise.",
+    "On the Night of Ash, ten winters before Ves came home, Aldous Ashdown died ringing the Ashbell.",
+    "The Night of Ash buried the lower town of Kettlehold in a single night."
+  ],
+  "lore-ember-well.md": [
+    "The Ember Well grants Ashsight only to those who drink from it before dawn.",
+    "Ashsight lets its bearer see the heat left behind by footsteps for about a day.",
+    "Only the Order of the Quiet Flame may draw water from the Ember Well."
+  ],
+  "codex-factions.md": [
+    "Abbess Hesper Quill leads the Order of the Quiet Flame from Stillfire Abbey.",
+    "Captain Rourke Dale commands the Pass Guard from the barracks beside the Bell Gate.",
+    "The Red Mule Caravan carries salt and lamp oil up the pass twice a year.",
+    "The Pass Guard answers to the Abbess in matters of fire and to no one in matters of snow."
+  ],
+  "codex-roads.md": [
+    "The walk from the Bell Gate to Saltgate takes forty-five minutes — longer in snow.",
+    "The climb from the Cinder Bridge to Stillfire Abbey takes twenty minutes on the switchback stair.",
+    "On Day 0, the Red Mule Caravan makes camp at the Foot of the Pass.",
+    "The Cinder Bridge spans the steam gorge between Kiln Street and the Abbey stair."
+  ],
+  "codex-items-abilities.md": [
+    "The Bronze Clapper weighs as much as a grown goat and hangs from a chain of black iron.",
+    "The Cinder Key is a *warm* iron key that never cools, even in snow.",
+    "The Cinder Key opens any door sealed by the Order of the Quiet Flame.",
+    "Ashsight fades if its bearer sleeps before the trail is followed."
+  ],
+  "codex-characters.md": [
+    "Ves Calloway is a caravan scout for the Red Mule Caravan, coming home to Kettlehold after six years away.",
+    "Corin Ashdown is the Bellwarden of Kettlehold and the keeper of the Ashbell.",
+    "Ysolde Marr is the captain of the Red Mule Caravan and has never lost a mule to the pass.",
+    "Ysolde and Corin were sworn partners until 18:00 on Day 2, when Ysolde broke the oath in front of the Bell Gate.",
+    "Captain Rourke Dale has served in the Pass Guard for nineteen winters.",
+    "Abbess Hesper Quill is ninety years old and has not left Stillfire Abbey since the Night of Ash.",
+    "Aldous Ashdown was Corin's father and the Bellwarden before him."
+  ],
+  "codex-npc-schedules.md": [
+    "Mother Brisk is the innkeeper of the Kettle & Coal and has fed every caravan that has crossed the pass in thirty years.",
+    "At 18:00 on Day 3, Mother Brisk is behind the bar of the Kettle & Coal, as she is every evening.",
+    "At 07:30 on Day 4, Mother Brisk is at Saltgate buying the week's salt.",
+    "Odo Fenn is the lamplighter of Kettlehold and has lit its lamps since he was nine.",
+    "Tamsin Wick is a sixteen-year-old courier who runs messages between Kettlehold and Stillfire Abbey."
+  ],
+  "S01-homecoming.md": [
+    "At 16:00 on Day 1, Ves rides through the Bell Gate at the head of the Red Mule Caravan."
+  ],
+  "S02-dusk-at-the-bell-gate.md": [
+    "At 19:00 on Day 1, Corin rings the Ashbell and the whole valley holds its breath.",
+    "Corin shouts a warning down to the Pass Guard the moment the last note fades."
+  ],
+  "S03-the-kettle-and-coal.md": [
+    "At 20:00 on Day 1, Ves takes the corner table at the Kettle & Coal.",
+    "Mother Brisk pours Ves a cup of pine tea and refuses her coin.",
+    "The lamps on Kiln Street go dark at midnight, every night, without fail.",
+    "\"Not tonight,\" Brisk says. \"Not with ash in the wind.\""
+  ],
+  "S04-embers-and-oaths.md": [
+    "Ysolde asks Corin to leave the Cinder Bridge open after dusk, just once."
+  ],
+  "S05-the-silent-bell.md": [
+    "At dusk on Day 2, the Ashbell swings but makes no sound at all.",
+    "From 21:00 to 22:00 on Day 2, Captain Rourke stands watch at the Bell Gate and sees no one climb the tower."
+  ],
+  "S06-lamps-along-kiln-street.md": [
+    "At 21:30 on Day 2, Captain Rourke is drinking alone at the Kettle & Coal.",
+    "At 22:00 on Day 2, the Lamplighter is on the Cinder Bridge, trimming the last wick.",
+    "The Lamplighter keeps a tally of every lamp he has lit, scratched into the lining of his coat.",
+    "He climbs the Tallow Stair with his ladder over one shoulder."
+  ],
+  "S07-the-ember-well.md": [
+    "At 05:00 on Day 3, Ves kneels at the Ember Well and drinks before the sky turns grey.",
+    "The water burns going down, and when Ves opens her eyes she has Ashsight.",
+    "Abbess Hesper Quill gives Ves the Cinder Key and tells her to bring it back before the bell rings again.",
+    "Ves sees the heat of a footprint glow for a heartbeat and then fade."
+  ],
+  "S08-tracks-in-the-ash.md": [
+    "At 09:00 on Day 3, Tamsin is waiting at the Cinder Bridge with a message from the Abbey.",
+    "The heat trail leads from the Bell Gate tower down Kiln Street toward the Old Mine."
+  ],
+  "S09-the-old-mine.md": [
+    "Ves turns the Cinder Key and the sealed door of the Old Mine sighs open.",
+    "The sign-in board shows that Odo Fenn was at the Old Mine at 22:00 on Day 2.",
+    "Wrapped in sacking behind the ore carts lies the Bronze Clapper.",
+    "At 14:00 on Day 3, Ves is back at the Bell Gate with the clapper wrapped in her cloak."
+  ],
+  "S10-saltgate-at-dusk.md": [
+    "At 14:10 on Day 3, Ves is pushing through the crowd at Saltgate, looking for Ysolde.",
+    "Around evening on Day 3, Mother Brisk is at Saltgate haggling over a barrel of ember salt."
+  ],
+  "S11-the-dawn-bell.md": [
+    "At 06:00 on Day 4, Ves rings the Ashbell herself, and the sound rolls all the way down to the Foot of the Pass."
+  ],
+  "S12-the-broken-oath.md": [
+    "At 08:00 on Day 4, Ysolde's sworn partner, Corin, meets her at the foot of the Bell Gate stairs.",
+    "Ysolde admits she paid Odo Fenn to take the Bronze Clapper."
+  ],
+  "S13-voiceless.md": [
+    "At noon on Day 4, Ves still cannot speak a single word."
+  ],
+  "S14-the-long-road-down.md": [
+    "On Day 5, Ves climbs to Stillfire Abbey to return the Cinder Key.",
+    "At 10:00 on Day 5, Ves stands at the Bell Gate and watches the Red Mule Caravan go."
+  ],
+  "quest-the-silent-bell.md": [
+    "The Silent Bell is given by Corin when the dusk bell fails on Day 2.",
+    "The Silent Bell is the main quest of Act 2 and cannot be skipped."
+  ],
+  "quest-a-debt-in-salt.md": [
+    "Odo Fenn owes Ysolde forty silver marks from a bad winter at the Foot of the Pass.",
+    "A Debt in Salt is given by Mother Brisk once the player has eaten at the Kettle & Coal."
+  ],
+  "quest-the-well-before-dawn.md": [
+    "At 09:12 on Day 3, Tamsin is at the gate of Stillfire Abbey, out of breath.",
+    "The Well Before Dawn rewards the player with Ashsight."
+  ],
+  "dlg-town-crier.md": [
+    "From 07:00 to 08:00 on Day 4, Mother Brisk is at the Salt Gate buying salt for the inn."
+  ],
+  "dlg-ysolde-and-corin.md": [
+    "CORIN: The bridge closes when the bell rings. It always has.",
+    "YSOLDE: Then I’m done with oaths — yours and mine."
+  ],
+  "dlg-tamsin-on-the-road.md": [
+    "“Out here you’re my sister of the road,” Tamsin tells Ves, though they share no blood at all."
+  ]
+}
