@@ -30,9 +30,9 @@ export default defineEventHandler((event) => {
     return send({ filename: `${m.title.toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'project'}-manuscript.md`, type: 'text/markdown; charset=utf-8', body: manuscriptMarkdown(m) })
   }
 
-  const { bible, rows } = buildBible(opts, portraitUrl)
+  const { bible, rows, cited } = buildBible(opts, portraitUrl)
   const log = done(bible.scope.label, { facts: bible.counts.facts, entities: bible.counts.entities })
-  const img = book ? bookCover(opts) : null
+  const img = book ? bookCover(opts, cited) : null
   if (format === 'json') {
     if (q.for === 'printed') log('pdf')
     return book ? { ...bible, cover: img ? cover(img.id) : null } : bible

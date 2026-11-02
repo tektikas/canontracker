@@ -33,10 +33,11 @@ const folderTree = (folder: FolderRow | undefined) => folder
   : []
 
 // Book cover: the applied cover image of the first document (in reading order) that has one. Null = a typographic cover.
-function coverImage(filenames: string[]) {
+function coverImage(filenames: string[], only?: Set<string>) {
   const q = useDb().prepare(`select i.id, i.mime from images i join documents d on d.id = i.target_id where i.project_id = ? and i.target_type = 'document'
     and i.applied_at is not null and d.project_id = i.project_id and d.filename = ? limit 1`)
   for (const f of filenames) {
+    if (only && !only.has(f)) continue
     const r = q.get(pid(), f) as { id: string, mime: string } | undefined
     if (r) return r
   }
@@ -71,7 +72,8 @@ export function buildManuscript(opts: BibleOptions, coverUrl: (imageId: string) 
   }
 }
 
-export const bookCover = (opts: BibleOptions) => coverImage(readingOrder(opts).map(d => d.filename))
+// Only documents inside the export count: for the bible, the ones its facts cite (`cited`); for the manuscript, its own chapters.
+export const bookCover = (opts: BibleOptions, cited?: string[]) => coverImage(readingOrder(opts).map(d => d.filename), cited && new Set(cited))
 
 const KIND_ORDER = Object.keys(KIND_LABEL)
 const slug = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'entity'
@@ -181,7 +183,7 @@ export function buildBible(opts: BibleOptions, portrait: (e: EntityRow) => strin
     conflicts: openConflicts.map(c => ({ rule: CONFLICT_RULE_LABEL[c.rule] ?? c.rule, model: c.origin === 'model', rationale: c.rationale, facts: [num.get(c.left_fact_id)!, num.get(c.right_fact_id)!] })),
     sources: on.has('sources') ? [...docs.values()] : [],
   }
-  return { bible, rows: new Map(shown.map(e => [keys.get(e.id)!, e])) }
+  return { bible, rows: new Map(shown.map(e => [keys.get(e.id)!, e])), cited: [...docs.values()].map(d => d.file) }
 }
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
@@ -276,6 +278,9 @@ export function bibleMarkdown(b: Bible, imageFile: (e: BibleEntity) => string | 
 
 // A stored (uncompressed) zip: enough for one Markdown file and its portraits, without a dependency.
 export function zip(files: { name: string, data: Buffer }[]) {
+  // No ZIP64: 16-bit entry count, 32-bit sizes and offsets. Refuse cleanly; the input cap keeps memory sane too.
+  const total = files.reduce((n, f) => n + f.data.length, 0)
+  if (files.length > 65535 || total > 256 * 1024 * 1024) throw createError({ statusCode: 413, statusMessage: 'TOO_LARGE', message: 'This export is too large to download as one file. Narrow the scope (a folder or fewer entities) or leave out portraits.' })
   const local: Buffer[] = []
   const central: Buffer[] = []
   let offset = 0
@@ -331,7 +336,9 @@ export function manuscriptMarkdown(m: Manuscript) {
 }
 
 // EPUB 3: a stored zip (mimetype first) of XHTML chapters; citations are real footnotes. No dependency.
-const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+// XML 1.0 forbids most control chars, U+FFFE/FFFF and lone surrogates; they are dropped, not escaped.
+const XML_BAD = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g
+const esc = (s: string) => s.replace(XML_BAD, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
 const xhtml = (title: string, body: string) => `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en"><head><meta charset="utf-8"/><title>${esc(title)}</title><link rel="stylesheet" href="style.css"/></head><body>${body}</body></html>`
