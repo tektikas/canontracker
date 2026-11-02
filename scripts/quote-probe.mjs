@@ -34,12 +34,20 @@ const scene = [
   'Days 3–5 pass at sea.',
   '',
   '😀 Arin waits by the harbour; snake_case and 2*3 are written as is.',
+  '',
+  '2 *3 equals six today.',
+  '',
+  '*Bright*star shines all night.',
+  '',
+  '**Arin** waits at sea.',
+  '',
+  '2 - -3 equals five today.',
 ].join('\n')
 const draft = (await a('/api/drafts', { method: 'POST', body: { title: 'The Keeper’s Oath', kind: 'lore', content: scene } })).data
 const saved = (await a(`/api/drafts/${draft.id}/save`, { method: 'POST' })).data
 assert.equal(saved.status, 'imported')
 const doc = (await a(`/api/documents/${saved.document_id}`)).data
-const [, oath, lantern, , emoji] = doc.passages
+const [, oath, lantern, , emoji, star, bright, bold, dashes] = doc.passages
 const fact = over => ({ to: 'canon', document_id: doc.id, kind: 'claim', subject: 'Mara', predicate: 'claims', object: 'Tide', ...over })
 const evidenceOf = async id => (await a('/api/facts?status=canon')).data.concat((await a('/api/facts?status=pending')).data).find(f => f.id === id).evidence[0]
 
@@ -62,6 +70,18 @@ const r3 = await a('/api/facts', { method: 'POST', body: fact({ passage_id: emoj
 assert.equal(r3.status, 200, JSON.stringify(r3.data))
 assert.equal((await evidenceOf(r3.data.id)).quote, 'Arin waits by the harbour')
 ok('Add fact: an emoji before the quote does not shift it', 'Arin waits by the harbour')
+
+const r4 = await a('/api/facts', { method: 'POST', body: fact({ passage_id: bright.id, quote: 'Brightstar shines all night', subject: 'Brightstar', predicate: 'shines', object: null, statement: 'Brightstar shines all night.' }) })
+assert.equal(r4.status, 200, JSON.stringify(r4.data))
+assert.equal((await evidenceOf(r4.data.id)).quote, '*Bright*star shines all night')
+ok('Add fact: a closing * against the next word still pairs', '*Bright*star shines all night')
+
+// Unpaired marks are text, the minimum counts the typed words, and separate dash runs stay separate.
+for (const [label, passage, quote] of [['unpaired * typed without it', star, '2 3 equals six today'], ['4-char quote padded by ** marks', bold, 'Arin'], ['two dash runs typed as one', dashes, '2-3 equals five today']]) {
+  const r = await a('/api/facts', { method: 'POST', body: fact({ passage_id: passage.id, quote, statement: `Refused ${label}.` }) })
+  assert.equal(r.status, 422, `${label}: ${JSON.stringify(r.data)}`)
+  ok(`Add fact: ${label} is refused`, r.status)
+}
 
 for (const [label, quote] of [['absent quote', 'Mara said the sea is hers'], ['quote across two paragraphs', 'argued with her that night. The Lantern is never lit'], ['snake_case typed without _', 'snakecase and 2*3'], ['2*3 typed without *', 'snake_case and 23 are']]) {
   const r = await a('/api/facts', { method: 'POST', body: fact({ quote, statement: `Refused ${label}.` }) })

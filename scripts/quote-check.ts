@@ -38,6 +38,28 @@ none('Rate 5 * 3 now.', 'Rate 5 3 now')
 one('snake_case is forbidden.', 'snake_case is forbidden', 'snake_case is forbidden')
 one('2*3 equals six today.', '2*3 equals six', '2*3 equals six')
 one('Rate 5 * 3 now.', 'Rate 5 * 3', 'Rate 5 * 3')
+// Only paired emphasis folds: an unmatched * / _ is literal text (attempt-3 repros).
+none('2 *3 equals six today.', '2 3 equals six today')
+one('2 *3 equals six today.', '2 *3 equals six today', '2 *3 equals six today')
+none('Then *Arin waits at sea for the keeper.', 'Then Arin waits at sea')
+one('Then *Arin waits at sea for the keeper.', 'Then *Arin waits at sea', 'Then *Arin waits at sea')
+one('*Arin waits at sea for the keeper.', 'Arin waits at sea', 'Arin waits at sea')
+none('Arin waits at sea_ for the keeper.', 'Arin waits at sea for the keeper')
+none('Pay 2*3 and 4*5 today.', 'Pay 23 and 45 today')
+none('A **bold* claim stands.', 'A bold claim stands')
+// A closing run adjoining the next word still closes the pair.
+one('*Bright*star shines all night.', 'Brightstar shines all night', '*Bright*star shines all night')
+one('__Old__ keeper waits at dawn.', 'Old keeper waits', '__Old__ keeper waits')
+// Marks taken in do not count toward the 8-char minimum (findQuotePassage counts the folded submitted quote): '**Arin**' is 4.
+assert.deepEqual(quoteMatches('**Arin** waits at sea.', 'Arin'), ['**Arin**'])
+assert.equal(foldQuoteText('Arin').str.replace(/\s/g, '').length, 4)
+// Dash runs: consecutive dashes are one run; two runs apart stay two tokens.
+none('2 - -3 equals five today.', '2-3 equals five today')
+one('2 - -3 equals five today.', '2 - - 3 equals five', '2 - -3 equals five')
+one('2 - -3 equals five today.', '2- -3 equals five', '2 - -3 equals five')
+one('Arin -- the keeper waits.', 'Arin—the keeper', 'Arin -- the keeper')
+assert.equal(foldQuoteText('a - - b').str, 'a- -b')
+assert.equal(foldQuoteText('a -- b').str, 'a-b')
 // Emphasis next to punctuation still folds: (*x*), *"y"*, **bold**,
 one('A (*small*) boat, **never**, sails.', 'A (small) boat, never, sails', 'A (*small*) boat, **never**, sails')
 one('She said *“go”* twice.', 'said "go" twice', 'said *“go”* twice')

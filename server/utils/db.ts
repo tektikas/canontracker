@@ -363,7 +363,7 @@ export function getFact(id: string) {
 // Facts with their evidence resolved to document + line range, for the UI.
 // latest_version > document_version means the citation points at an older version of the source (stale).
 export const MIN_QUOTE_CHARS = 8
-/** The one quote check: non-blank (>= MIN_QUOTE_CHARS non-space chars) and verbatim in a passage. */
+/** The raw quote check on a stored string: non-blank (>= MIN_QUOTE_CHARS non-space chars) and verbatim in a passage. */
 export function isVerbatimQuote(text: string, quote: string | null | undefined): boolean {
   return !!quote && quote === quote.trim() && quote.replace(/\s/g, '').length >= MIN_QUOTE_CHARS && text.includes(quote)
 }
@@ -374,7 +374,8 @@ export function isVerbatimQuote(text: string, quote: string | null | undefined):
  * `prefer`: the passage the quote was selected in, checked first so a phrase that repeats is cited where it was picked. */
 export function findQuotePassage<T extends { text: string, id?: string }>(passages: T[], quote: string | null | undefined, prefer?: string | null): { passage: T, quote: string } | undefined {
   const q = quote?.trim()
-  if (!q) return undefined
+  // The minimum counts the submitted words (folded), so Markdown marks taken in around a short quote cannot pad it.
+  if (!q || foldQuoteText(q).str.replace(/\s/g, '').length < MIN_QUOTE_CHARS) return undefined
   for (const passage of [...passages.filter(p => prefer && p.id === prefer), ...passages]) {
     const hit = quoteMatches(passage.text, q).find(raw => isVerbatimQuote(passage.text, raw))
     if (hit) return { passage, quote: hit }
