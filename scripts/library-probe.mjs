@@ -53,7 +53,7 @@ const many = [1, 2, 3, 4, 5].map(i => [`note-${i}.md`, `# Note ${i}\n\nThe tide 
 const big = 'x'.repeat(1_000_001)
 const up = (await a('/api/documents', { method: 'POST', form: filesForm([...many, ['cover.pdf', '%PDF'], ['huge.md', big], ['empty.md', '\n\n']], folder.id) })).data.results
 check('five files import in one request', up.filter(r => r.status === 'imported').length, 5)
-check('a .pdf is refused with a plain reason', up.find(r => r.filename === 'cover.pdf').error, 'Not a text file: use .md or .txt.')
+check('a .pdf is refused with a plain reason', up.find(r => r.filename === 'cover.pdf').error, 'Not a supported file: use .md, .txt or .docx.')
 check('a file over 1 MB is refused', up.find(r => r.filename === 'huge.md').error, 'Too big: the limit is 1 MB per file.')
 check('an empty file is refused', up.find(r => r.filename === 'empty.md').status, 'error')
 let docs = (await a('/api/documents')).data

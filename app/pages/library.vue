@@ -357,7 +357,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
         <p v-if="actionError" class="field-error status-line" role="alert">{{ actionError }}</p>
 
         <UiEmptyState v-if="!docs.length" icon="upload" :title="editor ? 'Drop your lore here' : 'No sources yet'">
-          <template v-if="editor">Drag Markdown or text files anywhere on this page, or pick them. A file with a name you already have becomes its next version.</template>
+          <template v-if="editor">Drag Markdown, text or Word (.docx) files anywhere on this page, or pick them. A file with a name you already have becomes its next version.</template>
           <template v-else>An editor on your team adds lore and scenes. They show up here as soon as they do.</template>
           <template v-if="editor" #actions>
             <UiButton variant="primary" icon="upload" @click="uploader?.pick()">Upload files</UiButton>
@@ -396,6 +396,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                   <div class="sub-line">
                     <span class="mono faint">{{ d.name }}</span>
                     <span v-if="d.origin === 'written'" class="small faint">· latest saved here</span>
+                    <span v-else-if="/\.docx$/i.test(d.name)" class="small faint">· converted from Word</span>
                     <button v-for="t in d.tags.map(id => tagById.get(id)).filter(Boolean)" :key="t!.id" type="button" class="tag-btn" :title="`Show only “${t!.name}”`" @click="pickTag(t!.id)"><UiBadge :tone="t!.color" class="tag">{{ t!.name }}</UiBadge></button>
                   </div>
                   <div class="only-sm small faint meta-sm">
@@ -436,7 +437,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
             </tbody>
           </table>
         </div>
-        <p v-if="editor && docs.length" class="drop-hint small faint hide-sm"><UiIcon name="upload" :size="14" />Drop .md or .txt files anywhere on this page{{ currentFolder ? ` to add them to ${currentFolder.label}` : '' }}.</p>
+        <p v-if="editor && docs.length" class="drop-hint small faint hide-sm"><UiIcon name="upload" :size="14" />Drop .md, .txt or .docx files anywhere on this page{{ currentFolder ? ` to add them to ${currentFolder.label}` : '' }}.</p>
       </section>
     </div>
   </div>

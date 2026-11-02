@@ -119,7 +119,7 @@ const tryAshbell = () => run('ashbell', async () => {
         <NuxtLink to="/" class="option" :class="{ disabled: !!busy }">
           <span class="option-icon"><UiIcon name="upload" :size="20" /></span>
           <span class="option-title">Bring your own story</span>
-          <span class="option-text">Import Markdown or plain text lore docs and scene scripts (up to 1 MB each), or write and paste scenes in the app. The AI proposes facts with quotes for you to review. Saved sources are read-only and never changed.</span>
+          <span class="option-text">Import Markdown, plain text or Word (.docx) lore docs and scene scripts (up to 1 MB each), or write and paste scenes in the app. The AI proposes facts with quotes for you to review. Saved sources are read-only and never changed.</span>
           <span class="option-cta">Go to {{ me?.current?.project.name }}<UiIcon name="arrow" :size="16" /></span>
         </NuxtLink>
       </div>

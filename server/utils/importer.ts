@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto'
+import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 import type { Turn } from './audio'
 
 // A passage is a heading line or a run of non-empty lines. Line numbers are 1-based.
@@ -37,8 +39,9 @@ const derivedTitle = (filename: string, content: string) => content.match(/^#\s+
 // carries its folder. A new version keeps the folder, kind and (if renamed) title of the earlier ones.
 // `recording`: the text is a transcript of that audio (one passage per turn, in order); it is stored with the version and the
 // passages keep the turns' times. The audio itself is written by the caller (storeAudio) before this runs.
+// `word`: a .docx upload. Its file is kept as it came (originalPath), and its comments become editorial notes by the uploader.
 export interface RecordingImport { turns: Turn[], audio_sha256: string, bytes: number, duration_ms: number, original_name: string, model_id: string, mode: string, session_ids: string[], script_key: string | null }
-export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }, folderId?: string | null, recording?: RecordingImport) {
+export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }, folderId?: string | null, recording?: RecordingImport, word?: { original: Buffer, comments: WordComment[] }) {
   const db = useDb()
   const projectId = pid()
   const sha256 = createHash('sha256').update(content).digest('hex')
@@ -77,39 +80,60 @@ export async function importDocument(filename: string, content: string, written?
   let staleFacts = 0
   let outdatedFacts = 0
   let evidenceMoved = 0
-  tx(() => {
-    db.prepare(`insert into documents (id, title, filename, name, kind, sha256, version, content, imported_at, project_id, origin, created_by, folder_id)
-      values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, title, key, name, kind, sha256, version, content, now(), projectId, origin, access().user.id, folder)
-    // A written version may carry a new title or kind: the labels are per document, so earlier versions follow.
-    if (prev && (prev.title !== title || prev.kind !== kind))
-      db.prepare('update documents set title = ?, kind = ? where project_id = ? and filename = ?').run(title, kind, projectId, key)
-    const ins = db.prepare('insert into passages (id, document_id, ordinal, start_line, end_line, text, project_id, start_ms, end_ms, speaker) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    passages.forEach((p, i) => {
-      const t = recording?.turns[i]
-      ins.run(p.id, documentId, p.ordinal, p.start_line, p.end_line, p.text, projectId, t?.start_ms ?? null, t?.end_ms ?? null, t?.speaker ?? null)
-    })
-    // A later version keeps the script the recording is compared with.
-    const scriptKey = recording && (recording.script_key ?? (prev ? getRecording(prev.id)?.script_key ?? null : null))
-    if (recording)
-      db.prepare(`insert into recordings (document_id, audio_sha256, bytes, duration_ms, original_name, model_id, mode, session_ids, script_key, created_by, created_at, project_id)
-        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, recording.audio_sha256, recording.bytes, recording.duration_ms, recording.original_name, recording.model_id,
-        recording.mode, JSON.stringify(recording.session_ids), scriptKey ?? null, access().user.id, now(), projectId)
-    const event = recording ? (version > 1 ? 'recording.version_added' : 'recording.imported')
-      : written ? (version > 1 ? 'document.version_written' : 'document.written') : (version > 1 ? 'document.version_added' : 'document.imported')
-    audit(event, 'document', documentId, { filename: name, title, kind, version, sha256, passages: passages.length, folder: where,
-      ...(recording && { audio_sha256: recording.audio_sha256, duration_ms: recording.duration_ms, model_id: recording.model_id }) })
-    // Old canon citations are not silently moved to the new version. Each is checked against it (recheck.ts): a quote that
-    // still reads the same waits for a person to confirm it, a quote that is gone marks the fact "evidence outdated".
-    if (version > 1) {
-      const byFact = recheckByFact(staleCanonCitations().filter(c => c.document_key === key))
-      const ids = (state: string) => [...byFact].filter(([, s]) => s === state).map(([id]) => id)
-      const outdated = ids('outdated')
-      staleFacts = byFact.size
-      outdatedFacts = outdated.length
-      if (byFact.size) audit('citation.stale', 'document', documentId, { filename: name, title, folder: where, version, fact_ids: [...byFact.keys()], outdated_fact_ids: outdated, unchanged_fact_ids: ids('unchanged') })
-      evidenceMoved = movePendingEvidence(key, documentId, version, passages, { name, folder: where })
+  let wordNotes = 0
+  // The original .docx is written first (temp file, then rename), so a version is never committed without it. If the commit
+  // then fails, the file goes too and a retry imports cleanly (its text is not yet a duplicate).
+  const original = word && originalPath(projectId, sha256)
+  if (word) {
+    const tmp = `${original}.${newId('tmp')}`
+    try {
+      mkdirSync(join(ORIGINALS_DIR, projectId), { recursive: true })
+      writeFileSync(tmp, word.original)
+      renameSync(tmp, original!)
+    } catch {
+      rmSync(tmp, { force: true })
+      throw createError({ statusCode: 500, statusMessage: 'ORIGINAL_NOT_STORED', message: `The Word file ${filename} could not be stored, so nothing was imported. Try again.` })
     }
-  })
+  }
+  try {
+    tx(() => {
+      db.prepare(`insert into documents (id, title, filename, name, kind, sha256, version, content, imported_at, project_id, origin, created_by, folder_id)
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, title, key, name, kind, sha256, version, content, now(), projectId, origin, access().user.id, folder)
+      // A written version may carry a new title or kind: the labels are per document, so earlier versions follow.
+      if (prev && (prev.title !== title || prev.kind !== kind))
+        db.prepare('update documents set title = ?, kind = ? where project_id = ? and filename = ?').run(title, kind, projectId, key)
+      const ins = db.prepare('insert into passages (id, document_id, ordinal, start_line, end_line, text, project_id, start_ms, end_ms, speaker) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      passages.forEach((p, i) => {
+        const t = recording?.turns[i]
+        ins.run(p.id, documentId, p.ordinal, p.start_line, p.end_line, p.text, projectId, t?.start_ms ?? null, t?.end_ms ?? null, t?.speaker ?? null)
+      })
+      // A later version keeps the script the recording is compared with.
+      const scriptKey = recording && (recording.script_key ?? (prev ? getRecording(prev.id)?.script_key ?? null : null))
+      if (recording)
+        db.prepare(`insert into recordings (document_id, audio_sha256, bytes, duration_ms, original_name, model_id, mode, session_ids, script_key, created_by, created_at, project_id)
+          values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, recording.audio_sha256, recording.bytes, recording.duration_ms, recording.original_name, recording.model_id,
+          recording.mode, JSON.stringify(recording.session_ids), scriptKey ?? null, access().user.id, now(), projectId)
+      const event = recording ? (version > 1 ? 'recording.version_added' : 'recording.imported')
+        : written ? (version > 1 ? 'document.version_written' : 'document.written') : (version > 1 ? 'document.version_added' : 'document.imported')
+      audit(event, 'document', documentId, { filename: name, title, kind, version, sha256, passages: passages.length, folder: where,
+        ...(recording && { audio_sha256: recording.audio_sha256, duration_ms: recording.duration_ms, model_id: recording.model_id }) })
+      // Old canon citations are not silently moved to the new version. Each is checked against it (recheck.ts): a quote that
+      // still reads the same waits for a person to confirm it, a quote that is gone marks the fact "evidence outdated".
+      if (version > 1) {
+        const byFact = recheckByFact(staleCanonCitations().filter(c => c.document_key === key))
+        const ids = (state: string) => [...byFact].filter(([, s]) => s === state).map(([id]) => id)
+        const outdated = ids('outdated')
+        staleFacts = byFact.size
+        outdatedFacts = outdated.length
+        if (byFact.size) audit('citation.stale', 'document', documentId, { filename: name, title, folder: where, version, fact_ids: [...byFact.keys()], outdated_fact_ids: outdated, unchanged_fact_ids: ids('unchanged') })
+        evidenceMoved = movePendingEvidence(key, documentId, version, passages, { name, folder: where })
+      }
+      if (word) wordNotes = commentNotes(word.comments, key, documentId, passages)
+    })
+  } catch (e) {
+    if (original) rmSync(original, { force: true })
+    throw e
+  }
 
   // Extraction failing must not lose the import.
   let extraction: Awaited<ReturnType<typeof extractInto>> | null = null
@@ -123,8 +147,41 @@ export async function importDocument(filename: string, content: string, written?
 
   return {
     filename, title, status: 'imported' as const, document_id: documentId, version, folder: where, same_name_in: sameNameIn, passages: passages.length, stale_facts: staleFacts, outdated_facts: outdatedFacts, evidence_moved: evidenceMoved,
-    candidates: extraction?.created ?? 0, unverified: extraction?.unverified ?? 0, skipped: extraction?.skipped ?? 0, extraction_error: extractionError,
+    word_notes: wordNotes, candidates: extraction?.created ?? 0, unverified: extraction?.unverified ?? 0, skipped: extraction?.skipped ?? 0, extraction_error: extractionError,
   }
+}
+
+// The uploaded .docx, kept byte for byte per document version (keyed by the version's text hash), served only through
+// GET /api/documents/<id>/original. Cleared with the project's data on reset.
+export const ORIGINALS_DIR = join('.data', 'originals')
+export const originalPath = (projectId: string, sha256: string) => join(ORIGINALS_DIR, projectId, `${sha256}.docx`)
+
+// Word comments → notes by the uploader, pinned to the passage where the commented words start (the words themselves when
+// they are found there, as a note made in the reader would be). A comment already noted on an earlier version is not repeated.
+function commentNotes(comments: WordComment[], key: string, documentId: string, passages: { id: string, text: string, start_line: number, end_line: number }[]) {
+  const db = useDb()
+  const user = access().user.id
+  // Earlier versions' notes, read once (one lookup per comment would scan the project's notes per comment).
+  const seen = new Set((db.prepare('select n.body, n.quote from notes n join documents d on d.id = n.document_id where n.project_id = ? and d.filename = ?')
+    .all(pid(), key) as { body: string, quote: string }[]).map(n => JSON.stringify([n.body, n.quote])))
+  const ins = db.prepare(`insert into notes (id, document_id, passage_id, quote, body, status, created_by, created_at, updated_at, project_id)
+    values (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`)
+  let n = 0
+  for (const c of comments) {
+    const passage = passages.find(p => p.start_line <= c.line && c.line <= p.end_line)
+    if (!passage) continue
+    const body = `From Word comment by ${c.author}: ${c.text}`.slice(0, 4000)
+    const match = findQuotePassage([passage], c.quote)
+    const quote = match?.quote ?? (c.quote && passage.text.includes(c.quote) ? c.quote : '')
+    const k = JSON.stringify([body, quote])
+    if (seen.has(k)) continue
+    seen.add(k)
+    const id = newId('note')
+    ins.run(id, documentId, passage.id, quote, body, user, now(), now(), pid())
+    audit('note.created', 'note', id, { document_id: documentId, passage_id: passage.id, quote, body, from: 'word_comment', comment_author: c.author })
+    n++
+  }
+  return n
 }
 
 // A new version: a PENDING candidate's quote that appears exactly once in it (matched like findQuotePassage) now cites that

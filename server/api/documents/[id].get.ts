@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+
 export default defineEventHandler((event) => {
   const db = useDb()
   const id = getRouterParam(event, 'id')
@@ -27,5 +29,5 @@ export default defineEventHandler((event) => {
   const rec = doc.origin === 'recording' ? getRecording(doc.id) : undefined
   const script = rec?.script_key ? latestDocument(rec.script_key) : undefined
   const recording = rec ? { audio: `/api/documents/${doc.id}/audio`, duration_ms: rec.duration_ms, mode: rec.mode, script: script ? { id: script.id, title: script.title } : null } : null
-  return { ...doc, recording, created_by_name: author, versions: history, tags, folder, latest: { id: latest.id, version: latest.version }, passages, facts, notes, cover: appliedImage('document', doc.id) }
+  return { ...doc, recording, created_by_name: author, versions: history, tags, folder, latest: { id: latest.id, version: latest.version }, passages, facts, notes, cover: appliedImage('document', doc.id), original: existsSync(originalPath(pid(), doc.sha256)) }
 })

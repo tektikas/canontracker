@@ -239,6 +239,7 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
         <span class="mono faint" :title="`sha256 ${doc.sha256}`">sha256 {{ String(doc.sha256).slice(0, 12) }}…</span>
       </span>
       <template #actions>
+        <a v-if="doc.original" class="btn" :href="`/api/documents/${doc.id}/original`" download title="The .docx exactly as it was uploaded. The text here was converted from it."><UiIcon name="download" :size="16" />Original Word file</a>
         <UiButton icon="history" :to="`/documents/${doc.id}/history`">History<template v-if="doc.versions.length > 1"> · {{ doc.versions.length }}</template></UiButton>
         <template v-if="editor">
           <UiButton v-if="latest" icon="refresh" :loading="reextracting" :title="'Run extraction again; new candidates go to review'" @click="reextract">Re-extract</UiButton>

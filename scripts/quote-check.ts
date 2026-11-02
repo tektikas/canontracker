@@ -1,7 +1,7 @@
 // Self-check for quote folding (server/utils/quote.ts). Run: node scripts/quote-check.ts
 // Every hit must be the source's exact raw substring; absent quotes must find nothing.
 import assert from 'node:assert/strict'
-import { foldQuoteText, quoteMatches } from '../server/utils/quote.ts'
+import { foldQuoteText, quoteHits, quoteMatches } from '../server/utils/quote.ts'
 
 const one = (text: string, quote: string, want: string) => {
   const hits = quoteMatches(text, quote)
@@ -112,7 +112,7 @@ assert.deepEqual(quoteMatches('the compass near the edge', 'pass near the edge',
 assert.deepEqual(quoteMatches('let goats roam', 'let go', undefined, { end: true }), [])
 assert.deepEqual(quoteMatches('😀pass near 𝔸', 'pass near', undefined, { start: true, end: true }), ['pass near'])
 assert.deepEqual(quoteMatches('𝔸pass near', 'pass near', undefined, { start: true }), [], 'a letter outside the BMP is a word char')
-Object.assign(globalThis, { foldQuoteText, quoteMatches }) // db.ts reaches them as Nitro auto-imports
+Object.assign(globalThis, { foldQuoteText, quoteHits, quoteMatches }) // db.ts reaches them as Nitro auto-imports
 const { findQuotePassage } = await import('../server/utils/db.ts')
 const harbor = [{ text: 'They dropped the compass near the edge of the harbor and let goats roam.' }]
 assert.equal(findQuotePassage(harbor, 'Pass near the edge.'), undefined, 'a lowered first letter must not land inside "compass"')
