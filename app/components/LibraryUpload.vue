@@ -6,7 +6,6 @@
 const props = defineProps<{ folder?: { id: string, label: string } | null }>()
 const emit = defineEmits<{ uploaded: [] }>()
 const { data: stats } = useNuxtData<{ model: { mode: string } }>('stats')
-const recorded = computed(() => stats.value?.model.mode === 'mock')
 
 interface Item {
   key: number, name: string, size: number, state: 'queued' | 'uploading' | 'done' | 'error', error?: string
@@ -118,11 +117,9 @@ const summary = computed(() => {
   return [added && `${added} added`, versions && counted(versions, 'new version'), skipped && `${skipped} unchanged`, failed && `${failed} failed`].filter(Boolean).join(' · ')
 })
 const candidates = computed(() => items.value.reduce((n, i) => n + (i.result?.candidates ?? 0), 0))
-// The recorded-run note is for files it has no output for: a demo file whose candidates were all skipped is not one.
 // While a batch runs every file shows; afterwards the list folds to the failures, the rest behind "Show all".
 const expanded = ref(false)
 const rows = computed(() => (busy.value || expanded.value ? items.value : items.value.filter(i => i.state === 'error')))
-const noRecorded = computed(() => recorded.value && items.value.some(i => i.result?.status === 'imported' && !i.result.candidates && !i.result.skipped))
 const clear = () => { items.value = items.value.filter(i => i.state === 'queued' || i.state === 'uploading') }
 </script>
 
@@ -152,7 +149,6 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
         <UiButton v-if="!busy" size="sm" variant="ghost" @click="clear">Clear</UiButton>
       </div>
     </header>
-    <p v-if="noRecorded && !busy" class="small muted up-note">No candidates: demo mode only replays a recorded run for the sample stories. Connect a model key to extract from your own files, or open a file and select words to add a fact.</p>
     <ul v-if="rows.length" class="up-list">
       <li v-for="i in rows" :key="i.key" :class="i.state">
         <UiIcon :name="i.state === 'error' ? 'conflicts' : i.state === 'done' ? 'check' : 'file'" :size="16" class="up-icon" />

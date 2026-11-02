@@ -65,7 +65,6 @@ const groups = computed<{ label?: string, links: NavLink[] }[]>(() => [
   },
 ])
 const bottomLinks = computed(() => [groups.value[0]!.links[0]!, ...groups.value[1]!.links.slice(0, 3)])
-const recorded = computed(() => stats.value?.model.mode === 'mock')
 const current = computed(() => me.value?.current)
 // Projects grouped by studio for the switcher; most people have one studio, so its heading only shows when there are several.
 const byStudio = computed(() => {
@@ -93,9 +92,6 @@ async function open(id: string) {
         <BrandMark /><span class="topbar-name">{{ current?.project.name ?? 'Story Bible' }}</span>
       </NuxtLink>
       <button class="icon-btn" type="button" aria-label="Search" aria-haspopup="dialog" @click="paletteOpen = true"><UiIcon name="search" :size="20" /></button>
-      <UiBadge v-if="stats" :tone="recorded ? 'warn' : 'good'" dot :title="stats.model.label">
-        {{ recorded ? 'Recorded run' : 'Live model' }}
-      </UiBadge>
     </header>
 
     <div class="scrim" @click="navOpen = false" />
@@ -149,14 +145,6 @@ async function open(id: string) {
       </nav>
 
       <div class="sidebar-foot">
-        <div v-if="stats" class="model-status" :class="{ live: !recorded }" :title="stats.model.id">
-          <span class="status-dot" aria-hidden="true" />
-          <div>
-            <b>{{ recorded ? 'Recorded run' : 'Live model' }}</b>
-            <span>{{ recorded ? 'Model output is replayed from a recorded extraction, not called live.' : stats.model.label }}</span>
-          </div>
-        </div>
-
         <UiMenu v-if="me?.user" label="Account">
           <template #trigger>
             <span class="avatar" aria-hidden="true">{{ initials(me.user.name) }}</span>
@@ -213,7 +201,6 @@ async function open(id: string) {
 .menu-item[aria-current] { font-weight: 600; }
 .menu-check { color: var(--accent) !important; }
 .sidebar-foot { margin-top: auto; display: grid; gap: var(--s-2); }
-.sidebar-foot .model-status { margin-top: 0; }
 .avatar { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: var(--text-xs); font-weight: 700; }
 .search-btn { display: flex; align-items: center; gap: var(--s-2); width: 100%; min-height: 34px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); color: var(--muted); font: inherit; cursor: pointer; }
 .search-btn:hover { border-color: var(--line-strong); color: var(--ink); }
