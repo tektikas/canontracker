@@ -1,5 +1,5 @@
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ name?: unknown, parent_id?: unknown }>(event)
+  const body = await readObject<{ name?: unknown, parent_id?: unknown }>(event)
   const name = cleanName(body.name, 'folder name', 60)
   const parentId = typeof body.parent_id === 'string' && body.parent_id ? body.parent_id : null
   if (parentId && getFolder(parentId).parent_id)

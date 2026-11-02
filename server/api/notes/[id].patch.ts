@@ -1,7 +1,7 @@
 // Move a note along open → ready → done (or back), or edit its text.
 export default defineEventHandler(async (event) => {
   const note = getNote(getRouterParam(event, 'id')!)
-  const b = (await readBody<Record<string, unknown>>(event)) ?? {}
+  const b = await readObject<Record<string, unknown>>(event)
   const next = { status: note.status, body: note.body }
   if (b.status !== undefined) {
     if (!NOTE_STATUSES.includes(b.status as typeof NOTE_STATUSES[number]))

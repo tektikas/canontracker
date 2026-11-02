@@ -96,20 +96,44 @@ const snippets = computed(() => ({
 }))
 
 const when = (iso: string | null) => (iso ? dateTime(iso) : '')
-const TOOLS = [
-  ['sb_get_context_pack', 'Approved facts about an entity or topic, with quotes and source ids'],
-  ['sb_search_facts', 'Keyword search over canon'],
-  ['sb_get_fact', 'One fact with every evidence quote'],
-  ['sb_list_conflicts', 'Possible conflicts to judge'],
-  ['sb_get_impact', 'What a fact or change would touch, up to 2 hops'],
-  ['sb_propose_candidate', 'Adds a pending candidate for human review. The only write.'],
-  ['sb_list_projects', 'The project this token is bound to, and your role'],
+// Grouped as a narrative lead would hand out the work. Every tool is read-only except the last group.
+const TOOLS: [string, [string, string][]][] = [
+  ['Read canon', [
+    ['sb_get_entity', 'Brief on a character, place or item: canon facts with quotes, relationships, timeline, where it appears. Wiki text is marked “not canon”'],
+    ['sb_get_context_pack', 'Approved facts about an entity or topic, with quotes and source ids'],
+    ['sb_search_facts', 'Keyword search over canon'],
+    ['sb_get_fact', 'One fact with every evidence quote'],
+    ['sb_get_timeline', 'Canon in story order, by time window or entity (D-3650, D0, day-only)'],
+    ['sb_ask', 'A question answered from canon, or “unknown”'],
+  ]],
+  ['Read sources', [
+    ['sb_list_documents', 'Documents by folder, kind or tag, with versions and re-check counts'],
+    ['sb_read_document', 'Source text by line range or passage, any version, in pages'],
+    ['sb_list_entities', 'Wiki pages by type'],
+  ]],
+  ['Check', [
+    ['sb_check_facts', 'Continuity check: the conflicts new facts would raise against canon. Stores nothing'],
+    ['sb_list_conflicts', 'Possible conflicts to judge'],
+    ['sb_get_impact', 'What a fact or change would touch, up to 2 hops'],
+    ['sb_list_recheck', 'Canon citations to re-check after a new version'],
+    ['sb_list_tasks', 'Open re-review tasks from applied changes'],
+  ]],
+  ['Propose (editors and up)', [
+    ['sb_propose_candidate', 'Adds a pending candidate for human review. The only write'],
+  ]],
+]
+const ASKS = [
+  'Brief me on our lead character. Keep the team’s wiki notes apart from canon.',
+  'Continuity-check the scene I just imported against canon.',
+  'If she reaches the harbour at 21:15 on Day 2, does that clash with anything?',
+  'Which canon facts need a re-check after the last import?',
+  'Propose the rule stated in that scene as a candidate, quoting it exactly.',
 ]
 </script>
 
 <template>
   <div v-if="data" class="stack" style="gap: var(--s-5)">
-    <p class="muted intro">Connect your AI agent (Muse Spark, Claude Code, Cursor, any MCP client) to <b>{{ data.project.name }}</b>. It can read approved canon with sources, check conflicts and impact, and propose candidates. <b>Nothing an agent proposes becomes canon until a person accepts it in Review.</b></p>
+    <p class="muted intro">Connect your AI agent (Muse Spark, Claude Code, Cursor, any MCP client) to <b>{{ data.project.name }}</b>. It can read approved canon and the source documents with citations, run continuity checks, and propose candidates. <b>Nothing an agent proposes becomes canon until a person accepts it in Review.</b></p>
 
     <UiPanel title="API tokens" description="A token belongs to you, works for this project only and has your role. Revoke it any time.">
       <form class="token-form" novalidate @submit.prevent="create">
@@ -177,10 +201,18 @@ const TOOLS = [
       <p v-if="copyFailed === 'snip'" class="small field-error" role="alert">Couldn’t copy. Select the text and press Ctrl+C.</p>
 
       <h3 class="tools-h">What your agent can do</h3>
-      <dl class="tools">
-        <template v-for="[n, d] in TOOLS" :key="n"><dt class="mono">{{ n }}</dt><dd>{{ d }}</dd></template>
-      </dl>
-      <p class="small muted">If canon has nothing, the agent is told “unknown” and never invents sources. Candidates it proposes must quote an imported document word for word, and show up in Review marked “Agent proposal”.</p>
+      <template v-for="[group, tools] in TOOLS" :key="group">
+        <h4 class="tools-group small">{{ group }}</h4>
+        <dl class="tools">
+          <template v-for="[n, d] in tools" :key="n"><dt class="mono">{{ n }}</dt><dd>{{ d }}</dd></template>
+        </dl>
+      </template>
+      <h3 class="tools-h">Try asking</h3>
+      <ul class="asks">
+        <li v-for="q in ASKS" :key="q">“{{ q }}”</li>
+      </ul>
+      <p class="small muted">Clients that support MCP prompts also get two ready-made tasks: <b>Brief me on an entity</b> and <b>Continuity-check a scene</b>.</p>
+      <p class="small muted">If canon has nothing, the agent is told “unknown” and never invents sources. Candidates it proposes must quote an imported document word for word, and show up in Review marked “Agent proposal”. Each token can make 120 tool calls a minute.</p>
     </UiPanel>
   </div>
 </template>
@@ -208,9 +240,11 @@ const TOOLS = [
 .snippet-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--line); }
 .snippet pre { margin: 0; padding: var(--s-3) var(--s-4); overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
 .tools-h { margin: var(--s-5) 0 var(--s-2); font-size: var(--text-md); }
-.tools { display: grid; grid-template-columns: max-content 1fr; gap: var(--s-2) var(--s-4); margin: 0 0 var(--s-4); }
+.tools { display: grid; grid-template-columns: 13rem 1fr; gap: var(--s-2) var(--s-4); margin: 0 0 var(--s-4); }
 .tools dt { color: var(--ink); }
 .tools dd { margin: 0; color: var(--muted); font-size: var(--text-sm); }
+.tools-group { margin: var(--s-3) 0 var(--s-2); color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
+.asks { margin: 0 0 var(--s-3); padding-left: var(--s-5); display: grid; gap: var(--s-1); color: var(--ink); }
 @media (max-width: 720px) {
   .link-row { flex-direction: column; }
   .token { grid-template-columns: 1fr; }

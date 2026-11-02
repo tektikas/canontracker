@@ -8,10 +8,7 @@ export default defineEventHandler((event) => {
   if (getQuery(event).download === '1') {
     const ext = i.mime === 'image/jpeg' ? 'jpg' : i.mime.split('/')[1]
     const base = (i.filename ?? '').replace(/\.[^.]*$/, '').trim() || `image-${i.id.slice(-6)}`
-    // Plain ASCII name for every client, plus the exact name (RFC 5987) for those that read it.
-    const ascii = base.normalize('NFKD').replace(/[^\w.-]+/g, '-').replace(/^[-.]+|-+$/g, '') || `image-${i.id.slice(-6)}`
-    const utf8 = encodeURIComponent(base).replace(/['()*]/g, c => `%${c.charCodeAt(0).toString(16).toUpperCase()}`)
-    setResponseHeader(event, 'content-disposition', `attachment; filename="${ascii}.${ext}"; filename*=UTF-8''${utf8}.${ext}`)
+    setResponseHeader(event, 'content-disposition', attachment(`${base}.${ext}`, `image-${i.id.slice(-6)}`))
   }
   return data
 })

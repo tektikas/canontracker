@@ -1,7 +1,7 @@
 // Changes the signed-in person's own password. Needs the current one. The audit event never carries either password.
 export default defineEventHandler(async (event) => {
   const { user, session } = await requireUser(event)
-  const body = await readBody<{ current?: string, next?: string }>(event)
+  const body = await readObject<{ current?: string, next?: string }>(event)
   if (typeof body.current !== 'string' || !verifySecret(user.password_hash, body.current))
     throw createError({ statusCode: 403, statusMessage: 'WRONG_PASSWORD', message: 'Your current password isn’t right.' })
   if (typeof body.next !== 'string' || body.next.length < MIN_PASSWORD)

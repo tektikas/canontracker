@@ -1,5 +1,5 @@
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ email?: string, password?: string }>(event)
+  const body = await readObject<{ email?: string, password?: string }>(event)
   const email = typeof body.email === 'string' ? body.email.trim().toLowerCase() : ''
   const user = useDb().prepare('select * from users where email = ?').get(email) as unknown as UserRow | undefined
   if (!user || typeof body.password !== 'string' || !verifySecret(user.password_hash, body.password))

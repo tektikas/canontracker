@@ -2,7 +2,7 @@
 // The link is in this response only.
 export default defineEventHandler(async (event) => {
   requireRole('editor')
-  const body = await readBody<Record<string, unknown>>(event) ?? {}
+  const body = await readObject<Record<string, unknown>>(event)
   const name = cleanName(body.name, 'link name', 80)
   const days = body.days == null ? null : Number(body.days)
   if (days !== null && !SHARE_EXPIRY.some(e => e.days === days)) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: 'Pick 7 days, 30 days or never.' })

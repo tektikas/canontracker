@@ -19,26 +19,11 @@ function snippet(text: string, words: string[]) {
   return `${from ? '…' : ''}${flat.slice(from, from + SNIP)}${from + SNIP < flat.length ? '…' : ''}`
 }
 
-// ponytail: per-process fixed window per user (200 requests / 10 s); rejected requests are not counted, idle entries are evicted and the map is capped. Use a shared store if the app ever runs on several nodes.
-const WINDOW = 10_000, MAX_USERS = 1000
-const hits = new Map<string, { n: number, from: number }>()
-function throttle(userId: string) {
-  const t = Date.now()
-  let h = hits.get(userId)
-  if (!h || t - h.from >= WINDOW) {
-    if (hits.size >= MAX_USERS) {
-      for (const [k, v] of hits) if (t - v.from >= WINDOW) hits.delete(k)
-      if (hits.size >= MAX_USERS) hits.delete(hits.keys().next().value!)
-    }
-    h = { n: 0, from: t }
-    hits.set(userId, h)
-  }
-  if (h.n >= 200) throw createError({ statusCode: 429, statusMessage: 'TOO_MANY_REQUESTS', message: 'Searching too fast. Wait a moment.' })
-  h.n++
-}
+// 200 requests / 10 s per user (server/utils/throttle.ts).
+const searches = fixedWindow(200, 10_000)
 
 export default defineEventHandler((event) => {
-  throttle(access().user.id)
+  if (searches(access().user.id)) throw createError({ statusCode: 429, statusMessage: 'TOO_MANY_REQUESTS', message: 'Searching too fast. Wait a moment.' })
   const q = String(getQuery(event).q ?? '').trim().slice(0, 80).toLowerCase()
   const words = q.split(/\s+/).filter(Boolean)
   const empty = { q, facts: [], entities: [], documents: [], notes: [] }

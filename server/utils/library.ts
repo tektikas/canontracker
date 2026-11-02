@@ -50,6 +50,7 @@ export function cleanColor(v: unknown) {
 export function latestOf(ids: unknown) {
   if (!Array.isArray(ids) || !ids.length || ids.some(i => typeof i !== 'string'))
     throw createError({ statusCode: 400, statusMessage: 'NO_DOCUMENTS', message: 'Pick at least one document.' })
+  if (ids.length > 500) throw createError({ statusCode: 400, statusMessage: 'TOO_MANY', message: 'Pick at most 500 documents at a time.' })
   const db = useDb()
   const out = new Map<string, DocumentRow>()
   for (const id of ids as string[]) {
@@ -58,4 +59,39 @@ export function latestOf(ids: unknown) {
     out.set(d.filename, latestDocument(d.filename)!)
   }
   return [...out.values()]
+}
+
+interface LibraryDocument {
+  id: string, title: string, filename: string, name: string, kind: string, version: number, sha256: string, imported_at: string, origin: string
+  folder_id: string | null, created_by_name: string | null, passages: number, canon_facts: number, pending_facts: number
+}
+
+// One row per document: its latest version, its labels, how many versions it has, who saved the latest, the canon citing
+// any version, and of those the facts citing an older version that a person has not re-checked yet (stale_facts; see
+// server/utils/recheck.ts), outdated_facts being the ones whose quote is gone from the latest version.
+export function latestDocuments() {
+  const db = useDb()
+  const rows = db.prepare(`select d.id, d.title, d.filename, d.name, d.kind, d.version, d.sha256, d.imported_at, d.origin, d.folder_id,
+    (select name from users u where u.id = d.created_by) created_by_name,
+    (select count(*) from passages p where p.document_id = d.id) passages,
+    (select count(distinct f.id) from evidence e join facts f on f.id = e.fact_id join documents v on v.id = e.document_id
+      where v.project_id = d.project_id and v.filename = d.filename and f.status = 'canon') canon_facts,
+    (select count(distinct f.id) from evidence e join facts f on f.id = e.fact_id join documents v on v.id = e.document_id
+      where v.project_id = d.project_id and v.filename = d.filename and f.status = 'pending') pending_facts
+    from documents d where d.project_id = ?
+      and d.version = (select max(version) from documents d2 where d2.project_id = d.project_id and d2.filename = d.filename)
+    order by d.rowid`).all(pid()) as unknown as LibraryDocument[]
+  const tags = new Map<string, string[]>()
+  for (const t of db.prepare('select filename, tag_id from document_tags where project_id = ?').all(pid()) as { filename: string, tag_id: string }[])
+    tags.set(t.filename, [...(tags.get(t.filename) ?? []), t.tag_id])
+  const stale = new Map<string, Map<string, RecheckState>>()
+  for (const c of staleCanonCitations()) {
+    const m = stale.get(c.document_key) ?? new Map<string, RecheckState>()
+    if (c.state !== 'kept' && m.get(c.fact_id) !== 'outdated') m.set(c.fact_id, c.state)
+    stale.set(c.document_key, m)
+  }
+  return rows.map((r) => {
+    const s = [...(stale.get(r.filename)?.values() ?? [])]
+    return { ...r, stale_facts: s.length, outdated_facts: s.filter(x => x === 'outdated').length, tags: tags.get(r.filename) ?? [] }
+  })
 }

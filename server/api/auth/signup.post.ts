@@ -1,5 +1,5 @@
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ name?: string, email?: string, password?: string }>(event)
+  const body = await readObject<{ name?: string, email?: string, password?: string }>(event)
   const name = cleanName(body.name, 'name')
   const email = cleanEmail(body.email)
   if (typeof body.password !== 'string' || body.password.length < MIN_PASSWORD)

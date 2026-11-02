@@ -11,7 +11,7 @@ export default defineEventHandler((event) => {
   const cover = (id: string) => `/api/images/${id}`
   const done = (scope: string, extra: object) => (log: string) => audit('bible.exported', 'project', pid(), { format: log, book, scope, sections: opts.sections, images: opts.images, ...extra })
   const send = (file: { filename: string, type: string, body: string | Buffer }) => {
-    setHeaders(event, { 'content-type': file.type, 'content-disposition': `attachment; filename="${file.filename}"`, 'cache-control': 'no-store' })
+    setHeaders(event, { 'content-type': file.type, 'content-disposition': attachment(file.filename), 'cache-control': 'no-store' })
     return file.body
   }
 

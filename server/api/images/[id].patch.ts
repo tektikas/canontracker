@@ -1,7 +1,7 @@
 // Edit an image's caption. Editorial only, like the image itself.
 export default defineEventHandler(async (event) => {
   const i = getImage(getRouterParam(event, 'id')!)
-  const { caption } = await readBody<{ caption?: unknown }>(event)
+  const { caption } = await readObject<{ caption?: unknown }>(event)
   const text = cleanText(caption ?? '', 'Caption', IMAGE_CAPTION_MAX)
   if (text === i.caption) return { id: i.id, caption: text }
   const name = imageTarget(i.target_type, i.target_id).name

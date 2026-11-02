@@ -1,7 +1,7 @@
 // Changes the signed-in person's own name and email. Always the caller's own row; there is no user id in the request.
 export default defineEventHandler(async (event) => {
   const { user, session } = await requireUser(event)
-  const body = await readBody<{ name?: string, email?: string }>(event)
+  const body = await readObject<{ name?: string, email?: string }>(event)
   const name = cleanName(body.name, 'name')
   const email = cleanEmail(body.email)
   const db = useDb()

@@ -9,7 +9,7 @@ const MAX = 500
 
 export default defineEventHandler(async (event) => {
   requireRole('editor')
-  const body = await readBody<{ items?: unknown }>(event)
+  const body = await readObject<{ items?: unknown }>(event)
   const items = body?.items as { id: string, fingerprint: string }[] | undefined
   if (!Array.isArray(items) || !items.length || !items.every(x => x && typeof x.id === 'string' && typeof x.fingerprint === 'string'))
     throw createError({ statusCode: 400, statusMessage: 'ITEMS_REQUIRED', message: 'Send the candidates you showed as items: [{ id, fingerprint }].' })

@@ -1,7 +1,7 @@
 // Generate 1–4 images with Muse Image. They are stored with their exact prompt and audited, and applied to nothing:
 // the writer picks one (or none) afterwards.
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ target_type?: string, target_id?: string, prompt?: unknown, style?: string, n?: number }>(event)
+  const body = await readObject<{ target_type?: string, target_id?: string, prompt?: unknown, style?: string, n?: number }>(event)
   const target = imageTarget(body.target_type, body.target_id)
   const model = imageModelInfo()
   if (!model.live)
@@ -9,7 +9,7 @@ export default defineEventHandler(async (event) => {
   const prompt = cleanText(body.prompt ?? '', 'Prompt', 2000)
   if (!prompt) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: 'Describe what to draw.' })
   const style = (body.style ?? 'none') as ImageStyle
-  if (!(style in IMAGE_STYLES)) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: 'Unknown style preset.' })
+  if (typeof style !== 'string' || !Object.hasOwn(IMAGE_STYLES, style)) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: 'Unknown style preset.' })
   const n = Number(body.n ?? 1)
   if (!Number.isInteger(n) || n < 1 || n > 4) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: 'Make 1 to 4 images at a time.' })
 

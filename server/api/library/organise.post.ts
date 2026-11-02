@@ -3,7 +3,12 @@
 interface Body { document_ids?: unknown, folder_id?: string | null, add_tags?: string[], remove_tags?: string[], kind?: string, title?: string }
 
 export default defineEventHandler(async (event) => {
-  const body = await readBody<Body>(event)
+  const body = await readObject<Body>(event)
+  const tagIds = (v: unknown) => {
+    if (v === undefined) return []
+    if (!Array.isArray(v) || v.length > 50 || v.some(i => typeof i !== 'string')) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: 'Tags must be a list of up to 50 tag ids.' })
+    return v as string[]
+  }
   const docs = latestOf(body.document_ids)
   const db = useDb()
   const detail: Record<string, unknown> = { documents: docs.map(d => ({ id: d.id, filename: d.name, title: d.title })) }
@@ -11,7 +16,7 @@ export default defineEventHandler(async (event) => {
   const args: (string | null)[] = []
 
   if (body.folder_id !== undefined) {
-    const to = body.folder_id ? getFolder(body.folder_id).id : null
+    const to = body.folder_id ? getFolder(idOf(body.folder_id)).id : null
     checkFileNames(docs, to)
     sets.push('folder_id = ?')
     args.push(to)
@@ -21,7 +26,7 @@ export default defineEventHandler(async (event) => {
     if (!DOCUMENT_KINDS.includes(body.kind as typeof DOCUMENT_KINDS[number]))
       throw createError({ statusCode: 400, statusMessage: 'BAD_KIND', message: `kind must be one of ${DOCUMENT_KINDS.join(', ')}.` })
     sets.push('kind = ?')
-    args.push(body.kind)
+    args.push(body.kind as string)
     detail.kind = { to: body.kind, from: [...new Set(docs.map(d => d.kind))] }
   }
   if (body.title !== undefined) {
@@ -31,8 +36,8 @@ export default defineEventHandler(async (event) => {
     args.push(title)
     detail.title = { from: docs[0]!.title, to: title }
   }
-  const add = (body.add_tags ?? []).map(id => getTag(id))
-  const remove = (body.remove_tags ?? []).map(id => getTag(id))
+  const add = tagIds(body.add_tags).map(id => getTag(id))
+  const remove = tagIds(body.remove_tags).map(id => getTag(id))
   if (add.length) detail.tags_added = add.map(t => t.name)
   if (remove.length) detail.tags_removed = remove.map(t => t.name)
   if (!sets.length && !add.length && !remove.length)

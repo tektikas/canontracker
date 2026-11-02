@@ -5,7 +5,7 @@ const KINDS = ['character', 'location', 'relationship', 'event', 'rule', 'claim'
 const fail = (statusCode: number, statusMessage: string, message: string) => createError({ statusCode, statusMessage, message })
 
 export default defineEventHandler(async (event) => {
-  const b = (await readBody<Record<string, unknown>>(event)) ?? {}
+  const b = await readObject<Record<string, unknown>>(event)
   const str = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '')
   const to = b.to === 'review' ? 'review' : b.to === 'canon' ? 'canon' : null
   if (!to) throw fail(400, 'BAD_TARGET', 'to must be canon or review.')

@@ -1,6 +1,6 @@
 // A note pinned to a passage. Editorial only: never canon, never read by conflicts or impact.
 export default defineEventHandler(async (event) => {
-  const b = (await readBody<Record<string, unknown>>(event)) ?? {}
+  const b = await readObject<Record<string, unknown>>(event)
   const db = useDb()
   const doc = db.prepare('select id from documents where id = ? and project_id = ?').get(String(b.document_id ?? ''), pid()) as { id: string } | undefined
   if (!doc) throw createError({ statusCode: 404, statusMessage: 'NOT_FOUND', message: 'Document not found.' })
