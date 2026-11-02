@@ -96,16 +96,30 @@ const pr = part.report
 check('source passage of S06, can send candidates', [pr.source, pr.document_title, pr.can_propose], ['passage', doc.title, true])
 check('the passage contradicts the watch (rule engine)', pr.checks.some(c => c.rule === 'EXACT_TIME_LOCATION_OVERLAP' && c.fact_ids.includes(watch.id)), true)
 
-console.log('\n-- send a finding to review (human gate: pending only)')
-const f = pr.findings[0]
-const body = { to: 'review', continuity_id: pr.id, document_id: pr.document_id, passage_id: pr.passage_id, quote: f.sentence, ...f.claim }
-check('not straight to canon', (await a('/api/facts', { method: 'POST', body: { ...body, to: 'canon' } })).status, 400)
-const sent = await a('/api/facts', { method: 'POST', body })
+console.log('\n-- send a finding to review (human gate: pending only; a "new" finding of the check, from its document)')
+const toReview = (r, f, extra = {}) => ({ to: 'review', continuity_id: r.id, document_id: r.document_id, passage_id: r.passage_id, quote: f.sentence, ...f.claim, ...extra })
+const s06 = pr.findings.find(f => f.kind === 'contradicts')
+check('a contradiction is not sent: 422', (await a('/api/facts', { method: 'POST', body: toReview(pr, s06) })).data.statusMessage, 'NOT_A_NEW_FINDING')
+// The draft's text saved to the story as a written document (and again, with one more line, as another): a selection of it is a passage check.
+async function written(title, content = DRAFT) {
+  const d = (await a('/api/drafts', { method: 'POST', body: { title, kind: 'scene', content } })).data
+  const saved = (await a(`/api/drafts/${d.id}/save`, { method: 'POST' })).data
+  return (await a(`/api/documents/${saved.document_id}`)).data
+}
+const market = await written(`Market night ${run}`)
+const copy = await written(`Market night copy ${run}`, `${DRAFT}\n\nThe stalls close at midnight.`)
+const mr = (await a('/api/continuity', { method: 'POST', body: { text: DRAFT, passage_id: market.passages[0].id } })).data
+const fresh = mr.findings.find(f => f.kind === 'new')
+check('the passage check has a new finding and can send it', [mr.source, mr.can_propose, fresh?.fact_ids], ['passage', true, []])
+check('not straight to canon', (await a('/api/facts', { method: 'POST', body: toReview(mr, fresh, { to: 'canon' }) })).status, 400)
+check('the same words in another document: 422', (await a('/api/facts', { method: 'POST', body: toReview(mr, fresh, { document_id: copy.id, passage_id: copy.passages[0].id }) })).data.statusMessage, 'NOT_A_NEW_FINDING')
+check('other words of that document: 422', (await a('/api/facts', { method: 'POST', body: toReview(mr, fresh, { quote: mr.findings.find(f => f.kind === 'contradicts').sentence }) })).data.statusMessage, 'NOT_A_NEW_FINDING')
+const sent = await a('/api/facts', { method: 'POST', body: toReview(mr, fresh) })
 check('sent: pending', [sent.status, sent.data.status], [200, 'pending'])
 const cand = (await a('/api/facts?status=pending')).data.find(x => x.id === sent.data.id)
-check('origin links the check; quote verified in S06', [cand.origin, cand.evidence[0].verified, cand.evidence[0].document_id], [`continuity:${pr.id}`, 1, pr.document_id])
-check('the report lists it', (await a(`/api/continuity/${pr.id}`)).data.candidates.map(c => c.id), [sent.data.id])
-check('agent activity: 1 waiting in Review', (await a(`/api/agents/runs?run=${pr.id}`)).data[0].outcome, { facts: { pending: 1 } })
+check('origin links the check; quote verified in its document', [cand.origin, cand.evidence[0].verified, cand.evidence[0].document_id, cand.evidence[0].quote], [`continuity:${mr.id}`, 1, market.id, fresh.sentence])
+check('the report lists it', (await a(`/api/continuity/${mr.id}`)).data.candidates.map(c => c.id), [sent.data.id])
+check('agent activity: 1 waiting in Review', (await a(`/api/agents/runs?run=${mr.id}`)).data[0].outcome, { facts: { pending: 1 } })
 
 console.log('\n-- privacy: a draft check is the author\'s only')
 const link = (await a('/api/team/invites', { method: 'POST', body: { role: 'editor', days: 1 } })).data
@@ -114,7 +128,7 @@ check('editor joins', (await e(`/api/invites/${link.token}/accept`, { method: 'P
 check('editor: 404 on Ada\'s draft check', (await e(`/api/continuity/${rep.id}`)).status, 404)
 check('editor: not in agent activity', (await e('/api/agents/runs?purpose=continuity')).data.map(x => x.id).includes(rep.id), false)
 check('editor: not in the model-call trace', (await e('/api/model-calls')).data.some(c => c.target_id === rep.id), false)
-check('editor: can\'t send it to review either', (await e('/api/facts', { method: 'POST', body: { ...body, continuity_id: rep.id } })).status, 404)
+check('editor: can\'t send it to review either', (await e('/api/facts', { method: 'POST', body: toReview(mr, fresh, { continuity_id: rep.id }) })).status, 404)
 check('editor reads the shared (passage) check', (await e(`/api/continuity/${pr.id}`)).status, 200)
 const vlink = (await a('/api/team/invites', { method: 'POST', body: { role: 'viewer', days: 1 } })).data
 const v = await account('Vee')

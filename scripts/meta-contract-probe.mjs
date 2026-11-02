@@ -97,4 +97,26 @@ await queue(['images-b64'])
 await api('/api/qa', { question })
 const wrong = await fetch(`${fake}/_requests`).then(r => r.json())
 check('fake refuses a fixture queued for another endpoint', wrong.requests.length, 1)
+
+// 7. A continuity check of a private draft that fails on Meta's real 400: the error reaches the writer, and the failed run's
+// trace (it holds the draft text) is the author's alone on both trace endpoints.
+const draft = `Ines waits alone by the furnace at 20:30 on Day 1 (${run}).`
+await queue(['error-responses-bad-combo'])
+const cty = await api('/api/continuity', { text: draft })
+check('continuity on a real 400: Meta\'s message shown', [cty.status, /^Continuity check failed: Meta Model API error 400/.test(cty.data.message)], [503, true])
+await sent('continuity 400', 1, '/responses')
+const mine = (await api('/api/agents/runs?purpose=continuity')).data
+check('author: the failed run is in agent activity', mine.map(r => [r.status, r.steps.some(s => s.input?.includes(draft))]), [['failed', true]])
+check('author: and in the model-call trace', (await api('/api/model-calls')).data.some(c => c.purpose === 'continuity' && c.input?.includes(draft)), true)
+check('author: no report for a failed run', (await api(`/api/continuity/${mine[0].id}`)).status, 404)
+const link = (await api('/api/team/invites', { role: 'editor', days: 1 })).data
+const owner = cookie
+cookie = ''
+assert.equal((await api('/api/auth/signup', { name: 'Other', email: `contract-other-${run}@meta-probe.test`, password: 'correct horse' })).status, 200)
+check('another editor joins', (await api(`/api/invites/${link.token}/accept`, {})).status, 200)
+check('other editor: agent activity has no continuity run', (await api('/api/agents/runs?purpose=continuity')).data, [])
+check('other editor: nor by its id', (await api(`/api/agents/runs?run=${mine[0].id}`)).data, [])
+const theirs = (await api('/api/model-calls')).data
+check('other editor: the model-call trace has neither the run nor the draft text', [theirs.some(c => c.purpose === 'continuity'), JSON.stringify(theirs).includes(draft)], [false, false])
+cookie = owner
 console.log('\nall meta contract checks passed')

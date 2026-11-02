@@ -55,8 +55,9 @@ export function recordStep(row: {
 // One Responses request with the Meta API's retry rules: 429/500/503 are retried with backoff and jitter (3 attempts), never
 // 400/401/402/403/404/413; a 504 (a long non-streaming run) is not resent unchanged but resubmitted as a background
 // response and polled. ponytail: the 504 → background path follows the Meta docs but has not been exercised live.
-// The Meta API takes max_tool_calls; an OpenAI-compatible gateway that refuses it with a 400 (the OmniRoute test proxy does) gets
-// the request again without it, and this process leaves it out from then on. The loop caps function calls per step itself.
+// The Meta API takes max_tool_calls; an OpenAI-compatible gateway (any base URL other than api.meta.ai, e.g. the OmniRoute test
+// proxy) whose 400 names max_tool_calls gets the request again without it, and this process leaves it out for that gateway from
+// then on. A 400 from api.meta.ai is never retried. The loop caps function calls per step itself.
 let noMaxToolCalls = false
 async function responses(body: Record<string, unknown>, deadline: number): Promise<Reply> {
   const { metaBaseUrl } = useRuntimeConfig()
@@ -76,7 +77,7 @@ async function responses(body: Record<string, unknown>, deadline: number): Promi
       return await $fetch<Reply>(`${metaBaseUrl}/responses`, { method: 'POST', timeout: Math.min(180_000, left()), headers, body })
     } catch (e) {
       const status = (e as { statusCode?: number }).statusCode
-      if (status === 400 && 'max_tool_calls' in body && /unsupported parameter: max_tool_calls/i.test(JSON.stringify((e as { data?: unknown }).data ?? ''))) {
+      if (status === 400 && 'max_tool_calls' in body && new URL(metaBaseUrl).hostname !== 'api.meta.ai' && /max_tool_calls/.test(JSON.stringify((e as { data?: unknown }).data ?? ''))) {
         noMaxToolCalls = true
         continue
       }

@@ -2,7 +2,7 @@
 // step (tool, arguments, result summary, latency, tokens), the outcome, and what people did with it afterwards. A run is one
 // model_calls row, or for a multi-step agent run (rows with a step index: research, continuity) every row of its target.
 // ?run=<target id> returns that run only, with full step inputs; ?purpose= filters. A private draft's continuity check is
-// listed for its author only. ponytail: reads the newest 1,000 rows; page by rowid if a project's history outgrows that.
+// listed for its author only, failed and unfinished runs included (the run row is written before the first model call). ponytail: reads the newest 1,000 rows; page by rowid if a project's history outgrows that.
 const AGENTS: Record<string, string> = { extract: 'Extractor', critic: 'Critic', research: 'Research', continuity: 'Continuity', answer: 'Ask', rule_check: 'Rule check', image: 'Images', transcribe: 'Transcribe' }
 
 export default defineEventHandler((event) => {
@@ -11,7 +11,7 @@ export default defineEventHandler((event) => {
   const purpose = typeof q.purpose === 'string' && q.purpose in AGENTS ? q.purpose : null
   const db = useDb()
   const rows = db.prepare(`select m.* from model_calls m where m.project_id = ? and (? is null or m.target_id = ?) and (? is null or m.purpose = ?)
-    and not exists (select 1 from continuity_runs c where m.target_type = 'continuity' and c.id = m.target_id and not (${continuityVisible('c')}))
+    and ${continuityTraceVisible('m')}
     order by m.rowid desc limit 1000`).all(pid(), one, one, purpose, purpose, access().user.id) as unknown as ModelCallRow[]
 
   const runs = new Map<string, ModelCallRow[]>()

@@ -96,8 +96,8 @@ async function propose(i: number, f: Record<string, any>) {
     </section>
 
     <details v-if="report.dropped.length" class="dropped small">
-      <summary>{{ report.dropped.length }} AI finding{{ report.dropped.length === 1 ? '' : 's' }} left out</summary>
-      <p class="muted">Each finding must quote the checked text and cite accepted canon. These didn’t:</p>
+      <summary>{{ report.dropped.length }} AI result{{ report.dropped.length === 1 ? '' : 's' }} left out</summary>
+      <p class="muted">Each finding must quote the checked text and cite only accepted canon; each rule hit must be about one of those sentences. These weren’t:</p>
       <ul><li v-for="(d, i) in report.dropped" :key="i">“{{ d.sentence }}” — {{ d.reason }}</li></ul>
     </details>
 

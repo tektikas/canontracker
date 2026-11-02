@@ -218,7 +218,7 @@ create table if not exists messages (
 );
 -- Continuity checks (server/utils/continuity.ts): a text checked against accepted canon by the agent, and its grounded report.
 -- source: draft (the writer's private draft: only its author reads the run) | passage (a selection in an imported document;
--- document_id/passage_id) | text (typed or pasted in Ask). report: JSON {summary, findings, checks, dropped}; every finding's
+-- document_id/passage_id) | text (typed or pasted in Ask). report: JSON {summary, findings, checks, dropped} ('null' until done; a failed run keeps it); every finding's
 -- facts and every check were re-read from canon here, never taken from the model. Nothing else is stored: candidates exist
 -- only if a person sends a finding to review (facts.origin = continuity:<id>). A new table only (no version bump).
 create table if not exists continuity_runs (

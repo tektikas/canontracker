@@ -7,7 +7,7 @@ import type { AgentTool, AgentToolCall } from './agent'
 // connected in process, inside the caller's access()/pid(). It may only read; sb_check_facts is the deterministic rule engine.
 // The report is grounded here, never taken on the model's word: a finding's sentence must be in the checked text, every fact
 // it cites must be accepted canon (re-read from the database, quote and source included), and rule hits come from the
-// sb_check_facts results themselves, linked to findings by fact id. A finding that fails a check is listed as dropped, with why.
+// sb_check_facts results themselves, kept only when the fact checked is tied to a finding's sentence. What fails is listed as dropped, with why.
 // Fixes are text a person reads; nothing is applied. Stored: the run (continuity_runs + its model_calls steps). A person may
 // send a finding to review as a pending candidate (POST /api/facts with continuity_id); nothing else is written.
 
@@ -99,22 +99,19 @@ export function parseReport(text: string): Record<string, unknown> | null {
   return null
 }
 
-function ground(text: string, out: Record<string, unknown>, calls: AgentToolCall[]): ContinuityReport {
-  const canon = new Set((useDb().prepare(`select id from facts where project_id = ? and status = 'canon'`).all(pid()) as { id: string }[]).map(f => f.id))
-  // Rule hits exactly as sb_check_facts returned them (deterministic), once each.
-  const checks: ContinuityCheck[] = []
-  const seen = new Set<string>()
-  for (const c of calls) {
-    if (c.name !== 'sb_check_facts' || c.error) continue
-    for (const h of ((c.result as { would_raise?: Record<string, any>[] } | null)?.would_raise ?? [])) {
-      const key = JSON.stringify([h.rule, h.left, h.right])
-      if (seen.has(key)) continue
-      seen.add(key)
-      checks.push({ rule: String(h.rule), severity: h.severity === 'hard' ? 'hard' : 'soft', confidence: typeof h.confidence === 'number' ? h.confidence : null,
-        rationale: String(h.rationale ?? ''), left: h.left ?? {}, right: h.right ?? {}, fact_ids: [h.left?.fact_id, h.right?.fact_id].filter((id): id is string => typeof id === 'string') })
-    }
-  }
-  const findings: ContinuityFinding[] = []
+// A rule hit is about a sentence only when the fact the AI passed to sb_check_facts is tied to it: its subject and its place or
+// object are both named in that sentence (the whole name, or one of its capitalised words of 3+ letters, as a whole word).
+// ponytail: plain word match, so a sentence that names someone only as "he" or by an alias doesn't tie; add aliases if that bites.
+const fold = (s: string) => ` ${s.normalize('NFKD').replace(/\p{M}/gu, '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()} `
+function names(sentence: string, ...name: unknown[]) {
+  const s = fold(sentence)
+  return name.some(n => typeof n === 'string' && fold(n).trim() !== '' && (s.includes(fold(n))
+    || n.split(/[^\p{L}\p{N}]+/u).some(w => /^\p{Lu}/u.test(w) && w.length >= 3 && s.includes(fold(w)))))
+}
+
+/** The grounded report from the model's answer, the tool calls it made and the ids of this project's accepted canon. Self-check: scripts/continuity-check.ts. */
+export function groundReport(text: string, out: Record<string, unknown>, calls: AgentToolCall[], canon: Set<string>): ContinuityReport {
+  const findings: (ContinuityFinding & { hard: boolean })[] = []
   const dropped: ContinuityReport['dropped'] = []
   for (const f of (out.findings as Record<string, any>[]).slice(0, 30)) {
     const said = str(f?.sentence, 1500)
@@ -123,26 +120,57 @@ function ground(text: string, out: Record<string, unknown>, calls: AgentToolCall
       dropped.push({ sentence: said, reason: 'These words are not in the checked text.' })
       continue
     }
-    const cited = (Array.isArray(f.fact_ids) ? f.fact_ids : []).filter((id: unknown): id is string => typeof id === 'string')
-    const ids = [...new Set(cited.filter(id => canon.has(id)))]
+    const cited: unknown[] = Array.isArray(f.fact_ids) ? f.fact_ids : []
     const kind = KINDS.find(k => k === f.kind) ?? 'depends_on'
-    const linked = checks.flatMap((c, i) => (c.fact_ids.some(id => ids.includes(id)) ? [i] : []))
-    if (kind !== 'new' && !ids.length) {
-      dropped.push({ sentence, reason: cited.length ? 'The facts it cited are not accepted canon.' : 'It cited no accepted canon fact.' })
+    const reason = cited.some(id => typeof id !== 'string' || !canon.has(id)) ? 'It cites a fact that isn’t canon.'
+      : kind === 'new' && cited.length ? 'It is marked new but cites canon facts; a new claim cites none.'
+        : kind !== 'new' && !cited.length ? 'It cited no accepted canon fact.' : null
+    if (reason) {
+      dropped.push({ sentence, reason })
       continue
     }
-    // A rule hit decides the severity; otherwise only a contradiction can be hard or soft.
-    const severity: Severity = linked.length ? (linked.some(i => checks[i]!.severity === 'hard') ? 'hard' : 'soft')
-      : kind === 'contradicts' ? (f.severity === 'hard' ? 'hard' : 'soft') : 'info'
     const c = f.claim as Record<string, unknown> | null
     const claim = c && str(c.subject, 80) && str(c.predicate, 60) && str(c.statement, 500)
       ? { kind: FACT_KINDS.includes(str(c.kind, 20)) ? str(c.kind, 20) : 'claim', subject: str(c.subject, 80), predicate: str(c.predicate, 60), object: str(c.object, 80) || null,
           time_from: str(c.time_from, 20) || null, time_to: str(c.time_to, 20) || null, statement: str(c.statement, 500) }
       : null
-    findings.push({ sentence, kind, severity, explanation: str(f.explanation, 1000), fix: str(f.fix, 1000) || null, fact_ids: ids, checks: linked, claim })
+    findings.push({ sentence, kind, severity: 'info', hard: f.severity === 'hard', explanation: str(f.explanation, 1000), fix: str(f.fix, 1000) || null, fact_ids: [...new Set(cited as string[])], checks: [], claim })
   }
-  findings.sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
-  return { summary: str(out.summary, 800), findings, checks, dropped }
+
+  // Rule hits exactly as sb_check_facts returned them (deterministic), once each, kept only when every fact of the text in the
+  // hit is tied to the sentence of a kept finding; the hit is linked to those findings.
+  const checks: ContinuityCheck[] = []
+  const seen = new Set<string>()
+  for (const call of calls) {
+    if (call.name !== 'sb_check_facts' || call.error) continue
+    const result = call.result as { would_raise?: Record<string, any>[], proposed?: Record<string, any>[] } | null
+    const args = ((call.args as { facts?: Record<string, any>[] }).facts ?? [])
+    for (const h of result?.would_raise ?? []) {
+      const key = JSON.stringify([h.rule, h.left, h.right])
+      if (seen.has(key)) continue
+      seen.add(key)
+      const sides = [h.left, h.right].filter(s => typeof s?.proposed_index === 'number')
+      const tied = (s: Record<string, any>) => {
+        const a = args[s.proposed_index] ?? {}, r = result?.proposed?.[s.proposed_index] ?? {}
+        const hasObject = [a.object, r.object].some(o => typeof o === 'string' && o.trim())
+        return findings.flatMap((f, i) => names(f.sentence, a.subject, r.subject) && (!hasObject || names(f.sentence, a.object, r.object)) ? [i] : [])
+      }
+      const linked = sides.map(tied)
+      if (!sides.length || linked.some(l => !l.length)) {
+        dropped.push({ sentence: sides.map(s => String(s.statement ?? '')).join(' / '),
+          reason: `Rule hit (${h.rule}) left out: the fact the AI checked isn’t tied to a sentence of the text (its subject and place or object must both be named in one).` })
+        continue
+      }
+      const at = checks.push({ rule: String(h.rule), severity: h.severity === 'hard' ? 'hard' : 'soft', confidence: typeof h.confidence === 'number' ? h.confidence : null,
+        rationale: String(h.rationale ?? ''), left: h.left ?? {}, right: h.right ?? {}, fact_ids: [h.left?.fact_id, h.right?.fact_id].filter((id): id is string => typeof id === 'string') }) - 1
+      for (const i of new Set(linked.flat())) findings[i]!.checks.push(at)
+    }
+  }
+  // A rule hit decides the severity; otherwise only a contradiction can be hard or soft.
+  const done = findings.map(({ hard, ...f }) => ({ ...f, severity: (f.checks.length ? (f.checks.some(i => checks[i]!.severity === 'hard') ? 'hard' : 'soft')
+    : f.kind === 'contradicts' ? (hard ? 'hard' : 'soft') : 'info') as Severity }))
+  done.sort((a, b) => SEVERITY_RANK[a.severity] - SEVERITY_RANK[b.severity])
+  return { summary: str(out.summary, 800), findings: done, checks, dropped }
 }
 
 // --- The run ----------------------------------------------------------------------------------------------------------------
@@ -164,15 +192,20 @@ export async function runContinuity(input: { text: string, source: ContinuitySou
   const target = { type: 'continuity', id }
   const projectId = pid()
   const prompt = composeInput(text, input.where ?? null)
+  const mock = modelInfo().mode === 'mock'
+  const rec = mock ? ((await useStorage('assets:server').getItem<Recorded[]>('continuity:recorded.json')) ?? []).find(r => norm(r.text) === norm(text)) : undefined
+  if (mock && !rec) throw createError({ statusCode: 503, statusMessage: 'MODEL_OFFLINE', message: 'Continuity checks run on the live AI model, which isn’t switched on here, so nothing was checked.' })
+  const modelId = rec ? 'mock:recorded-fixtures' : modelInfo().id
+  // The run row (author, source: a draft is private) exists before the first model call, so the trace of a run that fails
+  // part-way is as private as a finished one. Its report stays 'null' until the run is grounded (getContinuityRun: 404).
+  useDb().prepare(`insert into continuity_runs (id, source, document_id, passage_id, text, report, model_id, prompt_version, created_by, created_at, project_id)
+    values (?, ?, ?, ?, ?, 'null', ?, ?, ?, ?, ?)`).run(id, input.source, input.documentId ?? null, input.passageId ?? null, text, modelId,
+    PROMPT_VERSIONS.continuity, access().user.id, now(), projectId)
   const { tools, close } = await canonTools()
   let out: Record<string, unknown> | null
   let calls: AgentToolCall[]
-  let modelId: string
   try {
-    if (modelInfo().mode === 'mock') {
-      const rec = ((await useStorage('assets:server').getItem<Recorded[]>('continuity:recorded.json')) ?? []).find(r => norm(r.text) === norm(text))
-      if (!rec) throw createError({ statusCode: 503, statusMessage: 'MODEL_OFFLINE', message: 'Continuity checks run on the live AI model, which isn’t switched on here, so nothing was checked.' })
-      modelId = 'mock:recorded-fixtures'
+    if (rec) {
       calls = []
       const base = { purpose: 'continuity' as const, target, modelId, projectId, effort: 'high' }
       for (const [step, batch] of rec.steps.entries()) {
@@ -196,22 +229,19 @@ export async function runContinuity(input: { text: string, source: ContinuitySou
       const byStatement = new Map((useDb().prepare(`select id, statement from facts where project_id = ? and status = 'canon' order by rowid`).all(projectId) as { id: string, statement: string }[]).map(f => [f.statement, f.id]))
       out = { ...rec.final, findings: rec.final.findings.map(({ facts, ...f }) => ({ ...f, fact_ids: (facts ?? []).map(s => byStatement.get(s) ?? `missing: ${s}`) })) }
     } else {
-      modelId = modelInfo().id
       const run = await runAgent({ purpose: 'continuity', target, projectId, instructions: INSTRUCTIONS, input: prompt, tools, webSearch: false, effort: 'high', label: 'Continuity check' })
       calls = run.toolCalls
       out = parseReport(run.text)
       if (!out) {
         recordStep({ purpose: 'continuity', target, modelId, projectId, step: run.steps, tool: null, input: null, status: 'failed', latency: 0, summary: null, error: 'The final message was not the JSON report.', tokens: null, effort: 'high' })
-        throw createError({ statusCode: 502, statusMessage: 'MODEL_BAD_OUTPUT', message: 'Continuity check failed: the AI did not return its report in the expected form. Nothing was stored.' })
+        throw createError({ statusCode: 502, statusMessage: 'MODEL_BAD_OUTPUT', message: 'Continuity check failed: the AI did not return its report in the expected form, so there is no report.' })
       }
     }
   } finally {
     await close()
   }
-  const report = ground(text, out, calls)
-  useDb().prepare(`insert into continuity_runs (id, source, document_id, passage_id, text, report, model_id, prompt_version, created_by, created_at, project_id)
-    values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(id, input.source, input.documentId ?? null, input.passageId ?? null, text, JSON.stringify(report), modelId,
-    PROMPT_VERSIONS.continuity, access().user.id, now(), projectId)
+  const report = groundReport(text, out, calls, new Set((useDb().prepare(`select id from facts where project_id = ? and status = 'canon'`).all(projectId) as { id: string }[]).map(f => f.id)))
+  useDb().prepare('update continuity_runs set report = ? where id = ?').run(JSON.stringify(report), id)
   return getContinuityRun(id)
 }
 
@@ -221,11 +251,13 @@ interface RunRow { id: string, source: ContinuitySource, document_id: string | n
 
 /** A draft's check is as private as the draft: only its author reads it (404 for anyone else). */
 export const continuityVisible = (c: string) => `${c}.source != 'draft' or ${c}.created_by = ?`
+/** A model_calls row of a continuity run shows only with its run row, and only to someone who may read that run (fails closed). One ? (user id). */
+export const continuityTraceVisible = (m: string) => `(${m}.target_type != 'continuity' or exists (select 1 from continuity_runs c where c.id = ${m}.target_id and c.project_id = ${m}.project_id and (${continuityVisible('c')})))`
 
 export function getContinuityRun(id: string) {
   const r = useDb().prepare(`select c.*, u.name created_by_name, d.title document_title, p.start_line, p.end_line from continuity_runs c
     left join users u on u.id = c.created_by left join documents d on d.id = c.document_id left join passages p on p.id = c.passage_id
-    where c.id = ? and c.project_id = ? and (${continuityVisible('c')})`).get(id, pid(), access().user.id) as unknown as (RunRow & { created_by_name: string, document_title: string | null, start_line: number | null, end_line: number | null }) | undefined
+    where c.id = ? and c.project_id = ? and c.report != 'null' and (${continuityVisible('c')})`).get(id, pid(), access().user.id) as unknown as (RunRow & { created_by_name: string, document_title: string | null, start_line: number | null, end_line: number | null }) | undefined
   if (!r) throw createError({ statusCode: 404, statusMessage: 'NOT_FOUND', message: 'Continuity check not found.' })
   const report = JSON.parse(r.report) as ContinuityReport
   const ids = [...new Set([...report.findings.flatMap(f => f.fact_ids), ...report.checks.flatMap(c => c.fact_ids)])]
