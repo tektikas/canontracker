@@ -50,7 +50,7 @@ const groups = computed<{ label?: string, links: NavLink[] }[]>(() => [
   {
     label: 'Tools',
     links: [
-      { to: '/ask', label: 'Ask canon', icon: 'ask' },
+      { to: '/ask', label: 'Ask', icon: 'ask' },
       { to: '/research', label: 'Research', icon: 'research' },
       { to: '/metrics', label: 'Metrics', icon: 'metrics' },
       { to: '/audit', label: 'Audit log', icon: 'audit' },
@@ -81,6 +81,23 @@ async function open(id: string) {
   switching.value = id
   await openProject(id)
 }
+
+// Chat: the drawer everywhere but /ask (which is the chat), ⌘/Ctrl+J and the floating button (bottom nav on phones).
+// A page with its own docked chat (reader, writer, /ask itself) takes the request instead, and hides the button.
+const chat = useChat()
+const onAsk = computed(() => route.path === '/ask')
+function toggleChat() {
+  if (onAsk.value || chat.value.dock || !chat.value.open) return openChat()
+  chat.value.open = false
+}
+function chatKey(e: KeyboardEvent) {
+  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'j') return
+  e.preventDefault()
+  toggleChat()
+}
+watch(onAsk, (on) => { if (on) chat.value.open = false })
+onMounted(() => window.addEventListener('keydown', chatKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
 </script>
 
 <template>
@@ -172,18 +189,26 @@ async function open(id: string) {
       <slot />
     </main>
 
-    <!-- Phones: the five core sections stay one tap away; More opens the drawer with the rest. -->
+    <!-- Phones: the core sections and Ask stay one tap away; More opens the drawer with the rest. -->
     <nav class="bottom-nav" aria-label="Sections" :inert="navOpen">
       <NuxtLink v-for="l in bottomLinks" :key="l.to" :to="l.to" class="bottom-link" :class="{ 'router-link-exact-active': l.to !== '/' && route.path.startsWith(`${l.to}/`) }">
         <span class="bottom-icon"><UiIcon :name="l.icon" :size="22" /><span v-if="l.count && l.tone" class="bottom-badge" :class="l.tone">{{ l.count > 99 ? '99+' : l.count }}</span></span>
         <span>{{ l.label }}</span>
       </NuxtLink>
+      <button type="button" class="bottom-link" :class="{ 'router-link-exact-active': chat.open || onAsk }" :aria-pressed="chat.open" @click="toggleChat">
+        <span class="bottom-icon"><UiIcon name="ask" :size="22" /></span>
+        <span>Ask</span>
+      </button>
       <button type="button" class="bottom-link" :aria-expanded="navOpen" aria-controls="sidebar" @click="navOpen = true">
         <span class="bottom-icon"><UiIcon name="menu" :size="22" /><span v-if="stats?.open_conflicts" class="bottom-badge bad dot" /></span>
         <span>More</span>
         <span v-if="stats?.open_conflicts" class="sr-only">({{ counted(stats.open_conflicts, 'open conflict') }})</span>
       </button>
     </nav>
+    <button v-if="!chat.open && !chat.dock" type="button" class="chat-fab" :title="`Ask (${mac ? '⌘J' : 'Ctrl+J'})`" @click="toggleChat">
+      <UiIcon name="ask" :size="20" /><span>Ask</span>
+    </button>
+    <ChatDrawer />
     <CommandPalette />
     <MentionCard />
     <GuidedTour />
@@ -210,5 +235,12 @@ async function open(id: string) {
 .viewer-note svg { flex: none; margin-top: 2px; }
 .topbar-name { overflow: hidden; text-overflow: ellipsis; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+.chat-fab {
+  position: fixed; right: var(--s-5); bottom: var(--s-5); z-index: 20; display: inline-flex; align-items: center; gap: var(--s-2);
+  min-height: 44px; padding: 0 var(--s-4) 0 var(--s-3); border: 1px solid var(--accent-strong); border-radius: 999px;
+  background: var(--accent); color: var(--accent-ink); font: 600 var(--text-base) var(--font-ui); box-shadow: var(--elev-overlay); cursor: pointer;
+}
+.chat-fab:hover { background: var(--accent-strong); }
+@media (max-width: 720px) { .chat-fab { display: none; } }
 .nav-sub { margin: -2px 0 4px calc(var(--s-3) + 28px); font-size: var(--text-xs); color: var(--faint); }
 </style>

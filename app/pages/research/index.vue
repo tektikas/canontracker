@@ -134,7 +134,7 @@ const ago = (iso: string) => shortDate(iso)
 
 <style scoped>
 .ask { display: grid; gap: var(--s-3); margin-bottom: var(--s-5); max-width: 760px; }
-.kicker { margin: 0; display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 600; color: var(--warn); text-transform: uppercase; letter-spacing: 0.04em; }
+.kicker { margin: 0; display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 600; color: var(--research); text-transform: uppercase; letter-spacing: 0.04em; }
 .ask textarea { width: 100%; resize: vertical; }
 .followup { display: grid; gap: var(--s-2); padding: var(--s-3); border: 1px dashed var(--line-strong); border-radius: var(--r-md); }
 .followup p { margin: 0; }
@@ -147,8 +147,8 @@ const ago = (iso: string) => shortDate(iso)
 .search input { width: 100%; }
 .none { margin: 0; }
 .list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); max-width: 760px; }
-.note { display: grid; gap: 6px; padding: var(--s-4); border: 1px solid var(--line); border-left: 3px solid var(--warn); border-radius: var(--r-lg); background: var(--raised); color: inherit; text-decoration: none; }
-.note:hover { border-color: var(--line-strong); border-left-color: var(--warn); }
+.note { display: grid; gap: 6px; padding: var(--s-4); border: 1px solid var(--line); border-left: 3px solid var(--research); border-radius: var(--r-lg); background: var(--raised); color: inherit; text-decoration: none; }
+.note:hover { border-color: var(--line-strong); border-left-color: var(--research); }
 .note .top { gap: var(--s-2); flex-wrap: wrap; }
 .q { font-size: var(--text-md); }
 .a { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }

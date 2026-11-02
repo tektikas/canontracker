@@ -259,9 +259,9 @@ async function savePin(value: { document_id: string, quote: string } | null) {
 .back:hover { color: var(--ink); }
 .head { display: grid; gap: var(--s-2); }
 .head h1 { margin: 0; font-size: var(--text-xl); line-height: 1.3; overflow-wrap: anywhere; }
-.kicker { margin: 0; display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 600; color: var(--warn); text-transform: uppercase; letter-spacing: 0.04em; }
+.kicker { margin: 0; display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); font-weight: 600; color: var(--research); text-transform: uppercase; letter-spacing: 0.04em; }
 .meta { gap: var(--s-2); flex-wrap: wrap; }
-.answer { border-left: 3px solid var(--warn); display: grid; gap: var(--s-3); }
+.answer { border-left: 3px solid var(--research); display: grid; gap: var(--s-3); }
 .answer p { margin: 0; }
 .lead { font-size: var(--text-md); line-height: 1.6; }
 .actions { gap: var(--s-2); flex-wrap: wrap; }
@@ -283,7 +283,7 @@ async function savePin(value: { document_id: string, quote: string } | null) {
 .spread { gap: var(--s-2); }
 .src-quote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--good); background: var(--sunken); border-radius: 0 var(--r-md) var(--r-md) 0; font-size: var(--text-sm); }
 .src-quote.unverified { border-left-color: var(--bad); text-decoration: underline wavy color-mix(in srgb, var(--bad) 55%, transparent); text-underline-offset: 4px; }
-.src-quote.not_checked { border-left-color: var(--warn); }
+.src-quote.not_checked { border-left-color: var(--research); }
 .calcs { display: grid; gap: var(--s-3); }
 .calc { border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s-3); }
 .calc summary { cursor: pointer; text-transform: capitalize; display: flex; gap: var(--s-2); align-items: center; }

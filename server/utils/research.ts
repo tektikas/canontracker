@@ -230,9 +230,11 @@ function runCalculator(name: string, args: Record<string, unknown>): ResearchCal
 
 export async function runResearch(input: ResearchInput): Promise<ResearchResult> {
   const question = input.question.trim()
-  // A reply to a follow-up ("Use 1 light-year at 1 g") is filed under the question it answers.
+  // A reply to a follow-up ("Use 1 light-year at 1 g") is filed under the question it answers. Conversations send it as
+  // "<question>\n\n<follow-up>\n<reply>"; the /research page sends the reply with the earlier turns in history.
   const [asked, followup] = input.history.slice(-2)
-  const title = asked?.role === 'user' && followup?.role === 'assistant' && followup.text.trim().endsWith('?') ? `${asked.text.trim()} (${question})` : question
+  const title = question.includes('\n\n') ? `${question.split('\n\n')[0]!.trim()} (${question.split('\n').at(-1)!.trim()})`
+    : asked?.role === 'user' && followup?.role === 'assistant' && followup.text.trim().endsWith('?') ? `${asked.text.trim()} (${question})` : question
   const profile: Record<string, string> = input.profile ?? { ...projectResearchProfile(input.projectId) }
   const id = newId('rn')
   const target = { type: 'research', id }
