@@ -205,6 +205,7 @@ const chipIcon = (c: ChatChip) => (c.type === 'entity' ? 'entities' : c.type ===
             <div v-else-if="p.type === 'research'" class="from research">
               <div class="from-head"><span class="from-label"><UiIcon name="research" :size="14" />From research — outside sources, not canon</span></div>
               <p class="answer-text">{{ p.text }}</p>
+              <NuxtLink v-for="id in p.note_ids" :key="id" :to="`/research/${id}`" class="small note-link">Open the research note: sources, calculations, promote</NuxtLink>
             </div>
 
             <div v-else-if="p.type === 'followup'" class="from followup" :class="m.mode">

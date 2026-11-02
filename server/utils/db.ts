@@ -175,6 +175,19 @@ create table if not exists model_calls (
   target_type text not null, target_id text not null, input_refs text not null, input text, status text not null,
   latency_ms integer not null, output_summary text, error text, created_at text not null, project_id text not null
 );
+-- Research notes: a real-world question answered from outside sources and deterministic calculators (server/utils/research.ts).
+-- Never canon. verdict: established | speculative | contradicts | unknown. claims, sources, calculations, searches: JSON (see
+-- ResearchNote). recorded = 1: replayed from the probe fixture, not a live run. conversation_id: the conversation it was asked
+-- in (null: asked on /research). document_id: the read-only basis document made the first time the note is promoted (facts
+-- cite it like any source). pin_*: the story passage the note is pinned to, like a note.
+create table if not exists research_notes (
+  id text primary key, question text not null, answer text not null, verdict text not null, why text not null default '',
+  claims text not null default '[]', sources text not null default '[]', calculations text not null default '[]', searches text not null default '[]',
+  model_id text not null, prompt_version text not null, recorded integer not null default 0, conversation_id text, created_by text not null,
+  created_at text not null, document_id text, pin_document_id text, pin_passage_id text, pin_quote text, pinned_by text, pinned_at text,
+  project_id text not null
+);
+create index if not exists research_notes_project on research_notes(project_id);
 create table if not exists eval_runs (
   id text primary key, dataset text not null, model_id text not null, results text not null, created_at text not null, project_id text not null
 );
@@ -227,12 +240,16 @@ export function useDb() {
       conn.exec(`pragma foreign_keys = on; pragma user_version = ${SCHEMA_VERSION}`)
     }
     conn.exec(SCHEMA)
-    // drafts.base_document_id (the version an edit draft started from; null on older drafts = unknown): added in place, no version bump.
-    if (!(conn.prepare('pragma table_info(drafts)').all() as { name: string }[]).some(r => r.name === 'base_document_id'))
-      conn.exec('alter table drafts add column base_document_id text')
-    // passages.start_ms/end_ms/speaker (recording transcripts): added in place too; null on every text document.
-    if (!(conn.prepare('pragma table_info(passages)').all() as { name: string }[]).some(r => r.name === 'start_ms'))
-      conn.exec('alter table passages add column start_ms integer; alter table passages add column end_ms integer; alter table passages add column speaker text')
+    // Columns added in place, no version bump: drafts.base_document_id (the version an edit draft started from; null on older
+    // drafts = unknown); model_calls.step/tool/tokens (an agent run's step index, the tool a row ran, tokens the model used);
+    // projects.research_profile (JSON, see shared/utils/research.ts).
+    // passages.start_ms/end_ms/speaker (recording transcripts); null on every text document.
+    for (const [table, column, type] of [['drafts', 'base_document_id', 'text'], ['model_calls', 'step', 'integer'], ['model_calls', 'tool', 'text'],
+      ['model_calls', 'tokens', 'integer'], ['projects', 'research_profile', `text not null default '{}'`],
+      ['passages', 'start_ms', 'integer'], ['passages', 'end_ms', 'integer'], ['passages', 'speaker', 'text']] as const) {
+      if (!(conn.prepare(`pragma table_info(${table})`).all() as { name: string }[]).some(r => r.name === column))
+        conn.exec(`alter table ${table} add column ${column} ${type}`)
+    }
   } catch (e) {
     conn.close()
     throw e
@@ -362,7 +379,7 @@ export function audit(eventType: string, targetType: string, targetId: string, d
 // the caller appends a project.reset event, and events before it whose target was cleared read as removed (listAudit).
 export function resetData() {
   tx(() => {
-    for (const t of ['messages', 'conversations', 'document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'recordings', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['research_notes', 'messages', 'conversations', 'document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'recordings', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })
@@ -420,6 +437,7 @@ export interface AuditRow { id: string, event_type: string, target_type: string,
 export interface ModelCallRow {
   id: string, purpose: string, model_id: string, prompt_version: string, target_type: string, target_id: string, input_refs: string, input: string | null
   status: string, latency_ms: number, output_summary: string | null, error: string | null, created_at: string
+  step: number | null, tool: string | null, tokens: number | null
 }
 
 export function getFact(id: string) {

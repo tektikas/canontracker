@@ -52,6 +52,15 @@ function typeArt() {
 }
 onBeforeUnmount(saveArt)
 
+// Research profile: sent with every research question in this project, so answers fit its world without being asked.
+const profile = reactive({ ...project.value.research_profile })
+const profileDirty = computed(() => (Object.keys(profile) as (keyof typeof profile)[]).some(k => profile[k] !== project.value.research_profile[k]))
+const profileSaved = ref(false)
+async function saveProfile() {
+  profileSaved.value = await patch({ research_profile: { ...profile } }, 'profile')
+}
+watch(profile, () => { profileSaved.value = false })
+
 // Per-rule default severity for new scans. Existing conflicts keep theirs.
 const RULE_LABEL: Record<string, string> = {
   EXACT_TIME_LOCATION_OVERLAP: 'Same person, two places, exact times overlap',
@@ -140,6 +149,24 @@ const ago = (iso: string | null) => {
           <p v-else id="part" class="small" :class="{ faint: !project.art_style }">{{ project.art_style || 'Not set' }}</p>
         </div>
       </div>
+    </UiPanel>
+
+    <UiPanel id="research-profile" title="Research profile" :description="manage ? 'Sent with every Research question in this project, so answers fit your world.' : 'Sent with every Research question. Only owners and admins can change it.'">
+      <form class="form" novalidate @submit.prevent="saveProfile">
+        <UiField label="Field">
+          <select v-model="profile.field" :disabled="!manage">
+            <option v-for="(l, k) in RESEARCH_FIELDS" :key="k" :value="k">{{ l }}</option>
+          </select>
+        </UiField>
+        <UiField label="Period" hint="e.g. London, 1850s · near future, 2190s"><input v-model="profile.period" type="text" :maxlength="PROFILE_LIMITS.period" :disabled="!manage"></UiField>
+        <UiField label="Place"><input v-model="profile.place" type="text" :maxlength="PROFILE_LIMITS.place" :disabled="!manage" placeholder="e.g. Victorian London · Jupiter system"></UiField>
+        <UiField label="Legal system or procedure" hint="For crime stories, e.g. English common law, Metropolitan Police 1850"><input v-model="profile.legal_system" type="text" :maxlength="PROFILE_LIMITS.legal_system" :disabled="!manage"></UiField>
+        <UiField label="Notes for research" hint="Anything research should keep in mind"><textarea v-model="profile.notes" rows="3" :maxlength="PROFILE_LIMITS.notes" :disabled="!manage" /></UiField>
+        <div v-if="manage" class="row">
+          <UiButton type="submit" variant="primary" :disabled="!profileDirty" :loading="busy === 'profile'">Save profile</UiButton>
+          <span v-if="profileSaved && !profileDirty" class="small good-text" role="status"><UiIcon name="check" :size="14" /> Saved</span>
+        </div>
+      </form>
     </UiPanel>
 
     <UiPanel title="Conflict severity by rule" description="Default for new scans. Existing conflicts keep theirs.">

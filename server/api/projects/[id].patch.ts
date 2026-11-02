@@ -1,9 +1,12 @@
+import { researchProfile } from '../../../shared/utils/research'
+import type { ResearchProfile } from '../../../shared/utils/research'
+
 export default defineEventHandler(async (event) => {
   const { user } = await requireUser(event)
   const project = useDb().prepare('select * from projects where id = ?').get(getRouterParam(event, 'id')!) as unknown as ProjectRow | undefined
   if (!project || !roleIn(project.studio_id, user.id)) throw createError({ statusCode: 404, statusMessage: 'NOT_FOUND', message: 'Project not found.' })
   requireStudioRole(project.studio_id, user.id, 'admin')
-  const body = await readObject<{ name?: string, medium?: string, art_style?: unknown, severity_defaults?: Record<string, unknown> }>(event)
+  const body = await readObject<{ name?: string, medium?: string, art_style?: unknown, severity_defaults?: Record<string, unknown>, research_profile?: Record<string, unknown> }>(event)
   const name = body.name === undefined ? project.name : cleanName(body.name, 'project name')
   if (body.medium !== undefined && !Object.hasOwn(MEDIA, String(body.medium))) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: `Medium must be one of ${Object.keys(MEDIA).join(', ')}.` })
   const medium = mediumOf(body.medium ?? project.medium)
@@ -19,9 +22,22 @@ export default defineEventHandler(async (event) => {
     }
     severities = JSON.stringify(next)
   }
+  // Research profile: passed to every research call in the project. A partial object changes only the fields it names.
+  const profile = researchProfile(project.research_profile)
+  if (body.research_profile !== undefined) {
+    const p = body.research_profile as Record<string, unknown> | null
+    if (!p || typeof p !== 'object' || Array.isArray(p)) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: 'research_profile must be an object.' })
+    if (p.field !== undefined) {
+      if (typeof p.field !== 'string' || !Object.hasOwn(RESEARCH_FIELDS, p.field)) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: `Field must be one of ${Object.keys(RESEARCH_FIELDS).filter(Boolean).join(', ')} (or empty).` })
+      profile.field = p.field as ResearchProfile['field']
+    }
+    const LABEL = { period: 'Period', place: 'Place', legal_system: 'Legal system', notes: 'Research notes' }
+    for (const k of Object.keys(PROFILE_LIMITS) as (keyof typeof PROFILE_LIMITS)[])
+      if (p[k] !== undefined) profile[k] = cleanText(p[k], LABEL[k], PROFILE_LIMITS[k])
+  }
   tx(() => {
-    useDb().prepare('update projects set name = ?, medium = ?, art_style = ?, severity_defaults = ? where id = ?').run(name, medium, artStyle, severities, project.id)
+    useDb().prepare('update projects set name = ?, medium = ?, art_style = ?, severity_defaults = ?, research_profile = ? where id = ?').run(name, medium, artStyle, severities, JSON.stringify(profile), project.id)
     if (medium !== project.medium) retypeForMedium(project.id)
   })
-  return { id: project.id, name, medium, art_style: artStyle, severity_defaults: projectSeverities(severities) }
+  return { id: project.id, name, medium, art_style: artStyle, severity_defaults: projectSeverities(severities), research_profile: profile }
 })

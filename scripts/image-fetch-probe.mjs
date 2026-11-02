@@ -127,6 +127,7 @@ check('special-purpose IPv4/IPv6 (incl. benchmarking 2001:2::/48, documentation 
 
 // Scheme and literal addresses.
 await refused('plain http URL refused', downloadImage('http://img.test/png', MB, deadline(5_000)), /only https/)
+await refused('URL with userinfo refused', downloadImage('https://u:p@img.test/png', MB, deadline(5_000)), /login/)
 for (const host of ['127.0.0.1', '[::1]', '[::ffff:127.0.0.1]', '169.254.169.254', '[2001:2::1]', '[3fff::1]'])
   await refused(`literal ${host} refused`, downloadImage(`https://${host}/png`, MB, deadline(5_000)), /private network/)
 
@@ -144,6 +145,7 @@ const redirect = to => at(`/redirect?to=${encodeURIComponent(to)}`)
 await refused('redirect to a loopback name refused', downloadImage(redirect('https://evil.test/png'), MB, deadline(5_000)), /private network/)
 await refused('redirect to a loopback IP refused', downloadImage(redirect(`https://127.0.0.1:${fixturePort}/png`), MB, deadline(5_000)), /private network/)
 await refused('redirect to http refused', downloadImage(redirect('http://img.test/png'), MB, deadline(5_000)), /only https/)
+await refused('redirect to a URL with userinfo refused', downloadImage(redirect('https://u:p@img.test/png'), MB, deadline(5_000)), /login/)
 await refused('more than 3 redirects refused', downloadImage(at('/hops/4'), MB, deadline(5_000)), /more than 3/)
 check('3 redirects are followed', (await downloadImage(at('/hops/2'), MB, deadline(5_000))).equals(PNG))
 lookups.length = vetted.length = 0

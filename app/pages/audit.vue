@@ -40,6 +40,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
       `Still cites v${d.citations?.[0]?.from?.version}: ${q(d.citations?.[0]?.quote)}`]
     case 'candidate.created':
       if (d.via === 'mcp') return [`Agent “${d.token_name}” proposed a candidate for ${who}`, 'Quote found in source · waiting for a human decision']
+      if (d.research_note_id) return [`${who} promoted a research note to a candidate: ${q(d.statement)}`, 'Cites the note, saved read-only · waiting for a human decision']
       return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
     case 'candidate.accepted': return [`${who} accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d), d.bulk ? 'Part of one “accept all verified” decision' : ''].filter(Boolean).join(' · ')]
     case 'candidate.bulk_accepted': return [`${who} accepted ${counted(d.accepted?.length ?? 0, 'verified candidate')} in one decision`,
@@ -53,6 +54,11 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'project.reset': return [`${who} cleared this project to load ${SAMPLE_NAME[d.set] ?? d.set}`, 'Sources, facts, conflicts and changes were removed; earlier events stay in the trail']
     case 'sample.loaded': return [`${who} loaded ${d.name ?? SAMPLE_NAME[d.set] ?? d.set}: ${counted(d.documents ?? 0, 'document')}, ${d.facts?.length ? counted(d.facts.length, 'preloaded fact') : counted(d.candidates ?? 0, 'candidate')}`,
       d.facts?.length ? 'Sample canon, preloaded with verified quotes; no person decided it' : d.candidates ? 'Candidates wait for a human decision' : '']
+    case 'research.created': return [`${who} researched ${q(d.question)}`, `Verdict: ${d.verdict}${d.sources ? ` · ${d.sources.verified} of ${d.sources.total} sources verified` : ''}${d.recorded ? ' · recorded run' : ''} · outside research, not canon`]
+    case 'research.promoted': return [`${who} promoted a research note to a ${d.as === 'rule' ? 'world rule' : 'fact'} candidate`, q(d.statement)]
+    case 'research.pinned': return [`${who} pinned a research note to a passage`, d.quote ? `On ${q(d.quote)}` : 'Editorial, not canon']
+    case 'research.unpinned': return [`${who} unpinned a research note`, 'Editorial, not canon']
+    case 'document.research_saved': return [`${who} saved a research note to the Library: ${d.title}`, `${d.passages} passages, read-only · the source promoted candidates cite`]
     case 'note.created': return [`${who} added a note: ${q(d.body)}`, d.quote ? `On ${q(d.quote)} · editorial, not canon` : 'Editorial, not canon']
     case 'note.updated': return [d.status ? `${who} marked a note ${d.status.to}` : `${who} edited a note`, [
       d.status ? `Was ${d.status.from}` : '', d.body ? `Now reads ${q(d.body.to)}` : '',
@@ -153,9 +159,9 @@ function target(e: { event_type: string, target_type: string, target_id: string,
   if (e.target_removed) return { to: '', label: `${t.charAt(0).toUpperCase() + t.slice(1)} · ${short}… (removed by reset)` }
   if (t === 'entity_type') return { to: `/settings/projects/${me.value?.current?.project.id}#entity-types`, label: `Entity type · ${e.target_id}` }
   const to = t === 'entity' ? (e.event_type === 'entity.deleted' ? '' : `/entities/${e.target_id}`) : t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' || e.event_type === 'conflict.scan' ? '/conflicts' : t === 'change' ? '/changes'
-    : t === 'fact' ? (e.event_type.startsWith('candidate.') && !e.event_type.endsWith('accepted') ? '/review' : '/canon') : t === 'note' ? '/notes' : t === 'task' ? '/tasks' : t === 'share' || e.event_type === 'bible.exported' ? '/export' : ['folder', 'tag', 'library'].includes(t) ? '/library' : ''
+    : t === 'fact' ? (e.event_type.startsWith('candidate.') && !e.event_type.endsWith('accepted') ? '/review' : '/canon') : t === 'note' ? '/notes' : t === 'research_note' ? `/research/${e.target_id}` : t === 'task' ? '/tasks' : t === 'share' || e.event_type === 'bible.exported' ? '/export' : ['folder', 'tag', 'library'].includes(t) ? '/library' : ''
   // Ids already carry a type prefix ("fact_d0e…", "trc_e02c…"): drop it and label the thing in words.
-  const noun = e.target_id.startsWith('trc_') ? 'Model call' : t.charAt(0).toUpperCase() + t.slice(1)
+  const noun = e.target_id.startsWith('trc_') ? 'Model call' : t === 'research_note' ? 'Research note' : t.charAt(0).toUpperCase() + t.slice(1)
   return { to: e.target_id.startsWith('trc_') ? '/metrics' : to, label: `${noun} · ${short}…` }
 }
 
