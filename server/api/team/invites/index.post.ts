@@ -5,7 +5,7 @@ const DAYS = [1, 7, 30]
 // Invites are links: Story Bible does not send email yet, the person who creates the link shares it.
 export default defineEventHandler(async (event) => {
   const { user, studio, role: myRole } = requireRole('admin')
-  const body = await readBody<{ role?: string, days?: number }>(event)
+  const body = await readObject<{ role?: string, days?: number }>(event)
   const role = parseRole(body.role)
   if (role === 'owner' && myRole !== 'owner')
     throw createError({ statusCode: 403, statusMessage: 'FORBIDDEN', message: 'Only an owner can invite another owner.' })

@@ -1,7 +1,7 @@
 // Rename, recolour or change the icon of a type. Labels only: pages keep their type (the key never changes).
 export default defineEventHandler(async (event) => {
   const key = getRouterParam(event, 'key')!
-  const body = await readBody<{ one?: unknown, many?: unknown, color?: unknown, icon?: unknown }>(event)
+  const body = await readObject<{ one?: unknown, many?: unknown, color?: unknown, icon?: unknown }>(event)
   // Labels are read inside the write lock: a concurrent rename cannot be overwritten with stale values.
   return tx(() => {
     const t = entityTypes().find(x => x.key === key)

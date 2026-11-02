@@ -1,6 +1,6 @@
 export default defineEventHandler(async (event) => {
   const tag = getTag(getRouterParam(event, 'id')!)
-  const body = await readBody<{ name?: unknown, color?: unknown }>(event)
+  const body = await readObject<{ name?: unknown, color?: unknown }>(event)
   const name = body.name === undefined ? tag.name : cleanName(body.name, 'tag name', 40)
   const color = body.color === undefined ? tag.color : cleanColor(body.color)
   if (name === tag.name && color === tag.color) return tag

@@ -2,7 +2,7 @@
 export default defineEventHandler(async (event) => {
   const a = await resolveAccess(event)
   event.context.access = a
-  const { name } = await readBody<{ name?: string }>(event)
+  const { name } = await readObject<{ name?: string }>(event)
   const clean = cleanName(name, 'token name', 60)
   const { id, secret } = createApiToken(a, clean)
   audit('token.created', 'token', id, { name: clean })

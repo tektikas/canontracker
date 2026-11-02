@@ -81,7 +81,7 @@ export function cleanName(v: unknown, what: string, max = 80) {
 }
 export function cleanEmail(v: unknown) {
   const s = typeof v === 'string' ? v.trim().toLowerCase() : ''
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) throw bad('Enter a valid email address.')
+  if (s.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(s)) throw bad('Enter a valid email address.')
   return s
 }
 export const MIN_PASSWORD = 8

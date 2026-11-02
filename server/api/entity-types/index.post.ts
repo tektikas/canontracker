@@ -1,6 +1,6 @@
 // A new entity type. Its key comes from the name and never changes; it is placed before "Other" when the project has one.
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ one?: unknown, many?: unknown, color?: unknown, icon?: unknown }>(event)
+  const body = await readObject<{ one?: unknown, many?: unknown, color?: unknown, icon?: unknown }>(event)
   const one = cleanName(body.one, 'type name', 40)
   const many = body.many === undefined || body.many === '' ? pluralOf(one) : cleanName(body.many, 'plural', 40)
   const color = cleanTypeColor(body.color ?? 'neutral')

@@ -1,7 +1,7 @@
 // Move a task along (open, in progress, done, won't fix), assign it, set a due date or leave a comment.
 export default defineEventHandler(async (event) => {
   const task = getTask(getRouterParam(event, 'id')!)
-  const b = (await readBody<Record<string, unknown>>(event)) ?? {}
+  const b = await readObject<Record<string, unknown>>(event)
   const bad = (statusMessage: string, message: string) => createError({ statusCode: 400, statusMessage, message })
   if (task.status === 'not_needed') throw createError({ statusCode: 409, statusMessage: 'INVALID_STATE_TRANSITION', message: 'The change was reverted, so this task is closed.' })
   if (task.change_status === 'reverted' && ['open', 'in_progress'].includes(b.status as string)) throw createError({ statusCode: 409, statusMessage: 'INVALID_STATE_TRANSITION', message: 'The change was reverted, so this task cannot be reopened.' })

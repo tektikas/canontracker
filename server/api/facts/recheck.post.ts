@@ -11,7 +11,7 @@ const MAX = 500
 
 export default defineEventHandler(async (event) => {
   requireRole('editor')
-  const body = await readBody<{ action?: unknown, fact_ids?: unknown, evidence_ids?: unknown }>(event)
+  const body = await readObject<{ action?: unknown, fact_ids?: unknown, evidence_ids?: unknown }>(event)
   const action = body?.action
   if (action !== 'confirm' && action !== 'keep') throw createError({ statusCode: 400, statusMessage: 'BAD_ACTION', message: 'action must be confirm or keep.' })
   const field = action === 'confirm' ? 'fact_ids' : 'evidence_ids'

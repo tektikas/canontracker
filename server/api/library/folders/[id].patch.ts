@@ -1,6 +1,6 @@
 export default defineEventHandler(async (event) => {
   const folder = getFolder(getRouterParam(event, 'id')!)
-  const name = cleanName((await readBody<{ name?: unknown }>(event)).name, 'folder name', 60)
+  const name = cleanName((await readObject<{ name?: unknown }>(event)).name, 'folder name', 60)
   if (name === folder.name) return folder
   checkFolderName(name, folder.parent_id, folder.id)
   tx(() => {

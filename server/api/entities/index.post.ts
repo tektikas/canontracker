@@ -1,6 +1,6 @@
 // A writer creates a page by hand (a character not in canon yet, a faction, a quest).
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ name?: unknown, kind?: unknown, summary?: unknown }>(event)
+  const body = await readObject<{ name?: unknown, kind?: unknown, summary?: unknown }>(event)
   const name = cleanName(body.name, 'name')
   const summary = cleanText(body.summary ?? '', 'Summary', 2000)
   const id = newId('ent')

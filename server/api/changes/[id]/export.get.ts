@@ -2,11 +2,12 @@
 export default defineEventHandler((event) => {
   const id = getRouterParam(event, 'id')!
   const format = String(getQuery(event).format ?? 'json')
+  if (!['json', 'csv', 'md'].includes(format)) throw createError({ statusCode: 400, statusMessage: 'BAD_FORMAT', message: 'format must be json, csv or md.' })
   const change = useDb().prepare('select * from changes where id = ? and project_id = ?').get(id, pid()) as unknown as ChangeRow | undefined
   if (!change) throw createError({ statusCode: 404, statusMessage: 'NOT_FOUND', message: 'Change not found.' })
   const items = JSON.parse(change.impact ?? '[]') as ImpactItem[]
   audit('export.created', 'change', id, { format, items: items.length })
-  setHeader(event, 'content-disposition', `attachment; filename="impact-${id}.${format === 'md' ? 'md' : format}"`)
+  setHeader(event, 'content-disposition', `attachment; filename="impact-${id}.${format}"`)
   const stale = change.impact_stale ? 'Out of date: a merge changed what this may touch since the analysis ran. Re-run it before relying on this list.' : null
   const scope = { max_hops: 2, canonical_only: true, note: 'Items found within the scope; not a guarantee that nothing else is affected.' }
 

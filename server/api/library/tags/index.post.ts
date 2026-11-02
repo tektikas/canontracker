@@ -1,5 +1,5 @@
 export default defineEventHandler(async (event) => {
-  const body = await readBody<{ name?: unknown, color?: unknown }>(event)
+  const body = await readObject<{ name?: unknown, color?: unknown }>(event)
   const name = cleanName(body.name, 'tag name', 40)
   const color = cleanColor(body.color ?? 'accent')
   checkTagName(name)

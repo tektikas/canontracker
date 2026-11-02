@@ -16,6 +16,13 @@ export function projectSeverities(raw: string): Record<string, Severity> {
   const set = JSON.parse(raw || '{}') as Record<string, Severity>
   return Object.fromEntries(Object.keys(RULE_SEVERITY).map(r => [r, SEVERITIES.includes(set[r]!) ? set[r]! : RULE_SEVERITY[r]!]))
 }
+// The severity a rule hit gets in this project. An explicit project value (even one equal to the built-in) always wins; only
+// "no override" uses the near-limit rule (a travel hit close to the limit is a soft warning).
+export function severityFor(raw: string) {
+  const sev = projectSeverities(raw)
+  const set = JSON.parse(raw || '{}') as Record<string, unknown>
+  return (rule: string, near = false): Severity => (near && !SEVERITIES.includes(set[rule] as Severity) ? 'soft' : sev[rule]!)
+}
 
 // The deterministic rules for one pair of facts. `travel` is the canon travel_time facts. Also used after a merge to see
 // which open conflicts still hold.
@@ -68,15 +75,12 @@ export async function scanConflicts() {
   const facts = db.prepare(`select * from facts where project_id = ? and status = 'canon'`).all(pid()) as unknown as Fact[]
   const ins = db.prepare(`insert or ignore into conflicts (id, left_fact_id, right_fact_id, rule, origin, model_id, rationale, confidence, status, pair_hash, created_at, project_id, severity)
     values (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`)
-  const sev = projectSeverities(access().project.severity_defaults)
-  const raw = JSON.parse(access().project.severity_defaults || '{}') as Record<string, unknown>
-  const explicit = Object.fromEntries(Object.keys(RULE_SEVERITY).map(r => [r, SEVERITIES.includes(raw[r] as Severity)]))
+  const severityOf = severityFor(access().project.severity_defaults)
   let created = 0
   const add = (a: Fact, b: Fact, rule: string, rationale: string, confidence: number, modelId: string | null = null, near = false) => {
     const pairHash = createHash('sha256').update([a.id, b.id].sort().join('|') + rule).digest('hex').slice(0, 24)
     const id = newId('conf')
-    // An explicit project value (even one equal to the built-in) always wins; only "no override" uses the near-limit rule.
-    const severity: Severity = near && !explicit[rule] ? 'soft' : sev[rule]!
+    const severity = severityOf(rule, near)
     if (ins.run(id, a.id, b.id, rule, modelId ? 'model' : 'rule', modelId, rationale, confidence, pairHash, now(), pid(), severity).changes) {
       audit('conflict.detected', 'conflict', id, { rule, left: a.id, right: b.id, model_id: modelId, severity })
       created++
