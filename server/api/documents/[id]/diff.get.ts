@@ -55,10 +55,11 @@ export default defineEventHandler((event) => {
     for (let j = 0; j < ins.length; j++) if (!used.has(j)) rows.push({ op: 'added', to: ins[j] })
   }
 
-  // Canon citing the older version: by passage. Facts on unchanged passages still read word for word in the newer one.
+  // Canon citing the older version: by passage. Facts on unchanged passages still read word for word in the newer one. On a
+  // changed passage, quote_gone: the cited words no longer appear exactly once in the newer version (evidence outdated).
   const touched = new Set(rows.filter(r => r.op === 'changed' || r.op === 'removed').map(r => r.from!.id))
   const facts = listFacts(`status = 'canon' and id in (select fact_id from evidence where document_id = ?)`, from.id)
-  const byPassage = new Map<string, { id: string, statement: string, quote: string }[]>()
+  const byPassage = new Map<string, { id: string, statement: string, quote: string, quote_gone: boolean }[]>()
   let unchanged = 0
   for (const f of facts) {
     for (const ev of f.evidence.filter(e => e.document_id === from.id && e.passage_id)) {
@@ -66,14 +67,15 @@ export default defineEventHandler((event) => {
         unchanged++
         continue
       }
-      byPassage.set(ev.passage_id!, [...(byPassage.get(ev.passage_id!) ?? []), { id: f.id, statement: f.statement, quote: ev.quote }])
+      byPassage.set(ev.passage_id!, [...(byPassage.get(ev.passage_id!) ?? []), { id: f.id, statement: f.statement, quote: ev.quote, quote_gone: !soleQuotePassage(b, ev.quote) }])
     }
   }
   const counts = { changed: 0, removed: 0, added: 0, same: 0 }
   for (const r of rows) counts[r.op]++
+  const listed = [...byPassage.values()].flat()
   return {
     from: { id: from.id, version: from.version }, to: { id: to.id, version: to.version },
-    counts, recheck: [...byPassage.values()].flat().length, unchanged_citations: unchanged,
+    counts, recheck: listed.length, quote_gone: listed.filter(f => f.quote_gone).length, unchanged_citations: unchanged,
     rows: rows.map(r => ({ ...r, facts: r.from ? byPassage.get(r.from.id) ?? [] : [] })),
   }
 })

@@ -69,6 +69,7 @@ export async function importDocument(filename: string, content: string, written?
   const name = prev?.name ?? filename
   const where = folderPath(folder)
   let staleFacts = 0
+  let outdatedFacts = 0
   let evidenceMoved = 0
   tx(() => {
     db.prepare(`insert into documents (id, title, filename, name, kind, sha256, version, content, imported_at, project_id, origin, created_by, folder_id)
@@ -80,12 +81,15 @@ export async function importDocument(filename: string, content: string, written?
     for (const p of passages) ins.run(p.id, documentId, p.ordinal, p.start_line, p.end_line, p.text, projectId)
     const event = written ? (version > 1 ? 'document.version_written' : 'document.written') : (version > 1 ? 'document.version_added' : 'document.imported')
     audit(event, 'document', documentId, { filename: name, title, kind, version, sha256, passages: passages.length, folder: where })
-    // Old citations are not silently moved to the new version; they are flagged stale until someone reviews them.
+    // Old canon citations are not silently moved to the new version. Each is checked against it (recheck.ts): a quote that
+    // still reads the same waits for a person to confirm it, a quote that is gone marks the fact "evidence outdated".
     if (version > 1) {
-      const stale = db.prepare(`select distinct f.id from facts f join evidence e on e.fact_id = f.id join documents d on d.id = e.document_id
-        where f.project_id = ? and f.status = 'canon' and d.filename = ? and d.version < ?`).all(projectId, key, version) as { id: string }[]
-      staleFacts = stale.length
-      if (stale.length) audit('citation.stale', 'document', documentId, { filename: name, title, folder: where, version, fact_ids: stale.map(s => s.id) })
+      const byFact = recheckByFact(staleCanonCitations().filter(c => c.document_key === key))
+      const ids = (state: string) => [...byFact].filter(([, s]) => s === state).map(([id]) => id)
+      const outdated = ids('outdated')
+      staleFacts = byFact.size
+      outdatedFacts = outdated.length
+      if (byFact.size) audit('citation.stale', 'document', documentId, { filename: name, title, folder: where, version, fact_ids: [...byFact.keys()], outdated_fact_ids: outdated, unchanged_fact_ids: ids('unchanged') })
       evidenceMoved = movePendingEvidence(key, documentId, version, passages, { name, folder: where })
     }
   })
@@ -101,7 +105,7 @@ export async function importDocument(filename: string, content: string, written?
   }
 
   return {
-    filename, title, status: 'imported' as const, document_id: documentId, version, folder: where, same_name_in: sameNameIn, passages: passages.length, stale_facts: staleFacts, evidence_moved: evidenceMoved,
+    filename, title, status: 'imported' as const, document_id: documentId, version, folder: where, same_name_in: sameNameIn, passages: passages.length, stale_facts: staleFacts, outdated_facts: outdatedFacts, evidence_moved: evidenceMoved,
     candidates: extraction?.created ?? 0, unverified: extraction?.unverified ?? 0, skipped: extraction?.skipped ?? 0, extraction_error: extractionError,
   }
 }
@@ -114,21 +118,16 @@ function movePendingEvidence(key: string, documentId: string, version: number, p
   const rows = db.prepare(`select e.id, e.fact_id, e.quote, e.document_id, e.passage_id, d.version, p.start_line from evidence e
     join facts f on f.id = e.fact_id join documents d on d.id = e.document_id left join passages p on p.id = e.passage_id
     where f.project_id = ? and f.status = 'pending' and e.verified = 1 and d.filename = ? and d.version < ?`).all(pid(), key, version) as { id: string, fact_id: string, quote: string, document_id: string, passage_id: string, version: number, start_line: number | null }[]
-  const occurrences = (text: string, q: string) => {
-    let n = 0
-    for (let i = text.indexOf(q); i !== -1; i = text.indexOf(q, i + 1)) n++
-    return n
-  }
   const move = db.prepare('update evidence set document_id = ?, passage_id = ? where id = ?')
   let moved = 0
   for (const r of rows) {
-    const hits = passages.filter(p => isVerbatimQuote(p.text, r.quote))
-    if (hits.length !== 1 || occurrences(hits[0]!.text, r.quote) !== 1) continue
-    move.run(documentId, hits[0]!.id, r.id)
+    const hit = soleQuotePassage(passages, r.quote)
+    if (!hit) continue
+    move.run(documentId, hit.id, r.id)
     audit('candidate.evidence_moved', 'fact', r.fact_id, {
       filename: doc.name, folder: doc.folder, quote: r.quote,
       from: { document_id: r.document_id, version: r.version, passage_id: r.passage_id, line: r.start_line },
-      to: { document_id: documentId, version, passage_id: hits[0]!.id, line: hits[0]!.start_line },
+      to: { document_id: documentId, version, passage_id: hit.id, line: hit.start_line },
     })
     moved++
   }

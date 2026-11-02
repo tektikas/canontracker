@@ -21,7 +21,6 @@ const busy = ref<'' | 'demo'>('')
 const error = ref('')
 const results = ref<Record<string, any>[]>([])
 const uploader = ref<{ pick: () => void }>()
-const staleTotal = computed(() => docs.value?.reduce((n, d) => n + d.stale_facts, 0) ?? 0)
 
 async function run(kind: 'demo', fn: () => Promise<{ results: Record<string, any>[] }>) {
   busy.value = kind
@@ -218,7 +217,9 @@ const next = computed(() => {
         <UiEmptyState v-if="!docs?.length" icon="library" title="No sources yet">
           {{ editor ? 'Start from the next step above, or drop files anywhere on this page.' : 'Nothing has been added to this project yet.' }}
         </UiEmptyState>
-        <p v-else-if="staleTotal" class="small library-stale"><UiIcon name="history" :size="14" /><NuxtLink to="/library?stale=1">{{ counted(staleTotal, 'canon citation') }} to re-check</NuxtLink> after a source changed.</p>
+        <p v-else-if="stats?.recheck_outdated || stats?.recheck_unchanged" class="small library-stale">
+          <UiIcon name="history" :size="14" /><NuxtLink to="/canon?recheck=1">Needs re-check: {{ stats.recheck_outdated ? counted(stats.recheck_outdated, 'canon fact') + ' with outdated evidence' : 'no outdated evidence' }}<template v-if="stats.recheck_unchanged">, {{ stats.recheck_unchanged }} unchanged to confirm</template></NuxtLink> after a source changed.
+        </p>
       </UiPanel>
     </div>
 

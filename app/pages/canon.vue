@@ -1,5 +1,5 @@
 <script setup lang="ts">
-const { data: canon } = await useFetch('/api/facts', { query: { status: 'canon' } })
+const { data: canon, refresh: refreshCanon } = await useFetch('/api/facts', { query: { status: 'canon' } })
 const { data: superseded } = await useFetch('/api/facts', { query: { status: 'superseded' } })
 const route = useRoute()
 const editor = computed(() => canEdit(useMe().value))
@@ -12,10 +12,42 @@ const filter = ref('')
 const entity = ref<string | null>(typeof route.query.entity === 'string' ? route.query.entity : null)
 const KINDS = ['rule', 'character', 'relationship', 'event', 'location', 'claim']
 
+// Re-check after a source changed (server/utils/recheck.ts): ?recheck=1 lists exactly the facts whose quote is gone from the
+// newer version; the ones whose quote reads the same wait for one confirmation.
+const recheckOnly = computed({
+  get: () => route.query.recheck === '1',
+  set: v => router.replace({ query: { ...route.query, recheck: v ? '1' : undefined } }),
+})
+const outdated = computed(() => (canon.value ?? []).filter(f => f.recheck === 'outdated'))
+const unchanged = computed(() => (canon.value ?? []).filter(f => f.recheck === 'unchanged'))
+watch(recheckOnly, (v) => { if (v) tab.value = 'facts' }, { immediate: true })
 const filtered = computed(() => {
   const q = filter.value.trim().toLowerCase()
-  return (canon.value ?? []).filter(f => !q || `${f.statement} ${f.subject} ${f.object ?? ''}`.toLowerCase().includes(q))
+  return (recheckOnly.value && tab.value === 'facts' ? outdated.value : canon.value ?? []).filter(f => !q || `${f.statement} ${f.subject} ${f.object ?? ''}`.toLowerCase().includes(q))
 })
+type Ev = NonNullable<typeof canon.value>[number]['evidence'][number]
+const outdatedEv = (f: { evidence: Ev[] }) => f.evidence.find(e => e.recheck === 'outdated')
+const busy = ref('')
+const done = ref('')
+const failed = ref('')
+async function recheck(action: 'confirm' | 'keep', ids: string[]) {
+  busy.value = action === 'keep' ? ids[0]! : 'confirm'
+  done.value = failed.value = ''
+  try {
+    const r = await $fetch('/api/facts/recheck', { method: 'POST', body: { action, fact_ids: ids } })
+    done.value = action === 'confirm' ? `${counted(r.done.length, 'fact now cites', 'facts now cite')} the newer version.` : 'Kept as it is. A later version of the source will ask again.'
+    await Promise.all([refreshCanon(), refreshNuxtData('stats')])
+  } catch (e) {
+    failed.value = errorMessage(e)
+  } finally {
+    busy.value = ''
+  }
+}
+async function keep(f: { id: string, evidence: Ev[] }) {
+  const ev = outdatedEv(f)
+  if (!(await askConfirm({ title: 'Keep this fact as it is?', body: `It keeps citing v${ev?.document_version}, where its quote still stands. Nothing in canon changes; the audit records your decision. A later version of the source asks again.`, confirm: 'Keep as is' }))) return
+  recheck('keep', [f.id])
+}
 const groups = computed(() => KINDS.map(kind => ({ kind, facts: filtered.value.filter(f => f.kind === kind) })).filter(g => g.facts.length))
 const entities = computed(() => {
   const counts = new Map<string, number>()
@@ -63,6 +95,28 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
   <div v-if="tab === 'facts' || tab === 'timeline'" class="filter">
     <input v-model="filter" type="search" placeholder="Filter by character, place, word…" aria-label="Filter canon">
     <UiButton v-if="filter" @click="filter = ''">Clear</UiButton>
+    <button v-if="tab === 'facts' && (outdated.length || unchanged.length || recheckOnly)" type="button" class="recheck-toggle" :class="{ on: recheckOnly, bad: outdated.length }" :aria-pressed="recheckOnly" @click="recheckOnly = !recheckOnly">
+      <UiIcon name="history" :size="14" />Needs re-check <b>{{ outdated.length }}</b>
+    </button>
+  </div>
+
+  <div v-if="tab === 'facts' && recheckOnly" class="recheck-head">
+    <p v-if="done" class="notice info" role="status">{{ done }}</p>
+    <p v-if="failed" class="notice bad" role="alert">{{ failed }}</p>
+    <div v-if="unchanged.length" class="notice warn unchanged">
+      <UiIcon name="check" :size="16" />
+      <div class="stack-tight">
+        <span><b>{{ counted(unchanged.length, 'fact cites', 'facts cite') }} an older version, but {{ unchanged.length === 1 ? 'its quote reads' : 'their quotes read' }} the same in the newer one.</b> Confirm to cite the newer version.</span>
+        <details class="small">
+          <summary>Show {{ unchanged.length === 1 ? 'it' : 'them' }}</summary>
+          <ul><li v-for="f in unchanged" :key="f.id"><NuxtLink :to="`/canon#fact-${f.id}`">{{ f.statement }}</NuxtLink></li></ul>
+        </details>
+      </div>
+      <UiButton v-if="editor" size="sm" variant="primary" :loading="busy === 'confirm'" :disabled="!!busy" @click="recheck('confirm', unchanged.map(f => f.id))">
+        Confirm {{ counted(unchanged.length, 'unchanged citation') }}
+      </UiButton>
+    </div>
+    <p v-if="outdated.length" class="small muted">{{ counted(outdated.length, 'fact rests', 'facts rest') }} on words a newer version of the source no longer has. For each: see what changed, then propose a change or keep it as it is.</p>
   </div>
 
   <UiEmptyState v-if="!canon?.length && tab !== 'superseded'" title="No canon yet" icon="canon">
@@ -71,13 +125,24 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
   </UiEmptyState>
 
   <template v-else-if="tab === 'facts'">
-    <p v-if="!groups.length" class="muted">No canon fact matches “{{ filter }}”.</p>
+    <UiEmptyState v-if="recheckOnly && !outdated.length" title="No outdated evidence" icon="check">
+      Every canon quote still appears in the latest version of its source.
+      <template #actions><UiButton @click="recheckOnly = false">Show all canon</UiButton></template>
+    </UiEmptyState>
+    <p v-else-if="!groups.length" class="muted">No canon fact matches “{{ filter }}”.</p>
     <section v-for="g in groups" :key="g.kind" class="kind">
       <h2>{{ g.kind }}s</h2>
       <div class="stack">
         <UiPanel v-for="f in g.facts" :id="`fact-${f.id}`" :key="f.id" class="stack" :class="{ target: f.id === target }">
           <FactSummary :fact="f" sources />
-          <div v-if="editor"><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
+          <div v-if="f.recheck === 'outdated'" class="row">
+            <UiButton size="sm" icon="history" :to="`/documents/${outdatedEv(f)!.latest_document_id}/history?from=${outdatedEv(f)!.document_id}&to=${outdatedEv(f)!.latest_document_id}`">See what changed</UiButton>
+            <template v-if="editor">
+              <UiButton size="sm" icon="changes" :to="`/changes?target=${f.id}`">Propose change…</UiButton>
+              <UiButton size="sm" variant="ghost" :loading="busy === f.id" :disabled="!!busy" @click="keep(f)">Keep as is</UiButton>
+            </template>
+          </div>
+          <div v-else-if="editor"><UiButton size="sm" :to="`/changes?target=${f.id}`">Propose change…</UiButton></div>
         </UiPanel>
       </div>
     </section>
@@ -104,7 +169,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 
   <section v-else class="stack">
     <UiEmptyState v-if="!superseded?.length" title="No superseded facts">
-      Accepted change proposals keep the old version here.
+      Accepted change proposals keep the old version here. A fact whose evidence went out of date stays in canon until someone proposes a change for it.
     </UiEmptyState>
     <UiPanel v-for="f in superseded" :key="f.id" class="stack">
       <UiBadge>Superseded v{{ f.version }}</UiBadge>
@@ -117,7 +182,20 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 </template>
 
 <style scoped>
-.filter { display: flex; gap: var(--s-2); margin-bottom: var(--s-4); max-width: 420px; }
+.filter { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-4); }
+.filter input { flex: 1 1 240px; max-width: 420px; }
+.recheck-toggle { display: inline-flex; align-items: center; gap: 6px; min-height: 36px; padding: 0 var(--s-3); border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--raised); color: var(--ink); font: 500 var(--text-sm) var(--font-ui); cursor: pointer; }
+.recheck-toggle:hover { background: var(--sunken); }
+.recheck-toggle.bad { border-color: color-mix(in srgb, var(--bad) 45%, transparent); color: var(--bad); }
+.recheck-toggle.on { background: var(--bad-soft); border-color: var(--bad); color: var(--bad); }
+.recheck-toggle.on:not(.bad) { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.recheck-head { display: grid; gap: var(--s-3); margin-bottom: var(--s-5); }
+.recheck-head > * { margin: 0; }
+.unchanged { display: flex; flex-wrap: wrap; gap: var(--s-3); align-items: flex-start; }
+.unchanged svg { flex: none; margin-top: 2px; }
+.stack-tight { display: grid; gap: 4px; flex: 1 1 260px; min-width: 0; }
+.unchanged ul { margin: 6px 0 0; padding-left: 18px; }
+@media (max-width: 720px) { .recheck-toggle { min-height: 44px; } }
 .target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); scroll-margin-top: 72px; }
 .kind { margin-bottom: var(--s-5); }
 .kind h2 { text-transform: capitalize; }

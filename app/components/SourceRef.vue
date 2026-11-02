@@ -14,7 +14,11 @@ defineProps<{ ev: Record<string, any> }>()
       <UiBadge v-if="!ev.verified" tone="bad" dot>Quote not found in source</UiBadge>
       <UiBadge v-else-if="ev.support === 'prior_source'" tone="pencil">Prior source, wording changed</UiBadge>
       <UiBadge v-else tone="good" dot>Verbatim match</UiBadge>
-      <UiBadge v-if="ev.latest_version > ev.document_version" tone="warn" :title="`Cites v${ev.document_version}; the source now has v${ev.latest_version}. Re-check before relying on it.`">Stale: source now v{{ ev.latest_version }}</UiBadge>
+      <!-- Canon citations of an older version say whether the quote survived (server/utils/recheck.ts); others just say stale. -->
+      <UiBadge v-if="ev.recheck === 'outdated'" tone="bad" :title="`The quote no longer appears (exactly once) in v${ev.latest_version}. Re-check this fact.`">Quote not in v{{ ev.latest_version }}</UiBadge>
+      <UiBadge v-else-if="ev.recheck === 'unchanged'" tone="warn" :title="`The quote reads the same in v${ev.latest_version}${ev.recheck_line ? `, line ${ev.recheck_line}` : ''}. Confirm to cite v${ev.latest_version}.`">Same quote in v{{ ev.latest_version }}</UiBadge>
+      <UiBadge v-else-if="ev.recheck === 'kept'" :title="`The quote is not in v${ev.latest_version}; a person checked it and kept this citation.`">Kept on v{{ ev.document_version }} (checked v{{ ev.latest_version }})</UiBadge>
+      <UiBadge v-else-if="ev.latest_version > ev.document_version" tone="warn" :title="`Cites v${ev.document_version}; the source now has v${ev.latest_version}. Re-check before relying on it.`">Stale: source now v{{ ev.latest_version }}</UiBadge>
     </figcaption>
   </figure>
 </template>

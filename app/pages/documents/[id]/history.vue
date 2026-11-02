@@ -138,9 +138,12 @@ const how = (v: { origin: string, created_by_name: string | null }) => `${v.orig
               <span class="small faint">{{ diff.counts.same }} unchanged</span>
               <span v-if="!diff.counts.changed && !diff.counts.added && !diff.counts.removed" class="small muted">The text of v{{ diff.from.version }} and v{{ diff.to.version }} is the same.</span>
             </div>
-            <p v-if="diff.recheck" class="notice warn m" role="status">
+            <p v-if="diff.recheck" class="notice m" :class="diff.quote_gone ? 'bad' : 'warn'" role="status">
               <UiIcon name="conflicts" :size="16" />
-              <span><b>{{ counted(diff.recheck, 'canon fact') }} {{ diff.recheck === 1 ? 'cites' : 'cite' }} text that changed.</b> Re-check each one below: propose a change if it no longer holds, and see its impact before the next build.</span>
+              <span>
+                <b>{{ counted(diff.recheck, 'canon fact') }} {{ diff.recheck === 1 ? 'cites' : 'cite' }} text that changed<template v-if="diff.quote_gone">; {{ diff.quote_gone === diff.recheck ? (diff.recheck === 1 ? 'its quote is' : 'all their quotes are') : `${diff.quote_gone} of their quotes ${diff.quote_gone === 1 ? 'is' : 'are'}` }} gone from v{{ diff.to.version }}</template>.</b>
+                Re-check each one below: propose a change if it no longer holds, and see its impact before the next build. <NuxtLink to="/canon?recheck=1">All canon to re-check</NuxtLink>
+              </span>
             </p>
             <p v-else class="small muted m">
               No canon cites the changed text.<template v-if="diff.unchanged_citations"> {{ counted(diff.unchanged_citations, 'citation') }} on v{{ diff.from.version }} {{ diff.unchanged_citations === 1 ? 'points' : 'point' }} at passages that read the same in v{{ diff.to.version }}.</template>
@@ -183,7 +186,11 @@ const how = (v: { origin: string, created_by_name: string | null }) => `${v.orig
                   </div>
                   <ul v-if="b.row.facts.length" class="recheck">
                     <li v-for="f in b.row.facts" :key="f.id">
-                      <div class="rc-top"><UiBadge tone="warn">Re-check</UiBadge><span class="small muted">Canon fact citing v{{ diff.from.version }}, line {{ lineOf(b.row.from) }}</span></div>
+                      <div class="rc-top">
+                        <UiBadge v-if="f.quote_gone" tone="bad" dot>Evidence outdated</UiBadge>
+                        <UiBadge v-else tone="warn">Quote unchanged</UiBadge>
+                        <span class="small muted">Canon fact citing v{{ diff.from.version }}, line {{ lineOf(b.row.from) }}<template v-if="f.quote_gone">; the quote is not in v{{ diff.to.version }}</template><template v-else>; the quote still reads the same in v{{ diff.to.version }}</template></span>
+                      </div>
                       <p class="statement">{{ f.statement }}</p>
                       <blockquote class="quote prior">{{ f.quote }}</blockquote>
                       <div class="row">
