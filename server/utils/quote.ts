@@ -92,11 +92,11 @@ const folded = (raw: string) => {
 /**
  * Every place `quote` occurs in `text` under folding, as the exact raw substring of `text` (overlapping hits counted).
  * Each returned substring folds back to exactly the folded quote; a hit that would not is dropped.
+ * `t`: `text` already folded (foldQuoteText), for a caller that keeps its own folds.
  */
-export function quoteMatches(text: string, quote: string): string[] {
+export function quoteMatches(text: string, quote: string, t: Folded = folded(text)): string[] {
   const q = foldQuoteText(quote).str
   if (!q) return []
-  const t = folded(text)
   const out: string[] = []
   for (let i = t.str.indexOf(q); i !== -1; i = t.str.indexOf(q, i + 1)) {
     let s = t.start[i]!

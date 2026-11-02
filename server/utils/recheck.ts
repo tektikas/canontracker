@@ -16,11 +16,23 @@ export interface StaleCitation {
 }
 
 /** How many times `quote` appears across `passages`, matched like findQuotePassage (quoteMatches: typography folded, each hit
- * still verbatim in its passage), and, when that is exactly once, the passage and the quote as that passage writes it. */
-export function quoteOccurrences<T extends { text: string }>(passages: T[], quote: string): { count: number, passage?: T, quote?: string } {
-  const hits = passages.flatMap(p => quoteMatches(p.text, quote).filter(q => isVerbatimQuote(p.text, q)).map(q => ({ p, q })))
+ * still verbatim in its passage), and, when that is exactly once, the passage and the quote as that passage writes it.
+ * `fold`: the caller's folds of the passages (each folded once, however many quotes are looked up). */
+export function quoteOccurrences<T extends { text: string }>(passages: T[], quote: string, fold?: (p: T) => ReturnType<typeof foldQuoteText>): { count: number, passage?: T, quote?: string } {
+  const q = foldQuoteText(quote).str
+  const hits = passages.flatMap((p) => {
+    const t = fold?.(p)
+    if (t && !t.str.includes(q)) return []
+    return quoteMatches(p.text, quote, t).filter(m => isVerbatimQuote(p.text, m)).map(m => ({ p, q: m }))
+  })
   return hits.length === 1 ? { count: 1, passage: hits[0]!.p, quote: hits[0]!.q } : { count: hits.length }
 }
+
+// A document version is immutable (new text = new id), so where a quote sits in it never changes: remembered per
+// (latest document id, quote) across requests. Bounded: the oldest entry goes first.
+type Occurrence = { count: number, to: StaleCitation['to'] }
+const OCCURRENCES_MAX = 20_000
+const occurrences = new Map<string, Occurrence>()
 
 /** Every verified citation of a canon fact in this project that points at an older version than its source's latest.
  * `factIds`: only these facts (a page listing a few facts classifies only theirs, not the whole project). */
@@ -34,15 +46,30 @@ export function staleCanonCitations(factIds?: string[]): StaleCitation[] {
     where f.project_id = ?1 and f.status = 'canon' and e.verified = 1 and d.version < l.version
       and (?2 is null or f.id in (select value from json_each(?2)))
     order by f.rowid, e.rowid`).all(pid(), factIds ? JSON.stringify(factIds) : null) as unknown as Omit<StaleCitation, 'state' | 'to' | 'count'>[]
-  const passages = new Map<string, { id: string, text: string, start_line: number }[]>()
+  type Passage = { id: string, text: string, start_line: number }
+  const passages = new Map<string, Passage[]>()
   const passagesOf = (id: string) => {
-    if (!passages.has(id)) passages.set(id, db.prepare('select id, text, start_line from passages where document_id = ? order by ordinal').all(id) as { id: string, text: string, start_line: number }[])
+    if (!passages.has(id)) passages.set(id, db.prepare('select id, text, start_line from passages where document_id = ? order by ordinal').all(id) as Passage[])
     return passages.get(id)!
   }
+  // Each passage is folded at most once per call, by passage id; only quotes not remembered yet need it.
+  const folds = new Map<string, ReturnType<typeof foldQuoteText>>()
+  const fold = (p: Passage) => folds.get(p.id) ?? folds.set(p.id, foldQuoteText(p.text)).get(p.id)!
+  const occurrence = (documentId: string, q: string): Occurrence => {
+    const key = `${documentId}\0${q}`
+    let o = occurrences.get(key)
+    if (!o) {
+      const { count, passage: hit, quote } = quoteOccurrences(passagesOf(documentId), q, fold)
+      o = { count, to: hit ? { passage_id: hit.id, start_line: hit.start_line, quote: quote! } : null }
+      if (occurrences.size >= OCCURRENCES_MAX) occurrences.delete(occurrences.keys().next().value!)
+      occurrences.set(key, o)
+    }
+    return o
+  }
   return rows.map((r) => {
-    const { count, passage: hit, quote } = quoteOccurrences(passagesOf(r.latest_id), r.quote)
-    const state: RecheckState = hit ? 'unchanged' : (r.checked_version ?? 0) >= r.latest_version ? 'kept' : 'outdated'
-    return { ...r, state, count, to: hit ? { passage_id: hit.id, start_line: hit.start_line, quote: quote! } : null }
+    const { count, to } = occurrence(r.latest_id, r.quote)
+    const state: RecheckState = to ? 'unchanged' : (r.checked_version ?? 0) >= r.latest_version ? 'kept' : 'outdated'
+    return { ...r, state, count, to }
   })
 }
 

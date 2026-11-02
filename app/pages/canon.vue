@@ -124,7 +124,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
         Confirm {{ counted(unchangedCitations, 'unchanged citation') }}
       </UiButton>
     </div>
-    <p v-if="outdated.length" class="small muted">{{ counted(outdated.length, 'fact rests', 'facts rest') }} on words a newer version of the source no longer has. For each: see what changed, then propose a change or keep it as it is.</p>
+    <p v-if="outdated.length" class="small muted">{{ counted(outdated.length, 'fact cites', 'facts cite') }} a quote that a newer version of the source no longer has in one place; each citation says why. For each: see what changed, then propose a change or keep it as it is.</p>
   </div>
 
   <UiEmptyState v-if="!canon?.length && tab !== 'superseded'" title="No canon yet" icon="canon">
@@ -134,7 +134,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
 
   <template v-else-if="tab === 'facts'">
     <UiEmptyState v-if="recheckOnly && !outdated.length" title="No outdated evidence" icon="check">
-      Every canon quote still appears in the latest version of its source.
+      Nothing left to re-check.
       <template #actions><UiButton @click="recheckOnly = false">Show all canon</UiButton></template>
     </UiEmptyState>
     <p v-else-if="!groups.length" class="muted">No canon fact matches “{{ filter }}”.</p>
