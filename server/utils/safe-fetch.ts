@@ -69,6 +69,7 @@ export async function safeGet(url: string, maxBytes: number, signal: AbortSignal
   const noun = opts.what.replace(/^the /, '')
   for (let hop = 0; hop <= 3; hop++) {
     if (next.protocol !== 'https:') throw new FetchRefused(`only https ${noun} URLs are allowed`)
+    if (next.username || next.password) throw new FetchRefused(`${noun} URLs with a login are not allowed`)
     const host = next.hostname.replace(/^\[|\]$/g, '')
     if (isIP(host) && !publicAddress(host)) throw new FetchRefused(`${host} is a private network address`)
     // Every way a request can end settles this promise: response, error (incl. abort), upgrade, or a close before either.

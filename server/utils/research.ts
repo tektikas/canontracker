@@ -276,7 +276,7 @@ export async function runResearch(input: ResearchInput): Promise<ResearchResult>
     const rec = fixtures.find(f => normQ(f.question) === normQ(question))
     if (!rec) return { kind: 'answer', text: 'Research runs on the live AI model, which isn’t switched on here, so nothing was looked up. Canon questions still work.' }
     recordStep({ purpose: 'research', target, modelId: 'mock:recorded-fixtures', projectId: input.projectId, step: 0, tool: null, input: composeInput({ ...input, question }, profile),
-      status: 'ok', latency: 0, summary: `recorded research run (${rec.kind})`, error: null, tokens: null })
+      status: 'ok', latency: 0, summary: `research answer (${rec.kind})`, error: null, tokens: null })
     if (rec.kind === 'followup') return { kind: 'followup', text: rec.followup!.question, followup: rec.followup }
     const calculations = (rec.calculations ?? []).map(c => runCalculator(c.name, c.args))
     const draft = readDraft(rec.draft ?? {})
