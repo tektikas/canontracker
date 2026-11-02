@@ -5,6 +5,7 @@ export default defineEventHandler(async (event) => {
   const db = useDb()
   const user = access().user.id
   let filename: string | null = null
+  let baseId: string | null = null
   let base = { title: '', kind: 'scene', content: '' }
   if (body.document_id) {
     const doc = db.prepare('select * from documents where id = ? and project_id = ?').get(String(body.document_id), pid()) as unknown as DocumentRow | undefined
@@ -13,11 +14,12 @@ export default defineEventHandler(async (event) => {
     const open = db.prepare('select id from drafts where project_id = ? and user_id = ? and filename = ?').get(pid(), user, filename) as { id: string } | undefined
     if (open) return getDraft(open.id)
     const latest = latestDocument(filename)!
+    baseId = latest.id
     base = { title: latest.title, kind: latest.kind, content: latest.content }
   }
   const f = { ...base, ...draftFields(body) }
   const id = newId('drf')
-  db.prepare('insert into drafts (id, filename, title, kind, content, user_id, created_at, updated_at, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(id, filename, f.title, f.kind, f.content, user, now(), now(), pid())
+  db.prepare('insert into drafts (id, filename, title, kind, content, user_id, created_at, updated_at, project_id, base_document_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, filename, f.title, f.kind, f.content, user, now(), now(), pid(), baseId)
   return getDraft(id)
 })

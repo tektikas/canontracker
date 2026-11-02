@@ -17,6 +17,11 @@ export default defineEventHandler(async (event) => {
   }
 
   const latest = latestDocument(filename)
+  // An edit saves on top of the latest version, so it must have started from it, or the writer must say it's fine.
+  if (d.filename && latest && d.base_document_id !== latest.id && (await readBody<{ overwrite?: boolean } | null>(event).catch(() => null))?.overwrite !== true) {
+    const base = d.base_document_id ? db.prepare('select version from documents where id = ?').get(d.base_document_id) as { version: number } | undefined : undefined
+    throw createError({ statusCode: 409, statusMessage: 'DRAFT_STALE', message: base ? `v${latest.version} was saved after you started editing v${base.version}.` : `v${latest.version} may have been saved after you started editing.`, data: { base_version: base?.version ?? null, latest_version: latest.version, latest_id: latest.id, base_id: base ? d.base_document_id : null } })
+  }
   const result = await importDocument(filename, d.content, { title, kind: d.kind })
   if (result.status === 'duplicate') {
     // Saving unchanged text is not an error: the story already has it.

@@ -424,6 +424,11 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                       <NuxtLink :to="`/documents/${d.id}/history`" class="menu-item"><UiIcon name="history" :size="16" />History{{ d.version > 1 ? ` (${d.version} versions)` : '' }}</NuxtLink>
                       <NuxtLink :to="`/write?doc=${d.id}`" class="menu-item"><UiIcon name="review" :size="16" />Edit text</NuxtLink>
                       <button type="button" class="menu-item" @click="close(); startRename(d)"><UiIcon name="review" :size="16" />Rename</button>
+                      <p class="menu-label">Tags</p>
+                      <button v-for="t in tags" :key="t.id" type="button" class="menu-item" role="menuitemcheckbox" :aria-checked="d.tags.includes(t.id)" @click="organise(d.tags.includes(t.id) ? { remove_tags: [t.id] } : { add_tags: [t.id] }, `${d.tags.includes(t.id) ? 'Removed' : 'Added'} “${t.name}” ${d.tags.includes(t.id) ? 'from' : 'to'} “${d.title}”.`, [d.id])">
+                        <UiIcon :name="d.tags.includes(t.id) ? 'checked' : 'square'" :size="16" /><span class="swatch" :class="t.color" />{{ t.name }}
+                      </button>
+                      <p v-if="!tags.length" class="menu-label">No tags yet. Add one on the left.</p>
                     </template>
                   </UiMenu>
                 </td>
@@ -438,6 +443,8 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
 </template>
 
 <style scoped>
+/* The row menu is taller than a one- or two-row table: on desktop (where the table fits) it may hang below the panel; phones scroll the table sideways instead. */
+@media (min-width: 721px) { .main.main, .main .table-wrap { overflow: visible; } }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .up-wrap :deep(.uploads) { margin-bottom: var(--s-4); }
 .lib-grid { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: var(--s-4); align-items: start; }

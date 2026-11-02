@@ -10,7 +10,10 @@ const KINDS = [['scene', 'Scene'], ['lore', 'Lore'], ['character', 'Character'],
 
 const f = reactive({ title: '', kind: 'scene', content: '' })
 const draftId = ref<string | null>(null)
-const editing = ref<{ id: string, title: string, version: number } | null>(null)
+// base: the version the text came from (null = unknown, an older draft); latest: the newest version now.
+const editing = ref<{ id: string, title: string, base: number | null, baseId: string | null, latest: number } | null>(null)
+const stale = computed(() => !!editing.value && editing.value.base !== editing.value.latest)
+const overwrite = ref(false)
 const loading = ref(true)
 const loadError = ref('')
 const status = ref<'' | 'saving' | 'saved' | 'error'>('')
@@ -30,7 +33,10 @@ onMounted(async () => {
       savedAt.value = d.updated_at
       status.value = 'saved'
       if (q.draft !== d.id) router.replace({ query: { draft: d.id } })
-      if (d.filename) editing.value = (await $fetch(`/api/drafts/${d.id}`)).document
+      if (d.filename) {
+        const full = await $fetch(`/api/drafts/${d.id}`)
+        if (full.document) editing.value = { id: full.document.id, title: full.document.title, base: full.base?.version ?? null, baseId: full.base?.id ?? null, latest: full.document.version }
+      }
     }
   } catch (e) {
     loadError.value = (e as { statusCode?: number }).statusCode === 404 && route.query.draft
@@ -129,17 +135,38 @@ async function saveToStory() {
     await persist()
     // Never save an older copy of the text than the one on screen.
     if (!draftId.value || dirty) throw new Error(saveError.value || 'The draft could not be saved.')
-    const r = await $fetch(`/api/drafts/${draftId.value}/save`, { method: 'POST' })
+    const r = await $fetch(`/api/drafts/${draftId.value}/save`, { method: 'POST', body: overwrite.value ? { overwrite: true } : undefined })
     draftId.value = null
     await refreshNuxtData('stats')
     // Replace: Back from the saved document shouldn't land on a draft that no longer exists.
     await navigateTo(`/documents/${r.document_id}`, { replace: true })
   } catch (e) {
+    const d = (e as { data?: { statusMessage?: string, data?: { latest_version: number, latest_id: string, base_version: number | null, base_id: string | null } } }).data
+    if (d?.statusMessage === 'DRAFT_STALE' && editing.value) {
+      Object.assign(editing.value, { latest: d.data!.latest_version, id: d.data!.latest_id, base: d.data!.base_version, baseId: d.data!.base_id })
+      return
+    }
     // A failed draft save already shows in the status line beside the button; this is for the save to the story itself.
     if (status.value !== 'error') error.value = `Couldn’t save to the story. ${errorMessage(e)} Your text is kept here; try again in a moment.`
   } finally {
     saving.value = false
   }
+}
+const diffLink = computed(() => {
+  const e = editing.value
+  return e ? `/documents/${e.id}/history${e.baseId ? `?from=${e.baseId}&to=${e.id}` : ''}` : ''
+})
+// Throw the draft away and open the latest text as a new draft.
+async function startOver() {
+  if (!draftId.value || !editing.value) return
+  const ok = await askConfirm({ title: `Start over from v${editing.value.latest}?`, body: 'Your changes in this draft are discarded. The saved versions stay as they are.', confirm: 'Start over', danger: true })
+  if (!ok) return
+  clearTimeout(timer)
+  dirty = false
+  leaving = true
+  const docId = editing.value.id
+  await $fetch(`/api/drafts/${draftId.value}`, { method: 'DELETE' }).catch(() => {})
+  await navigateTo(`/write?doc=${docId}`, { replace: true, external: true })
 }
 async function discard() {
   const ok = await askConfirm(editing.value
@@ -333,9 +360,24 @@ const time = (iso: string) => clock(iso).slice(0, 5)
       <span v-else>New document</span>
     </nav>
 
-    <p v-if="editing" class="notice info edit-note">
+    <div v-if="editing && stale" class="notice warn edit-note stale" role="alert">
+      <UiIcon name="conflicts" :size="16" />
+      <div>
+        <p>
+          <template v-if="editing.base">v{{ editing.latest }} was saved after you started editing v{{ editing.base }}.</template>
+          <template v-else>This draft doesn’t record which version it started from, so v{{ editing.latest }} may have changes it doesn’t have.</template>
+          Saving now would leave those changes out of v{{ editing.latest + 1 }}.
+        </p>
+        <div class="row">
+          <UiButton size="sm" :to="diffLink" target="_blank">See what changed</UiButton>
+          <UiButton size="sm" type="button" @click="startOver">Start over from v{{ editing.latest }}</UiButton>
+          <UiButton size="sm" type="button" :disabled="saving" @click="overwrite = true; saveToStory()">Save anyway as v{{ editing.latest + 1 }}</UiButton>
+        </div>
+      </div>
+    </div>
+    <p v-else-if="editing" class="notice info edit-note">
       <UiIcon name="file" :size="16" />
-      <span>Editing v{{ editing.version }}. Saving makes v{{ editing.version + 1 }}; v{{ editing.version }} stays as it was, and canon citing it is flagged to re-check.</span>
+      <span>Editing v{{ editing.latest }}. Saving makes v{{ editing.latest + 1 }}; v{{ editing.latest }} stays as it was, and canon citing it is flagged to re-check.</span>
     </p>
 
     <div class="head">
@@ -373,7 +415,7 @@ const time = (iso: string) => clock(iso).slice(0, 5)
         <UiButton variant="ghost" icon="focus" :disabled="loading" title="Only the text on screen (Ctrl+Shift+F)" @click="enterFocus">Focus</UiButton>
         <UiButton v-if="draftId" variant="ghost" :disabled="saving" @click="discard">{{ editing ? 'Discard changes' : 'Discard draft' }}</UiButton>
         <UiButton variant="primary" type="submit" icon="check" :loading="saving" :disabled="!canSave || loading" :title="canSave ? undefined : 'Add a title and some text first'">
-          {{ editing ? `Save as v${editing.version + 1}` : 'Save to story' }}
+          {{ editing ? `Save as v${editing.latest + 1}` : 'Save to story' }}
         </UiButton>
       </div>
     </footer>
@@ -385,6 +427,8 @@ const time = (iso: string) => clock(iso).slice(0, 5)
 .crumbs { display: flex; gap: var(--s-2); align-items: center; color: var(--muted); }
 .crumbs a { color: var(--muted); }
 .edit-note svg { flex: none; margin-top: 2px; }
+.stale .row { margin-top: var(--s-2); }
+.stale p { margin: 0; }
 .head { display: grid; gap: var(--s-3); }
 .title-field { display: block; }
 .title-input.title-input { border: 0; border-bottom: 1px solid var(--line); border-radius: 0; background: none; padding: 4px 0 8px; font-size: var(--text-2xl); font-weight: 600; color: var(--ink); }

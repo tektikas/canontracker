@@ -161,6 +161,21 @@ check('saving an edited upload is v2', upSave.version, 2)
 check('v1 of the upload is unchanged', (await a(`/api/documents/${upload.results[0].document_id}`)).data.content, '# Tide Lore\n\nThe sea is cold.')
 check('v2 of the upload is a written version', (await a(`/api/documents/${upSave.document_id}`)).data.origin, 'written')
 
+// A draft remembers the version it started from: saving it after a newer version landed is refused (409, nothing saved) unless overwrite is set.
+const upload2 = async (text) => (await (await fetch(`${base}/api/documents`, { method: 'POST', headers: { cookie: a.cookie() }, body: (() => { const f = new FormData(); f.append('files', new Blob([text], { type: 'text/markdown' }), 'staleDraft-lore.md'); return f })() })).json()).results[0].document_id
+const sv1 = await upload2('# Stale Lore\n\nThe gate is shut.')
+const staleDraft = (await a('/api/drafts', { method: 'POST', body: { document_id: sv1 } })).data
+check('edit draft records its base version', (await a(`/api/drafts/${staleDraft.id}`)).data.base.id, sv1)
+await a(`/api/drafts/${staleDraft.id}`, { method: 'PUT', body: { content: '# Stale Lore\n\nThe gate is shut and barred.' } })
+const sv2 = await upload2('# Stale Lore\n\nThe gate is open.')
+const refused = await a(`/api/drafts/${staleDraft.id}/save`, { method: 'POST' })
+check('stale draft save is 409 DRAFT_STALE', `${refused.status} ${refused.data.statusMessage}`, '409 DRAFT_STALE')
+check('409 names both versions', `${refused.data.data.base_version}>${refused.data.data.latest_version}`, '1>2')
+check('nothing was saved', (await a(`/api/documents/${sv2}`)).data.latest.version, 2)
+check('the draft is still there', (await a(`/api/drafts/${staleDraft.id}`)).status, 200)
+const forced = await a(`/api/drafts/${staleDraft.id}/save`, { method: 'POST', body: { overwrite: true } })
+check('overwrite saves it as v3', `${forced.status} v${forced.data.version}`, '200 v3')
+
 // 6. Drafts are private: a teammate in the same studio can't open them.
 const own = (await a('/api/drafts', { method: 'POST', body: { title: 'Secret', content: 'Not yet.' } })).data
 const link = (await a('/api/team/invites', { method: 'POST', body: { role: 'editor', days: 1 } })).data
@@ -176,7 +191,7 @@ check('teammate can add a note', (await e('/api/notes', { method: 'POST', body: 
 const log = (await a('/api/audit')).data
 const by = (type, who = 'Ada') => log.filter(x => x.event_type === type && x.actor_name === who).length
 check('audit: document.written', by('document.written'), 1)
-check('audit: document.version_written', by('document.version_written'), 2)
+check('audit: document.version_written', by('document.version_written'), 3)
 check('audit: fact.authored to canon', log.filter(x => x.event_type === 'fact.authored' && x.detail.to === 'canon' && x.actor_name === 'Ada').length, 2)
 check('audit: fact.authored to review', log.filter(x => x.event_type === 'fact.authored' && x.detail.to === 'review').length, 1)
 check('audit: fact.authored keeps the quote', log.find(x => x.event_type === 'fact.authored').detail.quote.length > 0, true)
