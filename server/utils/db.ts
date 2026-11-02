@@ -165,6 +165,15 @@ create table if not exists model_calls (
   target_type text not null, target_id text not null, input_refs text not null, input text, status text not null,
   latency_ms integer not null, output_summary text, error text, created_at text not null, project_id text not null
 );
+-- The AI critic's opinions on pending candidates (server/utils/critic.ts): advice a person reads, never a decision; nothing
+-- here changes a fact. One row per opinion, the newest per fact counts. verdict: keep | reject | needs_edit; reason: see
+-- shared/utils/review.ts; duplicate_of: a canon fact the Critic was shown; suggestion: JSON {statement, subject, predicate, object}
+-- for needs_edit (no quote: the quote stays the verified one). seen: the candidate's fingerprint when the Critic read it, so an
+-- opinion on an older form of the candidate shows as such. A new table only, so an existing database gains it in place.
+create table if not exists critic_opinions (
+  id text primary key, fact_id text not null, verdict text not null, reason text not null, duplicate_of text, explanation text not null,
+  suggestion text, seen text not null, model_id text not null, prompt_version text not null, created_at text not null, project_id text not null
+);
 create table if not exists eval_runs (
   id text primary key, dataset text not null, model_id text not null, results text not null, created_at text not null, project_id text not null
 );
@@ -178,6 +187,7 @@ create index if not exists memberships_user on memberships(user_id);
 create index if not exists notes_project on notes(project_id, status);
 create index if not exists tasks_project on tasks(project_id, status);
 create index if not exists tasks_change on tasks(change_id);
+create index if not exists critic_fact on critic_opinions(project_id, fact_id);
 `
 
 let db: DatabaseSync | undefined
@@ -332,7 +342,7 @@ export function audit(eventType: string, targetType: string, targetId: string, d
 // the caller appends a project.reset event, and events before it whose target was cleared read as removed (listAudit).
 export function resetData() {
   tx(() => {
-    for (const t of ['document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['critic_opinions', 'document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })

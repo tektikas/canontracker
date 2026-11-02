@@ -50,5 +50,7 @@ export default defineNuxtConfig({
     imageModelId: 'muse-image-1.0', // NUXT_IMAGE_MODEL_ID
     metaApiKey: '', // NUXT_META_API_KEY, used as stored in pass
     metaBaseUrl: 'https://api.meta.ai/v1', // NUXT_META_BASE_URL
+    criticModelId: '', // NUXT_CRITIC_MODEL_ID: the AI critic's model; empty = modelId
+    criticEffort: 'low', // NUXT_CRITIC_EFFORT=off | low | high: candidates per AI critic call and per run (server/utils/critic.ts)
   },
 })
