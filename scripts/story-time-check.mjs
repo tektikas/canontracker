@@ -40,3 +40,18 @@ assert.equal(dayOnly('D-3650 08:00 – D-3649', 'to'), true)
 assert.equal(dayOnly('D-3650 08:00 – D-3649', 'from'), false)
 assert.equal(dayOnly('D-3650 – D-3649 08:00', 'to'), false)
 assert.equal(dayOnly('~ D-3650', 'to'), true)
+
+// Live extraction (server/utils/model.ts cleanCandidates): an unreadable model time drops the candidate with the raw time
+// reported, never keeps it as a timeless fact.
+globalThis.parseStoryRange = r // model.ts reaches it as a Nitro auto-import
+const { cleanCandidates } = await import('../server/utils/model.ts')
+const c = over => ({ kind: 'event', subject: 'Mara', predicate: 'located_at', object: 'Harbor', statement: 'Mara is at the harbor.', quote: 'Mara waits at the harbor', ...over })
+const out = cleanCandidates([
+  c({ time: { from: 'D3 25:00' } }), c({ time: 'D3' }), c({ time: { from: 'D2', to: 'later' } }),
+  c({ time: { from: 'D3 09:00', to: 'D3 09:00' } }), c({ time: { from: 'D-3650' } }), c({ time: null }), c({ time: {} }), c({ time: { precision: 'exact' } }), c({}),
+  c({ subject: '' }),
+])
+assert.deepEqual(out.badTimes, ['"D3 25:00"', '"D3"', '"D2 – later"'])
+assert.equal(out.malformed, 1)
+assert.deepEqual(out.kept.map(k => k.time ?? null), [{ from: 'D3 09:00', precision: 'exact' }, { from: 'D-3650', to: undefined, precision: 'exact' }, null, null, null, null])
+console.log('live-candidate time ok: an unreadable model time drops the candidate and is reported')

@@ -89,24 +89,33 @@ const folded = (raw: string) => {
   return f
 }
 
+// A letter, digit, mark or _ just before / after a hit (two UTF-16 units read, so a neighbour outside the BMP is one code point).
+const WORD_BEFORE = /[\p{L}\p{N}\p{M}_]$/u
+const WORD_AFTER = /^[\p{L}\p{N}\p{M}_]/u
+
 /**
  * Every place `quote` occurs in `text` under folding, as the exact raw substring of `text` (overlapping hits counted).
  * Each returned substring folds back to exactly the folded quote; a hit that would not is dropped.
  * `t`: `text` already folded (foldQuoteText), for a caller that keeps its own folds.
+ * `edges`: a hit must start (start) / end (end) at a word boundary in `text`, so a retried quote cannot land inside a word.
  */
-export function quoteMatches(text: string, quote: string, t: Folded = folded(text)): string[] {
+export function quoteMatches(text: string, quote: string, t: Folded = folded(text), edges?: { start?: boolean, end?: boolean }): string[] {
   const q = foldQuoteText(quote).str
   if (!q) return []
   const out: string[] = []
   for (let i = t.str.indexOf(q); i !== -1; i = t.str.indexOf(q, i + 1)) {
-    let s = t.start[i]!
-    let e = t.end[i + q.length - 1]!
+    const s0 = t.start[i]!
+    const e0 = t.end[i + q.length - 1]!
+    let s = s0
+    let e = e0
     // Emphasis marks hugging the hit are taken in, so "Lantern is" cites "*Lantern* is", not "Lantern* is".
-    const bare = text.slice(s, e)
     while (t.marks.has(s - 1)) s--
     while (t.marks.has(e)) e++
-    const hit = [text.slice(s, e), bare].find(raw => foldQuoteText(raw).str === q)
-    if (hit) out.push(hit)
+    const at = ([[s, e], [s0, e0]] as const).find(([a, b]) => foldQuoteText(text.slice(a, b)).str === q)
+    if (!at) continue
+    if (edges?.start && WORD_BEFORE.test(text.slice(Math.max(0, at[0] - 2), at[0]))) continue
+    if (edges?.end && WORD_AFTER.test(text.slice(at[1], at[1] + 2))) continue
+    out.push(text.slice(at[0], at[1]))
   }
   return out
 }

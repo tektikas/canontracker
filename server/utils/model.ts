@@ -12,7 +12,7 @@ export interface CandidateDraft {
 
 export interface RuleViolation { fact_id: string, rationale: string, confidence: number }
 
-export const PROMPT_VERSIONS = { extract: 'extract-v1', answer: 'answer-v2', rule_check: 'rule-check-v2', image: 'image-v1' } as const
+export const PROMPT_VERSIONS = { extract: 'extract-v2', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1' } as const
 
 export function modelInfo() {
   const { modelMode, modelId } = useRuntimeConfig()
@@ -135,18 +135,63 @@ export async function hasRecordedExtraction(text: string) {
   return !!(await recordedCandidates(text))
 }
 
+// Live output is checked before it reaches the review queue: an item without the text fields a fact needs is dropped (and
+// counted in model_calls), a kind outside the six becomes "event" (located_at) or "claim". A story time that isn't
+// "D<day>" / "D<day> HH:MM" drops the whole item, with the raw time in model_calls: the time is part of what the fact claims
+// (where someone is *when*), so keeping it timeless would change its meaning, and a half-read fact never reaches review.
+// The quote itself is judged later, verbatim, by extractInto.
+const KINDS = ['character', 'location', 'relationship', 'event', 'rule', 'claim']
+const field = (v: unknown) => (typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '')
+export function cleanCandidates(raw: unknown) {
+  const list = Array.isArray(raw) ? raw : []
+  const badTimes: string[] = []
+  const kept = list.flatMap((c): CandidateDraft[] => {
+    const subject = field(c?.subject), predicate = field(c?.predicate), statement = field(c?.statement), quote = typeof c?.quote === 'string' ? c.quote : ''
+    if (!subject || !predicate || !statement || !quote.trim()) return []
+    const kind = KINDS.includes(c.kind) ? c.kind : predicate === 'located_at' ? 'event' : 'claim'
+    const t = c.time && typeof c.time === 'object' ? { from: field(c.time.from) || undefined, to: field(c.time.to) || undefined } : null
+    // null / "" / {} (or only a precision) mean no time; anything else must parse.
+    if ((c.time != null && c.time !== '' && !t) || ((t?.from || t?.to) && parseStoryRange(t.from, t.to).bad)) {
+      badTimes.push(JSON.stringify(t ? [t.from, t.to].filter(Boolean).join(' – ') : c.time))
+      return []
+    }
+    if (t?.to && t.to === t.from) delete t.to // a point in time, not a range
+    const confidence = typeof c.confidence === 'number' && c.confidence >= 0 && c.confidence <= 1 ? c.confidence : undefined
+    return [{ kind, subject, predicate, object: field(c.object) || null, value: field(c.value) || null, statement, quote, confidence,
+      ...(t && (t.from || t.to) && { time: { ...t, precision: c.time.precision === 'approximate' ? 'approximate' : 'exact' } }) }]
+  })
+  return { kept, malformed: list.length - kept.length - badTimes.length, badTimes }
+}
+const dropNote = (d: { malformed: number, badTimes: string[] }) => [
+  d.malformed && `${d.malformed} malformed`,
+  d.badTimes.length && `${d.badTimes.length} with unreadable time ${d.badTimes.slice(0, 3).join(', ')}${d.badTimes.length > 3 ? ', …' : ''}`,
+].filter(Boolean).join('; ')
+
 export function extractCandidates(doc: { id: string, filename: string, title: string, text: string }) {
+  let dropped = ''
   return traced('extract', { type: 'document', id: doc.id }, [doc.id], null, async (): Promise<CandidateDraft[]> => {
     if (modelInfo().mode === 'mock') return (await recordedCandidates(doc.text)) ?? []
     const out = await chatJson(
-      `You extract narrative canon candidates from game lore documents. Return JSON {"candidates":[...]}.
-Each candidate: {"kind":"character|location|relationship|event|rule|claim","subject":"short entity name","predicate":"snake_case verb","object":"entity name or null","value":"number for measurable rules (e.g. travel minutes) or null","statement":"one plain sentence","quote":"EXACT verbatim substring of the document that supports it","time":{"from":"D<day> HH:MM","to":"D<day> HH:MM","precision":"exact|approximate"} or omitted (day-only "D<day>" means the whole day; days before D1 are D0, D-1, D-3650 …),"confidence":0-1}.
-Rules: quotes must be copied character-for-character. Do not invent facts. Use first names for characters. Use predicate "located_at" for where someone is at a time and "travel_time" (value in minutes) for travel durations. Use predicate "is" only with an object that says what the subject is (e.g. "keeper of the Solen Lighthouse").
-Figurative language ("my sister in all but blood") is NOT a literal relationship; skip it or give it low confidence.`,
+      `You extract narrative canon candidates from game lore documents for a story bible that tracks continuity. Return only JSON {"candidates":[...]}.
+Each candidate: {"kind":"character|location|relationship|event|rule|claim","subject":"short entity name","predicate":"snake_case verb","object":"entity name or null","value":"number for measurable rules (e.g. travel minutes) or null","statement":"one plain sentence","quote":"EXACT verbatim substring of the document that supports it","time":{"from":"D<day> HH:MM","to":"D<day> HH:MM","precision":"exact|approximate"} or omitted,"confidence":0-1}.
+kind is exactly one of those six words (a "located_at" fact is kind "event").
+What to extract: facts a writer must keep consistent — who someone is, where someone is and when, what they do in the plot, relationships, world rules, travel times, what items and places do. In scenes, include each plot action a character takes (what they do, say or refuse, and when), because actions are what world rules are checked against. Skip mood, looks, scenery and trivia. One candidate per fact; do not restate the same fact twice.
+Quotes: copy one contiguous span character-for-character, keeping the document's capitalisation and punctuation. A quote never spans two paragraphs, never skips words and never joins separate sentences; when speech is broken by "she says" or similar, quote one side of it only. Prefer the single sentence that supports the fact.
+Names: a character is named the way the story names them for short, the same way in every fact: usually the first name without rank or surname ("Captain Mara Vell" → "Mara"), but keep a title that is part of the name everyone uses ("Old Tobin", "Mother Hale"). A place is named as the text names it, without "the", and as the named place rather than a part of it ("Harbour Gate", not "the stairs of the Harbour Gate"). The object is a bare entity name.
+Predicates:
+- "located_at": a character is at a place on a story day (object = the place). Use it whenever the text puts someone somewhere on a given day, even if the sentence is about what they do there.
+- "travel_time": how long a journey takes; subject = start place only, object = destination only, value = minutes as a number, kind "rule" (e.g. {"kind":"rule","subject":"Harbour Gate","predicate":"travel_time","object":"Lighthouse","value":30}).
+- "rule": a law of the world that holds for anyone and that a story event could break (a curse, the cost of a ritual or magic, what a magical item or place does to people). kind "rule", predicate "rule", subject = the thing the rule is about, statement = the rule as written. Customs, opening hours, a character's habit, choice or order are claims, not rules.
+- Relationships (kind "relationship"): one predicate per bond, the same one every time it appears (e.g. "sworn_to"), with the same subject and object (for a two-way bond such as partners or siblings, the two names in alphabetical order). A bond that ended gets time.to = when it ended; a bond stated as active at a time gets time.from = that time.
+- "is" only with an object that says what the subject is (e.g. "keeper of the Solen Lighthouse").
+Time: only for facts that happen on a stated story day ("on Day 3", "D-3650"). Identities, traits, rules, background and daily routines ("every evening", "at eight each day") get no time. "D<day> HH:MM" when the text gives a clock time (precision "exact"). When it names only a part of the day ("at dusk", "around evening") use precision "approximate" with a range covering that part of the day. Otherwise use day-only "D<day>" (never 00:00-23:59, never a guessed range). Days before D1 are D0, D-1, D-3650 ….
+Do not invent facts. Figurative language ("my sister in all but blood") is NOT a literal relationship; skip it or give it low confidence.`,
       `Document: ${doc.title}\n\n${doc.text}`,
     )
-    return Array.isArray(out.candidates) ? out.candidates : []
-  }, r => plural(r.length, 'candidate'))
+    const { kept, ...bad } = cleanCandidates(out.candidates)
+    dropped = dropNote(bad)
+    return kept
+  }, r => `${plural(r.length, 'candidate')}${dropped ? ` (dropped: ${dropped})` : ''}`)
 }
 
 // Returns a null answer when the model is offline; the caller then shows related sources only.
@@ -181,13 +226,15 @@ export function checkRule(rule: PromptFact, facts: PromptFact[]) {
       })
     }
     const out = await chatJson(
-      `You check a story's world rule against its accepted facts. Return JSON {"violations":[{"fact_id":"...","rationale":"one sentence","confidence":0-1}]}.
+      `You check a story's world rule against its accepted facts. Return JSON {"violations":[{"fact_id":"...","breaks_rule":true,"rationale":"one sentence: what in the fact contradicts the rule","confidence":0-1}]}.
 Each fact's subject and object are the canonical entity names; names listed under "Same entity" refer to one entity.
-Only list facts that cannot be true if the rule holds as written. Being related to the rule is not enough. Return {"violations":[]} if none.`,
+A fact breaks the rule only when the fact and the rule cannot both be true: the situation the rule covers happened (for example, the act it is about was done), and the fact shows something the rule says cannot follow. A fact that is consistent with the rule, that is about a time or case the rule does not cover, that only mentions the same thing, or that needs extra assumptions to clash is not a violation: leave it out. If you are unsure, leave it out.
+Return {"violations":[]} if none.`,
       input,
     )
     const ids = new Set(facts.map(f => f.id))
-    return (Array.isArray(out.violations) ? out.violations as RuleViolation[] : []).filter(v => ids.has(v.fact_id))
+    return (Array.isArray(out.violations) ? out.violations as (RuleViolation & { breaks_rule?: boolean })[] : [])
+      .filter(v => ids.has(v.fact_id) && v.breaks_rule !== false).map(({ fact_id, rationale, confidence }) => ({ fact_id, rationale, confidence }))
   }, r => plural(r.length, 'violation'))
 }
 

@@ -131,7 +131,7 @@ check('answer prompt explains the merge', answerCall.input.includes('"Lighthouse
 const seenCalls = new Set((await a('/api/model-calls')).data.map(c => c.id))
 await a('/api/conflicts/scan', { method: 'POST' })
 const ruleCalls = (await a('/api/model-calls')).data.filter(c => !seenCalls.has(c.id) && c.purpose === 'rule_check')
-check('rule-check prompt version bumped', ruleCalls.every(c => c.prompt_version === 'rule-check-v2'), true)
+check('rule-check prompt version bumped', ruleCalls.every(c => c.prompt_version === 'rule-check-v3'), true)
 check('rule-check prompts were recorded', ruleCalls.length > 0, true)
 const ruleWithLh = ruleCalls.filter(c => c.input.includes(`[${lhFact.id}]`))
 check('every rule-check prompt with the re-pointed fact explains the merge', ruleWithLh.every(c => c.input.includes('"Lighthouse" is "Causeway"') && !/(subject|object): Lighthouse\b/.test(c.input)), true)
