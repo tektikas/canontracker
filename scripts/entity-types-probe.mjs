@@ -6,6 +6,8 @@
 // Checks: medium defaults; add / rename / recolour / remove; a type in use can only be removed by naming where its pages go,
 // and the audit event lists them; the last type stays; kind guessing only uses types the project has; exports group by type.
 // Upgrade: existing pages keep their kind, every kind in use becomes a type, nothing is rebuilt or lost.
+// Also (migrate mode, which owns the file): type removal, page create and page edit decide under the write lock, so another
+// process changing types or pages meanwhile can't leave a page under a removed type or move one the audit doesn't list.
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
 import { randomBytes, scryptSync } from 'node:crypto'
@@ -174,6 +176,40 @@ async function migrate(port) {
       await a('/api/entity-types'); await a('/api/entities')
       return peek(d => d.prepare('select project_id, count(*) n from entity_types group by project_id order by project_id').all().map(r => [r.project_id, r.n]))
     })(), [['prj_g', GAME.length], ['prj_p', PROSE.length + 1]])
+
+    // Another process on the same file: it holds the write lock while a request comes in, changes types or pages, commits.
+    // The request must decide on what was committed (it reads under the lock), not on what it saw before.
+    const race = async (request, meanwhile) => {
+      const w = new DatabaseSync(file, { timeout: 5000 })
+      w.exec('begin immediate')
+      const pending = request()
+      await new Promise(r => setTimeout(r, 400)) // the request is now waiting for the lock
+      meanwhile(w)
+      w.exec('commit')
+      w.close()
+      return pending
+    }
+    const kindOf = id => peek(d => d.prepare('select kind from entities where id = ?').get(id)?.kind)
+    check('add Ship', (await a('/api/entity-types', { method: 'POST', body: { one: 'Ship' } })).data.key, 'ship')
+    const del = await race(() => a('/api/entity-types/ship', { method: 'DELETE' }), w => w.prepare(`insert into entities (id, name, analysis_name, kind, origin, created_at, updated_at, project_id) values ('e_ark', 'The Ark', 'The Ark', 'ship', 'manual', ?, ?, 'prj_p')`).run(at, at))
+    check('remove a type while another process files a page under it: refused with that page counted, type kept', [del.status, del.data.data?.pages, peek(d => !!d.prepare(`select 1 from entity_types where project_id = 'prj_p' and key = 'ship'`).get())], [409, 1, true])
+    const moved = await race(() => a('/api/entity-types/ship', { method: 'DELETE', query: { move_to: 'other' } }), w => w.prepare(`insert into entities (id, name, analysis_name, kind, origin, created_at, updated_at, project_id) values ('e_raft', 'Raft', 'Raft', 'ship', 'manual', ?, ?, 'prj_p')`).run(at, at))
+    const movedAudit = peek(d => JSON.parse(d.prepare(`select detail from audit_events where project_id = 'prj_p' and event_type = 'entity_type.deleted' order by rowid desc limit 1`).get().detail))
+    check('remove with a destination: the page filed meanwhile is moved and listed in the audit event', [moved.status, moved.data.moved, kindOf('e_raft'), movedAudit.entities.map(e => e.id).sort()], [200, 2, 'other', ['e_ark', 'e_raft']])
+    check('add Barge', (await a('/api/entity-types', { method: 'POST', body: { one: 'Barge' } })).data.key, 'barge')
+    const created = await race(() => a('/api/entities', { method: 'POST', body: { name: 'Coracle', kind: 'barge' } }), w => w.prepare(`delete from entity_types where project_id = 'prj_p' and key = 'barge'`).run())
+    check('create a page while another process removes its type: refused, no page', [created.status, peek(d => d.prepare(`select count(*) n from entities where kind = 'barge'`).get().n)], [400, 0])
+    check('add Barge again', (await a('/api/entity-types', { method: 'POST', body: { one: 'Barge' } })).data.key, 'barge')
+    const retyped = await race(() => a('/api/entities/e_ark', { method: 'PATCH', body: { kind: 'barge' } }), w => w.prepare(`delete from entity_types where project_id = 'prj_p' and key = 'barge'`).run())
+    check('retype a page while another process removes that type: refused, page keeps its type', [retyped.status, kindOf('e_ark')], [400, 'other'])
+    check('add Barge once more', (await a('/api/entity-types', { method: 'POST', body: { one: 'Barge' } })).data.key, 'barge')
+    await a('/api/entities/e_ark', { method: 'PATCH', body: { kind: 'barge' } })
+    const edited = await race(() => a('/api/entities/e_ark', { method: 'PATCH', body: { summary: 'A ship of the line.' } }), w => {
+      w.prepare(`update entities set kind = 'other' where project_id = 'prj_p' and kind = 'barge'`).run()
+      w.prepare(`delete from entity_types where project_id = 'prj_p' and key = 'barge'`).run()
+    })
+    check('edit a page while another process moves it off a removed type: the edit lands, the move stays', [edited.status, kindOf('e_ark'), peek(d => d.prepare('select summary from entities where id = ?').get('e_ark').summary)], [200, 'other', 'A ship of the line.'])
+    check('no page has a type its project lacks', peek(d => d.prepare('select count(*) n from entities e where not exists (select 1 from entity_types t where t.project_id = e.project_id and t.key = e.kind)').get().n), 0)
     console.log('entity types migration probe: all checks passed')
   } finally {
     server?.kill()

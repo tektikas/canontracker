@@ -21,8 +21,11 @@ export default defineEventHandler(async (event) => {
   const changed = (Object.keys(after) as (keyof typeof after)[]).filter(k => JSON.stringify(after[k]) !== JSON.stringify(before[k]))
   if (!changed.length) return { id: e.id, changed }
   tx(() => {
-    useDb().prepare(`update entities set name = ?, analysis_name = ?, kind = ?, summary = ?, aliases = ?, fields = ?, notes = ?, updated_at = ?, updated_by = ? where id = ?`)
-      .run(after.name, pin, after.kind, after.summary, JSON.stringify(after.aliases), JSON.stringify(after.fields), after.notes, now(), access().user.id, e.id)
+    // The type is checked again under the write lock; an unchanged type isn't written back, so a move made meanwhile by
+    // removing a type (another process) stays.
+    const kind = changed.includes('kind') ? cleanKind(after.kind) : null
+    useDb().prepare(`update entities set name = ?, analysis_name = ?, kind = coalesce(?, kind), summary = ?, aliases = ?, fields = ?, notes = ?, updated_at = ?, updated_by = ? where id = ?`)
+      .run(after.name, pin, kind, after.summary, JSON.stringify(after.aliases), JSON.stringify(after.fields), after.notes, now(), access().user.id, e.id)
     audit('entity.updated', 'entity', e.id, {
       name: after.name, changed,
       before: Object.fromEntries(changed.map(k => [k, before[k]])), after: Object.fromEntries(changed.map(k => [k, after[k]])),

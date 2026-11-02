@@ -289,9 +289,11 @@ function migrate14(db: DatabaseSync) {
 export const newId = (prefix: string) => `${prefix}_${randomUUID().replaceAll('-', '').slice(0, 16)}`
 export const now = () => new Date().toISOString()
 
+// `begin immediate` takes the write lock before fn reads anything, so what fn checks (a type exists, which pages use it) still
+// holds when it writes, even with another server process on the same file. Every tx writes, so nothing is serialised needlessly.
 export function tx<T>(fn: () => T): T {
   const d = useDb()
-  d.exec('begin')
+  d.exec('begin immediate')
   try {
     const result = fn()
     d.exec('commit')

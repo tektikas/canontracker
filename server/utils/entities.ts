@@ -50,22 +50,24 @@ export function syncEntities() {
   const known = new Set(listEntities().flatMap(namesOf).map(normName))
   const facts = d.prepare(`select kind, subject, predicate, object from facts where project_id = ? and status = 'canon' order by rowid`).all(pid()) as { kind: string, subject: string, predicate: string, object: string | null }[]
   const found = new Map<string, { name: string, votes: Map<string, number> }>()
-  const keys = new Set(entityTypes().map(t => t.key))
   for (const f of facts) {
     for (const role of ['subject', 'object'] as const) {
       const name = f[role]?.trim()
       if (!name || known.has(normName(name))) continue
       const g = found.get(normName(name)) ?? found.set(normName(name), { name, votes: new Map() }).get(normName(name))!
       const k = kindVotes(f, role)
-      if (k && keys.has(k)) g.votes.set(k, (g.votes.get(k) ?? 0) + 1)
+      if (k) g.votes.set(k, (g.votes.get(k) ?? 0) + 1)
     }
   }
   if (!found.size) return
-  const fallback = keys.has('other') ? 'other' : entityTypes()[0]!.key
   const insert = d.prepare(`insert into entities (id, name, analysis_name, kind, origin, created_at, updated_at, project_id) values (?, ?, ?, ?, 'canon', ?, ?, ?)`)
   tx(() => {
+    // The project's types are read under the write lock, so a guess never names a type another process just removed.
+    const types = entityTypes()
+    const keys = new Set(types.map(t => t.key))
+    const fallback = keys.has('other') ? 'other' : types[0]!.key
     for (const { name, votes } of found.values()) {
-      const kind = [...votes].sort((a, b) => b[1] - a[1])[0]?.[0] ?? fallback
+      const kind = [...votes].filter(([k]) => keys.has(k)).sort((a, b) => b[1] - a[1])[0]?.[0] ?? fallback
       insert.run(newId('ent'), name, name, kind, now(), now(), pid())
     }
   })
