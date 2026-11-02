@@ -138,6 +138,8 @@ function scrollEnd() {
 
 const messages = computed(() => data.value?.messages ?? [])
 const continued = computed(() => new Set(messages.value.map(m => m.reply_to)))
+// Only the latest answer shows its sources open on the page; earlier ones fold so the conversation stays readable.
+const lastAnswer = computed(() => messages.value.findLast(m => m.role === 'assistant')?.id)
 // A teammate's question still being answered (or one whose answer never came: the server stopped mid-answer).
 const waiting = (m: Message) => Date.now() - new Date(m.created_at).getTime() < 120_000
 
@@ -190,7 +192,7 @@ const chipIcon = (c: ChatChip) => (c.type === 'entity' ? 'entities' : c.type ===
               <p v-if="p.answer" class="answer-text">{{ p.answer }}</p>
               <p v-if="p.model_error" class="notice bad" role="alert">{{ p.model_error }} The related facts below were found by keyword match, not by the model.</p>
               <p v-else-if="!p.answer" class="verdict-text">{{ statusOf(p).text }}</p>
-              <details v-if="p.cited.length" class="cited" :open="!contained">
+              <details v-if="p.cited.length" class="cited" :open="!contained && m.id === lastAnswer">
                 <summary class="small">{{ p.status === 'supported' ? 'Sources' : 'Related accepted facts' }} <span class="faint">{{ p.cited.length }}</span></summary>
                 <div v-for="f in p.cited" :key="f.id" class="cited-fact">
                   <UiBadge v-if="f.status !== 'canon'" tone="warn" title="This fact was canon when the answer was written.">No longer canon ({{ f.status }})</UiBadge>
