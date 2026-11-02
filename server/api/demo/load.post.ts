@@ -60,8 +60,7 @@ function preload(facts: Record<string, string>[], docs: { filename: string, docu
       const passages = db.prepare('select * from passages where document_id = ? order by ordinal').all(docId ?? '') as unknown as PassageRow[]
       const match = findQuotePassage(passages, f.quote)
       if (!docId || !match) throw createError({ statusCode: 500, statusMessage: 'BAD_SAMPLE', message: `Sample fact “${f.statement}” has no verbatim quote in ${file}.` })
-      const tFrom = parseStoryTime(f.time_from)
-      const tTo = parseStoryTime(f.time_to)
+      const { from: tFrom, to: tTo } = parseStoryRange(f.time_from, f.time_to)
       const precision = tFrom == null && tTo == null ? null : 'exact'
       const id = newId('fact')
       db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision, status, confidence,

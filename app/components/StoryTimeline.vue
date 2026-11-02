@@ -16,17 +16,52 @@ onMounted(() => {
 })
 onBeforeUnmount(() => ro?.disconnect())
 const TAIL = 140 // room after the last hour for a label that starts late
-const pxH = computed(() => Math.max(11, Math.floor(((avail.value - 84 - TAIL) / (days.value * 24)) * 10) / 10))
+const BREAK = 56 // px for a collapsed run of empty days
+const pxH = computed(() => Math.max(11, Math.floor(((avail.value - 84 - TAIL - breakPx.value) / (dayCols.value.length * 24)) * 10) / 10))
 const FUZZ = 60 // minutes of visible fuzz around an approximate time
 const selectedId = ref<string | null>(null)
 
 const timed = computed(() => props.facts.filter(f => f.t_from != null || f.t_to != null))
-const days = computed(() => {
-  const max = Math.max(0, ...timed.value.map(f => Math.max(f.t_from ?? 0, f.t_to ?? 0) + FUZZ))
-  return Math.max(1, Math.ceil(max / 1440))
+// Axis columns: every day that holds a fact (plus its fuzz), D1 unless the story only starts earlier, and runs of empty days
+// longer than 3 collapse into one break, so "D-3650" and "D1" can share a chart. Day index d is story day d + 1 (D0 is -1).
+const cols = computed(() => {
+  const set = new Set<number>()
+  for (const f of timed.value) {
+    for (const t of [f.t_from, f.t_to]) {
+      if (t == null) continue
+      for (const x of f.precision === 'approximate' ? [t - FUZZ, t, t + FUZZ] : [t]) set.add(Math.floor(x / 1440))
+    }
+  }
+  if (![...set].some(d => d < 0)) for (let d = 0; d <= Math.max(0, ...set); d++) set.add(d) // as before: D1.. contiguous
+  const sorted = [...set].sort((a, b) => a - b)
+  const out: { day?: number, gap?: number }[] = []
+  sorted.forEach((d, i) => {
+    const prev = sorted[i - 1]
+    if (prev != null && d - prev > 4) out.push({ gap: d - prev - 1 })
+    else if (prev != null) for (let x = prev + 1; x < d; x++) out.push({ day: x })
+    out.push({ day: d })
+  })
+  return out.length ? out : [{ day: 0 }]
 })
+const dayCols = computed(() => cols.value.filter(c => c.day != null))
+const breakPx = computed(() => cols.value.filter(c => c.gap != null).length * BREAK)
+// x (px) of a story minute: the column's left edge plus the minutes into the day.
+const layout = computed(() => {
+  let x = 0
+  const left = new Map<number, number>()
+  const marks = cols.value.map((c) => {
+    const m = { ...c, left: x }
+    if (c.day != null) { left.set(c.day, x); x += 24 * pxH.value } else x += BREAK
+    return m
+  })
+  return { marks, left, total: x }
+})
+function xOf(t: number) {
+  const d = Math.floor(t / 1440)
+  return (layout.value.left.get(d) ?? 0) + (t - d * 1440) * (pxH.value / 60)
+}
 // The axis, the card's width, or further when a label runs past the end: the grid fills the card and holds every label.
-const width = computed(() => Math.max(days.value * 24 * pxH.value, avail.value - 86, ...lanes.value.flatMap(l => l.items.map(i => i.end + 8))))
+const width = computed(() => Math.max(layout.value.total, avail.value - 86, ...lanes.value.flatMap(l => l.items.map(i => i.end + 8))))
 
 const names = computed(() => new Set((props.allFacts ?? props.facts).flatMap(f => [f.subject, f.object]).filter(Boolean)))
 function label(f: Fact) {
@@ -35,7 +70,6 @@ function label(f: Fact) {
 }
 
 const lanes = computed(() => {
-  const PX = pxH.value / 60
   const bySubject = new Map<string, Fact[]>()
   for (const f of [...timed.value].sort((a, b) => (a.t_from ?? a.t_to) - (b.t_from ?? b.t_to))) {
     if (!bySubject.has(f.subject)) bySubject.set(f.subject, [])
@@ -47,15 +81,15 @@ const lanes = computed(() => {
       const approx = f.precision === 'approximate'
       // "until X" facts have only t_to: draw from the start of the axis with a faded left edge.
       const openStart = f.t_from == null
-      let a = f.t_from ?? 0
+      let a = f.t_from ?? f.t_to!
       let b = f.t_to ?? a
-      const range = b > a
+      const range = openStart || b > a
       if (approx) {
-        a = Math.max(0, a - (range ? FUZZ / 2 : FUZZ))
+        a = a - (range ? FUZZ / 2 : FUZZ)
         b = b + (range ? FUZZ / 2 : FUZZ)
       }
-      const left = a * PX
-      const w = approx || range ? (b - a) * PX : 0
+      const left = openStart ? 0 : xOf(a)
+      const w = approx || range ? xOf(b) - left : 0
       const text = label(f)
       const end = left + (Math.max(w, 12)) + 8 + text.length * 6.6
       let row = rowEnds.findIndex(e => e + 6 <= left)
@@ -73,7 +107,6 @@ function pick(id: string) {
   if (selectedId.value) nextTick(() => detailEl.value?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }))
 }
 const selected = computed(() => timed.value.find(f => f.id === selectedId.value) ?? null)
-const dayTicks = computed(() => Array.from({ length: days.value }, (_, i) => i + 1))
 </script>
 
 <template>
@@ -89,9 +122,12 @@ const dayTicks = computed(() => Array.from({ length: days.value }, (_, i) => i +
         <div class="lane head">
           <div class="label" />
           <div class="track" :style="{ width: `${width}px` }">
-            <div v-for="d in dayTicks" :key="d" class="day" :style="{ left: `${(d - 1) * 24 * pxH}px`, width: `${24 * pxH}px` }">
-              <strong>Day {{ d }}</strong>
+            <div v-for="c in layout.marks" :key="c.left" class="day" :class="{ brk: c.gap }" :style="{ left: `${c.left}px`, width: `${c.gap ? BREAK : 24 * pxH}px` }">
+              <strong v-if="c.gap" :title="`${c.gap} days with nothing in them`">… {{ c.gap.toLocaleString('en') }} d</strong>
+              <strong v-else>Day {{ c.day! + 1 }}</strong>
+              <template v-if="!c.gap">
               <span v-for="h in [6, 12, 18]" :key="h" class="hour" :style="{ left: `${h * pxH}px` }">{{ String(h).padStart(2, '0') }}:00</span>
+              </template>
             </div>
           </div>
         </div>
@@ -141,6 +177,7 @@ const dayTicks = computed(() => Array.from({ length: days.value }, (_, i) => i +
 .track { position: relative; flex: none; background-image: linear-gradient(to right, var(--line-strong) 1px, transparent 1px), linear-gradient(to right, var(--line) 1px, transparent 1px); background-size: calc(24 * v-bind(pxH) * 1px) 100%, calc(6 * v-bind(pxH) * 1px) 100%; }
 .head .track { height: 40px; background-image: none; }
 .day { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line-strong); padding: 4px 6px; font-size: var(--text-xs); }
+.day.brk { background: repeating-linear-gradient(135deg, var(--line) 0 2px, transparent 2px 6px); white-space: nowrap; overflow: hidden; }
 .hour { position: absolute; top: 22px; transform: translateX(-50%); color: var(--faint); font-size: var(--text-xs); }
 .item { position: absolute; display: flex; align-items: center; gap: 6px; height: 24px; padding: 0; border: 0; background: none; cursor: pointer; font: inherit; font-size: var(--text-sm); color: var(--ink); white-space: nowrap; border-radius: var(--r-sm); }
 .item::before { content: ""; position: absolute; inset: -6px -8px; } /* transparent hit area; bar geometry stays true */

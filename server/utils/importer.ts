@@ -161,8 +161,7 @@ export async function extractInto(doc: { id: string, filename: string, title: st
   const skipped: Record<string, number> = {}
   tx(() => {
     for (const c of drafts) {
-      const tFrom = parseStoryTime(c.time?.from)
-      const tTo = parseStoryTime(c.time?.to)
+      const { from: tFrom, to: tTo } = parseStoryRange(c.time?.from, c.time?.to)
       const keys = [`s:${norm(c.statement)}`, `k:${keyOf({ ...c, t_from: tFrom, t_to: tTo, precision: c.time ? (c.time.precision ?? 'exact') : null })}`]
       const already = keys.map(k => seen.get(k)).find(Boolean)
       if (already) {

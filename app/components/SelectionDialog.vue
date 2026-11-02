@@ -54,8 +54,8 @@ watch(drafted, (s) => { if (!statementTouched.value) f.statement = s })
 const pred = computed(() => f.predicate.trim().toLowerCase().replace(/\s+/g, '_'))
 const hint = computed(() => PREDICATES.find(p => p.value === pred.value)?.hint ?? 'How the subject relates to the object, in a few words.')
 const objectLabel = computed(() => (pred.value === 'located_at' ? 'Location' : pred.value === 'travel_time' ? 'Destination' : 'Object'))
-const TIME = /^D\d+\s+\d{1,2}:\d{2}$/
-const timeError = (v: string) => (v.trim() && !TIME.test(v.trim()) ? 'Use day and time, like D2 14:30.' : '')
+const TIME = /^D-?\d+(\s+([01]?\d|2[0-3]):[0-5]\d)?$/
+const timeError = (v: string) => (v.trim() && !TIME.test(v.trim()) ? 'Use a day, like D-3650, or day and time, like D2 14:30.' : '')
 
 const line = computed(() => `line ${props.selection.passage.start_line}${props.selection.passage.end_line !== props.selection.passage.start_line ? `–${props.selection.passage.end_line}` : ''}`)
 const busy = ref<'' | 'canon' | 'review' | 'note'>('')
@@ -138,7 +138,7 @@ const canSave = computed(() => (props.mode === 'note' ? !!f.body.trim()
           </UiField>
           <template v-if="pred !== 'travel_time'">
           <UiField label="Time from" :error="timeError(f.time_from)">
-            <input v-model="f.time_from" type="text" placeholder="e.g. D1 09:00" autocomplete="off">
+            <input v-model="f.time_from" type="text" placeholder="e.g. D1 09:00 or D-3650" autocomplete="off">
           </UiField>
           <UiField label="Time to" :error="timeError(f.time_to)">
             <input v-model="f.time_to" type="text" placeholder="Optional" autocomplete="off">

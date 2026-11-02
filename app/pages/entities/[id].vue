@@ -406,7 +406,7 @@ const ago = (iso: string) => {
     </div>
 
     <!-- Timeline -->
-    <UiPanel v-else-if="tab === 'timeline'" :title="`${e.name} on the story timeline`" description="Timed canon facts that name this entity, by story time. Day 1 starts at 00:00.">
+    <UiPanel v-else-if="tab === 'timeline'" :title="`${e.name} on the story timeline`" description="Timed canon facts that name this entity, by story time. Day 1 starts at 00:00; earlier days are D0, D-1, ….">
       <StoryTimeline v-if="timedCount" :facts="facts" />
       <UiEmptyState v-else title="No timed facts yet" icon="event">
         None of the accepted facts about {{ e.name }} has a story time.
