@@ -50,9 +50,44 @@ async function copy(text: string, key: string) {
   }
 }
 
-const client = ref<'claude' | 'cursor' | 'other'>('claude')
+const client = ref<'muse' | 'claude' | 'cursor' | 'other'>('muse')
 const secret = computed(() => created.value?.secret ?? '<your-token>')
+const museScript = (token: string) => `// Muse Spark + Story Bible tools. Node 20+, no dependencies.
+// Muse Spark calls function tools on the Meta Model API; this script relays each call to Story Bible's /mcp endpoint.
+const MCP = '${endpoint}'
+const TOKEN = '${token}'
+const META_KEY = process.env.META_API_KEY // your Meta Model API key, never pasted into the file
+const QUESTION = process.argv[2] || 'What do we know about the tide bell?'
+
+async function rpc(method, params) {
+  const r = await fetch(MCP, { method: 'POST', headers: { 'content-type': 'application/json', accept: 'application/json, text/event-stream', authorization: 'Bearer ' + TOKEN }, body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }) })
+  const j = await r.json()
+  if (j.error) throw new Error(j.error.message)
+  return j.result
+}
+async function chat(messages, tools) {
+  const r = await fetch('https://api.meta.ai/v1/chat/completions', { method: 'POST', headers: { 'content-type': 'application/json', authorization: 'Bearer ' + META_KEY }, body: JSON.stringify({ model: 'muse-spark-1.3', messages, tools }) })
+  if (!r.ok) throw new Error('Meta Model API ' + r.status + ': ' + await r.text())
+  return (await r.json()).choices[0].message
+}
+
+const listed = (await rpc('tools/list', {})).tools
+const tools = listed.map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.inputSchema } }))
+const messages = [
+  { role: 'system', content: 'Answer only from Story Bible canon. If a tool says unknown, say you do not know. Never invent facts, ids or quotes.' },
+  { role: 'user', content: QUESTION },
+]
+for (let turn = 0; turn < 6; turn++) {
+  const msg = await chat(messages, tools)
+  messages.push(msg) // the full assistant message that holds tool_calls must stay in the list
+  if (!msg.tool_calls?.length) { console.log(msg.content); break }
+  for (const call of msg.tool_calls) {
+    const out = await rpc('tools/call', { name: call.function.name, arguments: JSON.parse(call.function.arguments || '{}') })
+    messages.push({ role: 'tool', tool_call_id: call.id, content: out.content.map(c => c.text).join('\\n') })
+  }
+}`
 const snippets = computed(() => ({
+  muse: { file: 'Save as muse-story-bible.mjs, then run: META_API_KEY=… node muse-story-bible.mjs "your question"', text: museScript(secret.value) },
   claude: { file: 'Run in your terminal', text: `claude mcp add --transport http story-bible ${endpoint} \\\n  --header "Authorization: Bearer ${secret.value}"` },
   cursor: { file: 'Add to .cursor/mcp.json', text: JSON.stringify({ mcpServers: { 'story-bible': { url: endpoint, headers: { Authorization: `Bearer ${secret.value}` } } } }, null, 2) },
   other: { file: 'Any MCP client with Streamable HTTP', text: `URL:     ${endpoint}\nHeader:  Authorization: Bearer ${secret.value}\nTransport: Streamable HTTP (stateless, JSON responses)` },
@@ -72,7 +107,7 @@ const TOOLS = [
 
 <template>
   <div v-if="data" class="stack" style="gap: var(--s-5)">
-    <p class="muted intro">Connect your AI agent (Claude Code, Cursor, any MCP client) to <b>{{ data.project.name }}</b>. It can read approved canon with sources, check conflicts and impact, and propose candidates. <b>Nothing an agent proposes becomes canon until a person accepts it in Review.</b></p>
+    <p class="muted intro">Connect your AI agent (Muse Spark, Claude Code, Cursor, any MCP client) to <b>{{ data.project.name }}</b>. It can read approved canon with sources, check conflicts and impact, and propose candidates. <b>Nothing an agent proposes becomes canon until a person accepts it in Review.</b></p>
 
     <UiPanel title="API tokens" description="A token belongs to you, works for this project only and has your role. Revoke it any time.">
       <form class="token-form" novalidate @submit.prevent="create">
@@ -122,8 +157,13 @@ const TOOLS = [
       </details>
     </UiPanel>
 
-    <UiPanel title="Connect your agent" description="Paste one of these into your client. The endpoint is Streamable HTTP; the token goes in the Authorization header.">
-      <UiTabs v-model="client" :items="[{ value: 'claude', label: 'Claude Code' }, { value: 'cursor', label: 'Cursor' }, { value: 'other', label: 'Other client' }]" />
+    <UiPanel title="Connect your agent" description="Paste one of these into your client. The endpoint is Streamable HTTP; the token goes in the Authorization header. Muse Spark uses a small script instead (see below).">
+      <UiTabs v-model="client" :items="[{ value: 'muse', label: 'Muse Spark (Meta)' }, { value: 'claude', label: 'Claude Code' }, { value: 'cursor', label: 'Cursor' }, { value: 'other', label: 'Other client' }]" />
+      <p v-if="client === 'muse'" class="small muse-note">
+        <b>Muse Spark can’t connect to an MCP server directly.</b> Meta’s Model API documents function tools (Chat Completions and Responses) but no remote MCP connector, so this script is the bridge:
+        Muse Spark decides which Story Bible tool to call, the script runs it against this project’s <code>/mcp</code> endpoint with your token, and passes the answer back. Same tools, same read-only guard, same rule that nothing becomes canon until a person accepts it.
+        Docs: <a href="https://dev.meta.ai/docs/cookbook/tool-function-calling" target="_blank" rel="noopener">tool calling</a>. The script has not been run against a live Meta key yet (billing is off).
+      </p>
       <div class="snippet">
         <div class="snippet-head">
           <span class="small muted">{{ snippets[client].file }}</span>
@@ -161,6 +201,7 @@ const TOOLS = [
 .empty { margin: var(--s-4) 0 0; }
 .revoked { margin-top: var(--s-3); }
 .revoked summary { cursor: pointer; }
+.muse-note { margin: var(--s-4) 0 0; padding: var(--s-3); border: 1px dashed var(--line-strong); border-radius: var(--r-md); color: var(--muted); max-width: 76ch; }
 .snippet { margin: var(--s-4) 0 var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--sunken); }
 .snippet-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--line); }
 .snippet pre { margin: 0; padding: var(--s-3) var(--s-4); overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
