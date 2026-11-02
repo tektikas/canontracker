@@ -6,6 +6,7 @@ export default defineEventHandler(async (event) => {
   const doc = useDb().prepare('select filename from documents where id = ? and project_id = ?').get(getRouterParam(event, 'id')!, pid()) as { filename: string } | undefined
   if (!doc) throw createError({ statusCode: 404, statusMessage: 'NOT_FOUND', message: 'Document not found.' })
   requireRole('editor')
+  spendAudio('recording', 0)
   const latest = latestDocument(doc.filename)!
   const rec = getRecording(latest.id)
   if (!rec || !existsSync(audioPath(rec.audio_sha256))) throw createError({ statusCode: 404, statusMessage: 'NOT_FOUND', message: 'This document is not a recording.' })

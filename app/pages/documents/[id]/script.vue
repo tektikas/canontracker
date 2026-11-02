@@ -30,7 +30,8 @@ const rows = computed(() => (data.value?.rows ?? []).filter(r => r.kind !== 'out
 const outside = computed(() => data.value?.rows.filter(r => r.kind === 'outside').length ?? 0)
 const LABEL = { kept: 'As written', changed: 'Changed', added: 'Added', missing: 'Not said', outside: 'Not in this take' } as const
 const TONE = { kept: 'good', changed: 'warn', added: 'accent', missing: 'pencil', outside: 'pencil' } as const
-const flagged = (r: Row) => r.facts.some(f => f.flags.length)
+// A flag is either against accepted canon or between two candidates said in this take (not a canon conflict).
+const flagged = (r: Row, w: 'canon' | 'take') => r.facts.some(f => f.flags.some(x => x.with === w))
 const RULE: Record<string, string> = {
   EXACT_TIME_LOCATION_OVERLAP: 'Two places at once', APPROX_TIME_LOCATION_OVERLAP: 'Maybe two places at once',
   TRAVEL_TIME_TOO_SHORT: 'Too little travel time', RELATIONSHIP_AFTER_END: 'Relationship after it ended',
@@ -80,6 +81,7 @@ const RULE: Record<string, string> = {
         <UiBadge tone="accent">{{ data.counts.added }} added</UiBadge>
         <UiBadge tone="pencil">{{ data.counts.missing }} not said</UiBadge>
         <UiBadge :tone="data.flagged ? 'bad' : 'good'" dot>{{ data.flagged ? `${counted(data.flagged, 'line')} ${data.flagged === 1 ? 'contradicts' : 'contradict'} canon` : 'No canon conflict found' }}</UiBadge>
+        <UiBadge v-if="data.take_conflicts" tone="warn" dot>{{ counted(data.take_conflicts, 'line') }} in conflict within this take</UiBadge>
         <label class="only small"><input v-model="onlyDiffs" type="checkbox"> Only differences</label>
       </div>
       <p class="small faint">
@@ -88,7 +90,7 @@ const RULE: Record<string, string> = {
       </p>
 
       <ol class="rows">
-        <li v-for="(r, i) in rows" :key="i" class="row-item" :class="[r.kind, { flagged: flagged(r) }]">
+        <li v-for="(r, i) in rows" :key="i" class="row-item" :class="[r.kind, { flagged: flagged(r, 'canon'), 'take-flag': !flagged(r, 'canon') && flagged(r, 'take') }]">
           <div class="cell script">
             <span class="cell-head small"><UiBadge :tone="TONE[r.kind]">{{ LABEL[r.kind] }}</UiBadge><template v-if="r.script"> line {{ r.script.line }}<template v-if="r.script.speaker"> · {{ r.script.speaker }}</template></template></span>
             <p v-if="r.script" class="line"><span v-for="(p, k) in r.script.pieces" :key="k" :class="{ del: p.mark }">{{ p.text }}</span></p>
@@ -105,12 +107,13 @@ const RULE: Record<string, string> = {
           <ul v-if="r.facts.length" class="facts">
             <li v-for="f in r.facts" :key="f.id">
               <template v-if="f.flags.length">
-                <p v-for="(x, k) in f.flags" :key="k" class="flag" role="note">
+                <p v-for="(x, k) in f.flags" :key="k" class="flag" :class="{ take: x.with === 'take' }" role="note">
                   <UiIcon name="conflicts" :size="16" />
                   <span>
-                    <b>Contradicts canon: {{ RULE[x.rule] ?? x.rule }}</b> <UiBadge :tone="x.severity === 'hard' ? 'bad' : 'warn'">{{ x.severity }}</UiBadge><br>
+                    <b>{{ x.with === 'canon' ? 'Contradicts canon' : 'Conflicts with another line in this take' }}: {{ RULE[x.rule] ?? x.rule }}</b> <UiBadge :tone="x.severity === 'hard' ? 'bad' : 'warn'">{{ x.severity }}</UiBadge><br>
                     {{ x.rationale }}
-                    <span class="small muted">Said here: “{{ f.statement }}” · Canon: <NuxtLink :to="x.against.status === 'canon' ? `/canon#${x.against.id}` : `/review?fact=${x.against.id}`">{{ x.against.statement }}</NuxtLink></span>
+                    <span v-if="x.with === 'canon'" class="small muted">Said here: “{{ f.statement }}” · Canon: <NuxtLink :to="`/canon#${x.against.id}`">{{ x.against.statement }}</NuxtLink></span>
+                    <span v-else class="small muted">Said here: “{{ f.statement }}” · Also said <ClipButton v-if="x.against.line" :doc-id="data.recording.id" :start="x.against.line.start_ms" :end="x.against.line.end_ms" :label="`at ${clockMs(x.against.line.start_ms ?? 0)}`" />: <NuxtLink :to="`/review?fact=${x.against.id}`">{{ x.against.statement }}</NuxtLink></span>
                   </span>
                 </p>
               </template>
@@ -136,6 +139,7 @@ const RULE: Record<string, string> = {
 .rows { list-style: none; margin: var(--s-3) 0 0; padding: 0; display: grid; gap: var(--s-2); }
 .row-item { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-2) var(--s-4); padding: var(--s-3) var(--s-4); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); }
 .row-item.flagged { border-color: var(--bad); box-shadow: inset 3px 0 0 var(--bad); }
+.row-item.take-flag { border-color: var(--warn); box-shadow: inset 3px 0 0 var(--warn); }
 .cell { display: grid; gap: 6px; align-content: start; min-width: 0; }
 .cell-head { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; color: var(--muted); min-height: 24px; }
 .line { margin: 0; font-family: var(--font-story); font-size: var(--text-md); line-height: 1.6; overflow-wrap: anywhere; }
@@ -148,6 +152,7 @@ const RULE: Record<string, string> = {
 .facts li { display: grid; gap: 4px; }
 .flag { display: flex; gap: var(--s-2); margin: 0; color: var(--ink); }
 .flag svg { flex: none; margin-top: 2px; color: var(--bad); }
+.flag.take svg { color: var(--warn); }
 .flag .small { display: block; margin-top: 2px; }
 .fact-ok { display: flex; gap: 6px; align-items: center; margin: 0; }
 @media (max-width: 720px) {

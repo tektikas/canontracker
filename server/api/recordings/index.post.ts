@@ -5,6 +5,7 @@ const MAX_BYTES = 64 * 1024 * 1024
 
 export default defineEventHandler(async (event) => {
   requireRole('editor')
+  spendAudio('recording', 0) // a used-up hourly limit refuses before the upload is read
   const form = await readLimitedForm(event, {
     maxTotal: MAX_BYTES + 64_000, maxPart: MAX_BYTES + 16_000, maxParts: 6, maxField: 200,
     tooLarge: 'Recordings can be up to 64 MB. Shorten the file or export it at a lower bitrate.',

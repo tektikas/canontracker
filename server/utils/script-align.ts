@@ -187,17 +187,23 @@ export function scriptComparison(transcriptId: string, scriptKey: string) {
   const { hits } = dryRunRules(checked.map(f => ({ ...f, subject: kept(f.subject)!, object: kept(f.object) }) as Fact))
   const severity = severityFor(access().project.severity_defaults)
   const brief = (f: Fact) => ({ id: f.id, statement: f.statement, status: f.status, time: f.time_label })
-  const ids = new Set(checked.map(f => f.id))
+  // A hit is either against accepted canon (`canon`: cites the accepted fact) or between two candidates said in this take
+  // (`take`: cites that other line and where it is said); the second is not a canon conflict.
   const flagsOf = (id: string) => hits.filter(h => h.a.id === id || h.b.id === id).map((h) => {
     const other = h.a.id === id ? h.b : h.a
-    return { rule: h.rule, severity: severity(h.rule, h.near), rationale: h.rationale, against: { ...brief(other), in_take: ids.has(other.id) } }
+    const line = other.status === 'canon' ? undefined : rows[rowOf.get(other.id)!]?.spoken
+    return {
+      rule: h.rule, severity: severity(h.rule, h.near), rationale: h.rationale, with: line ? 'take' as const : 'canon' as const,
+      against: { ...brief(other), ...(line && { line: { start_ms: line.start_ms, end_ms: line.end_ms } }) },
+    }
   })
   const count = (k: AlignRow['kind']) => rows.filter(r => r.kind === k).length
   const out = rows.map(({ spans: _, ...r }, i) => ({ ...r, facts: checked.filter(f => rowOf.get(f.id) === i).map(f => ({ ...brief(f), flags: flagsOf(f.id) })) }))
+  const rowsWith = (w: 'canon' | 'take') => out.filter(r => r.facts.some(f => f.flags.some(x => x.with === w))).length
   return {
     script: { id: scriptDoc.id, title: scriptDoc.title, version: scriptDoc.version },
     counts: { kept: count('kept'), changed: count('changed'), added: count('added'), missing: count('missing'), outside: count('outside') },
-    checked_facts: checked.length, flagged: out.filter(r => r.facts.some(f => f.flags.length)).length,
+    checked_facts: checked.length, flagged: rowsWith('canon'), take_conflicts: rowsWith('take'),
     rows: out,
   }
 }

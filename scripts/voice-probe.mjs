@@ -5,10 +5,15 @@
 // only through the guard (byte ranges for seeking), and the script diff keeps line 1, flags the changed Rourke bark against
 // canon (EXACT_TIME_LOCATION_OVERLAP). The same audio again is a duplicate, the transcript can't be edited, and recorded
 // mode refuses unknown audio without storing anything. Guards: another studio 404, a viewer can't upload (but may dictate),
-// unsupported, oversize and over-long audio are refused with a plain message.
+// unsupported, oversize and over-long audio are refused with a plain message (a long compressed file before it is converted).
+// Two candidates in the take that clash with each other are "in this take", not canon conflicts. Hourly audio limits: 429 per
+// person (dictation, recordings) and per project. Needs ffmpeg on the probe's machine too (to make the compressed files).
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { request } from 'node:http'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
 const run = Date.now().toString(36)
@@ -71,6 +76,23 @@ function toneWav(seconds, rate = 16000, channels = 1) {
   h.writeUInt32LE(rate, 24); h.writeUInt32LE(rate * 2 * channels, 28); h.writeUInt16LE(2 * channels, 32); h.writeUInt16LE(16, 34); h.write('data', 36); h.writeUInt32LE(data.length, 40)
   return Buffer.concat([h, data])
 }
+// Mono 16 kHz silence as a plain WAV (no ffmpeg on the server side: the shape Muse takes).
+const silenceWav = seconds => wavOf(Buffer.alloc(seconds * 16000 * 2))
+function wavOf(data) {
+  const h = Buffer.alloc(44)
+  h.write('RIFF', 0); h.writeUInt32LE(36 + data.length, 4); h.write('WAVEfmt ', 8); h.writeUInt32LE(16, 16); h.writeUInt16LE(1, 20); h.writeUInt16LE(1, 22)
+  h.writeUInt32LE(16000, 24); h.writeUInt32LE(32000, 28); h.writeUInt16LE(2, 32); h.writeUInt16LE(16, 34); h.write('data', 36); h.writeUInt32LE(data.length, 40)
+  return Buffer.concat([h, data])
+}
+// 31 minutes of silence, compressed (ffmpeg): a FLAC that states its length, and a live WebM that states none.
+const tmp = mkdtempSync(join(tmpdir(), 'voice-probe-'))
+const silence = (name, args) => {
+  execFileSync('ffmpeg', ['-hide_banner', '-loglevel', 'error', '-f', 'lavfi', '-i', 'anullsrc=r=16000:cl=mono', '-t', '1860', ...args, join(tmp, name)])
+  return readFileSync(join(tmp, name))
+}
+const LONG_FLAC = silence('long.flac', ['-c:a', 'flac'])
+const LONG_WEBM = silence('long.webm', ['-c:a', 'libopus', '-live', '1', '-f', 'webm'])
+rmSync(tmp, { recursive: true, force: true })
 
 const a = await account('Ada')
 const studio = (await a('/api/studios', { method: 'POST', body: { name: 'Voice Studio' } })).data
@@ -119,6 +141,20 @@ const flag = rourke.facts.find(f => f.id === ember.id)?.flags[0]
 check('the changed line is flagged against canon', [flag?.rule, flag?.severity, flag?.against.id], ['EXACT_TIME_LOCATION_OVERLAP', 'hard', s05.id])
 check('kinds present', ['changed', 'missing', 'added', 'outside'].every(k => cmp.rows.some(x => x.kind === k)), true)
 check('only the Rourke line is flagged', cmp.flagged, 1)
+check('the canon flag says so', flag?.with, 'canon')
+// Two candidates in this take placing someone canon doesn't know at two places at once: flagged "in this take", not canon.
+const moth = (pi, quote, object) => a('/api/facts', { method: 'POST', body: { document_id: doc.id, passage_id: doc.passages[pi].id, quote, statement: `Moth is at the ${object} at 21:00 on Day 2.`, subject: 'Moth', predicate: 'located_at', object, time_from: 'D2 21:00', to: 'review' } })
+const m1 = (await moth(4, 'at the Ember Well at nine o\'clock', 'Ember Well')).data
+const m2 = (await moth(1, 'talk at the foot of the Bell Gate', 'Bell Gate')).data
+const cmp2 = (await a(`/api/documents/${doc.id}/script`)).data
+const flagsOf = id => cmp2.rows.flatMap(x => x.facts).find(f => f.id === id)?.flags ?? []
+const lineOf = (id) => { const x = cmp2.rows.find(r => r.facts.some(f => f.id === id)).spoken; return [x.start_ms, x.end_ms] }
+check('in-take clash: Ember Well line cites the Bell Gate line and when it is said', flagsOf(m1.id).map(x => [x.with, x.rule, x.against.id, x.against.status, x.against.line && [x.against.line.start_ms, x.against.line.end_ms]]), [['take', 'EXACT_TIME_LOCATION_OVERLAP', m2.id, 'pending', lineOf(m2.id)]])
+check('and the other way round', flagsOf(m2.id).map(x => [x.with, x.against.id, x.against.line && [x.against.line.start_ms, x.against.line.end_ms]]), [['take', m1.id, lineOf(m1.id)]])
+check('two different lines', lineOf(m1.id)[0] !== lineOf(m2.id)[0], true)
+check('still one line against canon; the in-take clash is counted apart', [cmp2.flagged, cmp2.take_conflicts], [1, 2])
+for (const m of [m1, m2]) await a(`/api/facts/${m.id}/review`, { method: 'POST', body: { decision: 'reject', rationale: 'probe' } })
+check('rejected: no in-take clash left', (await a(`/api/documents/${doc.id}/script`)).data.take_conflicts, 0)
 check('nothing was stored by the comparison', (await a('/api/conflicts?status=all')).data.some?.(c => [c.left_fact_id, c.right_fact_id].includes(ember.id)) ?? false, false)
 check('unlink the script', (await a(`/api/documents/${doc.id}/script`, { method: 'POST', body: { script_document_id: null } })).data.script_key, null)
 check('unlinked: no rows', (await a(`/api/documents/${doc.id}/script`)).data.script, null)
@@ -155,6 +191,13 @@ check('a stereo 44.1 kHz WAV is converted (ffmpeg), then recorded mode has no tr
 check('over 64 MB: 413 while streaming (chunked, no length)', await chunkedUpload(a, 70), 413)
 const long = await a('/api/recordings', { method: 'POST', form: audioForm('long.wav', toneWav(31 * 60, 16000)) })
 check('over 30 minutes: 413 with the limit', [long.status, /30 minutes/.test(long.data.message)], [413, true])
+let t0 = Date.now()
+const flac = await a('/api/recordings', { method: 'POST', form: audioForm('long.flac', LONG_FLAC) })
+check('a 31-minute FLAC is refused from its stated length, before converting', [flac.status, /30 minutes; this one is 31/.test(flac.data.message), Date.now() - t0 < 3000], [413, true, true])
+t0 = Date.now()
+const webm = await a('/api/recordings', { method: 'POST', form: audioForm('long.webm', LONG_WEBM) })
+check('a 31-minute WebM stating no length: conversion stops past 30 minutes, 413', [webm.status, /30 minutes/.test(webm.data.message)], [413, true])
+console.log(`    (refused after ${Date.now() - t0} ms)`)
 check('empty upload: 400', (await a('/api/recordings', { method: 'POST', form: new FormData() })).status, 400)
 
 // 7. Isolation and roles.
@@ -181,5 +224,40 @@ vf.append('audio', new Blob([SAMPLE]), 'clip.wav')
 const dict = await v('/api/voice/transcribe', { method: 'POST', body: undefined, form: vf })
 check('viewer: may dictate (text only, nothing stored)', [dict.status, dict.data.text?.startsWith('The Red Mule Caravan')], [200, true])
 check('nothing stored by dictation', (await a('/api/documents')).data.length, before)
+
+// 8. Hourly audio limits (seconds of audio; a failed transcription counts too). A fresh project so the counts start at 0.
+const lim = await account('Lim')
+const ls = (await lim('/api/studios', { method: 'POST', body: { name: 'Limit Studio' } })).data
+await lim('/api/projects', { method: 'POST', body: { name: 'Limits', studio_id: ls.id } })
+const clip = (c, seconds) => {
+  const f = new FormData()
+  f.append('audio', new Blob([silenceWav(seconds)]), 'clip.wav')
+  return c('/api/voice/transcribe', { method: 'POST', form: f })
+}
+const statuses = []
+for (let i = 0; i < 2; i++) statuses.push((await clip(lim, 300)).status)
+check('dictation: two 5-minute clips are within 10 minutes an hour (recorded mode has no transcript: 503)', statuses, [503, 503])
+const over = await clip(lim, 1)
+check('dictation: the next second is 429 per person', [over.status, /Voice input can use up to 10 minutes/.test(over.data.message)], [429, true])
+const REC = silenceWav(29 * 60)
+const rec = (c, data = REC) => c('/api/recordings', { method: 'POST', form: audioForm('take.wav', data) })
+check('recording: 29 minutes is within 45 a person', (await rec(lim)).status, 503)
+const recOver = await rec(lim)
+check('recording: 29 more would pass 45 minutes: 429 per person', [recOver.status, /Recordings can use up to 45 minutes/.test(recOver.data.message)], [429, true])
+const inviteTo = async (role, name) => {
+  const l = (await lim('/api/team/invites', { method: 'POST', body: { role, days: 1 } })).data
+  const c = await account(name)
+  await c(`/api/invites/${l.token}/accept`, { method: 'POST' })
+  await c(`/api/projects/${(await lim('/api/me')).data.current.project.id}/switch`, { method: 'POST' })
+  return c
+}
+const eve = await inviteTo('editor', 'Eve')
+check('another editor: 29 minutes (project at 39 + 29 = 68 of 90)', (await rec(eve)).status, 503)
+check('and 15 more (project at 83, Eve at 44 of 45)', (await rec(eve, silenceWav(15 * 60))).status, 503)
+const val = await inviteTo('viewer', 'Val')
+check('a viewer dictates 5 minutes (project at 88)', (await clip(val, 300)).status, 503)
+const projOver = await clip(val, 300)
+check('5 more would pass 90: the project limit, 429, although Val used only 5 minutes', [projOver.status, /This project can transcribe up to 90 minutes/.test(projOver.data.message)], [429, true])
+check('the other project is not affected', (await a('/api/voice/transcribe', { method: 'POST', form: vf })).status, 200)
 
 console.log('voice probe passed')

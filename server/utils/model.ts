@@ -353,9 +353,10 @@ async function transcribeChunk(file: Buffer, durationMs: number, keywords: strin
 }
 
 /** Speech to text for one WAV (from toMuseWav). Longer than CHUNK_MS goes in chunks whose turn times are shifted back into
- * place. Recorded in model_calls (purpose `transcribe`, the audio's sha256 as input ref); a failure is shown, never filled in. */
+ * place. Counted against the hourly audio limits first (spendAudio). Recorded in model_calls (purpose `transcribe`, the audio's sha256 as input ref); a failure is shown, never filled in. */
 export function transcribeAudio(wav: Wav & { sha256: string }, target: { type: string, id: string }) {
   const info = transcribeModelInfo()
+  spendAudio(target.type === 'dictation' ? 'dictation' : 'recording', wav.duration_ms)
   return traced('transcribe', target, [wav.sha256], null, async (): Promise<Transcript> => {
     if (!info.live) {
       const rec = (await recordedRecordings()).find(r => r.audio_sha256 === wav.sha256)

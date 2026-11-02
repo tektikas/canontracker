@@ -61,24 +61,31 @@ export function wavFile(rate: number, data: Buffer) {
 // Demuxers ffmpeg may use: plain audio containers only, so a "file" that is really a playlist (HLS, concat) is refused
 // instead of being followed to other files or URLs.
 const DEMUXERS = 'wav,mp3,mov,ogg,matroska,flac,aac'
-const ffmpeg = (args: string[]) => new Promise<void>((resolve, reject) =>
-  execFile('ffmpeg', args, { timeout: 120_000, maxBuffer: 1_000_000 }, e => (e ? reject(e) : resolve())))
+const run = (cmd: 'ffmpeg' | 'ffprobe', args: string[]) => new Promise<string>((resolve, reject) =>
+  execFile(cmd, ['-hide_banner', '-loglevel', 'error', '-protocol_whitelist', 'file', '-format_whitelist', DEMUXERS, ...args],
+    { timeout: 120_000, maxBuffer: 1_000_000 }, (e, out) => (e ? reject(e) : resolve(out))))
+const unreadable = (e: NodeJS.ErrnoException) => {
+  if (e.code === 'ENOENT') throw bad(415, 'UNSUPPORTED', 'This server cannot convert audio (ffmpeg is not installed). Upload a mono 16-bit WAV at 16 or 24 kHz.')
+  throw bad(415, 'UNSUPPORTED', `${UNSUPPORTED} This file could not be read as audio.`)
+}
 
-/** Any supported upload as the WAV Muse takes. A WAV already in that shape skips ffmpeg. */
-export async function toMuseWav(input: Buffer, filename: string): Promise<Wav & { file: Buffer, sha256: string }> {
+/** Any supported upload as the WAV Muse takes. A WAV already in that shape skips ffmpeg. Long audio is refused before any
+ * heavy work: the length the container states (ffprobe) is checked first, and the conversion itself stops just past
+ * `maxMs` (and at that much WAV), for files that state no length or a wrong one. */
+export async function toMuseWav(input: Buffer, filename: string, { maxMs = MAX_AUDIO_MS, tooLong }: { maxMs?: number, tooLong?: string } = {}): Promise<Wav & { file: Buffer, sha256: string }> {
   const ext = filename.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? ''
   if (!(AUDIO_EXTENSIONS as readonly string[]).includes(ext)) throw bad(415, 'UNSUPPORTED', UNSUPPORTED)
+  const long = (ms: number) => bad(413, 'TOO_LONG', tooLong ?? `Recordings can be up to ${maxMs / 60_000} minutes; this one is ${Math.ceil(ms / 60_000)}.`)
   let wav = acceptedWav(input)
   if (!wav) {
     const dir = mkdtempSync(join(tmpdir(), 'sb-audio-'))
     try {
       writeFileSync(join(dir, 'in'), input)
-      await ffmpeg(['-hide_banner', '-loglevel', 'error', '-nostdin', '-protocol_whitelist', 'file', '-format_whitelist', DEMUXERS,
-        '-i', join(dir, 'in'), '-vn', '-ac', '1', '-ar', '24000', '-c:a', 'pcm_s16le', '-map_metadata', '-1', '-fflags', '+bitexact', '-flags:a', '+bitexact', '-y', join(dir, 'out.wav')])
-        .catch((e: NodeJS.ErrnoException) => {
-          if (e.code === 'ENOENT') throw bad(415, 'UNSUPPORTED', 'This server cannot convert audio (ffmpeg is not installed). Upload a mono 16-bit WAV at 16 or 24 kHz.')
-          throw bad(415, 'UNSUPPORTED', `${UNSUPPORTED} This file could not be read as audio.`)
-        })
+      const stated = Number.parseFloat(await run('ffprobe', ['-show_entries', 'format=duration', '-of', 'csv=p=0', join(dir, 'in')]).catch(unreadable)) * 1000
+      if (stated > maxMs) throw long(stated)
+      const capS = maxMs / 1000 + 1 // one second over, so a longer file still comes out longer than the limit
+      await run('ffmpeg', ['-nostdin', '-i', join(dir, 'in'), '-vn', '-ac', '1', '-ar', '24000', '-c:a', 'pcm_s16le', '-map_metadata', '-1',
+        '-fflags', '+bitexact', '-flags:a', '+bitexact', '-t', String(capS), '-fs', String(44 + capS * 48_000), '-y', join(dir, 'out.wav')]).catch(unreadable)
       wav = acceptedWav(readFileSync(join(dir, 'out.wav')))
     } finally {
       rmSync(dir, { recursive: true, force: true })
@@ -86,7 +93,7 @@ export async function toMuseWav(input: Buffer, filename: string): Promise<Wav & 
     if (!wav) throw bad(415, 'UNSUPPORTED', UNSUPPORTED)
   }
   if (!wav.data.length) throw bad(422, 'NO_AUDIO', 'The file has no audio.')
-  if (wav.duration_ms > MAX_AUDIO_MS) throw bad(413, 'TOO_LONG', `Recordings can be up to ${MAX_AUDIO_MS / 60_000} minutes; this one is ${Math.ceil(wav.duration_ms / 60_000)}.`)
+  if (wav.duration_ms > maxMs) throw long(wav.duration_ms)
   const file = wavFile(wav.rate, wav.data)
   return { ...wav, file, sha256: createHash('sha256').update(file).digest('hex') }
 }
@@ -107,6 +114,29 @@ export interface Turn { start_ms: number, end_ms: number, text: string, speaker:
 export function transcriptOf(turns: Turn[]) {
   const kept = turns.map(t => ({ ...t, text: cleanTurn(t.text) })).filter(t => t.text)
   return { content: kept.map(t => t.text).join('\n\n'), turns: kept }
+}
+
+// Transcription is paid per second of audio: hourly limits in seconds of audio per person (dictation and recordings apart)
+// and per project. ponytail: per-process counters (throttle.ts), a restart forgets them; a shared store for several nodes.
+const HOUR = 3_600_000
+export const AUDIO_LIMIT_MIN = { dictation: 10, recording: 45, project: 90 }
+const perUser = { dictation: fixedWindow(AUDIO_LIMIT_MIN.dictation * 60, HOUR), recording: fixedWindow(AUDIO_LIMIT_MIN.recording * 60, HOUR) }
+const perProject = fixedWindow(AUDIO_LIMIT_MIN.project * 60, HOUR)
+
+/** Counts `ms` of audio against the hourly limits, or refuses with 429 and counts nothing. `ms = 0` only checks that a
+ * limit isn't used up already (before reading and converting an upload). A failed transcription still counts. */
+export function spendAudio(kind: 'dictation' | 'recording', ms: number) {
+  const s = Math.ceil(ms / 1000)
+  const { user, project } = access()
+  const later = (w: number) => { const m = Math.ceil(w / 60_000); return `Try again in ${m} minute${m === 1 ? '' : 's'}.` }
+  let wait = perUser[kind](user.id, s, false)
+  if (wait) throw bad(429, 'TOO_MANY_REQUESTS', `${kind === 'dictation' ? 'Voice input' : 'Recordings'} can use up to ${AUDIO_LIMIT_MIN[kind]} minutes of audio per person per hour. ${later(wait)}`)
+  wait = perProject(project.id, s, false)
+  if (wait) throw bad(429, 'TOO_MANY_REQUESTS', `This project can transcribe up to ${AUDIO_LIMIT_MIN.project} minutes of audio per hour. ${later(wait)}`)
+  if (s) {
+    perUser[kind](user.id, s)
+    perProject(project.id, s)
+  }
 }
 
 export const recordingDir = (projectId = pid()) => join('.data', 'recordings', projectId)
