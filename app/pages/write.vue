@@ -158,6 +158,8 @@ function keys(e: KeyboardEvent) {
     dirty = true
     persistQuietly()
   }
+  // The page is one form, so a bare Enter in the title or a radio must not submit it (Ctrl/⌘+Enter does, via the app-wide shortcut).
+  if (e.key === 'Enter' && !(e.ctrlKey || e.metaKey) && !e.isComposing && e.keyCode !== 229 && e.target instanceof HTMLInputElement) e.preventDefault()
 }
 
 // Focus mode: only the text on screen. The same textarea stays mounted, so autosave and the caret carry over; the
@@ -299,10 +301,10 @@ const time = (iso: string) => clock(iso).slice(0, 5)
       <template #actions><UiButton to="/write">Start a new document</UiButton></template>
     </UiEmptyState>
   </UiPanel>
-  <div
+  <form
     v-else ref="root" class="write" :class="{ focusing: focus, typing: focus && typing && status !== 'error' }"
     :role="focus ? 'dialog' : undefined" :aria-modal="focus || undefined" :aria-label="focus ? 'Focus mode' : undefined"
-    @keydown="keys" @mousemove="onPointer"
+    @keydown="keys" @mousemove="onPointer" @submit.prevent="saveToStory"
   >
     <div v-if="focus" class="focus-bar small" role="toolbar" aria-label="Focus mode">
       <span class="focus-status" role="status">
@@ -370,12 +372,12 @@ const time = (iso: string) => clock(iso).slice(0, 5)
       <div class="row">
         <UiButton variant="ghost" icon="focus" :disabled="loading" title="Only the text on screen (Ctrl+Shift+F)" @click="enterFocus">Focus</UiButton>
         <UiButton v-if="draftId" variant="ghost" :disabled="saving" @click="discard">{{ editing ? 'Discard changes' : 'Discard draft' }}</UiButton>
-        <UiButton variant="primary" icon="check" :loading="saving" :disabled="!canSave || loading" :title="canSave ? undefined : 'Add a title and some text first'" @click="saveToStory">
+        <UiButton variant="primary" type="submit" icon="check" :loading="saving" :disabled="!canSave || loading" :title="canSave ? undefined : 'Add a title and some text first'">
           {{ editing ? `Save as v${editing.version + 1}` : 'Save to story' }}
         </UiButton>
       </div>
     </footer>
-  </div>
+  </form>
 </template>
 
 <style scoped>

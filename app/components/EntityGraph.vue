@@ -9,13 +9,15 @@ import type { SimulationNodeDatum } from 'd3-force'
 type Fact = { id: string, kind: string, subject: string, predicate: string, object: string | null, statement: string }
 const props = defineProps<{ facts: Fact[], selected?: string }>()
 
-// The one place a node gets its type's label and colour. c41 (per-project entity types) swaps the body for its useKind():
-// `const t = kindOf(kind); return { key: t.key, one: t.one, label: t.many, tone: TONES[t.color], order: index of t.key in the project's types }`.
-const TONES = { neutral: 'var(--muted)', accent: 'var(--accent)', good: 'var(--good)', warn: 'var(--warn)', bad: 'var(--bad)', pencil: 'var(--pencil)' }
-const BUILT_IN: Record<string, keyof typeof TONES> = { character: 'accent', location: 'good', item: 'warn', faction: 'bad', event: 'pencil', other: 'neutral' }
+// The one place a node gets its type's label, colour and legend order: the project's entity types (useKind), with the
+// tokens behind their colour names (.kt-* in main.css).
+const TONES: Record<TypeColor, string> = { neutral: 'var(--muted)', accent: 'var(--accent)', good: 'var(--good)', warn: 'var(--warn)', bad: 'var(--bad)', pencil: 'var(--pencil)' }
+const kindOf = useKind()
+const { data: projectTypes } = useNuxtData<EntityTypeItem[]>('entity-types')
 function typeStyle(kind: string) {
-  const key = (kind in BUILT_IN ? kind : 'other') as EntityKind
-  return { key, one: KIND_LABEL[key].one, label: KIND_LABEL[key].many, tone: TONES[BUILT_IN[key]!], order: ENTITY_KINDS.indexOf(key) }
+  const t = kindOf(kind)
+  const i = (projectTypes.value ?? []).findIndex(x => x.key === t.key)
+  return { key: t.key, one: t.one, label: t.many, tone: TONES[t.color] ?? TONES.neutral, order: i < 0 ? 999 : i }
 }
 const lookup = useEntityLookup()
 const pageOf = (name: string) => lookup.value.byName.get(normName(name))
@@ -259,7 +261,7 @@ const summary = computed(() => `${counted(nodes.value.length, 'entity', 'entitie
           ><title>{{ e.facts.map(f => f.statement).join('\n') }}</title></line>
           <g
             v-for="n in placed.nodes" :key="n.name" class="node" :class="{ dim: n.dim, sel: n.name === focus }" :style="{ '--tone': n.type.tone }"
-            tabindex="0" role="button" :aria-pressed="n.name === focus" :aria-label="`${n.name}, ${n.type.one.toLowerCase()}, ${counted(n.degree, 'link')}`"
+            tabindex="0" role="button" :aria-pressed="n.name === focus" :aria-label="`${n.name}, ${typeWord(n.type.one)}, ${counted(n.degree, 'link')}`"
             @click.stop="clickNode(n.name)" @keydown.enter.prevent="select(n.name)" @keydown.space.prevent="select(n.name)"
             @mouseenter="hover = n.name" @mouseleave="hover = null" @focus="hover = n.name" @blur="hover = null"
           >

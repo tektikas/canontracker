@@ -76,10 +76,12 @@ const pick = (e: Event) => (e.target as HTMLInputElement | HTMLSelectElement).va
       <label><span class="small muted">Due date</span>
         <input type="date" :value="task.due_date ?? ''" :disabled="busy" @change="save({ due_date: pick($event) })">
       </label>
-      <label class="wide"><span class="small muted">Comment</span>
-        <textarea v-model="comment" rows="2" maxlength="4000" placeholder="What did you find? Plain text." />
-      </label>
-      <div v-if="comment.trim() !== task.comment" class="wide"><UiButton size="sm" :loading="busy" @click="save({ comment })">Save comment</UiButton></div>
+      <form class="wide comment-form" @submit.prevent="save({ comment })">
+        <label><span class="small muted">Comment</span>
+          <textarea v-model="comment" rows="2" maxlength="4000" placeholder="What did you find? Plain text." />
+        </label>
+        <div v-if="comment.trim() !== task.comment"><UiButton size="sm" type="submit" :loading="busy">Save comment</UiButton></div>
+      </form>
     </div>
     <p v-else-if="task.comment" class="comment small"><span class="faint">Comment:</span> {{ task.comment }}</p>
     <p v-if="error" class="small field-error" role="alert">{{ error }}</p>
@@ -103,6 +105,7 @@ const pick = (e: Event) => (e.target as HTMLInputElement | HTMLSelectElement).va
 .controls { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); border-top: 1px solid var(--line); padding-top: var(--s-3); }
 .controls label { display: grid; gap: 4px; min-width: 0; }
 .wide { grid-column: 1 / -1; }
+.comment-form { display: grid; gap: var(--s-2); min-width: 0; }
 .closed-note { color: var(--ink); }
 @media (max-width: 720px) {
   .controls { grid-template-columns: 1fr; }

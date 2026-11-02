@@ -2,6 +2,7 @@
 // The floating card for EntityMention. Fixed position next to the mention, kept inside the viewport.
 const card = useMentionCard()
 const { data: list } = useNuxtData<EntityListItem[]>('entities')
+const kindLabel = useKind()
 const entity = computed(() => card.state.value && list.value?.find(e => e.id === card.state.value!.id))
 const el = ref<HTMLElement>()
 const pos = ref({ top: 0, left: 0 })

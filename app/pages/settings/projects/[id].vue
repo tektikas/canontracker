@@ -31,7 +31,8 @@ const name = ref(project.value.name)
 const nameDirty = computed(() => name.value.trim() !== project.value.name)
 const saveName = () => patch({ name: name.value }, 'name')
 // Medium decides which fields entity pages show (game: player hook, quest…). Values are kept when it changes.
-const setMedium = (e: Event) => patch({ medium: (e.target as HTMLSelectElement).value }, 'medium')
+// Before any entity page exists it also swaps the project's untouched default types, so reload them.
+const setMedium = async (e: Event) => { if (await patch({ medium: (e.target as HTMLSelectElement).value }, 'medium') && isCurrent.value) await refreshEntityTypes() }
 
 // Art style is added to every image prompt in the project, so portraits and covers look like one game.
 const art = ref(project.value.art_style)
@@ -155,6 +156,15 @@ const ago = (iso: string | null) => {
           </tr>
         </tbody>
       </table>
+    </UiPanel>
+
+    <!-- Entity types are edited on the open project (the API acts on it). -->
+    <EntityTypesEditor v-if="isCurrent" :project="project.name" />
+    <UiPanel v-else id="entity-types" title="Entity types" description="Types group pages on Entities, in the graph and in exports.">
+      <div class="row">
+        <span class="small faint">Open this project to edit its types.</span>
+        <UiButton size="sm" :loading="busy === 'types'" @click="busy = 'types'; openProject(id, `/settings/projects/${id}#entity-types`)">Open and edit types</UiButton>
+      </div>
     </UiPanel>
 
     <UiPanel v-if="manage" title="Danger zone" description="Load a sample into this project. This replaces everything in it.">

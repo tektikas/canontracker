@@ -1,18 +1,44 @@
 // Entity wiki vocabulary shared by the API and the UI. Everything here is editorial metadata: it never feeds canon,
 // conflicts or impact.
 
-export const ENTITY_KINDS = ['character', 'location', 'item', 'faction', 'event', 'other'] as const
-export type EntityKind = typeof ENTITY_KINDS[number]
-export const KIND_LABEL: Record<EntityKind, { one: string, many: string }> = {
-  character: { one: 'Character', many: 'Characters' },
-  location: { one: 'Location', many: 'Locations' },
-  item: { one: 'Item', many: 'Items' },
-  faction: { one: 'Faction', many: 'Factions' },
-  event: { one: 'Event', many: 'Events' },
-  other: { one: 'Other', many: 'Other' },
+// Entity types are per project (table entity_types): a new project starts from its medium's defaults and the team renames,
+// adds, recolours or removes them in Settings → Projects. A type's key is fixed when it is made; renaming changes only labels,
+// so pages keep their type. Kind guessing and a few presentation heuristics know the built-in keys (character, location,
+// item, faction); they still apply after a rename and simply never fire for keys a project doesn't have.
+export const TYPE_COLORS = { neutral: 'Plain', accent: 'Ink', good: 'Moss', warn: 'Ochre', bad: 'Vermilion', pencil: 'Graphite' } as const
+export type TypeColor = keyof typeof TYPE_COLORS
+// Icons a type may use (names from app/components/ui/Icon.vue).
+export const TYPE_ICONS = ['character', 'npc', 'team', 'location', 'item', 'ability', 'quest', 'faction', 'event', 'scene', 'dialogue', 'image', 'note', 'lock', 'other'] as const
+export type TypeIcon = typeof TYPE_ICONS[number]
+export interface EntityType { key: string, one: string, many: string, color: TypeColor, icon: TypeIcon }
+
+export const DEFAULT_TYPES: Record<string, EntityType> = Object.fromEntries(([
+  ['character', 'Character', 'Characters', 'accent', 'character'],
+  ['npc', 'NPC', 'NPCs', 'accent', 'npc'],
+  ['location', 'Location', 'Locations', 'good', 'location'],
+  ['item', 'Item', 'Items', 'warn', 'item'],
+  ['ability', 'Ability', 'Abilities', 'warn', 'ability'],
+  ['quest', 'Quest', 'Quests', 'pencil', 'quest'],
+  ['faction', 'Faction', 'Factions', 'bad', 'faction'],
+  ['event', 'Event', 'Events', 'pencil', 'event'],
+  ['other', 'Other', 'Other', 'neutral', 'other'],
+] as const).map(([key, one, many, color, icon]) => [key, { key, one, many, color, icon }]))
+
+// "Ability" → "Abilities", "Class" → "Classes". A suggestion; the plural is stored and editable.
+export const pluralOf = (one: string) => /[^aeiou]y$/i.test(one) ? `${one.slice(0, -1)}ies` : /(s|x|z|ch|sh)$/i.test(one) ? `${one}es` : `${one}s`
+// A key the project has no type for (removed since, or seen outside the app) still reads sensibly.
+export function typeOf(types: readonly EntityType[], key: string): EntityType {
+  const one = key.replace(/[_-]+/g, ' ').replace(/^\w/, c => c.toUpperCase())
+  return types.find(t => t.key === key) ?? DEFAULT_TYPES[key] ?? { key, one, many: pluralOf(one), color: 'neutral', icon: 'other' }
 }
 
-// Project medium decides which extra fields each kind shows. Values are stored by key, so switching medium hides fields
+// A type name inside a sentence keeps the team's casing: "Character" → "character", but "NPC" and "Voice Actor" stay.
+export const typeWord = (w: string) => /^\p{Lu}[\p{Ll}\s]*$/u.test(w) ? w.toLowerCase() : w
+// "a" or "an" by sound, letter-named acronyms included: "an item", "an NPC", "a quest".
+export const withArticle = (w: string) => `${/^[aeiou]/i.test(w) || /^[AEFHILMNORSX](?:[A-Z\d]|$)/.test(w) ? 'an' : 'a'} ${w}`
+
+// Project medium decides which extra fields each built-in type shows (a type the team made has none; summary and notes cover it), and
+// which types a new project starts with. Values are stored by key, so switching medium hides fields
 // without losing what was typed.
 export const FIELD_LABEL: Record<string, { label: string, hint: string }> = {
   role: { label: 'Role', hint: 'Protagonist, companion, quest giver…' },
@@ -38,15 +64,18 @@ export const FIELD_LABEL: Record<string, { label: string, hint: string }> = {
   chapter: { label: 'Chapter', hint: 'Where it happens in the book' },
   episode: { label: 'Episode', hint: 'Where it happens in the series' },
   stakes: { label: 'Stakes', hint: 'What can be lost' },
+  schedule: { label: 'Schedule', hint: 'Where they are and when' },
 }
 
 export const MEDIA = {
   game: {
     label: 'Game',
     fields: {
-      character: ['role', 'player_hook', 'voice'], location: ['region', 'access', 'gameplay'], item: ['item_type', 'found', 'gameplay'],
+      character: ['role', 'player_hook', 'voice'], npc: ['role', 'schedule', 'voice'], location: ['region', 'access', 'gameplay'],
+      item: ['item_type', 'found', 'gameplay'], ability: ['gameplay', 'found'], quest: ['questline', 'trigger', 'outcome'],
       faction: ['goal', 'leader', 'stance'], event: ['questline', 'trigger', 'outcome'], other: [],
     },
+    types: ['character', 'npc', 'location', 'item', 'ability', 'quest', 'faction', 'event', 'other'],
   },
   prose: {
     label: 'Novel or prose',
@@ -54,6 +83,7 @@ export const MEDIA = {
       character: ['role', 'want', 'voice'], location: ['region', 'mood'], item: ['significance'],
       faction: ['goal', 'leader'], event: ['chapter', 'stakes'], other: [],
     },
+    types: ['character', 'location', 'item', 'faction', 'event', 'other'],
   },
   screen: {
     label: 'Film or series',
@@ -61,10 +91,13 @@ export const MEDIA = {
       character: ['role', 'arc', 'casting'], location: ['region', 'look'], item: ['significance'],
       faction: ['goal', 'leader'], event: ['episode', 'stakes'], other: [],
     },
+    types: ['character', 'location', 'item', 'faction', 'event', 'other'],
   },
-} satisfies Record<string, { label: string, fields: Record<EntityKind, string[]> }>
+} satisfies Record<string, { label: string, fields: Record<string, string[]>, types: string[] }>
 export type Medium = keyof typeof MEDIA
 export const mediumOf = (v: unknown): Medium => (typeof v === 'string' && Object.hasOwn(MEDIA, v) ? v as Medium : 'game')
+// The preset fields for a type in a medium; none for a type the team made.
+export const fieldsFor = (medium: Medium, kind: string): string[] => (MEDIA[medium].fields as Record<string, string[]>)[kind] ?? []
 
 // Whole-word, case-insensitive matcher for a set of names; longest first so "Leya Venn" wins over "Leya".
 export function mentionPattern(names: Iterable<string>) {

@@ -4,6 +4,7 @@
 useHead({ title: 'Export & share · Story Bible' })
 const me = useMe()
 const editor = computed(() => canEdit(me.value))
+const kindLabel = useKind()
 const origin = useRequestURL().origin
 const { data: entities } = await useEntityList()
 const { data: lib } = await useFetch('/api/library', { default: () => ({ folders: [] as { id: string, name: string, parent_id: string | null }[] }) })
@@ -313,7 +314,7 @@ const opened = (s: Share) => (s.open_count ? `opened ${counted(s.open_count, 'ti
     <template #actions>
       <template v-if="!created">
         <UiButton variant="ghost" @click="dialog = false">Cancel</UiButton>
-        <UiButton variant="primary" type="submit" form="share-form" :loading="creating" :disabled="!form.name.trim()">Create link</UiButton>
+        <UiButton variant="primary" type="submit" form="share-form" :loading="creating" :disabled="!form.name.trim()">Create link<UiSendKey /></UiButton>
       </template>
       <template v-else>
         <a class="btn" :href="created.url" target="_blank" rel="noopener">Open link</a>

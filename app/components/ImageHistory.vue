@@ -222,13 +222,13 @@ const isNew = (i: ImageItem) => added.value.includes(i.id) || !!props.fresh?.inc
             <details class="small"><summary>Prompt</summary><p class="prompt">{{ i.prompt }}</p></details>
           </template>
 
-          <div v-if="editing === i.id" class="cap-edit">
+          <form v-if="editing === i.id" class="cap-edit" @submit.prevent="saveCaption(i)">
             <textarea :id="`cap-${i.id}`" v-model="caption" rows="2" :maxlength="IMAGE_CAPTION_MAX" placeholder="What is this? e.g. Final costume, act 2" aria-label="Caption" @keydown="captionKey($event, i)" />
             <div class="row">
-              <UiButton size="sm" variant="primary" :loading="busyId === i.id" @click="saveCaption(i)">Save</UiButton>
+              <UiButton size="sm" variant="primary" type="submit" :loading="busyId === i.id">Save</UiButton>
               <UiButton size="sm" variant="ghost" @click="editing = ''">Cancel</UiButton>
             </div>
-          </div>
+          </form>
           <template v-else>
             <p v-if="i.caption" class="caption">{{ i.caption }}</p>
             <button v-if="editable" type="button" class="linkish small" @click="editCaption(i)">{{ i.caption ? 'Edit caption' : 'Add caption' }}</button>

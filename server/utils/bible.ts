@@ -75,7 +75,6 @@ export function buildManuscript(opts: BibleOptions, coverUrl: (imageId: string) 
 // Only documents inside the export count: for the bible, the ones its facts cite (`cited`); for the manuscript, its own chapters.
 export const bookCover = (opts: BibleOptions, cited?: string[]) => coverImage(readingOrder(opts).map(d => d.filename), cited && new Set(cited))
 
-const KIND_ORDER = Object.keys(KIND_LABEL)
 const slug = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'entity'
 
 export function buildBible(opts: BibleOptions, portrait: (e: EntityRow) => string | null) {
@@ -116,8 +115,10 @@ export function buildBible(opts: BibleOptions, portrait: (e: EntityRow) => strin
   const used = scoped.filter(f => (on.has('facts') && f.kind !== 'rule') || (on.has('rules') && f.kind === 'rule') || (on.has('timeline') && timed(f)) || inConflict.has(f.id))
   const num = new Map(used.map((f, i) => [f.id, `F${i + 1}`]))
 
+  const types = entityTypes()
+  const order = (k: string) => { const i = types.findIndex(t => t.key === k); return i < 0 ? types.length : i }
   const shown = (chosen ?? [...new Map(scoped.flatMap(f => [entOf(f.subject), entOf(f.object)]).filter(e => !!e).map(e => [e!.id, e!])).values()])
-    .sort((a, b) => KIND_ORDER.indexOf(a.kind) - KIND_ORDER.indexOf(b.kind) || a.name.localeCompare(b.name))
+    .sort((a, b) => order(a.kind) - order(b.kind) || a.name.localeCompare(b.name))
   const keys = new Map<string, string>()
   for (const e of shown) {
     let k = `e-${slug(e.name)}`
@@ -147,7 +148,7 @@ export function buildBible(opts: BibleOptions, portrait: (e: EntityRow) => strin
     const fields = fieldsOf(e)
     const ed = {
       summary: e.summary, notes: e.notes,
-      fields: (MEDIA[medium].fields[e.kind] ?? []).filter(k => fields[k]).map(k => ({ label: FIELD_LABEL[k]!.label, value: fields[k]! })),
+      fields: fieldsFor(medium, e.kind).filter(k => fields[k]).map(k => ({ label: FIELD_LABEL[k]!.label, value: fields[k]! })),
     }
     return {
       key: keys.get(e.id)!, name: e.name, kind: e.kind, aliases: aliasesOf(e), facts: byFactEntity(keys.get(e.id)!), named_in: namedIn(keys.get(e.id)!),
@@ -176,6 +177,8 @@ export function buildBible(opts: BibleOptions, portrait: (e: EntityRow) => strin
       facts: facts.length, entities: entities.length, documents: docs.size, sample: facts.filter(f => f.sample).length,
       stale: facts.filter(f => f.citations.some(c => c.latest_version > c.version)).length,
     },
+    // The project's types for the pages shown, in its order (a page whose type was removed keeps a readable label).
+    types: [...new Set(shown.map(e => e.kind))].map(k => typeOf(types, k)),
     entities, facts,
     other_facts: on.has('facts') ? facts.filter(f => f.kind !== 'rule' && !f.entity).map(f => f.n) : [],
     rules: on.has('rules') ? facts.filter(f => f.kind === 'rule').map(f => f.n) : [],
@@ -210,10 +213,10 @@ export function bibleMarkdown(b: Bible, imageFile: (e: BibleEntity) => string | 
     out.push('')
   }
   if (on.has('entities') && b.entities.length) {
-    for (const kind of Object.keys(KIND_LABEL) as EntityKind[]) {
-      const group = b.entities.filter(e => e.kind === kind)
+    for (const t of b.types) {
+      const group = b.entities.filter(e => e.kind === t.key)
       if (!group.length) continue
-      out.push(`## ${KIND_LABEL[kind].many}`, '')
+      out.push(`## ${t.many}`, '')
       for (const e of group) {
         out.push(`### ${e.name}`, '')
         const img = imageFile(e)

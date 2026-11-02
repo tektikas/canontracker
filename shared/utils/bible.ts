@@ -48,7 +48,7 @@ export interface Bible {
   title: string, studio: string, medium: string, generated_at: string
   scope: { kind: BibleScope, label: string }, sections: BibleSection[], images: boolean
   counts: { facts: number, entities: number, documents: number, sample: number, stale: number }
-  entities: BibleEntity[], facts: BibleFact[], other_facts: string[]
+  types: EntityType[], entities: BibleEntity[], facts: BibleFact[], other_facts: string[]
   // Book exports only: applied cover image of the first document that has one.
   cover?: string | null
   rules: string[], timeline: string[]

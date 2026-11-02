@@ -3,6 +3,7 @@
 const props = defineProps<{ entity: { id: string, name: string, kind: string } }>()
 const emit = defineEmits<{ close: [] }>()
 const { data: list } = useNuxtData<EntityListItem[]>('entities')
+const kindLabel = useKind()
 
 // Same kind first, then the rest, so the likely target is near the top.
 const options = computed(() => (list.value ?? []).filter(e => e.id !== props.entity.id)
@@ -24,12 +25,11 @@ const preview = (id: string) => $fetch(`/api/entities/${props.entity.id}/merge`,
 const doubt = computed(() => {
   const p = plan.value
   if (!p || !target.value) return ''
-  const kind = (k: string) => (k === 'other' ? 'thing' : kindLabel(k).one.toLowerCase())
+  const kind = (k: string, n: 'one' | 'many' = 'one') => (k === 'other' ? (n === 'one' ? 'thing' : 'things') : typeWord(kindLabel(k)[n]))
   const a = kind(p.source.kind)
   const b = kind(p.target.kind)
-  const an = (w: string) => `${/^[aeiou]/.test(w) ? 'an' : 'a'} ${w}`
-  if (a !== b) return `${props.entity.name} is ${an(a)} and ${target.value.name} is ${an(b)}. Merge only if they are the same thing.`
-  if (p.source_canon && p.target_canon) return `Both pages have their own canon (${counted(p.source_canon, 'fact')} and ${counted(p.target_canon, 'fact')}). These look like two different ${a}s — merge only if they are the same ${a}.`
+  if (p.source.kind !== p.target.kind) return `${props.entity.name} is ${withArticle(a)} and ${target.value.name} is ${withArticle(b)}. Merge only if they are the same thing.`
+  if (p.source_canon && p.target_canon) return `Both pages have their own canon (${counted(p.source_canon, 'fact')} and ${counted(p.target_canon, 'fact')}). These look like two different ${kind(p.source.kind, 'many')} — merge only if they are the same ${a}.`
   return ''
 })
 watch(into, async (id) => {
@@ -63,12 +63,12 @@ async function merge() {
 </script>
 
 <template>
-  <UiPanel :title="`Merge ${entity.name} into another page`" :description="`Use this when two pages are the same ${kindLabel(entity.kind).one.toLowerCase()}. ${entity.name}’s page goes away; its facts, names, notes and images move to the page you keep.`" class="merge">
+  <UiPanel :title="`Merge ${entity.name} into another page`" :description="`Use this when two pages are the same ${typeWord(kindLabel(entity.kind).one)}. ${entity.name}’s page goes away; its facts, names, notes and images move to the page you keep.`" class="merge">
     <div class="stack">
       <UiField label="Keep this page">
         <select v-model="into">
           <option value="" disabled>Choose a page…</option>
-          <option v-for="e in options" :key="e.id" :value="e.id">{{ e.name }} ({{ kindLabel(e.kind).one.toLowerCase() }})</option>
+          <option v-for="e in options" :key="e.id" :value="e.id">{{ e.name }} ({{ typeWord(kindLabel(e.kind).one) }})</option>
         </select>
       </UiField>
 

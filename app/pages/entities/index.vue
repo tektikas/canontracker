@@ -1,33 +1,40 @@
 <script setup lang="ts">
+import type { IconName } from '~/components/ui/Icon.vue'
+
 useHead({ title: 'Entities · Story Bible' })
 const me = useMe()
 const route = useRoute()
 const { data: list, refresh } = await useEntityList()
 const editable = computed(() => canEdit(me.value))
 const fill = useFillAction()
+const { data: types } = await useEntityTypes()
+const kindOf = useKind()
 
 const q = ref('')
-const kind = ref<EntityKind | ''>('')
+const kind = ref('')
 const matches = (e: EntityListItem) => {
   const s = q.value.trim().toLowerCase()
   return !s || [...e.names, e.summary].some(t => t.toLowerCase().includes(s))
 }
 const searched = computed(() => list.value.filter(matches))
-const count = (k: EntityKind) => searched.value.filter(e => e.kind === k).length
-const groups = computed(() => ENTITY_KINDS
-  .filter(k => !kind.value || k === kind.value)
-  .map(k => ({ kind: k, items: searched.value.filter(e => e.kind === k) }))
+const count = (k: string) => searched.value.filter(e => e.kind === k).length
+// The project's types in its order; a page whose type was removed outside the app still gets a group at the end.
+const kinds = computed(() => [...new Set([...types.value.map(t => t.key), ...list.value.map(e => e.kind)])].map(kindOf))
+const groups = computed(() => kinds.value
+  .filter(t => !kind.value || t.key === kind.value)
+  .map(t => ({ type: t, items: searched.value.filter(e => e.kind === t.key) }))
   .filter(g => g.items.length))
 
 // New page form
 const creating = ref(route.query.new === '1')
-const form = reactive({ name: '', kind: 'character' as EntityKind, summary: '' })
+const form = reactive({ name: '', kind: '', summary: '' })
 const busy = ref(false)
 const error = ref('')
 const nameInput = ref<HTMLInputElement>()
 watch(creating, async (on) => {
   if (!on) return
   form.name = q.value.trim()
+  form.kind = kind.value || (types.value.some(t => t.key === 'character') ? 'character' : types.value[0]?.key ?? '')
   error.value = ''
   await nextTick()
   nameInput.value?.focus()
@@ -64,9 +71,9 @@ async function create() {
         <UiField label="Name" :error="error">
           <input ref="nameInput" v-model="form.name" type="text" maxlength="80" spellcheck="false" placeholder="e.g. The Tide Guard" @keydown.esc="creating = false">
         </UiField>
-        <UiField label="Kind">
+        <UiField label="Type">
           <select v-model="form.kind">
-            <option v-for="k in ENTITY_KINDS" :key="k" :value="k">{{ KIND_LABEL[k].one }}</option>
+            <option v-for="t in types" :key="t.key" :value="t.key">{{ t.one }}</option>
           </select>
         </UiField>
       </div>
@@ -96,13 +103,16 @@ async function create() {
         <UiIcon name="search" :size="16" />
         <input v-model="q" type="search" placeholder="Search names, aliases, summaries…" aria-label="Search entities">
       </label>
-      <div v-if="searched.length" class="filters" role="group" aria-label="Filter by kind">
-        <button type="button" class="f" :aria-pressed="!kind" @click="kind = ''">All <span>{{ searched.length }}</span></button>
-        <template v-for="k in ENTITY_KINDS" :key="k">
-          <button v-if="count(k) || kind === k" type="button" class="f" :aria-pressed="kind === k" @click="kind = kind === k ? '' : k">
-            <UiIcon :name="k" :size="14" />{{ KIND_LABEL[k].many }} <span>{{ count(k) }}</span>
-          </button>
-        </template>
+      <div class="filter-row">
+        <div v-if="searched.length" class="filters" role="group" aria-label="Filter by type">
+          <button type="button" class="f" :aria-pressed="!kind" @click="kind = ''">All <span>{{ searched.length }}</span></button>
+          <template v-for="t in kinds" :key="t.key">
+            <button v-if="count(t.key) || kind === t.key" type="button" class="f" :aria-pressed="kind === t.key" @click="kind = kind === t.key ? '' : t.key">
+              <UiIcon :name="t.icon as IconName" :size="14" />{{ t.many }} <span>{{ count(t.key) }}</span>
+            </button>
+          </template>
+        </div>
+        <NuxtLink v-if="editable" :to="`/settings/projects/${me?.current?.project.id}#entity-types`" class="small manage"><UiIcon name="settings" :size="14" />Edit types</NuxtLink>
       </div>
     </div>
 
@@ -111,8 +121,8 @@ async function create() {
       <button v-if="editable" type="button" class="linkish" @click="creating = true">Create “{{ q.trim() }}”</button>
     </p>
 
-    <section v-for="g in groups" :key="g.kind" class="group" :aria-labelledby="`k-${g.kind}`">
-      <h2 :id="`k-${g.kind}`"><UiIcon :name="g.kind" :size="16" />{{ KIND_LABEL[g.kind].many }} <span class="faint">{{ g.items.length }}</span></h2>
+    <section v-for="g in groups" :key="g.type.key" class="group" :aria-labelledby="`k-${g.type.key}`">
+      <h2 :id="`k-${g.type.key}`" :class="`kt-${g.type.color}`"><UiIcon :name="g.type.icon as IconName" :size="16" />{{ g.type.many }} <span class="faint">{{ g.items.length }}</span></h2>
       <ul class="cards">
         <li v-for="e in g.items" :key="e.id">
           <NuxtLink :to="`/entities/${e.id}`" class="card-link">
@@ -141,10 +151,14 @@ async function create() {
 .search { position: relative; display: block; max-width: 420px; }
 .search svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: var(--faint); pointer-events: none; }
 .search input { padding-left: 34px; width: 100%; }
-.filters { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.filter-row { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); align-items: center; justify-content: space-between; }
+.filters { display: flex; flex-wrap: wrap; gap: var(--s-2); min-width: 0; }
+.manage { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
+.manage:hover { color: var(--accent); }
 .f { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: var(--text-sm); color: var(--muted); background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-md); padding: 6px 12px; min-height: 34px; cursor: pointer; }
 .f span { color: var(--faint); }
 @media (max-width: 720px) {
+  .filter-row { display: grid; justify-content: stretch; }
   .filters { flex-wrap: nowrap; overflow-x: auto; scrollbar-width: none; margin: 0 calc(-1 * var(--s-4)); padding: 0 var(--s-4); }
   .f { flex: none; min-height: 44px; }
 }
@@ -155,7 +169,7 @@ async function create() {
 .linkish { background: none; border: 0; padding: 0; font: inherit; font-weight: 600; color: var(--accent); cursor: pointer; text-decoration: underline; }
 .group { margin-bottom: var(--s-6); }
 .group h2 { display: flex; align-items: center; gap: var(--s-2); margin: 0 0 var(--s-3); font-size: var(--text-md); }
-.group h2 svg { color: var(--muted); }
+.group h2 svg { color: var(--tone, var(--muted)); }
 .group h2 .faint { font-weight: 500; font-size: var(--text-sm); }
 .cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: var(--s-3); }
 .card-link { display: flex; gap: var(--s-3); align-items: flex-start; height: 100%; padding: var(--s-3) var(--s-4); background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); color: var(--ink); text-decoration: none; transition: border-color var(--dur-1) var(--ease); }
