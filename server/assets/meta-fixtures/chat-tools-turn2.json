@@ -1,0 +1,95 @@
+{
+  "_note": "Chat function calling turn 2: assistant message (content + tool_calls) echoed, then role tool with tool_call_id.",
+  "request": {
+    "method": "POST",
+    "path": "/chat/completions",
+    "body": {
+      "model": "muse-spark-1.3",
+      "reasoning_effort": "minimal",
+      "max_completion_tokens": 400,
+      "messages": [
+        {
+          "role": "user",
+          "content": "Where is Mara on day 3? Use the tool."
+        },
+        {
+          "role": "assistant",
+          "content": "I'll search the records for Mara's whereabouts on day 3.",
+          "tool_calls": [
+            {
+              "id": "call_fixture019",
+              "type": "function",
+              "function": {
+                "name": "sb_search_facts",
+                "arguments": "{\"query\":\"Where is Mara on day 3\"}"
+              }
+            }
+          ]
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_fixture019",
+          "content": "{\"facts\":[{\"id\":\"f_1\",\"statement\":\"Mara is at the Solen Lighthouse on D3 21:00.\"}]}"
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_search_facts",
+            "description": "Search accepted canon facts in the story bible.",
+            "parameters": {
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string"
+                }
+              },
+              "required": [
+                "query"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "status": 200,
+  "latency_ms": 2736,
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit-requests": "3000",
+    "x-ratelimit-limit-tokens": "4000000",
+    "x-ratelimit-remaining-requests": "2998",
+    "x-ratelimit-remaining-tokens": "3999083"
+  },
+  "body": {
+    "id": "chatcmpl-fixture026",
+    "choices": [
+      {
+        "finish_reason": "stop",
+        "index": 0,
+        "message": {
+          "content": "Mara is at the **Solen Lighthouse** on **Day 3 at 21:00**.\n",
+          "refusal": null,
+          "role": "assistant"
+        },
+        "logprobs": null
+      }
+    ],
+    "created": 1793637859,
+    "model": "muse-spark-1.3",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 76,
+      "prompt_tokens": 683,
+      "total_tokens": 759,
+      "completion_tokens_details": {
+        "reasoning_tokens": 46
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    }
+  }
+}

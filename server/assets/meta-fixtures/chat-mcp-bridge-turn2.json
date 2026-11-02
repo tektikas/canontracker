@@ -1,0 +1,729 @@
+{
+  "_note": "The MCP bridge script's 2nd turn as it sends it: all 16 real /mcp tool schemas (draft-07 \"$schema\", default, minLength, …) and the turn-1 assistant message echoed whole (refusal:null included): accepted; the model asked for 4 tools in parallel.",
+  "request": {
+    "method": "POST",
+    "path": "/chat/completions",
+    "body": {
+      "model": "muse-spark-1.3",
+      "messages": [
+        {
+          "role": "system",
+          "content": "Answer only from Story Bible canon. If a tool says unknown, say you do not know. Never invent facts, ids or quotes."
+        },
+        {
+          "role": "user",
+          "content": "Where is Mara on day 3? Use the tool."
+        },
+        {
+          "content": "I'll search the records for Mara's whereabouts on day 3.",
+          "refusal": null,
+          "tool_calls": [
+            {
+              "id": "call_fixture019",
+              "type": "function",
+              "function": {
+                "name": "sb_search_facts",
+                "arguments": "{\"query\":\"Where is Mara on day 3\"}"
+              }
+            }
+          ],
+          "role": "assistant"
+        },
+        {
+          "role": "tool",
+          "tool_call_id": "call_fixture019",
+          "content": "{\"status\":\"unknown\",\"query\":\"Mara day 3\",\"message\":\"Canon has nothing on this (unknown).\",\"facts\":[]}"
+        }
+      ],
+      "tools": [
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_list_projects",
+            "description": "The project this token is scoped to (one token = one project), your role in it, and counts of documents, entity pages, canon facts, pending candidates, open conflicts and open tasks. Call first to confirm what you are connected to. Example: {}",
+            "parameters": {
+              "type": "object",
+              "properties": {}
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_get_context_pack",
+            "description": "Compact briefing on an entity (character, place, faction, rule) or topic: the accepted canon facts about it, each with verbatim source quotes and document ids/lines, plus open conflicts touching them. Use before writing or editing lore. Returns status \"unknown\" when canon has nothing. Example: {\"topic\": \"Odo\", \"limit\": 15}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "topic": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Entity name or topic, e.g. \"Mara Venn\" or \"tide bell rules\""
+                },
+                "limit": {
+                  "default": 15,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 40
+                }
+              },
+              "required": [
+                "topic"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_search_facts",
+            "description": "Keyword search over accepted canon facts (statement, subject, object). Returns compact hits with ids; use sb_get_fact for full evidence. Empty result means canon has nothing on it (\"unknown\"), not that it is false. Example: {\"query\": \"Ashbell voice\", \"limit\": 10}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "query": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "limit": {
+                  "default": 10,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 50
+                }
+              },
+              "required": [
+                "query"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_get_fact",
+            "description": "One fact by id with status and all its evidence (verbatim quote, document id, file, line range). Accepted canon only; pending, rejected and superseded facts are refused (NOT_CANON). Example: {\"fact_id\": \"fact_0123abcd4567ef89\"}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "fact_id": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 64
+                }
+              },
+              "required": [
+                "fact_id"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_list_documents",
+            "description": "The imported source documents (scenes, lore, dialogue…) at their latest version: id, title, file name, folder, kind, tags, version, how many canon facts cite it and how many of those need a re-check after a newer version. Paginated. Filters combine. Example: {\"kind\": \"scene\", \"folder\": \"Act 1\", \"limit\": 20}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "scene",
+                    "lore",
+                    "character",
+                    "location",
+                    "quest",
+                    "dialogue",
+                    "other"
+                  ]
+                },
+                "folder": {
+                  "description": "Folder name or path, e.g. \"Act 1\" or \"Act 1 / Scenes\" (case-insensitive; a folder includes its subfolders)",
+                  "type": "string",
+                  "maxLength": 120
+                },
+                "tag": {
+                  "description": "Tag name, case-insensitive",
+                  "type": "string",
+                  "maxLength": 60
+                },
+                "query": {
+                  "description": "Words in the title or file name",
+                  "type": "string",
+                  "maxLength": 120
+                },
+                "needs_recheck": {
+                  "description": "Only documents with canon citations to re-check",
+                  "type": "boolean"
+                },
+                "limit": {
+                  "default": 50,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "cursor": {
+                  "description": "next_cursor from the previous page; omit for the first page",
+                  "type": "string",
+                  "pattern": "^\\d{1,7}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_read_document",
+            "description": "Source text of one document, passage by passage (a passage is a paragraph or heading), with line numbers and the canon facts citing each passage. Latest version unless you pass version. Narrow with a line range or passage ids; long results are paged (next_cursor) and capped by max_chars; a passage longer than max_chars comes in parts (part.from_char/to_char), join them before quoting. Copy quotes for sb_propose_candidate from here, character for character. Example: {\"document\": \"S03-the-kettle-and-coal.md\", \"from_line\": 1, \"to_line\": 40}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "document": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Document id (any version) or file name"
+                },
+                "version": {
+                  "description": "A specific version; default: the latest (or the version the id names)",
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "from_line": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "to_line": {
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 9007199254740991
+                },
+                "passage_ids": {
+                  "description": "Only these passages (ids from evidence or a previous read)",
+                  "minItems": 1,
+                  "maxItems": 50,
+                  "type": "array",
+                  "items": {
+                    "type": "string",
+                    "maxLength": 64
+                  }
+                },
+                "max_chars": {
+                  "description": "Text budget per page",
+                  "default": 12000,
+                  "type": "integer",
+                  "minimum": 500,
+                  "maximum": 30000
+                },
+                "cursor": {
+                  "description": "next_cursor from the previous page; omit for the first page",
+                  "type": "string",
+                  "pattern": "^\\d{1,7}(:\\d{1,9})?$"
+                }
+              },
+              "required": [
+                "document"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_list_entities",
+            "description": "The project's wiki pages (characters, locations, items, factions, events and any types the team made): id, name, type, aliases and how many canon facts name it. The summary is editorial (not canon). Paginated. Example: {\"type\": \"character\", \"query\": \"odo\"}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "type": {
+                  "description": "Entity type key, e.g. \"character\", \"location\"; the result lists the project's types",
+                  "type": "string",
+                  "maxLength": 40
+                },
+                "query": {
+                  "description": "Words in a name or alias",
+                  "type": "string",
+                  "maxLength": 120
+                },
+                "limit": {
+                  "default": 100,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 200
+                },
+                "cursor": {
+                  "description": "next_cursor from the previous page; omit for the first page",
+                  "type": "string",
+                  "pattern": "^\\d{1,7}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_get_entity",
+            "description": "Everything about one entity page: canon facts naming it (with quotes and sources), its relationships and timeline from canon, open conflicts touching it, pending candidates, where it appears in the sources, and the team's editorial wiki text (summary, aliases, typed fields, notes) clearly marked not canon. canon.status is \"unknown\" when no accepted fact names it. Example: {\"entity\": \"Odo\"}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "entity": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Entity id, name or alias"
+                },
+                "facts_limit": {
+                  "description": "Max canon facts with full evidence",
+                  "default": 40,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                }
+              },
+              "required": [
+                "entity"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_get_timeline",
+            "description": "Accepted canon facts with a story time, in story order: what happens when, with a source for each. Filter by a time window and/or an entity. Story time \"D<day> HH:MM\" or day-only \"D<day>\" (the whole day); the day may be 0 or negative for before D1, e.g. \"D2 14:30\", \"D-3650\". A day-only time (\"D5\") means some time that day; \"~\" marks approximate times; negative days are before the story starts. Paginated. Example: {\"entity\": \"Odo\", \"from\": \"D1\", \"to\": \"D2 23:59\"}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "entity": {
+                  "description": "Entity id, name or alias",
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "from": {
+                  "description": "Window start, e.g. \"D1\" or \"D-3650\"",
+                  "type": "string",
+                  "maxLength": 20
+                },
+                "to": {
+                  "description": "Window end, e.g. \"D3 12:00\"; a day-only end covers that whole day",
+                  "type": "string",
+                  "maxLength": 20
+                },
+                "limit": {
+                  "default": 100,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 200
+                },
+                "cursor": {
+                  "description": "next_cursor from the previous page; omit for the first page",
+                  "type": "string",
+                  "pattern": "^\\d{1,7}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_ask",
+            "description": "A question answered from accepted canon only, the same as Ask in the web app: the answer (when a live model is configured) plus the canon facts it rests on, each with quotes. status: \"supported\" (answer + citations), \"source_only\" (the matching facts, no prose answer: recorded mode or model offline) or \"unknown\" (canon has nothing; do not guess). Example: {\"question\": \"Who rang the Ashbell before the story starts?\"}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "question": {
+                  "type": "string",
+                  "minLength": 3,
+                  "maxLength": 500
+                }
+              },
+              "required": [
+                "question"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_check_facts",
+            "description": "Dry-run continuity check: pass the facts a scene or draft would add and get the rule-based conflicts they would raise against accepted canon, and among themselves. Nothing is stored. Deterministic, no model. Rules: EXACT/APPROX_TIME_LOCATION_OVERLAP (same subject, predicate \"located_at\", object = the place, overlapping clock times), TRAVEL_TIME_TOO_SHORT (two located_at facts closer than a canon \"travel_time\" fact allows; travel_time: subject and object are the two places, value = minutes), RELATIONSHIP_AFTER_END (kind \"relationship\", same predicate and object, used after a canon relationship ended at time_to). Day-only times never clash on place. World-rule checks need a model and are not run. No hits is not proof of consistency. Story time \"D<day> HH:MM\" or day-only \"D<day>\" (the whole day); the day may be 0 or negative for before D1, e.g. \"D2 14:30\", \"D-3650\". Example: {\"facts\": [{\"kind\": \"event\", \"subject\": \"Odo\", \"predicate\": \"located_at\", \"object\": \"Saltgate\", \"time_from\": \"D1 21:00\", \"time_to\": \"D1 22:00\"}]}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "facts": {
+                  "minItems": 1,
+                  "maxItems": 20,
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "kind": {
+                        "default": "event",
+                        "type": "string",
+                        "enum": [
+                          "character",
+                          "claim",
+                          "event",
+                          "relationship",
+                          "rule"
+                        ]
+                      },
+                      "subject": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      "predicate": {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 80
+                      },
+                      "object": {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "value": {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      "time_from": {
+                        "type": "string",
+                        "maxLength": 20
+                      },
+                      "time_to": {
+                        "type": "string",
+                        "maxLength": 20
+                      },
+                      "time_precision": {
+                        "description": "Default exact when a time is given",
+                        "type": "string",
+                        "enum": [
+                          "exact",
+                          "approximate"
+                        ]
+                      },
+                      "statement": {
+                        "description": "The fact as a sentence, echoed back",
+                        "type": "string",
+                        "maxLength": 500
+                      }
+                    },
+                    "required": [
+                      "subject",
+                      "predicate"
+                    ]
+                  }
+                }
+              },
+              "required": [
+                "facts"
+              ]
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_list_conflicts",
+            "description": "Possible canon conflicts found by the rule checks (time/place overlap, travel time, relationship after end, world-rule violations). These are candidates for a human to judge, not verdicts. Default: open ones. Paginated. Example: {\"status\": \"open\"}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "status": {
+                  "default": "open",
+                  "type": "string",
+                  "enum": [
+                    "open",
+                    "confirmed",
+                    "false_positive",
+                    "uncertain",
+                    "resolved_by_merge",
+                    "all"
+                  ]
+                },
+                "limit": {
+                  "default": 50,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "cursor": {
+                  "description": "next_cursor from the previous page; omit for the first page",
+                  "type": "string",
+                  "pattern": "^\\d{1,7}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_get_impact",
+            "description": "What a change would touch: accepted facts and scenes within max 2 hops of a canon fact (fact_id), or the stored impact of an existing change proposal (change_id). Pass exactly one. Each item has path, evidence ids and rationale. An empty list means \"no impact found within accepted canon, max 2 hops\", not a guarantee of none. Example: {\"fact_id\": \"fact_0123abcd4567ef89\"}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "fact_id": {
+                  "type": "string",
+                  "maxLength": 64
+                },
+                "change_id": {
+                  "type": "string",
+                  "maxLength": 64
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_list_recheck",
+            "description": "Canon facts whose citation points at an older version of its source after a new version was imported. \"outdated\": the quoted words are gone from the latest version (or appear more than once), a person must decide; \"unchanged\": the words still read the same, a person only confirms. Read-only: re-pinning is done by a person in the web app. Paginated. Example: {\"state\": \"outdated\"}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "state": {
+                  "default": "all",
+                  "type": "string",
+                  "enum": [
+                    "outdated",
+                    "unchanged",
+                    "all"
+                  ]
+                },
+                "limit": {
+                  "default": 50,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "cursor": {
+                  "description": "next_cursor from the previous page; omit for the first page",
+                  "type": "string",
+                  "pattern": "^\\d{1,7}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_list_tasks",
+            "description": "Re-review tasks: one per scene in an applied change's impact, with the passage to re-read, the change that caused it, the dependency path and who it is assigned to. Default: active (open and in progress). Read-only. Paginated. Example: {\"status\": \"active\"}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "status": {
+                  "default": "active",
+                  "type": "string",
+                  "enum": [
+                    "active",
+                    "open",
+                    "in_progress",
+                    "done",
+                    "wont_fix",
+                    "not_needed",
+                    "all"
+                  ]
+                },
+                "limit": {
+                  "default": 50,
+                  "type": "integer",
+                  "minimum": 1,
+                  "maximum": 100
+                },
+                "cursor": {
+                  "description": "next_cursor from the previous page; omit for the first page",
+                  "type": "string",
+                  "pattern": "^\\d{1,7}$"
+                }
+              }
+            }
+          }
+        },
+        {
+          "type": "function",
+          "function": {
+            "name": "sb_propose_candidate",
+            "description": "Propose a NEW fact for human review. It becomes a pending candidate in the review queue, marked as proposed by this agent; it is NOT canon until a person accepts it. The quote must appear verbatim in one passage (paragraph) of the latest version of an imported document, or the proposal is refused and nothing is stored; curly vs straight quotes, dash style, line breaks and Markdown * _ marks may differ, and the source's exact characters are stored. Requires editor role or above. Example: {\"document\": \"S03-the-kettle-and-coal.md\", \"quote\": \"<exact words from sb_read_document>\", \"statement\": \"Odo keeps the inn's ledger.\", \"kind\": \"claim\", \"subject\": \"Odo\", \"predicate\": \"keeps\", \"object\": \"the inn's ledger\"}",
+            "parameters": {
+              "$schema": "http://json-schema.org/draft-07/schema#",
+              "type": "object",
+              "properties": {
+                "document": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200,
+                  "description": "Imported document id, or its file name when only one document has that name. The latest version is cited."
+                },
+                "quote": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 2000,
+                  "description": "Exact text copied from the document"
+                },
+                "statement": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 500,
+                  "description": "The fact as one plain sentence"
+                },
+                "kind": {
+                  "type": "string",
+                  "enum": [
+                    "character",
+                    "claim",
+                    "event",
+                    "relationship",
+                    "rule"
+                  ]
+                },
+                "subject": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 200
+                },
+                "predicate": {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 80
+                },
+                "object": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "value": {
+                  "type": "string",
+                  "maxLength": 200
+                },
+                "time_from": {
+                  "description": "Story time \"D<day> HH:MM\" or day-only \"D<day>\" (the whole day); the day may be 0 or negative for before D1, e.g. \"D2 14:30\", \"D-3650\"",
+                  "type": "string",
+                  "maxLength": 20
+                },
+                "time_to": {
+                  "type": "string",
+                  "maxLength": 20
+                },
+                "time_precision": {
+                  "type": "string",
+                  "enum": [
+                    "exact",
+                    "approximate"
+                  ]
+                }
+              },
+              "required": [
+                "document",
+                "quote",
+                "statement",
+                "kind",
+                "subject",
+                "predicate"
+              ]
+            }
+          }
+        }
+      ]
+    }
+  },
+  "status": 200,
+  "latency_ms": 5312,
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit-requests": "3000",
+    "x-ratelimit-limit-tokens": "4000000",
+    "x-ratelimit-remaining-requests": "2999",
+    "x-ratelimit-remaining-tokens": "4000000"
+  },
+  "body": {
+    "id": "chatcmpl-fixture020",
+    "choices": [
+      {
+        "finish_reason": "tool_calls",
+        "index": 0,
+        "message": {
+          "content": "That initial search came up empty, so I'll check the timeline and entity records directly.",
+          "refusal": null,
+          "tool_calls": [
+            {
+              "id": "call_fixture021",
+              "type": "function",
+              "function": {
+                "name": "sb_get_timeline",
+                "arguments": "{\"entity\":\"Mara\",\"from\":\"D3\",\"to\":\"D3 23:59\"}"
+              }
+            },
+            {
+              "id": "call_fixture022",
+              "type": "function",
+              "function": {
+                "name": "sb_search_facts",
+                "arguments": "{\"limit\":20,\"query\":\"Mara\"}"
+              }
+            },
+            {
+              "id": "call_fixture023",
+              "type": "function",
+              "function": {
+                "name": "sb_get_entity",
+                "arguments": "{\"entity\":\"Mara\"}"
+              }
+            },
+            {
+              "id": "call_fixture024",
+              "type": "function",
+              "function": {
+                "name": "sb_ask",
+                "arguments": "{\"question\":\"Where is Mara on day 3?\"}"
+              }
+            }
+          ],
+          "role": "assistant"
+        },
+        "logprobs": null
+      }
+    ],
+    "created": 1793638336,
+    "model": "muse-spark-1.3",
+    "object": "chat.completion",
+    "usage": {
+      "completion_tokens": 667,
+      "prompt_tokens": 5069,
+      "total_tokens": 5736,
+      "completion_tokens_details": {
+        "reasoning_tokens": 384
+      },
+      "prompt_tokens_details": {
+        "cached_tokens": 0
+      }
+    }
+  }
+}

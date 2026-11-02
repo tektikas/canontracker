@@ -1,0 +1,34 @@
+{
+  "_note": "background:true submit: status queued, output [].",
+  "request": {
+    "method": "POST",
+    "path": "/responses",
+    "body": {
+      "model": "muse-spark-1.3",
+      "reasoning": {
+        "effort": "minimal"
+      },
+      "max_output_tokens": 200,
+      "background": true,
+      "input": "Name one lighthouse in Ireland, in one short sentence."
+    }
+  },
+  "status": 200,
+  "latency_ms": 1223,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "model": "muse-spark-1.3",
+    "background": true,
+    "id": "resp_fixture028",
+    "object": "response",
+    "status": "queued",
+    "created_at": 1793637935,
+    "error": null,
+    "incomplete_details": null,
+    "output": [],
+    "instructions": null,
+    "parallel_tool_calls": false
+  }
+}

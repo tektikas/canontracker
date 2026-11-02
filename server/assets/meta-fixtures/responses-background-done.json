@@ -1,0 +1,66 @@
+{
+  "_note": "GET /responses/{id} after ~8 s: status completed with output and usage.",
+  "request": {
+    "method": "GET",
+    "path": "/responses/resp_fixture028",
+    "body": null
+  },
+  "status": 200,
+  "latency_ms": 3026,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "temperature": 1,
+    "top_p": 1,
+    "model": "muse-spark-1.3",
+    "reasoning": {
+      "effort": "minimal"
+    },
+    "background": true,
+    "tools": [],
+    "id": "resp_fixture028",
+    "object": "response",
+    "status": "completed",
+    "created_at": 1793637935,
+    "completed_at": 1793637943,
+    "error": null,
+    "incomplete_details": null,
+    "output": [
+      {
+        "type": "reasoning",
+        "id": "rs_fixture029:rs_fixture030",
+        "summary": [],
+        "status": "completed"
+      },
+      {
+        "type": "message",
+        "id": "msg_fixture031",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "The Fastnet Lighthouse stands off the southwest coast of County Cork, Ireland.",
+            "annotations": [],
+            "logprobs": []
+          }
+        ],
+        "status": "completed"
+      }
+    ],
+    "instructions": null,
+    "usage": {
+      "input_tokens": 19,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 94,
+      "output_tokens_details": {
+        "reasoning_tokens": 70
+      },
+      "total_tokens": 113
+    },
+    "parallel_tool_calls": true,
+    "max_output_tokens": 200
+  }
+}

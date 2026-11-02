@@ -1,0 +1,256 @@
+{
+  "_note": "Replay of every turn-1 item incl. web_search_call (search and open_page) + a user nudge, stateless: accepted; function_call returned.",
+  "request": {
+    "method": "POST",
+    "path": "/responses",
+    "body": {
+      "model": "muse-spark-1.3",
+      "instructions": "Search the web for facts and cite the pages you used. Never compute numbers yourself: call the function tool for any arithmetic.",
+      "input": [
+        {
+          "role": "user",
+          "content": "Look up the height in metres of Big Ben's tower, then call fall_time with that height."
+        },
+        {
+          "type": "reasoning",
+          "id": "rs_fixture002:rs_fixture003",
+          "encrypted_content": "<encrypted reasoning, redacted>",
+          "summary": [],
+          "status": "completed"
+        },
+        {
+          "type": "message",
+          "id": "rs_fixture004",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "I'll look up the tower height, then time the fall.",
+              "annotations": [],
+              "logprobs": []
+            }
+          ],
+          "phase": "commentary",
+          "status": "completed"
+        },
+        {
+          "type": "web_search_call",
+          "id": "ws_call_fixture005",
+          "status": "completed",
+          "action": {
+            "type": "search",
+            "query": "Big Ben tower height metres"
+          }
+        },
+        {
+          "type": "reasoning",
+          "id": "rs_fixture002:rs_fixture006",
+          "encrypted_content": "<encrypted reasoning, redacted>",
+          "summary": [],
+          "status": "completed"
+        },
+        {
+          "type": "message",
+          "id": "rs_fixture007",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "The search suggests 96 metres — I'll open the source to verify before calculating.",
+              "annotations": [],
+              "logprobs": []
+            }
+          ],
+          "phase": "commentary",
+          "status": "completed"
+        },
+        {
+          "type": "web_search_call",
+          "id": "ws_call_fixture008",
+          "status": "completed",
+          "action": {
+            "type": "open_page",
+            "url": "https://en.wikipedia.org/wiki/Big_ben"
+          }
+        },
+        {
+          "type": "reasoning",
+          "id": "rs_fixture002:rs_fixture009",
+          "encrypted_content": "<encrypted reasoning, redacted>",
+          "summary": [],
+          "status": "completed"
+        },
+        {
+          "type": "message",
+          "id": "msg_fixture010",
+          "role": "assistant",
+          "content": [
+            {
+              "type": "output_text",
+              "text": "Based on web lookup:\n\n**Big Ben's tower height is 96 metres.**\n\n> - `Height | 316 feet (96 m)`\n> - `It stands 316 feet (96 m) tall, and the climb from ground level to the belfry is 334 steps.`\n> - `Completed in 1859, the tower is designed in Pugin's Gothic Revival style and is 316 feet (96.3 m) high`\n\nOther results agree:\n\n> - `The building is 96 metres high and 334 steps lead to the bell tower.`\n> - `standing 96 metres tall on the north end of the Palace of Westminster.`\n\nI was asked to then call `fall_time` with that height — **96**:\n\nI am unable to make that tool call now because no further tool calls are available. The value to use for `fall_time` would be **96 metres**.\n",
+              "annotations": [
+                {
+                  "type": "url_citation",
+                  "url": "https://en.wikipedia.org/wiki/Big_ben",
+                  "start_index": 64,
+                  "end_index": 94,
+                  "title": "Big Ben - Wikipedia"
+                },
+                {
+                  "type": "url_citation",
+                  "url": "https://en.wikipedia.org/wiki/Big_ben",
+                  "start_index": 95,
+                  "end_index": 192,
+                  "title": "Big Ben - Wikipedia"
+                },
+                {
+                  "type": "url_citation",
+                  "url": "https://en.wikipedia.org/wiki/Big_ben",
+                  "start_index": 193,
+                  "end_index": 301,
+                  "title": "Big Ben - Wikipedia"
+                }
+              ],
+              "logprobs": []
+            }
+          ],
+          "status": "completed"
+        },
+        {
+          "role": "user",
+          "content": "Now call fall_time with 96."
+        }
+      ],
+      "tools": [
+        {
+          "type": "web_search"
+        },
+        {
+          "type": "function",
+          "name": "fall_time",
+          "description": "Seconds for an object to fall from a height in metres (no air resistance).",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "height_m": {
+                "type": "number"
+              }
+            },
+            "required": [
+              "height_m"
+            ],
+            "additionalProperties": false
+          }
+        }
+      ],
+      "max_output_tokens": 2000,
+      "max_tool_calls": 1,
+      "store": false,
+      "include": [
+        "reasoning.encrypted_content"
+      ],
+      "reasoning": {
+        "effort": "low"
+      }
+    }
+  },
+  "status": 200,
+  "latency_ms": 3911,
+  "headers": {
+    "content-type": "application/json",
+    "x-ratelimit-limit-requests": "3000",
+    "x-ratelimit-limit-tokens": "4000000",
+    "x-ratelimit-remaining-requests": "2999",
+    "x-ratelimit-remaining-tokens": "3989866"
+  },
+  "body": {
+    "top_logprobs": 0,
+    "temperature": 1,
+    "top_p": 1,
+    "service_tier": "auto",
+    "model": "muse-spark-1.3",
+    "reasoning": {
+      "effort": "low"
+    },
+    "background": false,
+    "max_tool_calls": 1,
+    "tools": [
+      {
+        "type": "web_search"
+      },
+      {
+        "type": "function",
+        "name": "fall_time",
+        "description": "Seconds for an object to fall from a height in metres (no air resistance).",
+        "parameters": {
+          "additionalProperties": false,
+          "type": "object",
+          "properties": {
+            "height_m": {
+              "type": "number"
+            }
+          },
+          "required": [
+            "height_m"
+          ]
+        }
+      }
+    ],
+    "tool_choice": "auto",
+    "truncation": "disabled",
+    "id": "resp_fixture011",
+    "object": "response",
+    "status": "completed",
+    "created_at": 1793638118,
+    "completed_at": 1793638118,
+    "error": null,
+    "incomplete_details": null,
+    "output": [
+      {
+        "type": "reasoning",
+        "id": "rs_fixture012:rs_fixture013",
+        "encrypted_content": "<encrypted reasoning, redacted>",
+        "summary": [],
+        "status": "completed"
+      },
+      {
+        "type": "message",
+        "id": "rs_fixture014",
+        "role": "assistant",
+        "content": [
+          {
+            "type": "output_text",
+            "text": "Switching to the timing calculation now.",
+            "annotations": [],
+            "logprobs": []
+          }
+        ],
+        "phase": "commentary",
+        "status": "completed"
+      },
+      {
+        "type": "function_call",
+        "id": "fc_fixture015",
+        "call_id": "call_fixture016",
+        "name": "fall_time",
+        "arguments": "{\"height_m\":96.0}",
+        "status": "completed"
+      }
+    ],
+    "instructions": "Search the web for facts and cite the pages you used. Never compute numbers yourself: call the function tool for any arithmetic.",
+    "usage": {
+      "input_tokens": 2681,
+      "input_tokens_details": {
+        "cached_tokens": 0
+      },
+      "output_tokens": 84,
+      "output_tokens_details": {
+        "reasoning_tokens": 13
+      },
+      "total_tokens": 2765
+    },
+    "parallel_tool_calls": true,
+    "store": false,
+    "max_output_tokens": 2000
+  }
+}

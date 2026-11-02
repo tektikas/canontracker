@@ -1,0 +1,21 @@
+{
+  "_note": "POST /responses/{id}/cancel: status cancelled.",
+  "request": {
+    "method": "POST",
+    "path": "/responses/resp_fixture027/cancel",
+    "body": null
+  },
+  "status": 200,
+  "latency_ms": 4187,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "id": "resp_fixture027",
+    "object": "response",
+    "status": "cancelled",
+    "model": "muse-spark-1.3",
+    "background": true,
+    "output": []
+  }
+}

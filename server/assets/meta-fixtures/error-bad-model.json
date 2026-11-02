@@ -1,0 +1,30 @@
+{
+  "_note": "Unknown model id on Chat Completions: 404 model_not_found.",
+  "request": {
+    "method": "POST",
+    "path": "/chat/completions",
+    "body": {
+      "model": "muse-spark-9.9",
+      "max_completion_tokens": 16,
+      "messages": [
+        {
+          "role": "user",
+          "content": "hi"
+        }
+      ]
+    }
+  },
+  "status": 404,
+  "latency_ms": 1289,
+  "headers": {
+    "content-type": "application/json"
+  },
+  "body": {
+    "error": {
+      "code": "model_not_found",
+      "message": "The requested model was not found.",
+      "param": null,
+      "type": "invalid_request_error"
+    }
+  }
+}
