@@ -124,10 +124,6 @@ const next = computed(() => {
     </template>
   </UiPageHeader>
 
-  <p v-if="['recorded', 'mixed'].includes(provenance(stats?.data_model_id).kind)" class="notice warn home-notice">
-    <span><b>Recorded run.</b> These candidates and model checks are replayed from a recorded extraction, not a live model call.</span>
-  </p>
-
   <GettingStarted v-if="editor" :demo="demoLoaded" />
 
   <section id="workflow" class="panel flush workflow" aria-labelledby="workflow-title">
