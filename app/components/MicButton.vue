@@ -2,7 +2,8 @@
 // Speak instead of typing: records from the microphone in the browser (MediaRecorder), the server transcribes the clip
 // (POST /api/voice/transcribe, Muse Voice Transcribe) and `text` hands the words back for the person to check before using
 // them. Nothing is kept on the server but the model-call record. Stops by itself at `max` seconds.
-const props = withDefaults(defineProps<{ max?: number, label?: string }>(), { max: 120, label: 'Dictate' })
+// compact: icon-only buttons (the chat drawer's narrow composer).
+const props = withDefaults(defineProps<{ max?: number, label?: string, compact?: boolean }>(), { max: 120, label: 'Dictate' })
 const emit = defineEmits<{ text: [text: string] }>()
 
 const state = ref<'idle' | 'starting' | 'recording' | 'transcribing'>('idle')
@@ -78,15 +79,15 @@ onBeforeUnmount(cancel)
   <span class="mic">
     <button
       v-if="state !== 'recording'" type="button" class="btn ghost sm mic-btn" :disabled="state !== 'idle'"
-      :title="`${label}: speak, then stop to turn it into text (up to ${mmss(max)})`" @click="start"
+      :title="`${label}: speak, then stop to turn it into text (up to ${mmss(max)})`" :aria-label="compact ? label : undefined" @click="start"
     >
-      <UiIcon name="mic" :size="16" /><span>{{ state === 'transcribing' ? 'Transcribing…' : state === 'starting' ? 'Starting…' : label }}</span>
+      <UiIcon name="mic" :size="16" /><span v-if="!compact || state === 'transcribing'">{{ state === 'transcribing' ? 'Transcribing…' : state === 'starting' ? 'Starting…' : label }}</span>
     </button>
     <template v-else>
       <button type="button" class="btn sm mic-btn on" title="Stop and transcribe" @click="stop">
-        <span class="dot" aria-hidden="true" /><UiIcon name="stop" :size="14" /><span>Stop</span>
+        <span class="dot" aria-hidden="true" /><UiIcon name="stop" :size="14" /><span :class="{ 'sr-only': compact }">Stop</span>
       </button>
-      <span class="small mono time" role="timer" aria-live="off">{{ mmss(seconds) }} / {{ mmss(max) }}</span>
+      <span class="small mono time" role="timer" aria-live="off">{{ mmss(seconds) }}<template v-if="!compact"> / {{ mmss(max) }}</template></span>
       <button type="button" class="btn ghost sm" title="Discard this recording" @click="cancel"><UiIcon name="close" :size="14" /><span class="sr-only">Discard</span></button>
     </template>
     <span v-if="state === 'recording'" class="sr-only" role="status">Recording</span>

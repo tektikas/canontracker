@@ -1,24 +1,61 @@
 <script setup lang="ts">
-const question = ref('')
-const result = ref<Record<string, any> | null>(null)
-const asked = ref('')
-const busy = ref(false)
-const error = ref('')
-const DEMO_EXAMPLES = [
-  'Why can\'t Leya remember an hour of Day 1?',
-  'Where is Arin at 22:00 on Day 1?',
-  'What did the harbor master eat on Day 3?',
-]
-const ASHBELL_EXAMPLES = [
-  'Who rings the Ashbell at dusk?',
-  'How long is the walk from the Bell Gate to Saltgate?',
-  'What is Corin\'s favourite song?',
-]
-// The demo questions only fit a project holding that demo; elsewhere, ask about the project's own most-cited pages.
+// Ask: the project's conversations. Left, every conversation on the project (anyone on the team can read and post in any);
+// right, the open one (?c=<id>; none = a new conversation, started by its first message). The list refreshes every 5 s
+// while the tab is visible, so a teammate's new conversation or message shows up without a reload.
+useHead({ title: 'Ask · Story Bible' })
+const route = useRoute()
+const router = useRouter()
+const me = useMe()
+const editor = computed(() => canEdit(me.value))
+const chat = useChat()
+useChatDock('ask', () => true)
+
+const q = ref('')
+const { data: list, refresh } = await useFetch('/api/conversations', { query: computed(() => ({ q: q.value.trim() })), default: () => [] })
+let poll: ReturnType<typeof setInterval> | undefined
+onMounted(() => { poll = setInterval(() => { if (document.visibilityState === 'visible') refresh() }, 5000) })
+onBeforeUnmount(() => clearInterval(poll))
+
+// ?c=new opens an empty conversation (on phones the list is the start screen, so "new" needs its own address).
+const current = computed<string | null>({
+  get: () => (typeof route.query.c === 'string' && route.query.c !== 'new' ? route.query.c : null),
+  set: id => router.replace({ query: { c: id ?? 'new' } }),
+})
+const showingChat = computed(() => !!route.query.c)
+function startNew() {
+  router.push({ query: { c: 'new' } })
+  chat.value.tick++
+}
+const thread = ref<{ conversation: { id: string, title: string, created_by_name: string, created_at: string } | null, reload: () => unknown, send: (t: string) => unknown }>()
+const conversation = computed(() => (current.value ? thread.value?.conversation ?? null : null))
+
+// Rename (editors and up).
+const renaming = ref(false)
+const newTitle = ref('')
+const renameError = ref('')
+function startRename() {
+  newTitle.value = conversation.value?.title ?? ''
+  renameError.value = ''
+  renaming.value = true
+  nextTick(() => document.querySelector<HTMLInputElement>('.rename input')?.select())
+}
+async function rename() {
+  try {
+    await $fetch(`/api/conversations/${current.value}`, { method: 'PATCH', body: { title: newTitle.value } })
+    renaming.value = false
+    await Promise.all([thread.value?.reload(), refresh()])
+  } catch (e) {
+    renameError.value = errorMessage(e)
+  }
+}
+watch(current, () => { renaming.value = false })
+
+// Starter questions: the demo's own, or ones about the project's most-cited pages.
+const DEMO_EXAMPLES = ['Why can\'t Leya remember an hour of Day 1?', 'Where is Arin at 22:00 on Day 1?', 'What did the harbor master eat on Day 3?']
+const ASHBELL_EXAMPLES = ['Who rings the Ashbell at dusk?', 'Where was she at dusk?', 'What is Corin\'s favourite song?']
 const { data: docs } = await useFetch('/api/documents')
 const { data: entities } = await useEntityList()
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
-const fill = useFillAction()
 const examples = computed(() => {
   if (docs.value?.some(d => d.filename === 'lore-chord-stone.md')) return DEMO_EXAMPLES
   if (docs.value?.some(d => d.filename === 'lore-the-ashbell.md')) return ASHBELL_EXAMPLES
@@ -26,122 +63,125 @@ const examples = computed(() => {
   const who = cited.find(e => e.kind === 'character')
   const where = cited.find(e => e.kind === 'location')
   const top = cited.find(e => e !== who && e !== where)
-  return [who && `Where is ${who.name}?`, where && `Who has been to ${placePhrase(where.name)}?`, top && `What do we know about ${top.name}?`].filter((q): q is string => !!q)
+  return [who && `Where is ${who.name}?`, where && `Who has been to ${placePhrase(where.name)}?`, top && `What do we know about ${top.name}?`].filter((x): x is string => !!x)
 })
-
-// Independent questions shown as a chat: /api/qa has no conversation memory, so each turn is answered on its own.
-type Turn = { id: number, q: string, result?: Record<string, any>, error?: string }
-const turns = ref<Turn[]>([])
-let seq = 0
-
-async function ask(q = question.value) {
-  q = q.trim()
-  if (!q || busy.value) return
-  question.value = ''
-  busy.value = true
-  const turn = reactive<Turn>({ id: ++seq, q })
-  turns.value.push(turn)
-  scrollEnd()
-  try {
-    turn.result = await $fetch('/api/qa', { method: 'POST', body: { question: q } })
-    refreshNuxtData('stats')
-  } catch (e) {
-    turn.error = errorMessage(e)
-  } finally {
-    busy.value = false
-    scrollEnd()
-  }
+function tryExample(ex: string) {
+  chat.value.mode = 'canon'
+  thread.value?.send(ex)
 }
-function scrollEnd() {
-  nextTick(() => window.scrollTo({ top: document.documentElement.scrollHeight }))
-}
-// Enter and Ctrl/Cmd+Enter send; Shift+Enter (and IME composition) leave the newline alone.
-function onKey(e: KeyboardEvent) {
-  if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return
-  e.preventDefault()
-  ask()
-}
-
-const STATUS = {
-  supported: { tone: 'good', label: 'Supported by canon', text: 'Answered from accepted canon. Check the sources below.' },
-  source_only: { tone: 'warn', label: 'Related canon only', text: 'The model is offline, so no answer was written. These accepted facts look related; read them yourself.' },
-  unknown: { tone: 'neutral', label: 'Unknown', text: 'No accepted canon fact answers this. Nothing was guessed.' },
-} as const
-const statusOf = (t: Turn) => STATUS[t.result?.status as keyof typeof STATUS]
 </script>
 
 <template>
-  <UiPageHeader title="Ask the canon" description="Answers come only from accepted canon and cite their sources. If the canon doesn't support an answer, the result is “unknown”. Each question is answered on its own; earlier ones aren't remembered." />
-
-  <UiPanel v-if="stats && !stats.canon && !turns.length">
-    <UiEmptyState title="Nothing to ask yet" icon="ask">
-      Answers come only from accepted canon, and this project has none yet. Once facts are accepted, ask about who, where and when.
-      <template #actions><UiButton variant="primary" :icon="fill.icon" :to="fill.to">{{ fill.label }}</UiButton></template>
-    </UiEmptyState>
-  </UiPanel>
-  <template v-else>
-    <div class="chat" role="log" aria-live="polite" aria-label="Conversation">
-      <div v-if="!turns.length" class="starter">
-        <p class="muted">Ask about characters, places, rules or timing. Try one of these:</p>
-        <div v-if="examples.length" class="examples">
-          <button v-for="ex in examples" :key="ex" type="button" class="example" @click="ask(ex)">{{ ex }}</button>
-        </div>
+  <div class="ask" :class="{ 'showing-chat': showingChat }">
+    <aside class="convs" aria-label="Conversations">
+      <div class="convs-head">
+        <h1>Ask</h1>
+        <UiButton variant="primary" size="sm" icon="plus" @click="startNew">New</UiButton>
       </div>
-      <template v-for="t in turns" :key="t.id">
-        <p class="bubble me">{{ t.q }}</p>
-        <div class="reply">
-          <p v-if="!t.result && !t.error" class="bubble them faint" role="status">Searching the canon…</p>
-          <p v-else-if="t.error" class="notice bad" role="alert">{{ t.error }}</p>
-          <template v-else-if="t.result">
-            <div class="verdict" :class="statusOf(t).tone" :data-status="t.result.status">
-              <div class="verdict-head">
-                <UiBadge :tone="statusOf(t).tone" dot>{{ statusOf(t).label }}</UiBadge>
-                <span class="small muted">{{ t.result.model.label }} · <span class="mono">{{ t.result.trace_id }}</span></span>
-              </div>
-              <p v-if="t.result.answer" class="statement answer">{{ t.result.answer }}</p>
-              <p v-if="t.result.model_error" class="notice bad" role="alert">{{ t.result.model_error }} The related facts below were found by keyword match, not by the model.</p>
-              <p v-else-if="!t.result.answer" class="verdict-text">{{ statusOf(t).text }}</p>
-            </div>
-            <template v-if="t.result.cited.length">
-              <h2 class="cited-title">{{ t.result.status === 'supported' ? 'Sources' : 'Related accepted facts' }} <span class="faint">{{ t.result.cited.length }}</span></h2>
-              <UiPanel v-for="f in t.result.cited" :key="f.id" sunk>
-                <FactSummary :fact="f" sources />
-              </UiPanel>
-            </template>
-          </template>
-        </div>
-      </template>
-    </div>
+      <input v-model="q" type="search" class="conv-search" placeholder="Search conversations" aria-label="Search conversations">
+      <p v-if="!list.length" class="small muted none">{{ q.trim() ? 'No conversation matches.' : 'No conversations yet. Ask the first question; the whole team will see it.' }}</p>
+      <ul v-else class="conv-list">
+        <li v-for="c in list" :key="c.id">
+          <NuxtLink :to="{ query: { c: c.id } }" class="conv" :aria-current="c.id === current ? 'page' : undefined">
+            <UiIcon :name="c.mode === 'research' ? 'research' : 'canon'" :size="16" class="conv-mode" :class="c.mode" :label="c.mode === 'research' ? 'Research' : 'Canon'" />
+            <span class="conv-text">
+              <span class="conv-title">{{ c.title }}</span>
+              <span class="conv-meta small">{{ c.people || c.created_by_name }} · <ClientOnly>{{ timeAgo(c.updated_at) }}<template #fallback>{{ shortDate(c.updated_at) }}</template></ClientOnly></span>
+            </span>
+          </NuxtLink>
+        </li>
+      </ul>
+    </aside>
 
-    <form class="composer" @submit.prevent="ask()">
-      <textarea v-model="question" rows="1" aria-label="Question" placeholder="Ask the canon…" @keydown="onKey" />
-      <!-- Voice fills the box; the person reads it and sends it themselves. -->
-      <MicButton label="Speak" :max="60" @text="t => (question = `${question.trim()} ${t}`.trim())" />
-      <UiButton type="submit" variant="primary" :disabled="busy || !question.trim()" :loading="busy">{{ busy ? 'Searching…' : 'Ask' }}</UiButton>
-    </form>
-  </template>
+    <section class="chat-col" :aria-label="conversation?.title ?? 'New conversation'">
+      <header class="chat-head">
+        <NuxtLink to="/ask" class="back small"><UiIcon name="arrow" :size="14" class="flip" />Conversations</NuxtLink>
+        <form v-if="renaming" class="rename" @submit.prevent="rename">
+          <input v-model="newTitle" type="text" maxlength="120" aria-label="Conversation title" required @keydown.esc="renaming = false">
+          <UiButton type="submit" size="sm" variant="primary">Save</UiButton>
+          <UiButton size="sm" variant="ghost" @click="renaming = false">Cancel</UiButton>
+          <p v-if="renameError" class="field-error" role="alert">{{ renameError }}</p>
+        </form>
+        <template v-else>
+          <div class="chat-title">
+            <h2>{{ conversation?.title ?? 'New conversation' }}</h2>
+            <p class="small muted">
+              <template v-if="conversation">Started by {{ conversation.created_by_name }}, {{ shortDate(conversation.created_at) }} · everyone on {{ me?.current?.project.name ?? 'the project' }} can read and reply</template>
+              <template v-else>Everyone on {{ me?.current?.project.name ?? 'the project' }} will see this conversation.</template>
+            </p>
+          </div>
+          <UiButton v-if="conversation && editor" size="sm" variant="ghost" icon="review" @click="startRename">Rename</UiButton>
+        </template>
+      </header>
+
+      <ChatThread ref="thread" v-model:conv="current" @changed="refresh">
+        <template #empty>
+          <div class="starter">
+            <div class="modes-explained">
+              <div class="explain canon"><b><UiIcon name="canon" :size="14" />Canon</b><span class="small muted">Answers only from accepted canon and cites the sources. No evidence means “unknown”. Fast.</span></div>
+              <div class="explain research"><b><UiIcon name="research" :size="14" />Research</b><span class="small muted">Real-world questions: history, science, procedure. Outside sources, slower, never added to canon.</span></div>
+            </div>
+            <template v-if="stats && !stats.canon">
+              <p class="small muted">This project has no accepted canon yet, so Canon answers “unknown” for now. Research works without it.</p>
+            </template>
+            <template v-else-if="examples.length">
+              <p class="small muted">Try one of these:</p>
+              <div class="examples">
+                <button v-for="ex in examples" :key="ex" type="button" class="example" @click="tryExample(ex)">{{ ex }}</button>
+              </div>
+            </template>
+          </div>
+        </template>
+      </ChatThread>
+    </section>
+  </div>
 </template>
 
 <style scoped>
-.chat { display: grid; gap: var(--s-4); min-height: calc(100dvh - 20rem - var(--bottom-nav-h, 0px)); align-content: start; padding-bottom: var(--s-4); }
-.starter { display: grid; gap: var(--s-3); padding: var(--s-5) 0; }
+.ask { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: var(--s-5); align-items: start; }
+.convs { position: sticky; top: var(--s-4); display: grid; gap: var(--s-3); align-content: start; max-height: calc(100dvh - 2 * var(--s-4)); overflow-y: auto; padding-right: 2px; }
+.convs-head { display: flex; align-items: center; justify-content: space-between; gap: var(--s-2); }
+.convs-head h1 { margin: 0; font-size: var(--text-2xl); }
+.conv-search { width: 100%; }
+.none { margin: 0; }
+.conv-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+.conv { display: flex; gap: var(--s-2); align-items: flex-start; padding: 8px 10px; border-radius: var(--r-md); color: var(--ink); text-decoration: none; }
+.conv:hover { background: var(--sunken); }
+.conv[aria-current] { background: var(--raised); box-shadow: 0 0 0 1px var(--line-strong); }
+.conv-mode { flex: none; margin-top: 2px; color: var(--accent); }
+.conv-mode.research { color: var(--research); }
+.conv-text { display: grid; min-width: 0; gap: 1px; }
+.conv-title { font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.conv[aria-current] .conv-title { font-weight: 600; }
+.conv-meta { color: var(--faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-col { display: grid; gap: var(--s-3); min-width: 0; }
+.chat-head { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-3); align-items: flex-start; justify-content: space-between; padding-bottom: var(--s-3); border-bottom: 1px solid var(--line); }
+.chat-title { min-width: 0; flex: 1 1 300px; }
+.chat-title h2 { margin: 0; font-size: var(--text-lg); overflow-wrap: anywhere; }
+.chat-title p { margin: 2px 0 0; }
+.back { display: none; align-items: center; gap: 4px; flex-basis: 100%; color: var(--muted); }
+.flip { transform: scaleX(-1); }
+.rename { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; flex: 1; }
+.rename input { flex: 1 1 240px; }
+.rename .field-error { flex-basis: 100%; margin: 0; }
+.starter { display: grid; gap: var(--s-3); padding: var(--s-4) 0; }
 .starter p { margin: 0; }
-.examples { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
-.example { font: inherit; font-size: var(--text-sm); color: var(--muted); background: var(--sunken); border: 1px solid var(--line); border-radius: var(--r-md); padding: 6px 10px; min-height: 34px; cursor: pointer; text-align: left; transition: color var(--dur-1) var(--ease); }
+.modes-explained { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: var(--s-3); }
+.explain { display: grid; gap: 4px; padding: var(--s-3); border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--r-lg); background: var(--raised); }
+.explain b { display: inline-flex; align-items: center; gap: 6px; }
+.explain.canon { border-left-color: var(--accent); }
+.explain.canon b { color: var(--accent); }
+.explain.research { border-left-color: var(--research); }
+.explain.research b { color: var(--research); }
+.examples { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.example { font: inherit; font-size: var(--text-sm); color: var(--muted); background: var(--sunken); border: 1px solid var(--line); border-radius: var(--r-md); padding: 6px 10px; min-height: 34px; cursor: pointer; text-align: left; }
 .example:hover { color: var(--ink); border-color: var(--line-strong); }
-.bubble { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; padding: var(--s-2) var(--s-4); border-radius: var(--r-lg); }
-.bubble.me { justify-self: end; max-width: min(80%, 60ch); background: var(--accent-soft, var(--sunken)); border: 1px solid var(--line-strong); font-weight: 500; }
-.bubble.them { justify-self: start; }
-.reply { display: grid; gap: var(--s-3); max-width: 80ch; }
-.verdict { border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--r-lg); background: var(--raised); padding: var(--s-4); display: grid; gap: var(--s-3); }
-.verdict.good { border-left-color: var(--good); }
-.verdict.warn { border-left-color: var(--warn); background: var(--warn-soft); }
-.verdict.neutral { border-left-color: var(--faint); border-left-style: dashed; background: var(--sunken); }
-.verdict-head { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-3); justify-content: space-between; align-items: center; }
-.verdict-text { margin: 0; max-width: 70ch; }
-.answer { margin: 0; }
-.cited-title { margin: var(--s-2) 0 0; font-size: var(--text-md); }
-.cited-title .faint { font-weight: 400; font-size: var(--text-sm); }
-.composer { position: sticky; bottom: var(--bottom-nav-h, 0px); z-index: 5; display: flex; gap: var(--s-2); align-items: flex-end; padding: var(--s-3) 0; background: var(--bg); border-top: 1px solid var(--line); }
-.composer textarea { flex: 1; min-height: 0; padding-block: 9px; min-width: 0; resize: none; field-sizing: content; max-height: 8lh; font: inherit; }
+@media (max-width: 900px) {
+  .ask { grid-template-columns: minmax(0, 1fr); }
+  .convs { position: static; max-height: none; overflow: visible; }
+  .ask.showing-chat .convs { display: none; }
+  .ask:not(.showing-chat) .chat-col { display: none; }
+  .back { display: inline-flex; }
+  .conv { min-height: 52px; padding: 10px; }
+}
 </style>
