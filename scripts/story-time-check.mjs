@@ -1,6 +1,6 @@
 // Self-check for story time parsing/formatting. Run: node scripts/story-time-check.mjs
 import assert from 'node:assert/strict'
-import { isDayOnlyLabel as dayOnly, parseStoryTime as p, parseStoryRange as r, formatStoryTime as f, timeLabel as l } from '../server/utils/story-time.ts'
+import { isDayOnlyLabel as dayOnly, parseStoryTime as p, parseStoryRange as r, formatStoryTime as f, timeLabel as l } from '../shared/utils/story-time.ts'
 
 assert.equal(p('D1 00:00'), 0)
 assert.equal(p('D2 14:30'), 1440 + 870)

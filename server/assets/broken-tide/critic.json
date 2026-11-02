@@ -2,22 +2,22 @@
  "Leya Venn is a cartographer's apprentice.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly identifies Leya as a cartographer’s apprentice."
+  "explanation": "The passage directly identifies Leya as a cartographer's apprentice."
  },
  "Arin Venn is the keeper of the Solen Lighthouse.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly identifies Arin as keeper of the Solen Lighthouse."
+  "explanation": "The passage directly identifies Arin as the keeper of the Solen Lighthouse."
  },
  "Leya and Arin are biological siblings; Arin is four years older.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says they share a mother and that Arin is four years older."
+  "explanation": "The passage says they share the same mother and that Arin is four years older."
  },
  "Mara and Arin were engaged until Arin broke it off at 19:00 on Day 1.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states they were engaged until Arin ended it at 19:00 on Day 1."
+  "explanation": "The passage states that the engagement ended when Arin broke it off at 19:00 on Day 1."
  },
  "Mara Holt is a boat runner who trades at the Salt Market.": {
   "verdict": "keep",
@@ -32,74 +32,62 @@
  "The chord stone erases the last hour from the memory of whoever carries it.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The lore passage directly states the effect the chord stone has on whoever carries it."
+  "explanation": "The lore passage directly states this effect of the chord stone."
  },
  "The chord stone is kept in a lead-lined box in the Old Archive.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that the stone is kept in a lead-lined box in the Old Archive."
+  "explanation": "The passage says the archivists keep the stone in a lead-lined box in the Old Archive."
  },
  "Walking from the Lighthouse to the Harbor takes about forty minutes.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says the walk from the Lighthouse to the Harbor takes about forty minutes."
+  "explanation": "The passage states that the walk from the Lighthouse to the Harbor takes about forty minutes."
  },
  "Leya is at the Harbor at 08:00 on Day 1.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Leya walks down to the Harbor at 08:00 on Day 1, so she is there at that time."
+  "explanation": "Walking down to the Harbor at 08:00 supports her being there at that time."
  },
  "Mara and Leya are sisters.": {
   "verdict": "reject",
   "reason": "figurative",
-  "explanation": "“Sister in all but blood” describes their closeness, not a literal sibling relationship."
+  "explanation": "“Sister in all but blood” describes a close bond, not literal siblinghood."
  },
  "Mara is at the Harbor at 12:30 on Day 2.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly places Mara at the Harbor at 12:30 on Day 2."
+  "explanation": "The passage directly states Mara is at the Harbor at 12:30 on Day 2."
  },
  "Leya is in the Old Archive from 13:00 to 14:00 on Day 1.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Leya enters the Old Archive at 13:00 and leaves at 14:00 on Day 1."
+  "explanation": "Entering the Old Archive at 13:00 and leaving at 14:00 supports her presence there during that interval."
  },
  "Leya holds the chord stone with her bare hands for about an hour on Day 1.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Leya picks up the stone barehanded but does not establish that she holds it for about an hour.",
-  "suggestion": {
-   "statement": "Leya picks up the chord stone with her bare hands on Day 1.",
-   "subject": "Leya",
-   "predicate": "handles_bare_handed",
-   "object": "Chord Stone"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage says Leya picks up the chord stone with her bare hands at 13:00 and puts it back at 14:00 on Day 1."
  },
  "Arin is crossing the causeway at 22:00 on Day 1.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Arin is crossing the causeway at 22:00 on Day 1."
+  "explanation": "The passage directly places Arin crossing the causeway at 22:00 on Day 1."
  },
  "Arin stays in the Lighthouse gallery from 21:30 to 22:30 on Day 1.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage places Arin at the Lighthouse and says he never leaves the gallery, but does not name the gallery as the Lighthouse gallery.",
-  "suggestion": {
-   "statement": "Arin stays in the gallery at the Lighthouse from 21:30 to 22:30 on Day 1.",
-   "subject": "Arin",
-   "predicate": "located_at",
-   "object": "Lighthouse gallery"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage states that Arin never leaves the gallery during this time at the Lighthouse."
  },
  "Arin carries the chord stone in a leather pouch overnight on Day 2.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly says Arin carries the chord stone in a leather pouch on the night of Day 2."
+  "explanation": "The passage explicitly says Arin carries the chord stone in a leather pouch on the night of Day 2."
  },
  "Arin still remembers the whole night walk at dawn on Day 3.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "At dawn on Day 3, Arin remembers every step of the walk, which supports remembering the whole night walk."
+  "explanation": "The passage says that at dawn on Day 3 Arin remembers every step of the walk."
  },
  "Mara is at the Salt Market around midday on Day 2.": {
   "verdict": "keep",
@@ -109,28 +97,22 @@
  "Leya has no memory of 13:00–14:00 on Day 1, attributed to the chord stone.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Leya cannot remember that hour, and Arin attributes the memory loss to the chord stone."
+  "explanation": "The passage states Leya cannot remember that hour and Arin attributes it to the chord stone."
  },
  "Arin is Mara's fiancé at 10:00 on Day 3.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly identifies Arin as Mara’s fiancé at 10:00 on Day 3."
+  "explanation": "The passage identifies Arin as Mara’s fiancé in the scene at 10:00 on Day 3."
  },
  "Arin is at the Lighthouse at 10:00 on Day 3.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "Arin opens a door at 10:00, but the passage does not say that the door is at the Lighthouse.",
-  "suggestion": {
-   "statement": "Arin opens a door at 10:00 on Day 3.",
-   "subject": "Arin",
-   "predicate": "opens_door",
-   "object": null
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The scene is set at the Lighthouse, where Arin opens the door at 10:00 on Day 3."
  },
  "Teodor briefly presses the chord stone to Arin's hand so he forgets the night.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that Teodor presses the chord stone to Arin’s hand so he will forget the night."
+  "explanation": "The passage states that Teodor briefly presses the chord stone to Arin’s hand so he will forget the night."
  },
  "Arin rings the harbor bell at the Harbor at 10:15 on Day 3.": {
   "verdict": "keep",

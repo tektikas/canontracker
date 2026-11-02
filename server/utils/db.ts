@@ -167,12 +167,13 @@ create table if not exists model_calls (
 );
 -- The AI critic's opinions on pending candidates (server/utils/critic.ts): advice a person reads, never a decision; nothing
 -- here changes a fact. One row per opinion, the newest per fact counts. verdict: keep | reject | needs_edit; reason: see
--- shared/utils/review.ts; duplicate_of: a canon fact the Critic was shown; suggestion: JSON {statement, subject, predicate, object}
--- for needs_edit (no quote: the quote stays the verified one). seen: the candidate's fingerprint when the Critic read it, so an
--- opinion on an older form of the candidate shows as such. A new table only, so an existing database gains it in place.
+-- shared/utils/review.ts; duplicate_of: a canon fact the Critic was shown; suggestion: JSON {statement, subject, predicate, object,
+-- time} for needs_edit (no quote: the quote stays the verified one). seen: the candidate's fingerprint when the Critic read it, so
+-- an opinion on an older form of the candidate shows as such; canon_seen: a hash of the canon about its names then (a keep stops
+-- counting once that canon changes). A new table only, so an existing database gains it in place.
 create table if not exists critic_opinions (
   id text primary key, fact_id text not null, verdict text not null, reason text not null, duplicate_of text, explanation text not null,
-  suggestion text, seen text not null, model_id text not null, prompt_version text not null, created_at text not null, project_id text not null
+  suggestion text, seen text not null, canon_seen text not null default '', model_id text not null, prompt_version text not null, created_at text not null, project_id text not null
 );
 create table if not exists eval_runs (
   id text primary key, dataset text not null, model_id text not null, results text not null, created_at text not null, project_id text not null
@@ -213,6 +214,9 @@ export function useDb() {
     // drafts.base_document_id (the version an edit draft started from; null on older drafts = unknown): added in place, no version bump.
     if (!(conn.prepare('pragma table_info(drafts)').all() as { name: string }[]).some(r => r.name === 'base_document_id'))
       conn.exec('alter table drafts add column base_document_id text')
+    // critic_opinions.canon_seen: added in place too, for a database that has the table from before it.
+    if (!(conn.prepare('pragma table_info(critic_opinions)').all() as { name: string }[]).some(r => r.name === 'canon_seen'))
+      conn.exec(`alter table critic_opinions add column canon_seen text not null default ''`)
   } catch (e) {
     conn.close()
     throw e

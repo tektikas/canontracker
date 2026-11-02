@@ -12,7 +12,7 @@ export interface CandidateDraft {
 
 export interface RuleViolation { fact_id: string, rationale: string, confidence: number }
 
-export const PROMPT_VERSIONS = { extract: 'extract-v2', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', critic: 'critic-v1' } as const
+export const PROMPT_VERSIONS = { extract: 'extract-v2', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', critic: 'critic-v2' } as const
 
 export function modelInfo() {
   const { modelMode, modelId } = useRuntimeConfig()
@@ -245,39 +245,63 @@ Return {"violations":[]} if none.`,
 // The Critic: a second model reading of verified candidates before a person decides (server/utils/critic.ts builds the items).
 // Each item is a pending candidate whose quote is verbatim in its passage, the passage itself, and the accepted canon about
 // the same names (for duplicates). It returns opinions only; cleanOpinions (shared/utils/review.ts) drops any that don't hold
-// together. Recorded mode replays the opinions recorded for a sample's own text (critic.json of the set whose document the
-// candidate cites, by statement), and nothing for any other text.
+// together and turns a "needs edit" that changes none of the fields conflicts and impact read into a keep. Recorded mode
+// replays the opinions recorded for a sample's own text (critic.json of the set whose document the candidate cites, by
+// statement), and nothing for any other text.
 export interface CriticItem extends PromptFact {
-  kind: string, value: string | null, time_label: string | null, quote: string, passage: string, before: string[], after: string[], source: string, sha256: string, canon: PromptFact[]
+  kind: string, value: string | null, time_label: string | null, quote: string, passage: string, before: string[], after: string[], source: string, sha256: string
+  canon: (PromptFact & { time_label: string | null })[]
 }
 const indent = (text: string) => text.split('\n').map(l => `    ${l}`).join('\n')
 type RecordedOpinion = Omit<CriticDraft, 'fact_id' | 'verdict' | 'reason'> & { verdict: string, reason: string }
 // NUXT_CRITIC_MODEL_ID: the Critic can run on another model than extraction (e.g. muse-wonder-1.0); empty = NUXT_MODEL_ID.
 export const criticModelId = () => { const c = useRuntimeConfig(); return modelInfo().mode === 'mock' ? modelInfo().id : (c.criticModelId || c.modelId) }
 const str = { type: 'string' }
+const orNull = { type: ['string', 'null'] }
 // Built on call, not at import: scripts import this file without Nuxt's auto-imports.
 const criticSchema = () => ({ name: 'critic_opinions', schema: {
   type: 'object', additionalProperties: false, required: ['opinions'],
   properties: { opinions: { type: 'array', items: {
-    type: 'object', additionalProperties: false, required: ['id', 'verdict', 'reason', 'duplicate_of', 'explanation', 'suggestion'],
+    type: 'object', additionalProperties: false, required: ['id', 'statement', 'verdict', 'reason', 'duplicate_of', 'explanation', 'suggestion'],
     properties: {
-      id: str, verdict: { type: 'string', enum: Object.keys(CRITIC_VERDICTS) }, reason: { type: 'string', enum: Object.keys(CRITIC_REASONS) },
-      duplicate_of: { type: ['string', 'null'] }, explanation: str,
-      suggestion: { anyOf: [{ type: 'null' }, { type: 'object', additionalProperties: false, required: ['statement', 'subject', 'predicate', 'object'],
-        properties: { statement: str, subject: str, predicate: str, object: { type: ['string', 'null'] } } }] },
+      id: str, statement: str, verdict: { type: 'string', enum: Object.keys(CRITIC_VERDICTS) }, reason: { type: 'string', enum: Object.keys(CRITIC_REASONS) },
+      duplicate_of: orNull, explanation: str,
+      suggestion: { anyOf: [{ type: 'null' }, { type: 'object', additionalProperties: false, required: ['statement', 'subject', 'predicate', 'object', 'time'],
+        properties: { statement: str, subject: str, predicate: str, object: orNull, time: orNull } }] },
     },
   } } },
 } })
+const CRITIC_PROMPT = `You are the Critic: a second, careful reader of fact candidates that another model extracted from a story's source documents. A person decides on each candidate after reading your opinion; you change nothing.
+For each candidate you get its statement and structured fields, its quote (already checked to appear word for word in the passage), the passage it comes from (marked >>> <<<, with the paragraphs just around it for context such as the scene's place and day), and the accepted canon facts about the same names.
+Return only JSON {"opinions":[{"id":"<candidate id>","statement":"<the candidate's statement, copied exactly>","verdict":"keep|reject|needs_edit","reason":"figurative|not_stated|ambiguous_time_place|duplicate|wrong_subject|ok","duplicate_of":"<canon fact id> or null","explanation":"one short sentence about this candidate only","suggestion":{"statement":"...","subject":"...","predicate":"...","object":"... or null","time":"... or null"} or null}]} with one opinion per candidate, in the order given. Judge each candidate on its own: its explanation talks about its own statement and passage, never another candidate's.
+Keep is the normal verdict. Most candidates are fine. Flag one only for these reasons:
+- figurative (reject): the passage uses a figure of speech or a manner of speaking (for example "my sister in all but blood", "a sister of the road", "he was a lion") and the candidate reads it as literal fact.
+- not_stated (reject): the passage does not make the core claim (who does or is what, to whom, where, when) at all; the candidate invents it, or says the opposite. If the quote itself says it, it is stated, even when notes around it discuss details, open questions or how a game should show it. A fair summary of what the quote means in its scene is stated (someone who answers a request with "the door stays shut" refuses it). A linking clause the statement adds from the wider story ("after ringing the bell", "because she promised") is wording, not a reason to reject.
+- duplicate (reject): one of the accepted canon facts listed for this candidate already says the same thing (same people, same relation, same place and time); give its id in duplicate_of.
+- wrong_subject (needs_edit): the fact is true of someone or something other than its subject or object.
+- ambiguous_time_place (needs_edit): the candidate's time or place is wrong, or more precise than the passage allows.
+needs_edit is only for a wrong structured field that conflict and impact checks read: subject, predicate, object (a person or place), time, or when a relationship ends. Its suggestion fixes that field and copies every other field exactly as the candidate has it. A field is wrong only when it names someone or something the fact is not about, or a time or place the passage contradicts; an object that is a party to the fact (the person a refusal answers, the other speaker in a dialogue, the place where it happens) is right. Never use needs_edit for wording, style, a predicate label that means the same, or a detail the statement adds or leaves out: if the fields are right, keep it.
+The suggestion's time uses the candidate's format: "D3 14:00", "D3" for some time that day, "D3 14:00 – D3 16:00" for a range, a leading "~ " when approximate, or null for no time. A suggestion never contains a quote. keep and reject have suggestion null; keep always has reason ok, and the other verdicts never do.
+Do not flag:
+- paraphrase or wording; details the candidate leaves out;
+- which of the statement's parties is the object: when it names a person and a place or thing ("refuses the stranger" or "refuses the gate", "travels with her cousin" or "to the city"), either is right;
+- plain restatements: someone who walks to, arrives at, enters or stands at a place at a time "is at" that place then; "takes" and "steals"; "Day 3" and "D3";
+- a name the story uses for the same thing: a full or short name ("the Guard" for the Pass Guard, "the bridge" or "it" for the bridge the scene is about), the town, abbey or place the scene is set in, even when this passage only says "the town" or "the abbey";
+- a reasonable reading of the passage with its context (who "he" is, where a scene happens, why someone acts);
+- design notes, codex entries, gameplay notes and lore documents: they are sources like any scene, and what they state is stated.
+If you are unsure, keep it; the person still reads every candidate. Judge only from the passage, its context and the canon given; never use outside knowledge. Each subject and object is a canonical entity name; names listed under "Same entity" refer to one entity.`
 export function critiqueCandidates(items: CriticItem[]) {
-  const canonFor = new Map(items.map(i => [i.id, new Set(i.canon.map(f => f.id))]))
+  const asked = new Map(items.map(i => [i.id, { ...i, canon: new Set(i.canon.map(f => f.id)) }]))
+  const canonLines = (facts: CriticItem['canon']) => facts.map(f => `[${f.id}] ${f.statement}\n  subject: ${f.subject}; predicate: ${f.predicate}; object: ${f.object ?? '-'}; time: ${f.time_label ?? '-'}`).join('\n')
   const input = items.map(i => [
     `[${i.id}] ${i.statement}`,
     `  kind: ${i.kind}; subject: ${i.subject}; predicate: ${i.predicate}; object: ${i.object ?? '-'}; value: ${i.value ?? '-'}; time: ${i.time_label ?? '-'}`,
     `  quote: "${i.quote}"`,
     `  passage (${i.source}):\n${indent([...i.before, `>>> ${i.passage} <<<`, ...i.after].join('\n\n'))}`,
-    i.canon.length ? `  accepted canon about the same names:\n${indent(factLines(i.canon))}` : '  accepted canon about the same names: none',
+    i.canon.length ? `  accepted canon about the same names:\n${indent(canonLines(i.canon))}` : '  accepted canon about the same names: none',
   ].join('\n')).join('\n\n') + identityNotes(items.flatMap(i => [i, ...i.canon]))
-  let dropped = 0
+  let dropped: string[] = []
+  let softened = 0
   const target = items.length === 1 ? { type: 'fact', id: items[0]!.id } : { type: 'batch', id: newId('crit') }
   return traced('critic', target, items.map(i => i.id), input, async (): Promise<CriticDraft[]> => {
     let raw: unknown
@@ -291,37 +315,16 @@ export function critiqueCandidates(items: CriticItem[]) {
       raw = (await Promise.all(items.map(async (i) => {
         const set = map.get(i.sha256)?.set
         const o = set ? (await recorded(set))?.[i.statement] : undefined
-        return o ? [{ ...o, id: i.id }] : []
+        return o ? [{ ...o, id: i.id, statement: i.statement }] : []
       }))).flat()
     } else {
-      raw = (await chatJson(
-        `You are the Critic: a second, careful reader of fact candidates that another model extracted from a story's source documents. A person decides on each candidate after reading your opinion; you change nothing.
-For each candidate you get its statement and fields, its quote (already checked to appear word for word in the passage), the passage it comes from (marked >>> <<<, with the paragraphs just around it for context such as the scene's place and day), and the accepted canon facts about the same names.
-Return only JSON {"opinions":[{"id":"<candidate id>","verdict":"keep|reject|needs_edit","reason":"figurative|not_stated|ambiguous_time_place|duplicate|wrong_subject|ok","duplicate_of":"<canon fact id> or null","explanation":"one short sentence a writer can read","suggestion":{"statement":"...","subject":"...","predicate":"...","object":"... or null"} or null}]} with one opinion per candidate.
-Reasons:
-- figurative: the passage uses a figure of speech or a manner of speaking (for example "my sister in all but blood", "a sister of the road", "he was a lion") and the candidate reads it as literal fact. Verdict reject.
-- not_stated: the passage does not say this; the candidate guesses, adds or overstates. Verdict reject, or needs_edit when the passage states a smaller fact.
-- ambiguous_time_place: the candidate's time or place is more precise than, or different from, what the passage says. Verdict needs_edit.
-- duplicate: one of the accepted canon facts listed for this candidate already says the same thing; give its id in duplicate_of. Verdict reject.
-- wrong_subject: the fact is true of someone or something other than its subject or object. Verdict needs_edit.
-- ok: the passage plainly states it and the fields match the statement. Verdict keep.
-keep always has reason ok, and reject and needs_edit never do. needs_edit always has a suggestion: the corrected statement, subject, predicate and object, saying no more than the passage does; keep the candidate's naming style. A suggestion never contains a quote. Otherwise suggestion is null.
-Judge only from the passage, its context and the canon given; never use outside knowledge. Most candidates are fine: keep is the normal verdict.
-Flag a candidate only when accepting it as written would put something wrong or unsupported into canon: a literal reading of a figure of speech, a claim the passage does not make, a wrong person, place or time, or a duplicate of canon. Do not flag:
-- paraphrase, wording, a predicate label, or details the candidate leaves out;
-- plain restatements: someone who walks to, arrives at, enters or stands at a place at a time "is at" that place then; "takes" and "steals"; "Day 3" and "D3";
-- a name the story uses for the same thing (a full or short name; the town, abbey or place the scene is set in, even when this passage only says "the town" or "the abbey");
-- a reasonable reading of the passage with its context (who "he" is, where a scene happens, why someone acts);
-- design notes, codex entries and lore documents: they are sources like any scene.
-If you are unsure, keep it; the person still reads every candidate. Each subject and object is a canonical entity name; names listed under "Same entity" refer to one entity.`,
-        input,
-        { schema: criticSchema(), model: criticModelId() },
-      )).opinions
+      raw = (await chatJson(CRITIC_PROMPT, input, { schema: criticSchema(), model: criticModelId() })).opinions
     }
-    const out = cleanOpinions(raw, canonFor)
-    dropped = out.dropped
+    const out = cleanOpinions(raw, asked)
+    dropped = out.why
+    softened = out.softened
     return out.kept
-  }, r => `${plural(r.length, 'opinion')} on ${plural(items.length, 'candidate')}${dropped ? ` (dropped: ${dropped} malformed)` : ''}`, criticModelId())
+  }, r => `${plural(r.length, 'opinion')} on ${plural(items.length, 'candidate')}${dropped.length ? ` (dropped ${dropped.length}: ${dropped.join(', ')})` : ''}${softened ? ` (${softened} wording-only edits read as keep)` : ''}`, criticModelId())
 }
 
 // Muse Image via the OpenAI-style images endpoint. The success shape is not documented yet, so both data[].b64_json and

@@ -2,27 +2,27 @@
  "Ves Calloway is a caravan scout for the Red Mule Caravan.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly identifies Ves as a caravan scout for the Red Mule Caravan."
+  "explanation": "The passage explicitly identifies Ves as a caravan scout for the Red Mule Caravan."
  },
  "Corin Ashdown is the Bellwarden of Kettlehold.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage identifies Corin as Kettlehold’s Bellwarden."
+  "explanation": "The passage explicitly identifies Corin as the Bellwarden of Kettlehold."
  },
  "Ysolde Marr is the captain of the Red Mule Caravan.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly identifies Ysolde as captain of the Red Mule Caravan."
+  "explanation": "The passage explicitly identifies Ysolde as the captain of the Red Mule Caravan."
  },
  "Ysolde and Corin were sworn partners until Ysolde broke the oath at 18:00 on Day 2.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that they were sworn partners until Ysolde broke the oath at 18:00 on Day 2."
+  "explanation": "The history states they were sworn partners until Ysolde broke the oath at the stated time."
  },
  "Captain Rourke Dale has served in the Pass Guard for nineteen winters.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that Rourke has served in the Pass Guard for nineteen winters."
+  "explanation": "The passage explicitly states that Rourke has served in the Pass Guard for nineteen winters."
  },
  "Abbess Hesper Quill has not left Stillfire Abbey since the Night of Ash.": {
   "verdict": "keep",
@@ -32,7 +32,7 @@
  "Aldous Ashdown was Corin's father.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly identifies Aldous as Corin’s father."
+  "explanation": "The passage directly identifies Aldous Ashdown as Corin's father."
  },
  "Corin taught Ves the bell and the bridge when she was a child.": {
   "verdict": "keep",
@@ -42,7 +42,7 @@
  "Corin is proud and dutiful.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly describes Corin as proud and dutiful."
+  "explanation": "The passage explicitly describes Corin as proud and dutiful."
  },
  "Ysolde is charming and deep in debt.": {
   "verdict": "keep",
@@ -52,22 +52,22 @@
  "Ysolde smuggles ember salt down the pass.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The character entry directly states that Ysolde smuggles ember salt down the pass."
+  "explanation": "The character description directly states that Ysolde smuggles ember salt down the pass."
  },
  "Rourke is tired, honest and drinks more than he should.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly describes Rourke as tired, honest, and drinking more than he should."
+  "explanation": "The passage directly attributes tiredness, honesty, and excessive drinking to Rourke."
  },
  "Rourke commands the Pass Guard from the barracks beside the Bell Gate.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly states that Rourke commands the Pass Guard from the barracks beside the Bell Gate."
+  "explanation": "The history passage directly says Rourke commands the Pass Guard from the barracks beside the Bell Gate."
  },
  "Hesper Quill leads the Order of the Quiet Flame.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly states that Hesper Quill leads the Order of the Quiet Flame."
+  "explanation": "The passage directly states that Abbess Hesper Quill leads the Order of the Quiet Flame."
  },
  "Captain Rourke Dale commands the Pass Guard.": {
   "verdict": "keep",
@@ -75,58 +75,34 @@
   "explanation": "The passage directly states that Captain Rourke Dale commands the Pass Guard."
  },
  "The Red Mule Caravan carries salt and lamp oil up the pass twice a year.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says the caravan carries the goods, but does not say it trades them.",
-  "suggestion": {
-   "statement": "The Red Mule Caravan carries salt and lamp oil up the pass twice a year.",
-   "subject": "Red Mule Caravan",
-   "predicate": "carries",
-   "object": "salt and lamp oil"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage directly states that the caravan carries salt and lamp oil up the pass twice a year."
  },
  "Ysolde Marr leads the Red Mule Caravan.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that Ysolde Marr leads the Red Mule Caravan."
+  "explanation": "The passage directly identifies Ysolde Marr as the caravan's leader."
  },
  "The Red Mule Caravan pays the Pass Guard for safe passage.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says the Caravan pays the Pass Guard for safe passage through the Bell Gate."
+  "explanation": "The passage states that the caravan pays the Pass Guard for safe passage through the Bell Gate."
  },
  "The Pass Guard enforces the Cinder Bridge curfew after dusk.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage mentions a bridge curfew but does not identify it as the Cinder Bridge curfew or say it is enforced after dusk.",
-  "suggestion": {
-   "statement": "The Pass Guard enforces the bridge curfew.",
-   "subject": "Pass Guard",
-   "predicate": "enforces",
-   "object": "bridge curfew"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage states that the Guard enforces the bridge curfew, and the nearby context identifies the Guard as the Pass Guard."
  },
  "The Order of the Quiet Flame seals dangerous places.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says sealing dangerous places is the Order’s goal, not that it actually seals them.",
-  "suggestion": {
-   "statement": "The Order of the Quiet Flame has a goal to seal places where old heat is dangerous.",
-   "subject": "Order of the Quiet Flame",
-   "predicate": "has goal to seal",
-   "object": "places where old heat is dangerous"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage states that the Order seals places where old heat is dangerous."
  },
  "The Order of the Quiet Flame tolerates the Red Mule Caravan.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "Calling the Caravan a necessary evil does not state that the Order tolerates it.",
-  "suggestion": {
-   "statement": "The Order of the Quiet Flame regards the Red Mule Caravan as a necessary evil.",
-   "subject": "Order of the Quiet Flame",
-   "predicate": "regards_as",
-   "object": "Red Mule Caravan"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Calling the Caravan a “necessary evil” supports the claim that the Order tolerates it."
  },
  "The Red Mule Caravan trades with the Order of the Quiet Flame.": {
   "verdict": "keep",
@@ -136,42 +112,42 @@
  "The Bronze Clapper weighs as much as a grown goat.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly compares the Bronze Clapper's weight to that of a grown goat."
+  "explanation": "The passage directly states the Bronze Clapper weighs as much as a grown goat."
  },
  "The Cinder Key is a warm iron key that never cools.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly describes the Cinder Key as warm and says it never cools."
+  "explanation": "The passage directly describes the Cinder Key as a warm iron key that never cools."
  },
  "The Cinder Key opens any door sealed by the Order of the Quiet Flame.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly states that the Cinder Key opens any door sealed by the Order."
+  "explanation": "The passage directly states that the Cinder Key opens any door sealed by the Order."
  },
  "Ashsight fades if its bearer sleeps before following the trail.": {
-  "verdict": "reject",
-  "reason": "not_stated",
-  "explanation": "This sentence appears in gameplay notes, and the surrounding text explicitly leaves it undecided whether sleep ends the trail or only dims it."
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage directly states that Ashsight fades if its bearer sleeps before following the trail."
  },
  "The Bronze Clapper was forged in Kettlehold.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that the clapper was forged in Kettlehold."
+  "explanation": "The passage directly states that the clapper was forged in Kettlehold."
  },
  "The Order of the Quiet Flame forged the Cinder Key.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that the Order forged the Cinder Key."
+  "explanation": "The passage states that the Order forged the Cinder Key."
  },
  "The Ember Well lies in the Abbey's lower cloister.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage places the Ember Well in the Abbey's lower cloister, and Stillfire Abbey is the Abbey named in the story."
+  "explanation": "The passage directly states that the Ember Well lies in the Abbey's lower cloister."
  },
  "Ashsight is granted by the Ember Well.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that the Ember Well grants Ashsight."
+  "explanation": "The passage directly states that Ashsight is granted by the Ember Well."
  },
  "Ashsight shows the heat left by footsteps.": {
   "verdict": "keep",
@@ -186,12 +162,12 @@
  "Mother Brisk is at the Kettle & Coal at 18:00 on Day 3.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The dated line places Mother Brisk behind the bar at the Kettle & Coal at 18:00 on Day 3."
+  "explanation": "The dated schedule states that Mother Brisk is behind the bar of the Kettle & Coal at 18:00 on Day 3."
  },
  "Mother Brisk is at Saltgate at 07:30 on Day 4.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The dated line places Mother Brisk at Saltgate at 07:30 on Day 4."
+  "explanation": "The dated schedule states that Mother Brisk is at Saltgate at 07:30 on Day 4."
  },
  "Odo Fenn is the lamplighter of Kettlehold.": {
   "verdict": "keep",
@@ -201,37 +177,37 @@
  "Tamsin Wick is a courier between Kettlehold and Stillfire Abbey.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly identifies Tamsin as a courier between Kettlehold and Stillfire Abbey."
+  "explanation": "The passage explicitly identifies Tamsin as a courier who runs messages between Kettlehold and Stillfire Abbey."
  },
  "Mother Brisk knows every rumour that crosses the pass.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Mother Brisk knows every rumour that crosses the pass."
+  "explanation": "The passage directly states that Mother Brisk knows every rumour that crosses the pass."
  },
  "Odo limps on his left leg from an old fall.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Odo limps on his left leg because of an old fall."
+  "explanation": "The passage explicitly says Odo limps on his left leg from an old fall."
  },
  "Odo lights Kiln Street at dusk.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says that Odo lights Kiln Street at dusk as part of his default day."
+  "explanation": "The passage states that Odo lights Kiln Street at dusk."
  },
  "Odo keeps the ledgers in his small room by the wall.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Odo keeps the ledgers in his small room by the wall."
+  "explanation": "The passage says Odo keeps the ledgers in his small room by the wall."
  },
  "Tamsin looks up to Ves as a hero.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly says Tamsin looks up to Ves as a hero."
+  "explanation": "The passage directly states that Tamsin looks up to Ves as a hero."
  },
  "Tamsin carries most of her messages for the Order of the Quiet Flame.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly states that Tamsin carries most of her messages for the Order of the Quiet Flame."
+  "explanation": "The passage directly states that Tamsin carries most of her messages for the Order."
  },
  "Tamsin climbs the Abbey stair faster than most grown people.": {
   "verdict": "keep",
@@ -241,42 +217,42 @@
  "Walking from the Bell Gate to Saltgate takes forty-five minutes.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states the walk takes forty-five minutes, noting that it takes longer in snow."
+  "explanation": "The passage states that the walk from the Bell Gate to Saltgate takes forty-five minutes, with longer travel in snow."
  },
  "Climbing from the Cinder Bridge to Stillfire Abbey takes twenty minutes.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states the climb from Cinder Bridge to Stillfire Abbey takes twenty minutes on the switchback stair."
+  "explanation": "The passage directly states that the climb from the Cinder Bridge to Stillfire Abbey takes twenty minutes."
  },
  "The Red Mule Caravan camps at the Foot of the Pass on Day 0.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly says the Red Mule Caravan camps at the Foot of the Pass on Day 0."
+  "explanation": "The passage directly states that the caravan makes camp there on Day 0."
  },
  "The Cinder Bridge spans the steam gorge between Kiln Street and the Abbey stair.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that the Cinder Bridge spans the steam gorge between Kiln Street and the Abbey stair."
+  "explanation": "The passage directly states that the bridge spans the gorge between those locations."
  },
  "The Foot of the Pass lies half a day below Kettlehold.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly says the Foot of the Pass lies half a day below Kettlehold."
+  "explanation": "The passage directly states that the Foot of the Pass lies half a day below Kettlehold."
  },
  "Kiln Street runs down from the Bell Gate.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that Kiln Street runs down from the Bell Gate toward Saltgate."
+  "explanation": "The passage directly states that Kiln Street runs down from the Bell Gate."
  },
  "Snow slows every caravan on Kiln Street.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that snow slows every caravan on Kiln Street."
+  "explanation": "The passage directly states that snow slows every caravan on Kiln Street."
  },
  "The Cinder Bridge closes at dusk.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly says the bridge closes at dusk."
+  "explanation": "The passage explicitly says the bridge closes at dusk."
  },
  "Stillfire Abbey sits above the steam gorge.": {
   "verdict": "keep",
@@ -284,57 +260,39 @@
   "explanation": "The passage explicitly places Stillfire Abbey above the steam gorge."
  },
  "The Pass Guard closes the Bell Gate road in deep snow.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says the Guard closes the Bell Gate road in sufficiently deep drifts, not that the Guard closes Bell Gate itself.",
-  "suggestion": {
-   "statement": "The Guard closes the Bell Gate road when the drifts are above a man's knee.",
-   "subject": "Pass Guard",
-   "predicate": "closes",
-   "object": "Bell Gate road"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage says the Guard closes the Bell Gate road when the drifts are above a man's knee, supporting the claim about deep snow."
  },
  "Tamsin and Ves are sisters.": {
   "verdict": "reject",
   "reason": "figurative",
-  "explanation": "Tamsin calls Ves her sister of the road, but Ves directly says she is not Tamsin's sister."
+  "explanation": "“Sister of the road” is explicitly figurative here, and the passage says they share no blood and Ves denies that Tamsin is her sister."
  },
  "Tamsin carries letters up to Stillfire Abbey for half of Kettlehold.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "Tamsin says she carries letters for half the town, not specifically half of Kettlehold.",
-  "suggestion": {
-   "statement": "Tamsin carries letters up to the Abbey for half the town.",
-   "subject": "Tamsin",
-   "predicate": "carries_letters_for",
-   "object": "the Abbey"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Tamsin says she carries letters up to the Abbey for half the town, which supports the claim in this scene."
  },
  "Abbess Hesper gives Tamsin a sweet from the jar on her desk.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Tamsin plainly says Hesper gave her a sweet from the jar on Hesper’s desk."
+  "explanation": "Tamsin says Hesper gave her a sweet from the jar on Hesper’s desk."
  },
  "Tamsin notes that Ves has been gone six years.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Tamsin directly tells Ves that he has been gone six years."
+  "explanation": "Tamsin directly tells Ves she has been gone six years."
  },
  "Ves left Kettlehold six years ago.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "Tamsin says Ves left, but this passage does not identify Kettlehold as the place he left.",
-  "suggestion": {
-   "statement": "Ves left six years ago.",
-   "subject": "Ves",
-   "predicate": "left",
-   "object": null
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Tamsin says Ves had been gone six years when she left, and the conversation is set in Kettlehold."
  },
  "Tamsin wants to sign on with the Red Mule Caravan.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Tamsin explicitly says she would sign on with the Red Mule if Ysolde would have her."
+  "explanation": "Tamsin says she would sign on with the Red Mule and explicitly states that this is what she wants."
  },
  "Rumour at the Abbey gate says the Ember Well is haunted.": {
   "verdict": "keep",
@@ -347,25 +305,19 @@
   "explanation": "Tamsin explicitly says she trusts Ves with her letters."
  },
  "Tamsin crossed the Cinder Bridge early this morning.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The bridge is not named in the passage, so identifying it as Cinder Bridge is unsupported.",
-  "suggestion": {
-   "statement": "Tamsin crossed the bridge this morning before the sun was up.",
-   "subject": "Tamsin",
-   "predicate": "crosses",
-   "object": "the bridge"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Tamsin says she crossed the bridge that morning before sunrise, and the scene identifies the bridge as the Cinder Bridge."
  },
  "Mother Brisk is at the Salt Gate from 07:00 to 08:00 on Day 4.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The script note explicitly gives Mother Brisk’s location and the 07:00–08:00 Day 4 time."
+  "explanation": "The Day 4 script note explicitly places Mother Brisk at the Salt Gate from 07:00 to 08:00."
  },
  "The Red Mule Caravan is back in Kettlehold with lamp oil and salt.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Harl’s script says the Red Mule Caravan is back in Kettlehold with wagons loaded with lamp oil and salt."
+  "explanation": "Harl states that the Red Mule Caravan is back in Kettlehold with wagons loaded with lamp oil and salt."
  },
  "Ves Calloway rides through the Bell Gate after six years away.": {
   "verdict": "keep",
@@ -380,33 +332,27 @@
  "Kettlehold keeps its curfew at dusk.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Harl plainly states that curfew is at dusk."
+  "explanation": "Harl states that curfew is at dusk and presents it as the town’s customary rule."
  },
  "Lamps on Kiln Street must be kept lit after dark.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Harl instructs people to keep their lamps lit on Kiln Street."
+  "explanation": "Harl directly instructs people to keep their lamps lit on Kiln Street."
  },
  "Captain Rourke claims he watched the Bell Gate tower all night.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Harl reports that Captain Rourke swears he watched the tower through the night."
+  "explanation": "Harl says Captain Rourke swears he watched the tower through the dark."
  },
  "Odo Fenn claims he was on the Cinder Bridge.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Harl reports that Odo Fenn swears he was on the bridge."
+  "explanation": "Harl says Odo Fenn swears he was on the bridge, identified in context as the Cinder Bridge."
  },
  "Abbess Hesper has closed the Ember Well to visitors.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "Hesper’s message says the Well is closed, but does not say she personally closed it.",
-  "suggestion": {
-   "statement": "Abbess Hesper has said the Ember Well is closed to visitors except by her own word.",
-   "subject": "Hesper",
-   "predicate": "says_closed_to_visitors",
-   "object": "Ember Well"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Harl reports that Hesper sent word that the Ember Well is closed to visitors except by her own word."
  },
  "Cheap cider is poured at the back of the Kettle & Coal.": {
   "verdict": "reject",
@@ -414,42 +360,24 @@
   "explanation": "The line mentions cheap cider at the inn but does not say that it is poured there."
  },
  "Corin refuses to keep the Cinder Bridge open after the bell.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "Corin says the bridge closes at the bell, but does not say that he refuses to keep it open.",
-  "suggestion": {
-   "statement": "Corin says the Cinder Bridge closes when the bell rings.",
-   "subject": "Corin",
-   "predicate": "says_closes_when_bell_rings",
-   "object": "Cinder Bridge"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Corin says the bridge closes when the bell rings and later refuses to open it for Ysolde’s caravan."
  },
  "Ysolde renounces her oath to Corin.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "Ysolde says she is done with both their oaths but does not specifically renounce an oath to Corin.",
-  "suggestion": {
-   "statement": "Ysolde says she is done with her and Corin’s oaths.",
-   "subject": "Ysolde",
-   "predicate": "says_done_with_oaths",
-   "object": "Corin"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Ysolde says she is done with both her own and Corin's oaths, renouncing their oath."
  },
  "Corin says his father Aldous never asked the bridge to wait.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "Corin says Aldous did not ask the bridge to wait, but does not say he never asked it to wait.",
-  "suggestion": {
-   "statement": "Corin says Aldous did not ask the bridge to wait for anyone when he rang the bell with his last breath.",
-   "subject": "Corin",
-   "predicate": "says_father_did_not_ask_bridge_to_wait",
-   "object": "Aldous"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Corin explicitly says his father never once asked the bridge to wait for anyone."
  },
  "Ysolde and Corin once made an oath together on the bell.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Corin explicitly says that he and Ysolde made their oath on the same bell."
+  "explanation": "Corin says they made their oath on the same bell, and Ysolde confirms it lasted."
  },
  "Ysolde asks Corin to leave the bridge open for one night.": {
   "verdict": "keep",
@@ -459,42 +387,42 @@
  "Ysolde has a caravan of ember salt waiting at the Foot of the Pass.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Ysolde says she has a caravan of ember salt waiting at the Foot of the Pass."
+  "explanation": "Ysolde states that her caravan of ember salt is waiting at the Foot of the Pass."
  },
  "Corin says he will not open the bridge for salt or love.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Corin explicitly says he will not open the bridge for salt or love."
+  "explanation": "Corin explicitly says he will not open the bridge for salt or for love."
  },
  "Ysolde warns Corin that a broken oath will cost the town.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Ysolde warns Corin that he will see what a broken oath costs the town and will pay for it."
+  "explanation": "Ysolde tells Corin that he will see what a broken oath costs the town."
  },
  "The Pass Guard stands by while Ysolde and Corin argue.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The guard shifts and looks on during the exchange, supporting that he witnesses Corin's argument."
+  "explanation": "The guard’s silent reaction occurs during Ysolde and Corin’s exchange."
  },
  "Ysolde says Odo owes her money.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Ysolde explicitly says Odo owes her and that he will pay."
+  "explanation": "Ysolde explicitly says Odo owes her and will pay her."
  },
  "The Ember Well grants Ashsight only to those who drink from it before dawn.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that drinking from the well before dawn is required to receive Ashsight."
+  "explanation": "The passage explicitly states this condition for receiving Ashsight."
  },
  "Ashsight lets its bearer see the heat left by footsteps for about a day.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says Ashsight reveals the heat left by footsteps for about a day."
+  "explanation": "The passage directly says Ashsight reveals the heat left behind by footsteps for about a day."
  },
  "Only the Order of the Quiet Flame may draw water from the Ember Well.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly restricts drawing water from the Ember Well to the Order of the Quiet Flame."
+  "explanation": "The passage explicitly restricts drawing water from the Ember Well to the Order."
  },
  "The Ember Well sits in the lower cloister of Stillfire Abbey.": {
   "verdict": "keep",
@@ -504,47 +432,47 @@
  "The Ember Well has never frozen, according to the monks.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says the monks report that the well has never frozen."
+  "explanation": "The passage says the monks claim the well has never frozen."
  },
  "The Order of the Quiet Flame keeps the rite of the Well with great care.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says the Order keeps the Well's rite with great care."
+  "explanation": "The passage directly states that the Order keeps the rite of the Well with great care."
  },
  "Ashsight heat trails fade as the day wears on.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that the heat traces fade as the day wears on."
+  "explanation": "The passage says that the heat traces seen through Ashsight fade as the day wears on."
  },
  "The Order of the Quiet Flame does not sell water from the Ember Well.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says the Order does not sell water from the Ember Well."
+  "explanation": "The passage directly states that the Order does not sell the water from the Ember Well."
  },
  "Ashsight works as a tracking mode in play.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The gameplay section plainly describes Ashsight as a tracking mode."
+  "explanation": "The gameplay passage directly says Ashsight works as a tracking mode in play."
  },
  "Whoever rings the Ashbell loses their voice until the next sunrise.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly states that whoever rings the Ashbell loses their voice until the next sunrise."
+  "explanation": "The passage directly states the rule for anyone who rings the Ashbell."
  },
  "Aldous Ashdown died ringing the Ashbell on the Night of Ash.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that Aldous died ringing the Ashbell on the Night of Ash, ten winters before Ves came home."
+  "explanation": "The passage directly says Aldous died ringing the Ashbell on the Night of Ash."
  },
  "The Night of Ash buried the lower town of Kettlehold.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly states that the Night of Ash buried the lower town of Kettlehold."
+  "explanation": "The passage directly states that the Night of Ash buried Kettlehold's lower town."
  },
  "Aldous Ashdown was the Bellwarden before his son.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that Aldous was the Bellwarden before his son."
+  "explanation": "The passage directly identifies Aldous as the Bellwarden before his son."
  },
  "The Pass Guard enforces the curfew on the Cinder Bridge.": {
   "verdict": "keep",
@@ -554,278 +482,212 @@
  "The Bell Gate is a tower of grey stone above the road.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly identifies the Bell Gate as a tower of grey stone above the road."
+  "explanation": "The passage directly describes the Bell Gate as a tower of grey stone above the road."
  },
  "The Pass Guard keeps its barracks beside the Bell Gate.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that the Pass Guard keeps its barracks beside the Bell Gate."
+  "explanation": "The passage directly states that the Pass Guard keeps its barracks beside the gate."
  },
  "The Night of Ash filled the old streets below Saltgate with ash.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says the old streets below Saltgate were filled to the eaves, but does not say the Night of Ash filled them with ash.",
-  "suggestion": {
-   "statement": "The old streets below Saltgate were filled to the eaves during the Night of Ash.",
-   "subject": "old streets below Saltgate",
-   "predicate": "were_filled_to_the_eaves",
-   "object": null
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage says the old streets below Saltgate were filled to the eaves during the Night of Ash, which supports the statement."
  },
  "The Order of the Quiet Flame keeps the records of the Night of Ash.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage attributes keeping the records to the Order's archivist, not explicitly to the Order itself.",
-  "suggestion": {
-   "statement": "The Order's archivist keeps the records of the Night of Ash.",
-   "subject": "Order's archivist",
-   "predicate": "keeps_records_of",
-   "object": "Night of Ash"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage states that the Order's archivist keeps the records of the Night of Ash."
  },
  "Odo Fenn owes Ysolde forty silver marks.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The summary plainly says Odo Fenn owes Ysolde forty silver marks."
+  "explanation": "The summary explicitly states that Odo Fenn owes Ysolde forty silver marks."
  },
  "A Debt in Salt is given by Mother Brisk.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly states that Mother Brisk gives the quest once the player has eaten at the Kettle & Coal."
+  "explanation": "The passage directly identifies Mother Brisk as the giver of A Debt in Salt."
  },
  "Mother Brisk feeds every caravan that rides into Kettlehold.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly says Mother Brisk feeds every caravan that rides into Kettlehold."
+  "explanation": "The passage states that Mother Brisk feeds every caravan that rides into Kettlehold."
  },
  "Odo keeps a tally of every coin he borrows.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that Odo keeps a tally of every coin he borrows."
+  "explanation": "The passage says Odo keeps a tally of every coin he borrows."
  },
  "Ysolde smuggles ember salt for the Red Mule Caravan.": {
-  "verdict": "reject",
-  "reason": "not_stated",
-  "explanation": "The passage says the caravan smuggles ember salt but does not identify Ysolde as the smuggler."
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The branch explicitly says the caravan's smuggling of ember salt is revealed, and identifies Ysolde as the caravan's lender who will not forgive the player for exposing it."
  },
  "Odo keeps his post on Kiln Street as the town lamplighter.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage places Odo at his post but does not identify him as the town lamplighter.",
-  "suggestion": {
-   "statement": "Odo is at his post on Kiln Street.",
-   "subject": "Odo",
-   "predicate": "is_at",
-   "object": "Kiln Street"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage states that Odo is at his post on Kiln Street, and the surrounding context identifies him as the lamp-lighter."
  },
  "Mother Brisk wants Odo to go home before he drinks what little he has left.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Mother Brisk says she would like Odo to go home before he drinks what little he has left."
+  "explanation": "The passage directly says Mother Brisk would like Odo to go home before he drinks what little he has left."
  },
  "Ysolde holds Odo debt and waits to collect it.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that Odo owes Ysolde and that she has not forgotten, supporting the debt relationship and her waiting to collect."
+  "explanation": "The surrounding passage states that Odo owes Ysolde forty silver marks and that she has not forgotten the debt and is patient."
  },
  "Rourke reads the Pass Guard's notes aloud at the next muster.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says Rourke reads a line from the Pass Guard's notes aloud at the next muster."
+  "explanation": "The passage directly states that Rourke reads a line in the Pass Guard's notes aloud at the next muster."
  },
  "The Silent Bell quest is given by Corin.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Corin gives The Silent Bell when the dusk bell fails on Day 2."
+  "explanation": "The passage directly states that Corin gives the Silent Bell quest."
  },
  "The Silent Bell is the main quest of Act 2.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly identifies The Silent Bell as the main quest of Act 2."
+  "explanation": "The summary explicitly identifies The Silent Bell as the main quest of Act 2."
  },
  "Rourke swears nobody went up the tower stair on the night the bell failed.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says Rourke swears nobody went up the tower stair that night."
+  "explanation": "The passage says Rourke swears nobody went up the tower stair that night, when the bell failed."
  },
  "Corin trusts Ves to look into the silent bell without taking a side.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Corin values Ves's impartial perspective, but does not state that he trusts her to investigate.",
-  "suggestion": {
-   "statement": "Corin asks Ves for help because she can look at things without taking a side.",
-   "subject": "Corin",
-   "predicate": "asks_for_help_because",
-   "object": "Ves"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Corin asks Ves to help because she knows the roads and how to assess things without taking a side."
  },
  "The Bronze Clapper is hidden in the Old Mine, wrapped in sacking.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage locates the Bronze Clapper inside the Old Mine but does not say it is hidden there.",
-  "suggestion": {
-   "statement": "The Bronze Clapper is in the Old Mine, wrapped in sacking.",
-   "subject": "Bronze Clapper",
-   "predicate": "is_in",
-   "object": "Old Mine"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage locates the Bronze Clapper inside the Old Mine and says it is wrapped in sacking."
  },
  "The Cinder Key opens the Order seal on the Old Mine.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says the key opens the Order's seal, not that it opens the mine itself.",
-  "suggestion": {
-   "statement": "The Cinder Key opens the Order's seal.",
-   "subject": "Cinder Key",
-   "predicate": "opens",
-   "object": "Order's seal"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage says the Cinder Key opens the Order's seal while describing the Old Mine."
  },
  "Odo Fenn signed the sign-in board at the Old Mine.": {
-  "verdict": "reject",
-  "reason": "not_stated",
-  "explanation": "The passage says Odo signed an entry on the board, but does not say it was a sign-in board."
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage states that Odo Fenn signed the entry on the sign-in board inside the Old Mine."
  },
  "Ysolde offers Ves a share of the ember-salt run to keep quiet.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The private route plainly states that Ysolde offers Ves a share of the ember-salt run to keep quiet."
+  "explanation": "The private route explicitly says Ysolde offers Ves a share of the ember-salt run to keep quiet."
  },
  "Tamsin is at Stillfire Abbey at 09:12 on Day 3.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly places Tamsin at Stillfire Abbey at 09:12 on Day 3."
+  "explanation": "The passage places Tamsin at the gate of Stillfire Abbey at 09:12 on Day 3."
  },
  "The Well Before Dawn rewards the player with Ashsight.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The reward text explicitly says The Well Before Dawn rewards the player with Ashsight."
+  "explanation": "The rewards section directly states that The Well Before Dawn rewards the player with Ashsight."
  },
  "Hesper asks Ves what she is willing to give up to see clearly.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Hesper asks Ves what she is willing to give up to see clearly."
+  "explanation": "The passage directly states that Hesper asks Ves what she is willing to give up to see clearly."
  },
  "Hesper repeats her drink-before-dawn rule to Ves twice.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Hesper repeats the rule twice, but does not say she repeats it to Ves.",
-  "suggestion": {
-   "statement": "Hesper repeats her drink-before-dawn rule twice.",
-   "subject": "Hesper",
-   "predicate": "repeats_rule",
-   "object": null
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The quest text says Hesper repeats the rule twice, and the scene identifies Ves as the player being instructed."
  },
  "The Cinder Key is loaned by the Order of the Quiet Flame.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The Order gives Ves the key, and Hesper explicitly says it is a loan rather than a gift."
+  "explanation": "The passage says the Order gives Ves the key and Hesper identifies it as a loan, not a gift."
  },
  "Tamsin carries messages to Stillfire Abbey.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says Tamsin carries messages between the town and the Abbey."
+  "explanation": "The passage identifies Tamsin as a courier carrying messages between the town and the Abbey."
  },
  "The Ember Well stands in the Abbey lower cloister, where the water steams.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage places the Ember Well in the lower cloister of Stillfire Abbey but does not say its water steams.",
-  "suggestion": {
-   "statement": "The Ember Well stands in the lower cloister of Stillfire Abbey.",
-   "subject": "Ember Well",
-   "predicate": "sits_in",
-   "object": "Stillfire Abbey"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage places the Ember Well in Stillfire Abbey’s lower cloister and says its water grants Ashsight."
  },
  "Kettlehold is the last town before the summit of the Ashbell Pass.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly states that Kettlehold is the last town before the Ashbell Pass summit."
+  "explanation": "The passage explicitly identifies Kettlehold as the last town before the pass summit."
  },
  "The Kettle & Coal stands on the edge of Saltgate market.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that the Kettle & Coal stands on the edge of Saltgate market."
+  "explanation": "The passage directly places the inn on the edge of Saltgate, identified as the market square."
  },
  "The Old Mine has been sealed since the Night of Ash.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says the Old Mine has been sealed since the Night of Ash."
+  "explanation": "The passage explicitly states that the Old Mine has been sealed since the Night of Ash."
  },
  "Locals call Kettlehold's high road the Kettle's Spout.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage names the high road but does not say that it belongs to Kettlehold.",
-  "suggestion": {
-   "statement": "Locals call the high road the Kettle’s Spout.",
-   "subject": "high road",
-   "predicate": "has_nickname",
-   "object": "Kettle’s Spout"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage states that locals call the high road the Kettle’s Spout."
  },
  "Kiln Street runs downhill for the length of the town.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that Kiln Street runs downhill for the length of the town."
+  "explanation": "The passage directly states that Kiln Street runs downhill for the length of the town."
  },
  "Cinder Bridge is an iron span across the steam gorge.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage identifies Cinder Bridge as an iron span across the steam gorge."
+  "explanation": "The passage describes Cinder Bridge as an iron span across the steam gorge."
  },
  "Saltgate is the market square by the old wall.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly identifies Saltgate as the market square by the old wall."
+  "explanation": "The passage directly identifies Saltgate as the market square by the old wall."
  },
  "The Foot of the Pass is the caravan camp half a day below Kettlehold.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage places the caravan camp half a day below the town, and Kettlehold is the town in this context."
+  "explanation": "The passage calls the Foot of the Pass a caravan camp half a day below the town, which is Kettlehold in context."
  },
  "The Red Mule Caravan carries salt and lamp oil up to Kettlehold.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says the Red Mule Caravan carries salt and lamp oil up the pass to the town, Kettlehold."
+  "explanation": "The passage says the caravan carries salt and lamp oil up the pass, in a description of trade with Kettlehold."
  },
  "Stillfire Abbey stands above the steam gorge on its own shelf of rock.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says the Abbey stands on its own shelf of rock above the gorge, and identifies it as Stillfire Abbey."
+  "explanation": "The passage directly says the Abbey stands on its own shelf of rock above the gorge, and identifies it as Stillfire Abbey."
  },
  "Ves is at the Bell Gate at 16:00 on Day 1.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Riding through the Bell Gate places Ves at the gate at 16:00 on Day 1."
+  "explanation": "Riding through the Bell Gate at that time means Ves is at the gate then."
  },
  "Ves left Kettlehold six years ago with a scout's pack.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Ves left this pass, not Kettlehold; it later identifies Kettlehold as the town she grew up in.",
-  "suggestion": {
-   "statement": "Ves left this pass six years ago with a scout's pack.",
-   "subject": "Ves",
-   "predicate": "left_home",
-   "object": null
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage says Ves left the pass six years ago with a scout's pack and identifies Kettlehold as the town she grew up in."
  },
  "Ves wrote home only twice during her six years away.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says she wrote twice but does not state that both times were during her six years away or that she wrote home.",
-  "suggestion": {
-   "statement": "Ves wrote twice.",
-   "subject": "Ves",
-   "predicate": "wrote",
-   "object": null
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage says she left with a promise to write home and then states that she wrote twice."
  },
  "Ysolde jokes with the Pass Guard at the Bell Gate.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Ysolde asks Fennick a teasing question about the Pass Guard, plainly supporting that she jokes with them."
+  "explanation": "Ysolde teases Fennick by asking whether the Pass Guard has learned to count past three."
  },
  "Corin told Ves not to ask about his father, Aldous.": {
   "verdict": "keep",
@@ -833,57 +695,39 @@
   "explanation": "The passage says Corin taught Ves not to ask about his father and identifies that father as Aldous Ashdown."
  },
  "Ves calms her mule with a low word at the foot of the tower stair.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Ves speaks softly to Daisy, but does not state that she calms her.",
-  "suggestion": {
-   "statement": "Ves says something low and private to Daisy at the foot of the stair.",
-   "subject": "Ves",
-   "predicate": "speaks_to",
-   "object": "Old Daisy"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Ves says something low and private to Daisy at the foot of the stair, after which the mule's ears relax and turn forward."
  },
  "Ves counts the lamps on Kiln Street from the top step.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Ves counts the lamps, but it does not specify that she counts them from the top step.",
-  "suggestion": {
-   "statement": "Ves counts the lamps on Kiln Street.",
-   "subject": "Ves",
-   "predicate": "counts",
-   "object": "lamps on Kiln Street"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage says she counts the lamps while looking down Kiln Street from the top step."
  },
  "Ves notices that Ysolde's laugh stops short of her eyes.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Ves notices Ysolde's laugh does not reach her eyes, but it does not say Ves doubts Ysolde.",
-  "suggestion": {
-   "statement": "Ves notices that Ysolde's laugh stops short of her eyes.",
-   "subject": "Ves",
-   "predicate": "notices",
-   "object": "Ysolde's laugh stops short of her eyes"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage directly states that Ves notices this about Ysolde's laugh."
  },
  "Corin rings the Ashbell at dusk on Day 1.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly states that Corin rings the Ashbell at 19:00 on Day 1."
+  "explanation": "The passage explicitly says Corin rings the Ashbell at 19:00 on Day 1."
  },
  "Corin shouts a warning to the Pass Guard moments after ringing the Ashbell.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Corin shouts the warning as soon as the last note fades."
+  "explanation": "The passage says Corin shouts to the Pass Guard as soon as the bell's last note fades."
  },
  "Ves follows Corin up the tower stair with her pack left below.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Ves follows Corin up the stair with her pack left at the bottom."
+  "explanation": "The passage directly states that Ves follows Corin up the stair while her pack remains at the bottom."
  },
  "Corin tells Ves to hold the rope with both hands.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Corin directly tells Ves to hold the rope with both hands."
+  "explanation": "Corin directly instructs Ves to hold the rope with both hands."
  },
  "Ves has heard the bell every evening of her childhood.": {
   "verdict": "keep",
@@ -893,239 +737,204 @@
  "Corin does not look at Ves while the bell is ringing.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says Corin does not look at Ves while the bell rings."
+  "explanation": "The passage explicitly states that Corin does not look at Ves while the bell rings."
  },
  "Corin tells the Pass Guard that the lanterns are to stay shuttered.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Corin tells the Pass Guard that the lanterns are to stay shuttered."
+  "explanation": "The passage explicitly says Corin tells the Pass Guard the lanterns are to stay shuttered."
  },
  "Ves thinks Corin has always had a carrying voice.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Ves thinks Corin has always had a carrying voice."
+  "explanation": "The passage explicitly attributes this thought about Corin's carrying voice to Ves."
  },
  "Corin says his father stood at the bell until the night he did not come down.": {
-  "verdict": "reject",
-  "reason": "not_stated",
-  "explanation": "Corin says his father stayed at the bell until he failed to come down, but the passage does not say he asks for silence about Aldous."
+  "verdict": "needs_edit",
+  "reason": "wrong_subject",
+  "explanation": "The quoted claim is about Aldous, Corin’s father, not Corin.",
+  "suggestion": {
+   "statement": "Corin says his father stood at the bell until the night he did not come down.",
+   "subject": "Aldous",
+   "predicate": "asks_silence_about",
+   "object": "Aldous",
+   "time": null
+  }
  },
  "The gates of the Cinder Bridge close for the night below the tower.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says the gates are closing for the night, not that they close below the tower.",
-  "suggestion": {
-   "statement": "The gates of the Cinder Bridge are closing for the night.",
-   "subject": "Cinder Bridge",
-   "predicate": "closes_for_night",
-   "object": null
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage states that the Cinder Bridge gates are closing for the night far below."
  },
  "Ves is at the Kettle & Coal at 20:00 on Day 1.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly states that Ves takes a table at the Kettle & Coal at 20:00 on Day 1."
+  "explanation": "The passage explicitly places Ves at the Kettle & Coal at 20:00 on Day 1."
  },
  "Mother Brisk refuses Ves's coin for the pine tea.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly states that Mother Brisk refuses Ves's coin after pouring her pine tea."
+  "explanation": "The passage says Mother Brisk pours Ves pine tea and refuses her coin."
  },
  "The lamps on Kiln Street go dark at midnight every night.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says the Kiln Street lamps go dark at midnight every night without fail."
+  "explanation": "The passage directly states that the Kiln Street lamps go dark at midnight every night."
  },
  "Mother Brisk will not open the cellar while ash is in the wind.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Brisk declines Ves’s request for tonight because ash is in the wind."
+  "explanation": "Brisk refuses Ves’s request to see the salt cellar that night because ash is in the wind."
  },
  "Mother Brisk checks Ves over as if looking for damage.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says Brisk holds Ves by both shoulders and looks her over as if checking for damage."
+  "explanation": "The passage says Brisk holds Ves by the shoulders and looks at her as though checking for damage."
  },
  "Ves sits at the corner table with her back to the wall.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that Ves sits with her back to the wall."
+  "explanation": "The passage states that Ves sits with her back to the wall at the corner table."
  },
  "Mother Brisk tells Ves that debts are paid off and borrowed again.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Brisk tells Ves that debts were paid off one year and borrowed again the next."
+  "explanation": "Brisk tells Ves about debts paid off in one year and borrowed again in the next."
  },
  "Mother Brisk says men have started going up the road at night to look at the old mine.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Brisk tells Ves that men have started going up the road at night to look at the old mine."
+  "explanation": "Brisk describes men going up the road at night to look at the mine."
  },
  "Odo will not look at people when he talks, according to Mother Brisk.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Mother Brisk plainly says the Lamplighter will not look at people while talking."
+  "explanation": "Brisk says the Lamplighter will not look at someone while talking, and the candidate identifies him as Odo."
  },
  "Ves watches the light on the wet cobbles of Saltgate from the window.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says Ves watches the light on Saltgate's wet cobbles from the window."
+  "explanation": "The passage directly says Ves watches the light on Saltgate’s wet cobbles while standing at the window."
  },
  "Ysolde asks Corin to leave the Cinder Bridge open after dusk.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that Ysolde asks Corin to leave the Cinder Bridge open after dusk."
+  "explanation": "The passage directly states that Ysolde asks Corin to leave the Cinder Bridge open after dusk."
  },
  "Ysolde finds Corin at the foot of the Bell Gate tower.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Ysolde finds Corin at the foot of the tower, identified in context as the Bell Gate tower."
+  "explanation": "Corin is stated to be at the foot of the tower when Ysolde finds him, in the Bell Gate scene."
  },
  "Corin tells Ysolde that the bridge closes when the bell rings.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Corin plainly tells Ysolde that the bridge closes when the bell rings."
+  "explanation": "Corin directly says that the bridge closes when the bell rings in response to Ysolde."
  },
  "Ysolde hooks her arm through Ves's and walks with her down Kiln Street.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Ysolde hooks her arm through Ves's and they walk down Kiln Street together."
+  "explanation": "The passage explicitly says Ysolde hooks her arm through Ves's and that they go down Kiln Street together."
  },
  "Ysolde answers Ves's question about the wagons by talking about lamp oil.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "After Ves asks about the wagons, Ysolde talks about the price of lamp oil instead."
+  "explanation": "The passage says Ves asks about the wagons and Ysolde talks about lamp oil instead."
  },
  "Ves watches Corin and Ysolde argue from the edge of the shade.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says Ves watches them, and the surrounding dialogue identifies them as Corin and Ysolde arguing."
+  "explanation": "The passage identifies Corin and Ysolde as the pair Ves watches from the edge of the shade."
  },
  "Ysolde sends a small boy running with a coin and a private message near Saltgate.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says Ysolde sends a small boy with a coin and a message near Saltgate, which she does not share."
+  "explanation": "The passage says Ysolde sends a boy with a coin and a message she does not share near Saltgate."
  },
  "Ysolde climbs back up the hill toward the Bell Gate.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Ysolde climbs back up the hill but does not say she is climbing toward the Bell Gate.",
-  "suggestion": {
-   "statement": "Ysolde climbs back up the hill.",
-   "subject": "Ysolde",
-   "predicate": "climbs",
-   "object": "the hill"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage says Ysolde climbs back up the hill after glancing toward the Bell Gate."
  },
  "The Ashbell makes no sound at dusk on Day 2.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that the Ashbell swings without making a sound at dusk on Day 2."
+  "explanation": "The passage directly states that the Ashbell swings but makes no sound at dusk on Day 2."
  },
  "Captain Rourke stands watch at the Bell Gate from 21:00 to 22:00 on Day 2.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly places Captain Rourke on watch at the Bell Gate during the stated time."
+  "explanation": "The quoted passage directly states that Rourke stands watch at the Bell Gate during that time."
  },
  "Corin climbs the tower stair of the Bell Gate to ring the bell.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Corin climbs the tower stair and reaches the bell chamber, but does not say he climbs in order to ring the bell.",
-  "suggestion": {
-   "statement": "Corin climbs the tower stair of the Bell Gate.",
-   "subject": "Corin",
-   "predicate": "climbs",
-   "object": "Bell Gate"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage states that Corin climbs the tower stair and then the rope goes taut as the bell moves."
  },
  "Ves follows Corin back down the tower stairs.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Ves plainly follows Corin back down the stairs."
+  "explanation": "The passage directly states that Ves follows Corin back down the stairs."
  },
  "Rourke says that nobody climbed the tower while he was watching it.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Rourke explicitly says that he was watching the tower and that nobody climbed it."
+  "explanation": "Rourke says he watched the tower and immediately states that nobody climbed it."
  },
  "Corin asks Ves to walk where the guards cannot and find the thief.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Corin asks Ves to find out who took the bell and says he needs someone who can walk where the guards cannot."
+  "explanation": "Corin explicitly asks Ves to find who took the bell and says he needs someone able to walk where the guards cannot."
  },
  "Corin tells Ves she is the only one who will not ask him for permission.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "Corin says Ves will not ask him for permission, but does not say she is the only one he gives a task to.",
-  "suggestion": {
-   "statement": "Corin says Ves is the only one who will not ask him for permission.",
-   "subject": "Corin",
-   "predicate": "says",
-   "object": "Ves"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Corin directly tells Ves that she is the only one who will not ask him for permission."
  },
  "Ysolde is not in the crowd at the Bell Gate after the bell fails.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that Ysolde is nowhere in the crowd while Ves observes the aftermath of the bell's silence."
+  "explanation": "The passage states that Ysolde is nowhere in the crowd while the bell remains silent."
  },
  "Ves stands among the crowd at the foot of the Bell Gate.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that Ves stands among the crowd gathered at the foot of the Bell Gate."
+  "explanation": "The passage places Ves among the gathered crowd at the foot of the Bell Gate."
  },
  "Captain Rourke is at the Kettle & Coal at 21:30 on Day 2.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly places Captain Rourke at the Kettle & Coal at 21:30 on Day 2."
+  "explanation": "The passage explicitly locates Captain Rourke at the Kettle & Coal at 21:30 on Day 2."
  },
  "The Lamplighter is on the Cinder Bridge at 22:00 on Day 2.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly places the Lamplighter on the Cinder Bridge at 22:00 on Day 2."
+  "explanation": "The passage directly states the Lamplighter is on the Cinder Bridge at 22:00 on Day 2."
  },
  "Ves walks along Kiln Street at night, asking people about the bell.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Ves walks along Kiln Street and asks questions, but does not say she asks people specifically about the bell.",
-  "suggestion": {
-   "statement": "Ves walks along Kiln Street at night.",
-   "subject": "Ves",
-   "predicate": "walks_along",
-   "object": "Kiln Street"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage describes Ves walking Kiln Street at night and asking people questions, including questions about the bell."
  },
  "Ves asks people quietly who was out at dusk.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Ves asks who was out at dusk, but does not say that she asks people quietly who was out at dusk.",
-  "suggestion": {
-   "statement": "Ves asks questions quietly.",
-   "subject": "Ves",
-   "predicate": "asks_questions",
-   "object": null
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage states that Ves asks questions quietly, including who was out at dusk."
  },
  "Most people refuse to answer Ves when she asks about the bell.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says most people shake their heads or shut their doors, but does not establish that they refuse to answer specifically about the bell.",
-  "suggestion": {
-   "statement": "Most people shake their heads or shut their doors when Ves asks questions.",
-   "subject": "Most people",
-   "predicate": "respond_to_questions",
-   "object": "Ves"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Most people shake their heads or shut their doors in response to Ves’s questions about the bell and other matters."
  },
  "Ves reaches the Cinder Bridge at the place where it leaves Kiln Street.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Ves reaches the Cinder Bridge where it leaves Kiln Street."
+  "explanation": "The passage directly states that Ves reaches the Cinder Bridge where it leaves Kiln Street."
  },
  "Ves decides not to interrupt Rourke while he is drinking.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage shows Ves moving on rather than interrupting Rourke while he drinks."
+  "explanation": "The passage indicates Ves expects Rourke would dislike an interruption and moves on."
  },
  "Ves turns back toward the lamps on Kiln Street.": {
   "verdict": "keep",
@@ -1135,27 +944,27 @@
  "Ves is at the Ember Well at 05:00 on Day 3.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage places Ves at the Ember Well at 05:00 on Day 3."
+  "explanation": "The passage directly places Ves at the Ember Well at 05:00 on Day 3."
  },
  "Ves gains Ashsight at the Ember Well.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly says Ves has Ashsight after drinking the water."
+  "explanation": "The passage states that Ves has Ashsight after drinking the water at the Ember Well."
  },
  "Hesper gives Ves the Cinder Key.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that Hesper gives Ves the Cinder Key."
+  "explanation": "The passage directly states that Abbess Hesper gives Ves the Cinder Key."
  },
  "Ves enters Stillfire Abbey through its side door.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says Agnet lets Ves in through Stillfire Abbey’s side door."
+  "explanation": "Agnet unbars the Abbey’s side door and lets Ves in."
  },
  "Hesper tests Ves with a single question about Aldous Ashdown.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Hesper tests Ves with a single question about Aldous Ashdown."
+  "explanation": "The passage directly states that Hesper tests Ves with one question about Aldous Ashdown."
  },
  "Ves remembers Aldous Ashdown as a tall man with a cough.": {
   "verdict": "keep",
@@ -1165,95 +974,84 @@
  "Ves drinks warm water from the Ember Well.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says Ves drinks from the Ember Well and identifies the water as hot."
+  "explanation": "At the Ember Well, Ves drinks its hot water, described as hotter than she expects."
  },
  "Ves holds the Cinder Key in her hand.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says Ves closes her hand around the Cinder Key."
+  "explanation": "Ves closes her hand around the Cinder Key and feels its heat in her palm."
  },
  "Hesper watches Ves closely as she takes the key.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Hesper watches Ves as Ves closes her hand around the key."
+  "explanation": "The passage says Hesper watches Ves as Ves closes her hand around the Cinder Key."
  },
  "Tamsin is at the Cinder Bridge at 09:00 on Day 3.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly places Tamsin at the Cinder Bridge at 09:00 on Day 3."
+  "explanation": "The passage explicitly states that Tamsin is waiting at the Cinder Bridge at 09:00 on Day 3."
  },
  "Ves follows the heat trail from the Bell Gate toward the Old Mine.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Ves follows the heat prints from the Bell Gate toward the Old Mine."
+  "explanation": "The passage states that Ves follows the trail down the hill toward the Old Mine."
  },
  "Tamsin hands Ves a folded message from the Abbey.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Tamsin presses the folded message into Ves's hand, and the passage identifies it as a message from the Abbey."
+  "explanation": "The passage says Tamsin presses a folded message into Ves's hand, and the surrounding text identifies it as the Abbey's message."
  },
  "Tamsin runs back up the stair without waiting for an answer.": {
   "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Tamsin runs back up the stair but does not say she runs to Stillfire Abbey.",
+  "reason": "wrong_subject",
+  "explanation": "The passage says Ves runs back up the stair; Tamsin is the subject of the candidate but is not the one running.",
   "suggestion": {
    "statement": "Tamsin runs back up the stair without waiting for an answer.",
-   "subject": "Tamsin",
-   "predicate": "runs_back_up",
-   "object": "stair"
+   "subject": "Ves",
+   "predicate": "runs_to",
+   "object": "Stillfire Abbey",
+   "time": null
   }
  },
  "Ves tests her Ashsight on Kiln Street.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Ves tests her new sight on Kiln Street, but does not identify the sight as Ashsight.",
-  "suggestion": {
-   "statement": "Ves tests her new sight on Kiln Street.",
-   "subject": "Ves",
-   "predicate": "tests",
-   "object": "Kiln Street"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage explicitly says Ves tests her new sight on Kiln Street."
  },
  "Ves sees fading heat-prints on the cobbles of Kiln Street.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly says Ves sees fading heat-prints on Kiln Street's cobbles."
+  "explanation": "The passage directly states that Ves sees fading heat-prints on Kiln Street's cobbles."
  },
  "Ves looks up at the Bell Gate tower.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly says Ves looks up at the Bell Gate tower."
+  "explanation": "The passage explicitly states that Ves looks up at the Bell Gate tower."
  },
  "Ves follows a limping stride through the heat-prints.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The quoted words describe the stride, while the passage separately says Ves follows the limp down the hill.",
-  "suggestion": {
-   "statement": "Ves follows the limp down the hill.",
-   "subject": "Ves",
-   "predicate": "follows",
-   "object": "the limp"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage says Ves follows the limp down the hill, following the heat trail's prints."
  },
  "A Pass Guard patrol passes the bottom of Kiln Street.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that a Pass Guard patrol passes the bottom of Kiln Street."
+  "explanation": "The passage explicitly says a Pass Guard patrol passes the bottom of Kiln Street."
  },
  "Ves opens the sealed door of the Old Mine with the Cinder Key.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly says Ves turns the Cinder Key and opens the sealed Old Mine door."
+  "explanation": "The passage directly states that Ves turns the Cinder Key and the sealed door opens."
  },
  "Odo is at the Old Mine at 22:00 on Day 2.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The sign-in board explicitly places Odo at the Old Mine at 22:00 on Day 2."
+  "explanation": "The sign-in board explicitly records Odo Fenn at the Old Mine at that time."
  },
  "The Bronze Clapper is hidden in the Old Mine.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says the Bronze Clapper lies wrapped behind the ore carts in the Old Mine."
+  "explanation": "The passage places the Bronze Clapper wrapped in sacking behind the ore carts in the mine."
  },
  "Ves is at the Bell Gate at 14:00 on Day 3.": {
   "verdict": "keep",
@@ -1263,107 +1061,77 @@
  "Ves walks into the dark of the Old Mine.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage says Ves walks into the dark after entering the Old Mine."
+  "explanation": "The passage states that Ves walks into the dark after entering the mine."
  },
  "Ves uses Ashsight to find the way through the Old Mine.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly says Ves uses Ashsight to find her way through the Old Mine."
+  "explanation": "The passage directly states that Ves uses Ashsight to find her way through the Old Mine."
  },
  "Ves reads the sign-in board at the junction.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly states that Ves reads the sign-in board at the junction."
+  "explanation": "The passage directly states that Ves reads the sign-in board at the junction."
  },
  "Ves carries the Bronze Clapper out of the Old Mine.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The bundle is identified as the Bronze Clapper, and Ves hauls it onto her shoulder and carries it out of the mine."
+  "explanation": "The passage says Ves shoulders the bundle containing the Bronze Clapper and starts back toward the light, and the surrounding text confirms she carries it out."
  },
  "Ves is at Saltgate at 14:10 on Day 3.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly places Ves at Saltgate at 14:10 on Day 3."
+  "explanation": "The passage directly places Ves at Saltgate at 14:10 on Day 3."
  },
  "Mother Brisk is at Saltgate around evening on Day 3.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Mother Brisk is at Saltgate around evening on Day 3, haggling over ember salt."
+  "explanation": "The passage directly places Mother Brisk at Saltgate around evening on Day 3."
  },
  "Ves stops at the mule-carts' rope in Saltgate and waits.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Ves stops at the rope, but does not place the rope in Saltgate or say that she waits there in this sentence.",
-  "suggestion": {
-   "statement": "Ves stops at the rope where the mule-carts are queued.",
-   "subject": "Ves",
-   "predicate": "stops_at",
-   "object": "the rope where the mule-carts are queued"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage says Ves stops at the rope where the mule-carts are queued and later waits there."
  },
  "Mother Brisk pays half the asking price for a barrel of ember salt.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly says Mother Brisk pays half of the owner's asking price for the barrel."
+  "explanation": "The passage explicitly says Mother Brisk pays half of what the barrel's owner asks."
  },
  "Ves cannot decide whether Ysolde's night runs are a comfort or a warning.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "Ves wonders whether the night run is a comfort or a warning, not whether Ysolde's night runs are.",
-  "suggestion": {
-   "statement": "Ves cannot decide whether the night run is a comfort or a warning.",
-   "subject": "Ves",
-   "predicate": "wonders_about",
-   "object": "the night run"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage directly states Ves has never decided whether the night run is a comfort or a warning."
  },
  "Ysolde steps back into the alley and vanishes before Ves can reach her.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Ysolde steps back into the alley, but does not say she vanishes before Ves can reach her.",
-  "suggestion": {
-   "statement": "Ysolde steps back into the dark of the alley as the crowd closes over the place where she stood.",
-   "subject": "Ysolde",
-   "predicate": "steps_away_from",
-   "object": "the place where she stood"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Ysolde steps into the alley, and the crowd closes over her before Ves pushes through to where she stood."
  },
  "Ysolde does not return Ves's greeting in the square.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage states that Ysolde does not raise her hand in response when Ves lifts hers."
+  "explanation": "Ves raises a hand, and Ysolde does not raise hers in response."
  },
  "Ysolde's mules leave Saltgate by the lower gate in a single line.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says the mules move toward the lower gate and the last mule turns the corner, but does not explicitly say they leave Saltgate.",
-  "suggestion": {
-   "statement": "Ysolde's mules move in a line toward the lower gate.",
-   "subject": "Ysolde's mules",
-   "predicate": "move",
-   "object": "the lower gate"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The mules are lined toward the lower gate, and the last turns the corner as they depart."
  },
  "The Red Mule Caravan burns its brand into every pack saddle.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says the Red Mule brand is on every pack saddle, but does not state that the caravan burns it there.",
-  "suggestion": {
-   "statement": "The Red Mule brand is burned into every pack saddle.",
-   "subject": "Red Mule brand",
-   "predicate": "is burned into",
-   "object": "every pack saddle"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage states that the Red Mule brand is burned into every pack saddle."
  },
  "Ves keeps her distance from Mother Brisk at the market stalls.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Ves watches from the far side of the stalls and does not go over to Mother Brisk."
+  "explanation": "Ves watches Brisk from the far side of the stalls and deliberately does not approach."
  },
  "Ves rings the Ashbell at 06:00 on Day 4.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Ves rings the Ashbell at 06:00 on Day 4."
+  "explanation": "The passage explicitly states Ves rings the Ashbell at 06:00 on Day 4."
  },
  "Ves helps Corin rehang the Bronze Clapper in the dark.": {
   "verdict": "keep",
@@ -1373,7 +1141,7 @@
  "Corin falls on the tower stair and breaks his arm.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Corin falls on the tower stair and breaks his arm."
+  "explanation": "The passage directly states that Corin falls on the stone stair of the tower and breaks his arm."
  },
  "Ves splints Corin's arm with two slats from a broken crate.": {
   "verdict": "keep",
@@ -1383,79 +1151,67 @@
  "Corin props his broken arm against the wall and says nothing.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Corin props his broken arm against the wall and says nothing."
+  "explanation": "The passage directly states that Corin props his broken arm against the wall and says nothing."
  },
  "Ves pulls the rope with both hands and leans her weight into it.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Ves pulls the rope with both hands and leans her weight into it."
+  "explanation": "The passage directly states that Ves pulls the rope with both hands and leans her weight into it."
  },
  "Ves loses her voice in the middle of a breath.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly says Ves's voice goes out in the middle of a breath."
+  "explanation": "The passage directly says Ves's voice goes out mid-breath and she cannot call out."
  },
  "Corin holds Ves by the shoulder with his good hand.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly states that Corin holds Ves by the shoulder with his good hand."
+  "explanation": "The passage directly states that Corin holds Ves by the shoulder with his good hand."
  },
  "Corin knows what ringing the bell costs the ringer.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Corin's face shows that he knows the price, and the surrounding text connects that price to what the bell takes from its ringer."
+  "explanation": "The passage says Corin knows the price of the rope and presents his understanding of the cost Ves paid."
  },
  "Corin is Ysolde's sworn partner at 08:00 on Day 4.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage identifies Corin as Ysolde's sworn partner at 08:00 on Day 4."
+  "explanation": "The passage explicitly identifies Corin as Ysolde's sworn partner when they meet at 08:00 on Day 4."
  },
  "Ysolde paid Odo to steal the Bronze Clapper.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Ysolde admits paying Odo Fenn to take the Bronze Clapper; “steal” is a permissible paraphrase here."
+  "explanation": "Ysolde admits that she paid Odo Fenn to take the Bronze Clapper."
  },
  "Ysolde wanted the Cinder Bridge open after dusk for one ember-salt run.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says the run involved the caravan and salt, but does not specify that it was an ember-salt run.",
-  "suggestion": {
-   "statement": "Ysolde wanted the Cinder Bridge open after dusk for one run.",
-   "subject": "Ysolde",
-   "predicate": "wanted_open",
-   "object": "Cinder Bridge"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage directly states that Ysolde wanted the Cinder Bridge open after dusk for one run."
  },
  "Odo accepts Ysolde's coin and does the rest of the job.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly says Ysolde's coin went to Odo and he did the rest."
+  "explanation": "The passage says Ysolde's coin went to Odo and that he did the rest."
  },
  "Corin waits for Ysolde to finish without shouting at her.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly says Corin waits for Ysolde to finish and does not shout."
+  "explanation": "The passage states that Corin does not shout and waits for Ysolde to finish."
  },
  "Ves writes her question on a slate because she has no voice.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Ves writes on a slate and has no voice to ask the question, but does not state that she writes because of this.",
-  "suggestion": {
-   "statement": "Ves writes on a slate with a stub of chalk.",
-   "subject": "Ves",
-   "predicate": "writes_on",
-   "object": null
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage states that Ves writes on a slate and has no voice to ask her question."
  },
  "Ves turns her slate toward Corin so he can read the question.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage directly says Ves turns the slate so Corin can read it."
+  "explanation": "The passage directly says she turns the slate so Corin can read it."
  },
  "Corin sits down on the lowest step of the Bell Gate stairs.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage plainly says Corin sits on the lowest step of the Bell Gate stairs."
+  "explanation": "The passage directly says Corin sits on the lowest step of the Bell Gate stairs."
  },
  "Ysolde says she did it for the Red Mule Caravan and its salt.": {
   "verdict": "keep",
@@ -1465,12 +1221,12 @@
  "Ves still cannot speak at noon on Day 4 after ringing the Ashbell.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly states that Ves cannot speak at noon on Day 4."
+  "explanation": "The passage states that Ves cannot speak at noon on Day 4, and the Ashbell is the bell present in the scene."
  },
  "Odo Fenn confesses to Ves in the bell tower.": {
   "verdict": "reject",
   "reason": "not_stated",
-  "explanation": "The quoted passage only has Odo introduce himself as the Lamplighter and offer to speak; it does not say he confesses."
+  "explanation": "Odo says that half the town calls him the Lamplighter, but this quoted line does not state a confession to Ves."
  },
  "Odo Fenn took the Bronze Clapper down from the Ashbell.": {
   "verdict": "keep",
@@ -1480,12 +1236,12 @@
  "Odo Fenn owes money to Ysolde Marr.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Odo plainly says he owes Ysolde Marr money."
+  "explanation": "Odo explicitly says that he owes Ysolde Marr money and has owed her for years."
  },
  "Odo Fenn swore he was on the Cinder Bridge on the night the clapper was taken.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Odo says he swore he was on the bridge that night and explicitly admits he was not."
+  "explanation": "Odo says he swore to Captain Rourke that he was on the Cinder Bridge that night, then admits he was not."
  },
  "Rourke left his post to drink at the Kettle & Coal.": {
   "verdict": "keep",
@@ -1493,15 +1249,9 @@
   "explanation": "Rourke explicitly says he left his post to drink at the Kettle & Coal."
  },
  "Abbess Hesper Quill comes to the Bell Gate, carried in a chair.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "The passage says Hesper left the Abbey, but does not say she came to the Bell Gate.",
-  "suggestion": {
-   "statement": "Abbess Hesper Quill comes to the tower, carried in a chair.",
-   "subject": "Hesper",
-   "predicate": "visited",
-   "object": "the tower"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage describes Hesper arriving at the tower carried in a chair, and the scene is at the Bell Gate."
  },
  "Hesper tells Ves that ringing the bell was her own choice.": {
   "verdict": "keep",
@@ -1511,17 +1261,17 @@
  "The town will hear Ysolde Marr at Saltgate over her broken oath.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Hesper says the town will hear Ysolde at Saltgate and judge the cost of her broken oath."
+  "explanation": "Hesper explicitly says the town will hear Ysolde at Saltgate and decide the cost of her broken oath."
  },
  "Mother Brisk gives Ves a slate and chalk at breakfast.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Mother Brisk gives Ves the slate and chalk at breakfast."
+  "explanation": "The passage says Mother Brisk pressed a slate into Ves’s hands at breakfast and mentions chalk tied to it."
  },
  "Ves visits Stillfire Abbey on Day 5.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly says Ves climbs to Stillfire Abbey on Day 5."
+  "explanation": "The passage states that Ves climbs to Stillfire Abbey on Day 5 to return the key."
  },
  "Ves is at the Bell Gate at 10:00 on Day 5.": {
   "verdict": "keep",
@@ -1531,18 +1281,12 @@
  "Ves speaks again at sunrise on Day 5.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Ves says Corin aloud at sunrise on Day 5, speaking again after her silence."
+  "explanation": "The passage says Ves says Corin aloud at sunrise on Day 5, after the silence."
  },
  "Hesper takes the Cinder Key back from Ves at the Ember Well.": {
-  "verdict": "needs_edit",
-  "reason": "not_stated",
-  "explanation": "Hesper receives the key from Ves, but the passage does not identify it as the Cinder Key.",
-  "suggestion": {
-   "statement": "Hesper takes the key back from Ves at the Ember Well.",
-   "subject": "Hesper",
-   "predicate": "receives_key",
-   "object": "key"
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "Ves places the key in Hesper's hand while they are beside the Ember Well."
  },
  "Hesper tells Ves she will not need her again.": {
   "verdict": "keep",
@@ -1552,27 +1296,21 @@
  "Corin stands beside Ves at the Bell Gate with his arm in a sling.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The passage explicitly places Corin beside Ves at the Bell Gate with his arm in a sling."
+  "explanation": "The passage explicitly places Corin beside Ves at the Bell Gate and says his arm is in a sling."
  },
  "The Red Mule Caravan leaves Kettlehold through the Bell Gate.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "The wagons roll out under the gate, and the surrounding passage identifies them as the Red Mule Caravan."
+  "explanation": "The wagons roll out under the gate as Ves watches the Red Mule Caravan depart from the Bell Gate."
  },
  "Ysolde Marr rides at the front of the departing caravan.": {
   "verdict": "keep",
   "reason": "ok",
-  "explanation": "Ysolde Marr is explicitly said to ride at the front of the caravan as it departs."
+  "explanation": "The passage states that Ysolde Marr rides at the front as the caravan rolls out."
  },
  "The Bronze Clapper is back in place on the day the caravan leaves.": {
-  "verdict": "needs_edit",
-  "reason": "ambiguous_time_place",
-  "explanation": "The passage says the clapper is back in place at dusk, but does not say this is the day the caravan leaves.",
-  "suggestion": {
-   "statement": "The Bronze Clapper is back in place at dusk.",
-   "subject": "Bronze Clapper",
-   "predicate": "returned",
-   "object": null
-  }
+  "verdict": "keep",
+  "reason": "ok",
+  "explanation": "The passage says the clapper is back in place at dusk on the day the caravan rolls out."
  }
 }

@@ -43,7 +43,11 @@ const lowConfidence = (f: Record<string, any>) => f.confidence != null && f.conf
 
 type Mode = 'idle' | 'edit' | 'reject'
 const mode = ref<Mode>('idle')
-const form = reactive({ statement: '', subject: '', predicate: '', object: '', rationale: '' })
+const form = reactive({ statement: '', subject: '', predicate: '', object: '', time_from: '', time_to: '', approximate: false, rationale: '' })
+// The candidate's own story time, as the edit form opened with it: time is sent only when the person (or a suggestion) changed it.
+const timeAtOpen = ref('')
+const timeOf = () => JSON.stringify([form.time_from.trim(), form.time_to.trim(), form.approximate])
+const timeError = (v: string) => (v.trim() && !storyTime(v) ? 'Use a day, like D3, or a day and time, like D2 14:30.' : '')
 const error = ref('')
 const busy = ref(false)
 const evIndex = ref(0)
@@ -71,8 +75,13 @@ async function open(m: Mode, prefill?: CriticSuggestion | null) {
     return
   }
   error.value = ''
-  Object.assign(form, { statement: f.statement, subject: f.subject, predicate: f.predicate, object: f.object ?? '', rationale: '' })
-  if (prefill) Object.assign(form, { ...prefill, object: prefill.object ?? '', rationale: 'AI critic suggestion' })
+  const t = splitTimeLabel(f.time_label)
+  Object.assign(form, { statement: f.statement, subject: f.subject, predicate: f.predicate, object: f.object ?? '', time_from: t.from, time_to: t.to, approximate: t.approximate, rationale: '' })
+  timeAtOpen.value = timeOf()
+  if (prefill) {
+    const s = prefill.time === undefined ? t : splitTimeLabel(prefill.time)
+    Object.assign(form, { statement: prefill.statement, subject: prefill.subject, predicate: prefill.predicate, object: prefill.object ?? '', time_from: s.from, time_to: s.to, approximate: s.approximate, rationale: 'AI critic suggestion' })
+  }
   mode.value = m
   await nextTick()
   firstField.value?.focus()
@@ -107,6 +116,11 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
     error.value = 'Say why it is rejected.'
     return
   }
+  const retimed = decision === 'correct_and_accept' && timeOf() !== timeAtOpen.value
+  if (retimed && (timeError(form.time_from) || timeError(form.time_to))) {
+    error.value = timeError(form.time_from) || timeError(form.time_to)
+    return
+  }
   const i = queue.value.indexOf(f)
   busy.value = true
   error.value = ''
@@ -116,7 +130,10 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
       body: {
         decision,
         rationale: mode.value === 'idle' ? undefined : form.rationale,
-        corrected: decision === 'correct_and_accept' ? { statement: form.statement, subject: form.subject, predicate: form.predicate, object: form.object } : undefined,
+        corrected: decision === 'correct_and_accept'
+          ? { statement: form.statement, subject: form.subject, predicate: form.predicate, object: form.object,
+              ...(retimed && { time_from: storyTime(form.time_from) ?? '', time_to: storyTime(form.time_to) ?? '', precision: form.approximate ? 'approximate' : 'exact' }) }
+          : undefined,
       },
     })
   } catch (e) {
@@ -144,9 +161,9 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
 // Accept every verified candidate still waiting, as one informed decision: the sheet lists each one (statement and source)
 // before anything happens. Blocked candidates (quote not in the source) are never in the list; the server re-checks each.
 const verifiedLeft = computed(() => all.value.filter(verified))
-// "Accept all the AI critic keeps": the verified candidates whose current opinion is keep. Same sheet, same one human click;
-// the fingerprint then covers the opinion shown too.
-const criticKeeps = computed(() => verifiedLeft.value.filter(f => verdictOf(f) === 'keep'))
+// "Accept all the AI critic keeps": the verified candidates whose current opinion is keep, read against today's canon about
+// their names. Same sheet, same one human click; the fingerprint then covers the opinion shown too.
+const criticKeeps = computed(() => verifiedLeft.value.filter(f => verdictOf(f) === 'keep' && !f.critic!.canon_changed))
 const bulkMode = ref<'verified' | 'critic'>('verified')
 const bulkList = () => (bulkMode.value === 'critic' ? criticKeeps.value : verifiedLeft.value)
 const bulkOpen = ref(false)
@@ -211,7 +228,7 @@ async function acceptAll() {
 // Ask the AI critic: one candidate, or every verified one in the queue without a current opinion. It writes opinions only.
 const criticBusy = ref(false)
 const criticNote = ref('')
-const unread = computed(() => verifiedLeft.value.filter(f => !f.critic?.current))
+const unread = computed(() => verifiedLeft.value.filter(f => !f.critic?.current || f.critic.canon_changed))
 async function askCritic(ids: string[]) {
   if (criticBusy.value || !ids.length) return
   criticBusy.value = true
@@ -353,13 +370,14 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
         <p v-if="current.critic.duplicate_of" class="small">Same as canon: <NuxtLink :to="`/canon#fact-${current.critic.duplicate_of}`">“{{ current.critic.duplicate_statement ?? current.critic.duplicate_of }}”</NuxtLink></p>
         <div v-if="current.critic.suggestion && current.critic.current" class="critic-edit small">
           <span>Suggested: “{{ current.critic.suggestion.statement }}”
-            <span class="faint">{{ current.critic.suggestion.subject }} → {{ current.critic.suggestion.predicate }}<template v-if="current.critic.suggestion.object"> → {{ current.critic.suggestion.object }}</template></span></span>
+            <span class="faint">{{ current.critic.suggestion.subject }} → {{ current.critic.suggestion.predicate }}<template v-if="current.critic.suggestion.object"> → {{ current.critic.suggestion.object }}</template><template v-if="(current.critic.suggestion.time ?? null) !== current.time_label"> · {{ current.critic.suggestion.time ?? 'no time' }}</template></span></span>
           <UiButton v-if="editor && mode === 'idle' && verified(current)" size="sm" @click="open('edit', current.critic.suggestion)">Use in Edit &amp; accept</UiButton>
         </div>
         <p class="small faint critic-foot">
           <template v-if="!current.critic.current">This opinion is about an earlier form of the candidate (its source, wording or names changed since). </template>
+          <template v-else-if="current.critic.canon_changed">Canon about these names changed since the AI critic read this, so it may now repeat a fact. </template>
           Advice only: you decide.
-          <button v-if="editor && !current.critic.current" type="button" class="linklike" :disabled="criticBusy" @click="askCritic([current.id])">Ask again</button>
+          <button v-if="editor && (!current.critic.current || current.critic.canon_changed)" type="button" class="linklike" :disabled="criticBusy" @click="askCritic([current.id])">Ask again</button>
         </p>
       </section>
       <p v-else-if="editor && verified(current)" class="small faint critic-none">
@@ -379,6 +397,11 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
           <UiField label="Subject"><input v-model="form.subject" type="text" required></UiField>
           <UiField label="Predicate"><input v-model="form.predicate" type="text" required></UiField>
           <UiField label="Object"><input v-model="form.object" type="text"></UiField>
+        </div>
+        <div class="triple-fields">
+          <UiField label="From" :error="timeError(form.time_from)"><input v-model="form.time_from" type="text" placeholder="e.g. D2 14:30" autocomplete="off"></UiField>
+          <UiField label="Until" :error="timeError(form.time_to)"><input v-model="form.time_to" type="text" placeholder="Optional" autocomplete="off"></UiField>
+          <label class="check"><input v-model="form.approximate" type="checkbox"> Roughly</label>
         </div>
         <UiField label="Note" hint="Optional. Saved to the audit log.">
           <input v-model="form.rationale" type="text" placeholder="e.g. Fixed the time to match the scene">
@@ -552,6 +575,8 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 .notice.refused { border-color: var(--bad); box-shadow: inset 3px 0 0 var(--bad); }
 .decision { padding-top: var(--s-3); border-top: 1px solid var(--line); }
 .triple-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); }
+.check { display: flex; align-items: center; gap: 6px; align-self: end; min-height: 36px; font-weight: 400; }
+.check input { width: auto; }
 .keys { margin: 0; }
 
 .source-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-2); flex-wrap: wrap; padding: var(--s-3) var(--s-4); border-bottom: 1px solid var(--line); background: var(--surface); }

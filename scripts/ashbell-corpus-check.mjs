@@ -11,7 +11,7 @@ import { foldQuoteText, quoteMatches } from '../server/utils/quote.ts'
 Object.assign(globalThis, { foldQuoteText, quoteMatches }) // db.ts reaches them as Nitro auto-imports
 const { findQuotePassage } = await import('../server/utils/db.ts')
 const { splitPassages } = await import('../server/utils/importer.ts')
-const { parseStoryRange } = await import('../server/utils/story-time.ts')
+const { parseStoryRange } = await import('../shared/utils/story-time.ts')
 
 const A = new URL('../server/assets/ashbell-pass/', import.meta.url)
 const json = f => JSON.parse(readFileSync(new URL(f, A), 'utf8'))
