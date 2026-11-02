@@ -235,7 +235,7 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
     <div class="layout">
       <UiPanel class="doc">
         <ReaderTools :content="doc.content" :passages="doc.passages" :target="readerBox" />
-        <p v-if="annotate" class="small faint hint"><UiIcon name="canon" :size="14" />Select words to add a fact or a note. <span class="hide-sm">Then press <kbd>F</kbd> or <kbd>N</kbd>.</span></p>
+        <p v-if="annotate" class="small faint hint"><UiIcon name="canon" :size="14" />Select words to add a fact, an entity or a note. <span class="hide-sm">Then press <kbd>F</kbd>, <kbd>E</kbd> or <kbd>N</kbd>.</span></p>
         <div ref="readerBox">
           <PassageReader :doc="doc" :active="active" :quote="activeQuote" :annotate="annotate" :notes="doc.notes" @saved="onSaved" @notes="showNotes" />
         </div>
