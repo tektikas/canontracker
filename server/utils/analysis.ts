@@ -26,7 +26,9 @@ export function ruleHits(a: Fact, b: Fact, travel: Fact[]) {
     (normEntity(t.subject) === normEntity(x) && normEntity(t.object) === normEntity(y))
     || (normEntity(t.subject) === normEntity(y) && normEntity(t.object) === normEntity(x)))
 
+  // A day-only time ("D5") is "some time that day": it can't clash with another place that day, so overlap and travel rules need clock times on both.
   if (a.predicate === 'located_at' && b.predicate === 'located_at' && a.t_from != null && b.t_from != null
+    && !isDayOnlyLabel(a.time_label) && !isDayOnlyLabel(b.time_label)
     && normEntity(a.object) !== normEntity(b.object)) {
     const exact = a.precision === 'exact' && b.precision === 'exact'
     if (overlaps(a, b)) {
@@ -53,7 +55,7 @@ export function ruleHits(a: Fact, b: Fact, travel: Fact[]) {
       : b.t_to != null && a.t_from != null && a.t_from > b.t_to ? [b, a] : []
     if (ended && later)
       hits.push({ a: ended, b: later, rule: 'RELATIONSHIP_AFTER_END',
-        rationale: `"${ended.predicate}" between ${ended.subject} and ${ended.object} ended at ${formatStoryTime(ended.t_to!)}, but is used as active at ${later.time_label}.`,
+        rationale: `"${ended.predicate}" between ${ended.subject} and ${ended.object} ended at ${formatStoryTime(ended.t_to!, isDayOnlyLabel(ended.time_label))}, but is used as active at ${later.time_label}.`,
         confidence: 0.85 })
   }
   return hits

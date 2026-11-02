@@ -37,7 +37,7 @@ export default defineEventHandler(async (event) => {
 
   const range = parseStoryRange(str(b.time_from), str(b.time_to))
   if (range.bad) throw fail(400, 'BAD_TIME', 'Story time must be like D2 14:30, or a whole day like D-3650.')
-  const { from: tFrom, to: tTo } = range
+  const { from: tFrom, to: tTo, day } = range
   if (tFrom != null && tTo != null && tTo < tFrom) throw fail(400, 'BAD_TIME', 'To must be after From.')
   const precision = tFrom == null && tTo == null ? null : b.precision === 'approximate' ? 'approximate' : 'exact'
 
@@ -62,7 +62,7 @@ export default defineEventHandler(async (event) => {
   tx(() => {
     db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision, status, confidence,
       origin, model_id, created_at, decided_at, decided_by, created_by, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, 'human', null, ?, ?, ?, ?, ?)`)
-      .run(id, kind, names.subject, predicate, names.object, value, statement, tFrom, tTo, timeLabel(tFrom, tTo, precision), precision,
+      .run(id, kind, names.subject, predicate, names.object, value, statement, tFrom, tTo, timeLabel(tFrom, tTo, precision, day), precision,
         to === 'canon' ? 'canon' : 'pending', now(), to === 'canon' ? now() : null, to === 'canon' ? user : null, user, pid())
     db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, 1, ?)')
       .run(newId('ev'), id, doc.id, passage.id, quote, pid())

@@ -16,7 +16,8 @@ onMounted(() => {
 })
 onBeforeUnmount(() => ro?.disconnect())
 const TAIL = 140 // room after the last hour for a label that starts late
-const BREAK = 56 // px for a collapsed run of empty days
+// px for a collapsed run of empty days: sized to its "… 3,639 d" label
+const breakW = (gap: number) => Math.max(56, gap.toLocaleString('en').length * 8 + 40)
 const pxH = computed(() => Math.max(11, Math.floor(((avail.value - 84 - TAIL - breakPx.value) / (dayCols.value.length * 24)) * 10) / 10))
 const FUZZ = 60 // minutes of visible fuzz around an approximate time
 const selectedId = ref<string | null>(null)
@@ -44,14 +45,14 @@ const cols = computed(() => {
   return out.length ? out : [{ day: 0 }]
 })
 const dayCols = computed(() => cols.value.filter(c => c.day != null))
-const breakPx = computed(() => cols.value.filter(c => c.gap != null).length * BREAK)
+const breakPx = computed(() => cols.value.reduce((n, c) => n + (c.gap != null ? breakW(c.gap) : 0), 0))
 // x (px) of a story minute: the column's left edge plus the minutes into the day.
 const layout = computed(() => {
   let x = 0
   const left = new Map<number, number>()
   const marks = cols.value.map((c) => {
     const m = { ...c, left: x }
-    if (c.day != null) { left.set(c.day, x); x += 24 * pxH.value } else x += BREAK
+    if (c.day != null) { left.set(c.day, x); x += 24 * pxH.value } else x += breakW(c.gap!)
     return m
   })
   return { marks, left, total: x }
@@ -122,7 +123,7 @@ const selected = computed(() => timed.value.find(f => f.id === selectedId.value)
         <div class="lane head">
           <div class="label" />
           <div class="track" :style="{ width: `${width}px` }">
-            <div v-for="c in layout.marks" :key="c.left" class="day" :class="{ brk: c.gap }" :style="{ left: `${c.left}px`, width: `${c.gap ? BREAK : 24 * pxH}px` }">
+            <div v-for="c in layout.marks" :key="c.left" class="day" :class="{ brk: c.gap }" :style="{ left: `${c.left}px`, width: `${c.gap ? breakW(c.gap) : 24 * pxH}px` }">
               <strong v-if="c.gap" :title="`${c.gap} days with nothing in them`">… {{ c.gap.toLocaleString('en') }} d</strong>
               <strong v-else>Day {{ c.day! + 1 }}</strong>
               <template v-if="!c.gap">
