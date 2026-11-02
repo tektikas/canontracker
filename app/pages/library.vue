@@ -328,8 +328,8 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
             <template #default="{ close }">
               <button type="button" class="menu-item" @click="close(); moveTo(null)"><UiIcon name="file" :size="16" />Library root</button>
               <template v-for="f in tops" :key="f.id">
-                <button type="button" class="menu-item" @click="close(); moveTo(f.id)"><UiIcon name="folder" :size="16" />{{ f.name }}</button>
-                <button v-for="c in childrenOf(f.id)" :key="c.id" type="button" class="menu-item indent" @click="close(); moveTo(c.id)"><UiIcon name="folder" :size="16" />{{ c.name }}</button>
+                <button type="button" class="menu-item" :title="f.name" @click="close(); moveTo(f.id)"><UiIcon name="folder" :size="16" />{{ f.name }}</button>
+                <button v-for="c in childrenOf(f.id)" :key="c.id" type="button" class="menu-item indent" :title="c.name" @click="close(); moveTo(c.id)"><UiIcon name="folder" :size="16" />{{ c.name }}</button>
               </template>
               <p v-if="!folders.length" class="menu-label">No folders yet. Add one on the left.</p>
             </template>
@@ -337,7 +337,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
           <UiMenu label="Tag" class="bar-menu">
             <template #trigger><UiIcon name="tag" :size="16" />Tag</template>
             <template #default>
-              <button v-for="t in tags" :key="t.id" type="button" class="menu-item" role="menuitemcheckbox" :aria-checked="tagState(t.id) === 'all' ? 'true' : tagState(t.id) === 'some' ? 'mixed' : 'false'" @click="toggleTag(t.id)">
+              <button v-for="t in tags" :key="t.id" type="button" class="menu-item" :title="t.name" role="menuitemcheckbox" :aria-checked="tagState(t.id) === 'all' ? 'true' : tagState(t.id) === 'some' ? 'mixed' : 'false'" @click="toggleTag(t.id)">
                 <UiIcon :name="tagState(t.id) === 'all' ? 'checked' : 'square'" :size="16" /><span class="swatch" :class="t.color" />{{ t.name }}
                 <span v-if="tagState(t.id) === 'some'" class="faint small">some</span>
               </button>
@@ -425,7 +425,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                       <NuxtLink :to="`/write?doc=${d.id}`" class="menu-item"><UiIcon name="review" :size="16" />Edit text</NuxtLink>
                       <button type="button" class="menu-item" @click="close(); startRename(d)"><UiIcon name="review" :size="16" />Rename</button>
                       <p class="menu-label">Tags</p>
-                      <button v-for="t in tags" :key="t.id" type="button" class="menu-item" role="menuitemcheckbox" :aria-checked="d.tags.includes(t.id)" @click="organise(d.tags.includes(t.id) ? { remove_tags: [t.id] } : { add_tags: [t.id] }, `${d.tags.includes(t.id) ? 'Removed' : 'Added'} “${t.name}” ${d.tags.includes(t.id) ? 'from' : 'to'} “${d.title}”.`, [d.id])">
+                      <button v-for="t in tags" :key="t.id" type="button" class="menu-item" :title="t.name" role="menuitemcheckbox" :aria-checked="d.tags.includes(t.id)" @click="organise(d.tags.includes(t.id) ? { remove_tags: [t.id] } : { add_tags: [t.id] }, `${d.tags.includes(t.id) ? 'Removed' : 'Added'} “${t.name}” ${d.tags.includes(t.id) ? 'from' : 'to'} “${d.title}”.`, [d.id])">
                         <UiIcon :name="d.tags.includes(t.id) ? 'checked' : 'square'" :size="16" /><span class="swatch" :class="t.color" />{{ t.name }}
                       </button>
                       <p v-if="!tags.length" class="menu-label">No tags yet. Add one on the left.</p>
