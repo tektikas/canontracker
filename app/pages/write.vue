@@ -317,7 +317,7 @@ onMounted(() => {
 })
 watch(chatOpen, (on) => { try { localStorage.setItem('storybible.write-chat', on ? '1' : '0') } catch { /* storage blocked */ } })
 useChatDock('focus', () => focus.value)
-useChatDock('write', () => wide.value && !focus.value)
+useChatDock('write', () => wide.value && !focus.value && editor.value && !loadError.value)
 watch(() => chat.value.tick, async () => {
   if (chat.value.dock !== 'write') return
   chatOpen.value = true

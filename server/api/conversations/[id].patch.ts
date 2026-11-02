@@ -4,7 +4,7 @@ export default defineEventHandler(async (event) => {
   const title = cleanName((await readObject<{ title: string }>(event)).title, 'title', 120)
   if (title !== conv.title) {
     tx(() => {
-      useDb().prepare('update conversations set title = ? where id = ?').run(title, conv.id)
+      useDb().prepare('update conversations set title = ?, updated_at = ? where id = ?').run(title, now(), conv.id)
       audit('conversation.renamed', 'conversation', conv.id, { from: conv.title, to: title })
     })
   }

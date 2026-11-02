@@ -126,6 +126,8 @@ assert.equal(viStarted.status, 200)
 assert.equal((await vi(`/api/conversations/${conv.id}`, { method: 'PATCH', body: { title: 'Viewer rename' } })).status, 403)
 const renamed = await bo(`/api/conversations/${conv.id}`, { method: 'PATCH', body: { title: '  Bell Gate watch  ' } })
 assert.deepEqual([renamed.status, renamed.data.title], [200, 'Bell Gate watch'])
+const afterRename = (await ada(`/api/conversations/${conv.id}?since=${encodeURIComponent(polled.conversation.updated_at)}`)).data
+assert.ok(!afterRename.unchanged && afterRename.conversation.title === 'Bell Gate watch', 'a rename reaches pollers')
 assert.ok((await ada('/api/audit')).data.some(e => e.event_type === 'conversation.renamed' && e.target_id === conv.id))
 ok('viewer reads, starts and posts; rename is editor+ and audited')
 
