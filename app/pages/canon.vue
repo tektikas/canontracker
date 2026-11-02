@@ -20,6 +20,8 @@ const recheckOnly = computed({
 })
 const outdated = computed(() => (canon.value ?? []).filter(f => f.recheck === 'outdated'))
 const unchanged = computed(() => (canon.value ?? []).filter(f => f.recheck === 'unchanged'))
+// Confirm re-pins every unchanged citation of these facts, so the button counts citations, not facts.
+const unchangedCitations = computed(() => unchanged.value.reduce((n, f) => n + f.evidence.filter((e: Ev) => e.recheck === 'unchanged').length, 0))
 watch(recheckOnly, (v) => { if (v) tab.value = 'facts' }, { immediate: true })
 const filtered = computed(() => {
   const q = filter.value.trim().toLowerCase()
@@ -119,7 +121,7 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
         </details>
       </div>
       <UiButton v-if="editor" size="sm" variant="primary" :loading="busy === 'confirm'" :disabled="!!busy" @click="recheck('confirm', unchanged.map(f => f.id))">
-        Confirm {{ counted(unchanged.length, 'unchanged citation') }}
+        Confirm {{ counted(unchangedCitations, 'unchanged citation') }}
       </UiButton>
     </div>
     <p v-if="outdated.length" class="small muted">{{ counted(outdated.length, 'fact rests', 'facts rest') }} on words a newer version of the source no longer has. For each: see what changed, then propose a change or keep it as it is.</p>

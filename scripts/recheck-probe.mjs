@@ -5,6 +5,8 @@
 // "Keep as is" leaves a citation on v1, marked as checked against v2, until a v3 asks again; a v4 restoring a sentence makes its fact unchanged again. Viewers cannot re-check.
 // A v5 repeating a confirmed quote as a new paragraph makes that fact outdated ("appears twice"), and the diff lists it though its passage reads the same.
 // Keep is per citation: a fact citing two documents, both quotes gone, keeps one citation and the other stays outdated.
+// A version that only changes typography (curly → straight quotes, a line break) leaves the quote unchanged, for canon re-check
+// and the pending re-pin alike (one matcher, quoteMatches); confirming stores the new version's exact characters.
 import assert from 'node:assert/strict'
 import { DatabaseSync } from 'node:sqlite'
 
@@ -207,4 +209,35 @@ check('one citation.kept, naming that citation only', keptTwo.map(e => e.detail.
 check('keep the other one', (await a('/api/facts/recheck', { method: 'POST', body: { action: 'keep', evidence_ids: [evB] } })).data.done, [evB])
 twoF = (await a('/api/facts?status=canon')).data.find(f => f.id === two.id)
 check('both kept: the fact needs nothing; two audit events', [twoF.recheck, (await a('/api/audit')).data.filter(e => e.event_type === 'citation.kept' && e.target_id === two.id).length], [null, 2])
+// 11. Typography only: v2 swaps curly quotes for straight ones and breaks a line inside the cited sentences. Same matcher as
+// findQuotePassage and the pending re-pin, so both citations read the same; confirm stores v2's exact characters.
+const typo = `typography-${run}.md`
+const canonQ = '“Hold the line,” Mira said, and she didn’t look back at the harbor.'
+const pendQ = 'The lantern’s light caught the “broken” tide before it turned.'
+const typoV1 = `# Typography\n\n${canonQ}\n\n${pendQ}\n`
+const straight = q => q.replace(/[“”]/g, '"').replace(/’/g, '\'')
+const canonV2 = straight(canonQ).replace(' and she', '\nand she')
+const pendV2 = straight(pendQ).replace(' caught', '\ncaught')
+const tu1 = (await a('/api/documents', { method: 'POST', form: form(typo, typoV1) })).data.results[0]
+check('typography v1 imported', [tu1.status, tu1.version], ['imported', 1])
+const tc = (await a('/api/facts', { method: 'POST', body: { to: 'canon', document_id: tu1.document_id, quote: canonQ, kind: 'claim', subject: 'Mira', predicate: 'says', statement: `Mira holds the line (${run})` } })).data
+const tp = (await a('/api/facts', { method: 'POST', body: { to: 'review', document_id: tu1.document_id, quote: pendQ, kind: 'claim', subject: 'Lantern', predicate: 'lights', statement: `The lantern lights the tide (${run})` } })).data
+check('a canon fact and a pending candidate on the curly text', [tc.status, tp.status], ['canon', 'pending'])
+const tu2 = (await a('/api/documents', { method: 'POST', form: form(typo, `# Typography\n\n${canonV2}\n\n${pendV2}\n`) })).data.results[0]
+check('typography v2: nothing outdated, the canon fact to re-check, the pending candidate re-pinned', [tu2.version, tu2.outdated_facts, tu2.stale_facts, tu2.evidence_moved], [2, 0, 1, 1])
+let tcF = (await a('/api/facts?status=canon')).data.find(f => f.id === tc.id)
+check('canon citation: unchanged, the quote once in v2', [tcF.recheck, tcF.evidence[0].recheck, tcF.evidence[0].recheck_count, tcF.evidence[0].document_id], ['unchanged', 'unchanged', 1, tu1.document_id])
+const tpF = (await a('/api/facts?status=pending')).data.find(f => f.id === tp.id)
+check('pending candidate: cites v2 with v2’s exact characters', [tpF.evidence[0].document_id, tpF.evidence[0].quote], [tu2.document_id, pendV2])
+const typoDiff = (await a(`/api/documents/${tu2.document_id}/diff?from=${tu1.document_id}`)).data
+check('diff: the canon fact sits on a changed passage, not outdated, quote once', typoDiff.rows.flatMap(r => r.facts).filter(f => f.id === tc.id).map(f => [f.outdated, f.quote_count]), [[false, 1]])
+check('confirm the typography-only citation', (await a('/api/facts/recheck', { method: 'POST', body: { action: 'confirm', fact_ids: [tc.id] } })).data.done, [tc.id])
+tcF = (await a('/api/facts?status=canon')).data.find(f => f.id === tc.id)
+check('confirmed: cites v2, stores v2’s exact characters, verbatim in its passage', [tcF.evidence[0].document_id, tcF.evidence[0].quote, tcF.recheck], [tu2.document_id, canonV2, null])
+const tv2 = (await a(`/api/documents/${tu2.document_id}`)).data
+check('the stored quote is verbatim in the cited v2 passage', tv2.passages.find(p => p.id === tcF.evidence[0].passage_id)?.text.includes(tcF.evidence[0].quote), true)
+const typoConf = (await a('/api/audit')).data.find(e => e.event_type === 'citation.confirmed' && e.target_id === tc.id)
+check('audit citation.confirmed records old and new quote', [typoConf.detail.citations[0].quote, typoConf.detail.citations[0].new_quote], [canonQ, canonV2])
+const typoMoved = (await a('/api/audit')).data.find(e => e.event_type === 'candidate.evidence_moved' && e.target_id === tp.id)
+check('audit candidate.evidence_moved records old and new quote', [typoMoved.detail.quote, typoMoved.detail.new_quote], [pendQ, pendV2])
 console.log('recheck probe: all checks passed')
