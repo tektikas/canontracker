@@ -8,8 +8,9 @@ defineProps<{ ev: Record<string, any> }>()
     <figcaption class="source-meta">
       <NuxtLink v-if="ev.passage_id" :to="`/documents/${ev.document_id}#${ev.passage_id}`" class="source-link">
         <UiIcon name="file" :size="14" />{{ ev.document_title }}
-        <span class="faint"><template v-if="ev.document_folder">{{ ev.document_folder }} · </template>v{{ ev.document_version }}, line {{ ev.start_line }}<template v-if="ev.end_line !== ev.start_line">–{{ ev.end_line }}</template></span>
+        <span class="faint"><template v-if="ev.document_folder">{{ ev.document_folder }} · </template>v{{ ev.document_version }}, <template v-if="ev.start_ms != null">at {{ clockMs(ev.start_ms) }}</template><template v-else>line {{ ev.start_line }}<template v-if="ev.end_line !== ev.start_line">–{{ ev.end_line }}</template></template></span>
       </NuxtLink>
+      <ClipButton v-if="ev.start_ms != null && ev.passage_id" :doc-id="ev.document_id" :start="ev.start_ms" :end="ev.end_ms" label="Play" />
       <NuxtLink v-else :to="`/documents/${ev.document_id}`" class="source-link"><UiIcon name="file" :size="14" />{{ ev.document_title }}</NuxtLink>
       <UiBadge v-if="!ev.verified" tone="bad" dot>Quote not found in source</UiBadge>
       <UiBadge v-else-if="ev.support === 'prior_source'" tone="pencil">Prior source, wording changed</UiBadge>

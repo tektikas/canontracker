@@ -27,6 +27,9 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
   switch (e.event_type) {
     case 'document.imported': return [`${who} imported ${d.filename}${inFolder(d)}`, `${d.passages} passages, read-only`]
     case 'document.version_added': return [`${who} imported version ${d.version} of ${d.filename}${inFolder(d)}`, `${d.passages} passages`]
+    case 'recording.imported': return [`${who} added the recording ${d.filename}${inFolder(d)}`, `Transcribed: ${clockMs(d.duration_ms ?? 0)} of audio, ${d.passages} timed passages, read-only`]
+    case 'recording.version_added': return [`${who} transcribed ${d.filename} again: version ${d.version}`, `${d.passages} timed passages · earlier transcripts are kept`]
+    case 'recording.script_linked': return [d.script ? `${who} compared ${d.filename} with the script ${d.script}` : `${who} unlinked the script from ${d.filename}`, '']
     case 'document.written': return [`${who} wrote ${d.title ?? d.filename} in Story Bible`, `${d.passages} passages, read-only once saved`]
     case 'document.version_written': return [`${who} saved version ${d.version} of ${d.title ?? d.filename}`, `${d.passages} passages · earlier versions are kept`]
     case 'citation.stale': return [`${d.title ?? d.filename}${inFolder(d)} v${d.version} makes ${d.fact_ids?.length ?? 0} citation(s) stale`,

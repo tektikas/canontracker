@@ -135,7 +135,7 @@ const bulkChanged = ref<typeof verifiedLeft.value>([])
 const citeEv = (f: Record<string, any>) => f.evidence.find((x: any) => x.verified)
 const cite = (f: Record<string, any>) => {
   const e = citeEv(f)
-  return e ? `${e.document_title}${e.start_line ? `, line ${e.start_line}` : ''}` : ''
+  return e ? `${e.document_title}${e.start_ms != null ? `, at ${clockMs(e.start_ms)}` : e.start_line ? `, line ${e.start_line}` : ''}` : ''
 }
 // Merge decisions that rename names on accept, as the single review shows them; counted once per name.
 const bulkBlocked = computed(() => queue.value.length - verifiedLeft.value.length)
@@ -357,7 +357,8 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
         <div class="source-title">
           <UiIcon name="file" :size="16" />
           <b :title="source?.document_title">{{ source?.document_title }}</b>
-          <span class="faint small">{{ source?.verified ? `line ${source.start_line}${source.end_line !== source.start_line ? `–${source.end_line}` : ''}` : 'no matching line' }}</span>
+          <span class="faint small">{{ !source?.verified ? 'no matching line' : source.start_ms != null ? `at ${clockMs(source.start_ms)}` : `line ${source.start_line}${source.end_line !== source.start_line ? `–${source.end_line}` : ''}` }}</span>
+          <ClipButton v-if="source?.verified && source.start_ms != null" :doc-id="source.document_id" :start="source.start_ms" :end="source.end_ms" label="Play" />
         </div>
         <div class="row">
           <template v-if="current.evidence.length > 1">

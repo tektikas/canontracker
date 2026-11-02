@@ -13,7 +13,8 @@ export default defineEventHandler(async (event) => {
   // Anyone may leave a studio; memberChange still requires admin to touch anyone else.
   const leaving = event.method === 'DELETE' && /^\/api\/team\/[^/]+$/.test(path)
   // Viewers ask: /api/qa, and posting in Ask's conversations (starting one, or a message in one). Renaming stays editor+.
-  const asking = path === '/api/qa' || (event.method === 'POST' && /^\/api\/conversations(\/[^/]+\/messages)?$/.test(path))
+  // Voice input only turns speech into text for the person to review (nothing is stored), so viewers can ask by voice too.
+  const asking = path === '/api/qa' || path === '/api/voice/transcribe' || (event.method === 'POST' && /^\/api\/conversations(\/[^/]+\/messages)?$/.test(path))
   if (a.role === 'viewer' && event.method !== 'GET' && !asking && !leaving)
     throw createError({ statusCode: 403, statusMessage: 'FORBIDDEN', message: 'Viewers can read and ask questions. Ask a studio owner or admin for editor access.' })
 })

@@ -14,3 +14,10 @@ export const shortDateBack = (iso: string, n: number) => {
   const [y, m, d] = new Date(iso).toLocaleDateString('en-CA', zone()).split('-').map(Number)
   return new Date(Date.UTC(y!, m! - 1, d! - n, 12)).toLocaleDateString('en-GB', { ...DAY, timeZone: 'UTC' })
 }
+/** A position in a recording: "02:14", or "1:02:14" past an hour. */
+export const clockMs = (ms: number) => {
+  const s = Math.floor(ms / 1000)
+  const mm = String(Math.floor(s / 60) % 60).padStart(2, '0')
+  const ss = String(s % 60).padStart(2, '0')
+  return s >= 3600 ? `${Math.floor(s / 3600)}:${mm}:${ss}` : `${mm}:${ss}`
+}
