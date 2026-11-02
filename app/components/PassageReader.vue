@@ -3,10 +3,11 @@ import type { SelectionMode, TextSelection } from './SelectionDialog.vue'
 
 // A source document read as passages with line numbers. `active` highlights one passage; `quote` marks the cited words inside it.
 // `contained`: the reader is its own scroll box (review split view) and keeps the active passage centred in it.
-// `annotate`: selecting words offers "Add fact", "Add entity" and "Add note" (keys F, E and N). `notes` puts a marker beside passages that have one.
+// `annotate`: selecting words offers "Add fact", "Add entity" and "Add note" (keys F, E and N). `research`: it offers "Research this"
+// (key R), which opens the chat in Research mode with the selection quoted. `notes` puts a marker beside passages that have one.
 const props = defineProps<{
   doc: { id?: string, title?: string, content: string, passages: Record<string, any>[] }
-  active?: string | null, quote?: string, contained?: boolean, annotate?: boolean
+  active?: string | null, quote?: string, contained?: boolean, annotate?: boolean, research?: boolean
   notes?: { id: string, anchor: string | null, status: string }[]
 }>()
 const emit = defineEmits<{ saved: [kind: 'fact' | 'note', result: Record<string, any>], notes: [passageId: string] }>()
@@ -54,7 +55,7 @@ function readSelection() {
   clearTimeout(timer)
   timer = setTimeout(() => {
     const s = getSelection()
-    if (!props.annotate || !s || s.isCollapsed || !s.rangeCount || !root.value || open.value) return (sel.value = null)
+    if (!(props.annotate || props.research) || !s || s.isCollapsed || !s.rangeCount || !root.value || open.value) return (sel.value = null)
     const range = s.getRangeAt(0)
     const [a, b] = [textOf(range.startContainer), textOf(range.endContainer)]
     if (!a || !b || !root.value.contains(a) || !root.value.contains(b)) return (sel.value = null)
@@ -74,10 +75,21 @@ function start(mode: SelectionMode) {
   open.value = { selection: { doc: s.doc, passage: s.passage, quote: s.quote }, mode }
   sel.value = null
 }
+function startResearch() {
+  const s = sel.value
+  if (!s || 'multi' in s) return
+  const lines = `line ${s.passage.start_line}${s.passage.end_line !== s.passage.start_line ? `–${s.passage.end_line}` : ''}`
+  openChat({ fresh: true, mode: 'research', quote: { type: 'passage', id: s.passage.id, label: `${s.doc.title}, ${lines}`, quote: s.quote } })
+  sel.value = null
+}
 function onKey(e: KeyboardEvent) {
   if (!sel.value || 'multi' in sel.value || open.value || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return
   if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable]')) return
-  const mode = ({ f: 'fact', e: 'entity', n: 'note' } as const)[e.key.toLowerCase() as 'f' | 'e' | 'n']
+  if (props.research && e.key.toLowerCase() === 'r') {
+    e.preventDefault()
+    return startResearch()
+  }
+  const mode = props.annotate && ({ f: 'fact', e: 'entity', n: 'note' } as const)[e.key.toLowerCase() as 'f' | 'e' | 'n']
   if (!mode) return
   e.preventDefault()
   start(mode)
@@ -88,7 +100,7 @@ function saved(kind: 'fact' | 'note', result: Record<string, any>) {
   emit('saved', kind, result)
 }
 onMounted(() => {
-  if (!props.annotate) return
+  if (!props.annotate && !props.research) return
   document.addEventListener('selectionchange', readSelection)
   window.addEventListener('scroll', readSelection, true)
   window.addEventListener('keydown', onKey)
@@ -120,13 +132,16 @@ onBeforeUnmount(() => {
       </span>
     </div>
 
-    <Teleport v-if="annotate" to="body">
+    <Teleport v-if="annotate || research" to="body">
     <div v-if="sel" class="sel-bar" role="toolbar" aria-label="Selected text" :style="{ top: `${sel.top}px`, left: `${sel.left}px` }" @pointerdown.prevent>
       <span v-if="'multi' in sel" class="sel-multi">Select words within one paragraph</span>
       <template v-else>
-        <button type="button" class="sel-btn" @click="start('fact')"><UiIcon name="canon" :size="16" />Add fact <kbd>F</kbd></button>
-        <button type="button" class="sel-btn" @click="start('entity')"><UiIcon name="entities" :size="16" />Add entity <kbd>E</kbd></button>
-        <button type="button" class="sel-btn" @click="start('note')"><UiIcon name="note" :size="16" />Add note <kbd>N</kbd></button>
+        <template v-if="annotate">
+          <button type="button" class="sel-btn" @click="start('fact')"><UiIcon name="canon" :size="16" />Add fact <kbd>F</kbd></button>
+          <button type="button" class="sel-btn" @click="start('entity')"><UiIcon name="entities" :size="16" />Add entity <kbd>E</kbd></button>
+          <button type="button" class="sel-btn" @click="start('note')"><UiIcon name="note" :size="16" />Add note <kbd>N</kbd></button>
+        </template>
+        <button v-if="research" type="button" class="sel-btn research" @click="startResearch"><UiIcon name="research" :size="16" />Research this <kbd>R</kbd></button>
       </template>
     </div>
     <SelectionDialog v-if="open" :selection="open.selection" :mode="open.mode" @close="open = null" @saved="saved" />
@@ -161,8 +176,11 @@ mark { background: color-mix(in srgb, var(--accent) 22%, transparent); color: in
 }
 .sel-btn:hover, .sel-btn:focus-visible { background: var(--accent-soft); color: var(--accent); }
 .sel-btn svg { color: var(--accent); }
+.sel-btn.research svg { color: var(--research); }
+.sel-btn.research:hover, .sel-btn.research:focus-visible { background: var(--research-soft); color: var(--research); }
 .sel-multi { padding: 6px 10px; font-size: var(--text-sm); color: var(--muted); white-space: nowrap; }
 @media (max-width: 720px) {
+  .sel-bar { flex-wrap: wrap; justify-content: center; width: max-content; max-width: calc(100vw - 16px); }
   .passage { grid-template-columns: max(30px, var(--gutter)) 1fr; gap: var(--s-2); padding: 6px 8px; }
   .sel-btn { min-height: 40px; }
 }

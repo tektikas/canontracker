@@ -42,7 +42,7 @@ Every model call goes through one file, `server/utils/model.ts`. The Meta Model 
 | Ask / Canon | Answers a question from accepted canon only, with citations; no evidence means `unknown`. | Muse Spark 1.3 | Chat completions | Story Bible server |
 | Illustrator | Generates portrait and location images for wiki pages (editorial, never canon). | Muse Image 1.0 | Images (`/images/generations`) | Story Bible server |
 | MCP bridge | Lets Muse Spark read canon and propose candidates through Story Bible's `/mcp` tools (16 tools, one write: `sb_propose_candidate`). A small script from Settings > Agents & API relays Muse's function calls to `/mcp`. Not yet run against a live Meta key. | Muse Spark 1.3 | Chat completions with function calling | User's machine (the script); `/mcp` runs on the server |
-| Research | In progress: web research with the Responses API, `web_search` and function-calling calculators. | Muse Spark | Responses API | Planned: server |
+| Research | Answers real-world questions (science, history, crime scenes, period travel) with a verdict, sources whose quotes are checked on the fetched page, and numbers from deterministic calculators (orbits, light delay, moon phase, sunrise, calendars, time since death). A bounded multi-step agent on the server; results are research notes, promoted to canon only through review. Run live through an OpenAI-compatible gateway; not yet against a funded Meta key. | Muse Spark 1.3 | Responses API (`/responses`) with built-in `web_search` and function calling | Story Bible server |
 | Critic | Gives a second opinion on each verified candidate in Review: keep / reject / needs edit, a reason (figurative, not stated in the passage, ambiguous time or place, duplicate of a canon fact, wrong subject) and one line why, plus a corrected fact for "needs edit". It reads the candidate, its source passage and nearby canon; it never sees a blocked candidate, never writes a quote and never changes a fact. Review filters and sorts by it and offers "Accept N the AI critic keeps" (still one human confirmation). | Muse Spark 1.3 | Chat completions (JSON output) | Story Bible server, in batches after extraction and on demand |
 | Continuity | In progress: story-wide continuity pass over canon. | Muse Spark | Planned | Planned: server |
 
@@ -85,6 +85,8 @@ Probes drive a running server over HTTP with throwaway accounts. Start `pnpm dev
 node scripts/samples-probe.mjs http://localhost:3000
 node scripts/isolation-probe.mjs http://localhost:3000
 node scripts/mcp-probe.mjs http://localhost:3000
+node scripts/research-probe.mjs http://localhost:3000
+node scripts/calculators-check.ts
 ```
 
 Others (`ashbell-probe`, `authoring-probe`, `library-probe`, `share-probe`, ...) are in `scripts/`; the first lines of each file say how to run it. The UI itself is checked in a browser, and the gates are `pnpm exec nuxi typecheck` and `pnpm build`.
