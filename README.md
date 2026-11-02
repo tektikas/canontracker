@@ -1,6 +1,6 @@
 # Story Bible
 
-Narrative Canon & Impact QA for narrative-heavy game teams. Import lore documents (read-only), turn model-extracted candidates into human-approved, source-cited canon, flag narrow conflicts, and see the 1-2 hop impact of a proposed canon change before build. Built for the Meta AI Developer Hackathon.
+A story builder for anyone building a story world: novelists, game writers, screen and series writers, worldbuilders, solo or in a team. Story Bible keeps your canon human-approved and source-cited. Import lore, notes and scene scripts (read-only), turn model-extracted candidates into human-approved, source-cited canon, flag narrow conflicts, and see the 1-2 hop impact of a proposed canon change before it reaches the build or the manuscript. Games are one use case, not the only one: the samples are Broken Tide and Lantern Row (prose scenes) and The Ashbell Pass (a game story). Built for the Meta AI Developer Hackathon.
 
 ## Run it (about 5 minutes, no API key)
 

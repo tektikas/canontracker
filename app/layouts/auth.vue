@@ -12,7 +12,7 @@ const me = useMe()
     <main class="auth-main">
       <slot />
     </main>
-    <footer class="auth-foot small faint">Story Bible · human-approved, source-cited canon for game teams</footer>
+    <footer class="auth-foot small faint">Story Bible · a story builder with human-approved, source-cited canon</footer>
   </div>
 </template>
 

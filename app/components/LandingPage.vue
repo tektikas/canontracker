@@ -1,15 +1,15 @@
 <script setup lang="ts">
 // Public landing page. Every example is real content from the Broken Tide demo, and the model note says what this instance actually runs.
 useSeoMeta({
-  title: 'Story Bible · Narrative canon and impact QA for game teams',
+  title: 'Story Bible · A story builder with canon you can cite',
   description: 'Know what’s canon. Trace every fact to its source and see which scenes a change touches before it ships.',
   ogTitle: 'Story Bible · Know what’s canon',
-  ogDescription: 'Human-approved, source-cited canon and change impact for your narrative team.',
+  ogDescription: 'Human-approved, source-cited canon and change impact for anyone building a story world.',
   ogImage: 'https://storybible.trythis.work/og-landing.png',
   ogImageAlt: 'Story Bible — Know what’s canon. See what a change touches.',
   twitterCard: 'summary_large_image',
   twitterTitle: 'Story Bible · Know what’s canon',
-  twitterDescription: 'Human-approved, source-cited canon and change impact for your narrative team.',
+  twitterDescription: 'Human-approved, source-cited canon and change impact for anyone building a story world.',
   twitterImage: 'https://storybible.trythis.work/og-landing.png',
   twitterImageAlt: 'Story Bible — Know what’s canon. See what a change touches.',
 })
@@ -30,9 +30,9 @@ const PRINCIPLES = [
   { title: 'Nothing is overwritten', text: 'Your files stay read-only. Changes create new versions, old facts are kept, and the audit log is append-only.' },
 ]
 const TEAM = [
-  { title: 'Narrative leads', text: 'Own the canon. Decide what’s true, settle contradictions and approve changes with the impact in front of you.' },
+  { title: 'Story leads', text: 'Own the canon. Decide what’s true, settle contradictions and approve changes with the impact in front of you.' },
   { title: 'Writers', text: 'Check a detail in seconds, with the passage it comes from, instead of searching ten documents.' },
-  { title: 'Producers', text: 'Know which scenes need another pass before a change reaches the build, and who signed off on what.' },
+  { title: 'Producers and editors', text: 'Know which scenes or chapters need another pass before a change reaches the build or the manuscript, and who signed off on what.' },
 ]
 </script>
 
@@ -51,17 +51,17 @@ const TEAM = [
     <main>
       <section class="hero">
         <div class="hero-copy">
-          <span class="kicker">Narrative canon &amp; impact QA for game teams</span>
+          <span class="kicker">A story builder for novels, games, series and worlds</span>
           <h1>Know what’s canon.<br>See what a change breaks before it ships.</h1>
           <p class="lead">
-            Story Bible’s AI reads your lore docs and scene scripts, proposes facts with the exact quote they came from,
-            and lets your narrative lead decide what becomes canon. Then it flags contradictions and shows which scenes a change will touch.
+            Story Bible’s AI reads your lore, notes and scene scripts, proposes facts with the exact quote they came from,
+            and lets you or your story lead decide what becomes canon. Then it flags contradictions and shows which scenes or chapters a change will touch.
           </p>
           <div class="row cta">
             <UiButton to="/signup" variant="primary" size="lg">Create your studio<UiIcon name="arrow" :size="16" /></UiButton>
             <UiButton to="/login" size="lg">Log in</UiButton>
           </div>
-          <p class="small muted">Comes with two original demo stories with planted contradictions, Broken Tide and the longer The Ashbell Pass, so you can try it before importing your own lore.</p>
+          <p class="small muted">Comes with original sample stories with planted contradictions: Broken Tide (prose scenes), Lantern Row, and The Ashbell Pass (a longer game story). Try it before importing your own lore.</p>
         </div>
 
         <div class="hero-visual">
@@ -143,7 +143,8 @@ const TEAM = [
       </section>
 
       <section class="band">
-        <div class="band-head"><h2>For the whole narrative team</h2></div>
+        <div class="band-head"><h2>For everyone building the story</h2>
+          <p class="muted">Novelists, game writers, screen and series writers and worldbuilders, working alone or as a team.</p></div>
         <div class="cards three">
           <div v-for="t in TEAM" :key="t.title" class="team-card">
             <h3>{{ t.title }}</h3>
@@ -165,7 +166,7 @@ const TEAM = [
 
     <footer class="lp-foot small faint">
       <span>Story Bible · built for the Meta AI Developer Hackathon</span>
-      <span>Broken Tide and The Ashbell Pass are original, synthetic stories made for this demo.</span>
+      <span>Broken Tide and The Ashbell Pass are original, synthetic stories made for this sample.</span>
     </footer>
   </div>
 </template>

@@ -105,7 +105,7 @@ const tone = (id: string) => ({ recorded: 'warn', live: 'good', mixed: 'pencil',
     </UiPanel>
   </template>
 
-  <UiPanel flush title="Model calls" description="Every call to the model (Meta Model API, Muse Spark, or the recorded demo run): what it was for, which sources it saw, how long it took. Prompts, keys and full documents are not stored." class="gap">
+  <UiPanel flush title="Model calls" description="Every call to the model (Meta Model API, Muse Spark): what it was for, which sources it saw, how long it took. Prompts, keys and full documents are not stored." class="gap">
     <p v-if="!calls?.length" class="empty-note muted">No model calls yet.</p>
     <div v-else class="table-wrap">
       <table>
