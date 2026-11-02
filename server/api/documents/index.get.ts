@@ -1,10 +1,11 @@
 interface LibraryDocument {
   id: string, title: string, filename: string, name: string, kind: string, version: number, sha256: string, imported_at: string, origin: string
-  folder_id: string | null, created_by_name: string | null, passages: number, canon_facts: number, stale_facts: number, pending_facts: number
+  folder_id: string | null, created_by_name: string | null, passages: number, canon_facts: number, pending_facts: number
 }
 
 // One row per document: its latest version, its labels, how many versions it has, who saved the latest, the canon citing
-// any version, and how many of those facts cite an older version than the latest (stale: re-check them).
+// any version, and of those the facts citing an older version that a person has not re-checked yet (stale_facts; see
+// server/utils/recheck.ts), outdated_facts being the ones whose quote is gone from the latest version.
 export default defineEventHandler(() => {
   const db = useDb()
   const rows = db.prepare(`select d.id, d.title, d.filename, d.name, d.kind, d.version, d.sha256, d.imported_at, d.origin, d.folder_id,
@@ -13,8 +14,6 @@ export default defineEventHandler(() => {
     (select count(distinct f.id) from evidence e join facts f on f.id = e.fact_id join documents v on v.id = e.document_id
       where v.project_id = d.project_id and v.filename = d.filename and f.status = 'canon') canon_facts,
     (select count(distinct f.id) from evidence e join facts f on f.id = e.fact_id join documents v on v.id = e.document_id
-      where v.project_id = d.project_id and v.filename = d.filename and f.status = 'canon' and v.version < d.version) stale_facts,
-    (select count(distinct f.id) from evidence e join facts f on f.id = e.fact_id join documents v on v.id = e.document_id
       where v.project_id = d.project_id and v.filename = d.filename and f.status = 'pending') pending_facts
     from documents d where d.project_id = ?
       and d.version = (select max(version) from documents d2 where d2.project_id = d.project_id and d2.filename = d.filename)
@@ -22,5 +21,14 @@ export default defineEventHandler(() => {
   const tags = new Map<string, string[]>()
   for (const t of db.prepare('select filename, tag_id from document_tags where project_id = ?').all(pid()) as { filename: string, tag_id: string }[])
     tags.set(t.filename, [...(tags.get(t.filename) ?? []), t.tag_id])
-  return rows.map(r => ({ ...r, tags: tags.get(r.filename) ?? [] }))
+  const stale = new Map<string, Map<string, RecheckState>>()
+  for (const c of staleCanonCitations()) {
+    const m = stale.get(c.document_key) ?? new Map<string, RecheckState>()
+    if (c.state !== 'kept' && m.get(c.fact_id) !== 'outdated') m.set(c.fact_id, c.state)
+    stale.set(c.document_key, m)
+  }
+  return rows.map((r) => {
+    const s = [...(stale.get(r.filename)?.values() ?? [])]
+    return { ...r, stale_facts: s.length, outdated_facts: s.filter(x => x === 'outdated').length, tags: tags.get(r.filename) ?? [] }
+  })
 })

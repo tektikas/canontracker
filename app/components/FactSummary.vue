@@ -7,6 +7,9 @@ const authored = computed(() => {
   const where = ev ? ` from ${ev.document_title}${ev.start_line ? `, line ${ev.start_line}` : ''}` : ''
   return `Added by ${props.fact.created_by_name ?? 'a teammate'}${where}`
 })
+// The same reason the citation badge gives ("Quote not in v5" / "Quote appears twice in v5"), per outdated citation.
+const outdatedWhy = computed(() => (props.fact.evidence ?? []).filter((e: Record<string, any>) => e.recheck === 'outdated')
+  .map((e: Record<string, any>) => `${e.document_title}: ${quoteLost(e.recheck_count ?? 0, e.latest_version).toLowerCase()}`).join('; '))
 </script>
 
 <template>
@@ -15,6 +18,8 @@ const authored = computed(() => {
       <UiBadge :tone="fact.status === 'pending' ? 'pencil' : 'accent'">{{ fact.kind }}</UiBadge>
       <UiBadge v-if="fact.time_label" :tone="fact.precision === 'approximate' ? 'warn' : 'neutral'" :title="fact.precision === 'approximate' ? 'Approximate time' : undefined">{{ fact.time_label }}</UiBadge>
       <UiBadge v-if="fact.version > 1">v{{ fact.version }}</UiBadge>
+      <UiBadge v-if="fact.recheck === 'outdated'" tone="bad" dot :title="`The quote this fact rests on changed in a newer version of its source (${outdatedWhy}). Re-check it.`">Evidence outdated</UiBadge>
+      <UiBadge v-else-if="fact.recheck === 'unchanged'" tone="warn" title="Its source has a newer version; the quote reads the same there. Confirm to cite the newer version.">Source updated</UiBadge>
       <UiBadge v-if="fact.origin === 'sample'" tone="pencil" title="Loaded with a sample project. Its quote is verified, but no person reviewed or decided it.">Sample canon (preloaded)</UiBadge>
     </div>
     <div class="statement"><MentionText :text="fact.statement" /></div>

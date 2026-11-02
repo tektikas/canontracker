@@ -69,6 +69,7 @@ export async function importDocument(filename: string, content: string, written?
   const name = prev?.name ?? filename
   const where = folderPath(folder)
   let staleFacts = 0
+  let outdatedFacts = 0
   let evidenceMoved = 0
   tx(() => {
     db.prepare(`insert into documents (id, title, filename, name, kind, sha256, version, content, imported_at, project_id, origin, created_by, folder_id)
@@ -80,12 +81,15 @@ export async function importDocument(filename: string, content: string, written?
     for (const p of passages) ins.run(p.id, documentId, p.ordinal, p.start_line, p.end_line, p.text, projectId)
     const event = written ? (version > 1 ? 'document.version_written' : 'document.written') : (version > 1 ? 'document.version_added' : 'document.imported')
     audit(event, 'document', documentId, { filename: name, title, kind, version, sha256, passages: passages.length, folder: where })
-    // Old citations are not silently moved to the new version; they are flagged stale until someone reviews them.
+    // Old canon citations are not silently moved to the new version. Each is checked against it (recheck.ts): a quote that
+    // still reads the same waits for a person to confirm it, a quote that is gone marks the fact "evidence outdated".
     if (version > 1) {
-      const stale = db.prepare(`select distinct f.id from facts f join evidence e on e.fact_id = f.id join documents d on d.id = e.document_id
-        where f.project_id = ? and f.status = 'canon' and d.filename = ? and d.version < ?`).all(projectId, key, version) as { id: string }[]
-      staleFacts = stale.length
-      if (stale.length) audit('citation.stale', 'document', documentId, { filename: name, title, folder: where, version, fact_ids: stale.map(s => s.id) })
+      const byFact = recheckByFact(staleCanonCitations().filter(c => c.document_key === key))
+      const ids = (state: string) => [...byFact].filter(([, s]) => s === state).map(([id]) => id)
+      const outdated = ids('outdated')
+      staleFacts = byFact.size
+      outdatedFacts = outdated.length
+      if (byFact.size) audit('citation.stale', 'document', documentId, { filename: name, title, folder: where, version, fact_ids: [...byFact.keys()], outdated_fact_ids: outdated, unchanged_fact_ids: ids('unchanged') })
       evidenceMoved = movePendingEvidence(key, documentId, version, passages, { name, folder: where })
     }
   })
@@ -101,7 +105,7 @@ export async function importDocument(filename: string, content: string, written?
   }
 
   return {
-    filename, title, status: 'imported' as const, document_id: documentId, version, folder: where, same_name_in: sameNameIn, passages: passages.length, stale_facts: staleFacts, evidence_moved: evidenceMoved,
+    filename, title, status: 'imported' as const, document_id: documentId, version, folder: where, same_name_in: sameNameIn, passages: passages.length, stale_facts: staleFacts, outdated_facts: outdatedFacts, evidence_moved: evidenceMoved,
     candidates: extraction?.created ?? 0, unverified: extraction?.unverified ?? 0, skipped: extraction?.skipped ?? 0, extraction_error: extractionError,
   }
 }
@@ -117,10 +121,9 @@ function movePendingEvidence(key: string, documentId: string, version: number, p
   const move = db.prepare('update evidence set document_id = ?, passage_id = ?, quote = ? where id = ?')
   let moved = 0
   for (const r of rows) {
-    // Matched like any quote (findQuotePassage's folding); the evidence then holds the new version's exact characters.
-    const hits = passages.flatMap(p => quoteMatches(p.text, r.quote).filter(q => isVerbatimQuote(p.text, q)).map(quote => ({ p, quote })))
-    if (hits.length !== 1) continue
-    const { p, quote } = hits[0]!
+    // Matched like any quote (findQuotePassage's folding, counted as canon re-check counts it); the evidence then holds the new version's exact characters.
+    const { passage: p, quote } = quoteOccurrences(passages, r.quote)
+    if (!p || !quote) continue
     move.run(documentId, p.id, quote, r.id)
     audit('candidate.evidence_moved', 'fact', r.fact_id, {
       filename: doc.name, folder: doc.folder, quote: r.quote, ...(quote !== r.quote && { new_quote: quote }),

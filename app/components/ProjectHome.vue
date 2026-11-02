@@ -21,7 +21,6 @@ const busy = ref<'' | 'demo'>('')
 const error = ref('')
 const results = ref<Record<string, any>[]>([])
 const uploader = ref<{ pick: () => void }>()
-const staleTotal = computed(() => docs.value?.reduce((n, d) => n + d.stale_facts, 0) ?? 0)
 const versionsTotal = computed(() => docs.value?.reduce((n, d) => n + d.version, 0) ?? 0)
 const pendingTotal = computed(() => stats.value?.pending ?? 0)
 const recentDocs = computed(() => [...(docs.value ?? [])].sort((a, b) => b.imported_at.localeCompare(a.imported_at)).slice(0, 6))
@@ -226,7 +225,9 @@ const next = computed(() => {
             <b>{{ docs.length }}</b> {{ plural(docs.length, 'document') }} · <b>{{ versionsTotal }}</b> {{ plural(versionsTotal, 'version') }}
             <template v-if="pendingTotal"> · <NuxtLink to="/review"><b>{{ pendingTotal }}</b> to review</NuxtLink></template>
           </p>
-          <p v-if="staleTotal" class="small library-stale"><UiIcon name="history" :size="14" /><NuxtLink to="/library?stale=1">{{ counted(staleTotal, 'canon citation') }} to re-check</NuxtLink> after a source changed.</p>
+          <p v-if="stats?.recheck_outdated || stats?.recheck_unchanged" class="small library-stale">
+            <UiIcon name="history" :size="14" /><NuxtLink to="/canon?recheck=1">Needs re-check: {{ stats.recheck_outdated ? counted(stats.recheck_outdated, 'canon fact') + ' with outdated evidence' : 'no outdated evidence' }}<template v-if="stats.recheck_unchanged">, {{ stats.recheck_unchanged }} unchanged to confirm</template></NuxtLink> after a source changed.
+          </p>
           <ul class="recent" aria-label="Recently changed documents">
             <li v-for="d in recentDocs" :key="d.id">
               <NuxtLink :to="`/documents/${d.id}`" class="recent-main">

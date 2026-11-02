@@ -8,6 +8,7 @@ const route = useRoute()
 const router = useRouter()
 const { data: docs, refresh: refreshDocs } = await useFetch('/api/documents', { key: 'library-docs', default: () => [] })
 const { data: lib, refresh: refreshLib } = await useFetch('/api/library', { default: () => ({ folders: [], tags: [], colors: [], kinds: [] }) })
+const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
 const refreshAll = () => Promise.all([refreshDocs(), refreshLib(), refreshNuxtData('stats')])
 
 // Filters live in the URL so a filtered view can be linked and survives a reload.
@@ -68,7 +69,6 @@ function clearFilters() {
   q.value = ''
   router.replace({ query: { sort: route.query.sort, dir: route.query.dir } })
 }
-const staleTotal = computed(() => docs.value.reduce((n, d) => n + d.stale_facts, 0))
 const versionsTotal = computed(() => docs.value.reduce((n, d) => n + d.version, 0))
 const currentFolder = computed(() => (folderSel.value && folderSel.value !== 'none' && folderById.value.get(folderSel.value) ? { id: folderSel.value, label: folderPath(folderSel.value) } : null))
 const viewTitle = computed(() => folderSel.value === 'none' ? 'Library root' : currentFolder.value?.label ?? 'All documents')
@@ -193,7 +193,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
   <div class="lib">
     <UiPageHeader title="Library">
       <template v-if="docs.length">
-        {{ counted(docs.length, 'document') }}, {{ counted(versionsTotal, 'version') }}<template v-if="staleTotal">, <NuxtLink to="/library?stale=1">{{ counted(staleTotal, 'citation') }} to re-check</NuxtLink></template>.
+        {{ counted(docs.length, 'document') }}, {{ counted(versionsTotal, 'version') }}<template v-if="stats?.recheck_outdated || stats?.recheck_unchanged">, <NuxtLink to="/canon?recheck=1">{{ stats.recheck_outdated ? `${counted(stats.recheck_outdated, 'canon fact')} with outdated evidence` : `${counted(stats.recheck_unchanged, 'unchanged citation')} to confirm` }}</NuxtLink></template>.
         Sources stay read-only: folders, tags and kinds are labels on top of them.
       </template>
       <template v-else>Your team’s lore, scenes and character sheets. Sources stay read-only: folders, tags and kinds are labels on top of them.</template>
@@ -378,7 +378,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                 <th class="hide-sm">Folder</th>
                 <th class="hide-sm" :aria-sort="ariaSort('updated')"><button type="button" class="sort" @click="sortBy('updated')">Last change<UiIcon v-if="sortKey === 'updated'" :name="desc ? 'down' : 'up'" :size="14" /></button></th>
                 <th class="num hide-sm" :aria-sort="ariaSort('citations')"><button type="button" class="sort" title="Canon facts citing this document" @click="sortBy('citations')">Cited<UiIcon v-if="sortKey === 'citations'" :name="desc ? 'down' : 'up'" :size="14" /></button></th>
-                <th class="num hide-sm" :aria-sort="ariaSort('stale')"><button type="button" class="sort" title="Canon facts that cite an older version" @click="sortBy('stale')">Re-check<UiIcon v-if="sortKey === 'stale'" :name="desc ? 'down' : 'up'" :size="14" /></button></th>
+                <th class="num hide-sm" :aria-sort="ariaSort('stale')"><button type="button" class="sort" title="Canon facts citing an older version, not re-checked yet" @click="sortBy('stale')">Re-check<UiIcon v-if="sortKey === 'stale'" :name="desc ? 'down' : 'up'" :size="14" /></button></th>
                 <th v-if="editor" class="act"><span class="sr-only">Actions</span></th>
               </tr>
             </thead>
@@ -400,7 +400,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                   </div>
                   <div class="only-sm small faint meta-sm">
                     v{{ d.version }} · {{ shortDate(d.imported_at) }}<template v-if="d.folder_id"> · {{ folderPath(d.folder_id) }}</template> · {{ d.canon_facts }} cited
-                    <NuxtLink v-if="d.stale_facts" :to="`/documents/${d.id}/history`" class="warn-link">· {{ d.stale_facts }} to re-check</NuxtLink>
+                    <NuxtLink v-if="d.stale_facts" :to="`/documents/${d.id}/history`" class="warn-link">· {{ d.stale_facts }} to re-check<template v-if="d.outdated_facts"> ({{ d.outdated_facts }} outdated)</template></NuxtLink>
                   </div>
                 </td>
                 <td class="hide-sm folder-cell">
@@ -413,7 +413,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                 </td>
                 <td class="num hide-sm">{{ d.canon_facts || '—' }}</td>
                 <td class="num hide-sm">
-                  <NuxtLink v-if="d.stale_facts" :to="`/documents/${d.id}/history`" class="stale-link" :title="`${counted(d.stale_facts, 'canon fact')} cite an older version. See what changed.`"><UiBadge tone="warn">{{ d.stale_facts }}</UiBadge></NuxtLink>
+                  <NuxtLink v-if="d.stale_facts" :to="`/documents/${d.id}/history`" class="stale-link" :title="`${counted(d.stale_facts, 'canon fact')} cite an older version; ${d.outdated_facts} of them lost their quote. See what changed.`"><UiBadge :tone="d.outdated_facts ? 'bad' : 'warn'">{{ d.stale_facts }}</UiBadge></NuxtLink>
                   <span v-else class="faint">—</span>
                 </td>
                 <td v-if="editor" class="act">
