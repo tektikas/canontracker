@@ -1,4 +1,4 @@
-export interface DraftRow { id: string, filename: string | null, title: string, kind: string, content: string, user_id: string, created_at: string, updated_at: string }
+export interface DraftRow { id: string, filename: string | null, title: string, kind: string, content: string, user_id: string, created_at: string, updated_at: string, base_document_id: string | null }
 
 export const MAX_DRAFT = 1_000_000
 

@@ -1,13 +1,29 @@
 <script setup lang="ts">
 // Disclosure menu: a button that opens a small panel of links and actions. Closes on outside click, Esc and navigation.
-withDefaults(defineProps<{ label: string, placement?: 'down' | 'up' }>(), { placement: 'down' })
+// fixed: the panel is positioned from the trigger in viewport coordinates, so a scrolling ancestor (a table wrapper) can't clip it.
+const props = withDefaults(defineProps<{ label: string, placement?: 'down' | 'up', fixed?: boolean }>(), { placement: 'down' })
 const open = ref(false)
 const root = ref<HTMLElement>()
+const panel = ref<HTMLElement>()
 const trigger = ref<HTMLButtonElement>()
+const pos = ref<Record<string, string>>({})
 const close = () => { open.value = false }
-const outside = (e: PointerEvent) => { if (!root.value?.contains(e.target as Node)) close() }
-watch(open, o => (o ? document.addEventListener('pointerdown', outside) : document.removeEventListener('pointerdown', outside)))
-onBeforeUnmount(() => document.removeEventListener('pointerdown', outside))
+function toggle() {
+  if (!open.value && props.fixed && trigger.value) {
+    const r = trigger.value.getBoundingClientRect()
+    const up = innerHeight - r.bottom < Math.min(420, innerHeight * 0.7) && r.top > innerHeight - r.bottom
+    pos.value = { right: `${Math.min(Math.max(innerWidth - r.right, 8), innerWidth - 236)}px`, left: 'auto', ...(up ? { bottom: `${innerHeight - r.top + 4}px`, top: 'auto' } : { top: `${r.bottom + 4}px` }), maxHeight: `${Math.max(160, (up ? r.top : innerHeight - r.bottom) - 12)}px` }
+  }
+  open.value = !open.value
+}
+const onScroll = (e: Event) => { if (!panel.value?.contains(e.target as Node)) close() } // scrolling inside the panel must not close it
+const outside = (e: Event) => { if (!root.value?.contains(e.target as Node)) close() }
+watch(open, (o) => {
+  const f = o ? 'addEventListener' : 'removeEventListener'
+  document[f]('pointerdown', outside)
+  if (props.fixed) { window[f]('scroll', onScroll, true); window[f]('resize', close) } // a fixed panel would drift from its trigger
+})
+onBeforeUnmount(() => { open.value = false })
 watch(() => useRoute().fullPath, close)
 function esc(e: KeyboardEvent) {
   if (!open.value) return
@@ -19,10 +35,10 @@ function esc(e: KeyboardEvent) {
 
 <template>
   <div ref="root" class="menu" @keydown.esc="esc">
-    <button ref="trigger" type="button" class="menu-trigger" :aria-label="label" :aria-expanded="open" @click="open = !open">
+    <button ref="trigger" type="button" class="menu-trigger" :aria-label="label" :aria-expanded="open" @click="toggle">
       <slot name="trigger" :open="open" />
     </button>
-    <div v-if="open" class="menu-pop" :class="placement">
+    <div v-if="open" ref="panel" class="menu-pop" :class="[placement, { fixed }]" :style="fixed ? pos : undefined">
       <slot :close="close" />
     </div>
   </div>
@@ -33,6 +49,7 @@ function esc(e: KeyboardEvent) {
 .menu-trigger { display: flex; align-items: center; gap: 10px; width: 100%; padding: 6px 8px; border: 1px solid transparent; border-radius: var(--r-md); background: none; color: var(--ink); font: inherit; text-align: left; cursor: pointer; transition: background var(--dur-1) var(--ease), border-color var(--dur-1) var(--ease); }
 .menu-trigger:hover, .menu-trigger[aria-expanded=true] { background: var(--sunken); }
 .menu-pop { position: absolute; left: 0; right: 0; z-index: 50; display: grid; gap: 1px; padding: var(--s-1); background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); box-shadow: var(--elev-overlay); max-height: min(420px, 70vh); overflow-y: auto; }
+.menu-pop.fixed { position: fixed; left: auto; width: max-content; min-width: 220px; }
 .menu-pop.down { top: calc(100% + 4px); }
 .menu-pop.up { bottom: calc(100% + 4px); }
 .menu-pop :deep(.menu-item) { display: flex; align-items: center; gap: 10px; width: 100%; min-height: 34px; padding: 6px 10px; border: 0; border-radius: var(--r-md); background: none; color: var(--ink); font: inherit; font-size: var(--text-base); text-align: left; text-decoration: none; cursor: pointer; }

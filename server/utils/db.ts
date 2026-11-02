@@ -69,7 +69,7 @@ create table if not exists document_tags (project_id text not null, filename tex
 -- a document version and deletes the draft.
 create table if not exists drafts (
   id text primary key, filename text, title text not null default '', kind text not null default 'scene', content text not null default '',
-  user_id text not null, created_at text not null, updated_at text not null, project_id text not null
+  user_id text not null, created_at text not null, updated_at text not null, project_id text not null, base_document_id text
 );
 -- Editorial notes pinned to a passage. Never canon, never used by conflicts or impact. status: open | ready | done.
 create table if not exists notes (
@@ -200,6 +200,9 @@ export function useDb() {
       conn.exec(`pragma foreign_keys = on; pragma user_version = ${SCHEMA_VERSION}`)
     }
     conn.exec(SCHEMA)
+    // drafts.base_document_id (the version an edit draft started from; null on older drafts = unknown): added in place, no version bump.
+    if (!(conn.prepare('pragma table_info(drafts)').all() as { name: string }[]).some(r => r.name === 'base_document_id'))
+      conn.exec('alter table drafts add column base_document_id text')
   } catch (e) {
     conn.close()
     throw e
