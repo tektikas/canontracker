@@ -374,8 +374,8 @@ export function isVerbatimQuote(text: string, quote: string | null | undefined):
  * `prefer`: the passage the quote was selected in, checked first so a phrase that repeats is cited where it was picked. */
 export function findQuotePassage<T extends { text: string, id?: string }>(passages: T[], quote: string | null | undefined, prefer?: string | null): { passage: T, quote: string } | undefined {
   const q = quote?.trim()
-  // The minimum counts the submitted words (folded), so Markdown marks taken in around a short quote cannot pad it.
-  if (!q || foldQuoteText(q).str.replace(/\s/g, '').length < MIN_QUOTE_CHARS) return undefined
+  // The minimum counts the submitted words (folded, recomposed to NFC so é / 한 count once), so Markdown marks taken in around a short quote cannot pad it.
+  if (!q || foldQuoteText(q).str.normalize('NFC').replace(/\s/g, '').length < MIN_QUOTE_CHARS) return undefined
   for (const passage of [...passages.filter(p => prefer && p.id === prefer), ...passages]) {
     const hit = quoteMatches(passage.text, q).find(raw => isVerbatimQuote(passage.text, raw))
     if (hit) return { passage, quote: hit }

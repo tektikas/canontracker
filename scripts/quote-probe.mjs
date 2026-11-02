@@ -42,12 +42,14 @@ const scene = [
   '**Arin** waits at sea.',
   '',
   '2 - -3 equals five today.',
+  '',
+  'The `*never*` flag stays disabled all night.',
 ].join('\n')
 const draft = (await a('/api/drafts', { method: 'POST', body: { title: 'The Keeper’s Oath', kind: 'lore', content: scene } })).data
 const saved = (await a(`/api/drafts/${draft.id}/save`, { method: 'POST' })).data
 assert.equal(saved.status, 'imported')
 const doc = (await a(`/api/documents/${saved.document_id}`)).data
-const [, oath, lantern, , emoji, star, bright, bold, dashes] = doc.passages
+const [, oath, lantern, , emoji, star, bright, bold, dashes, code] = doc.passages
 const fact = over => ({ to: 'canon', document_id: doc.id, kind: 'claim', subject: 'Mara', predicate: 'claims', object: 'Tide', ...over })
 const evidenceOf = async id => (await a('/api/facts?status=canon')).data.concat((await a('/api/facts?status=pending')).data).find(f => f.id === id).evidence[0]
 
@@ -76,8 +78,14 @@ assert.equal(r4.status, 200, JSON.stringify(r4.data))
 assert.equal((await evidenceOf(r4.data.id)).quote, '*Bright*star shines all night')
 ok('Add fact: a closing * against the next word still pairs', '*Bright*star shines all night')
 
-// Unpaired marks are text, the minimum counts the typed words, and separate dash runs stay separate.
-for (const [label, passage, quote] of [['unpaired * typed without it', star, '2 3 equals six today'], ['4-char quote padded by ** marks', bold, 'Arin'], ['two dash runs typed as one', dashes, '2-3 equals five today']]) {
+// Inside a code span * is literal: typed with its marks it is cited exactly, typed without them it is refused.
+const r5 = await a('/api/facts', { method: 'POST', body: fact({ passage_id: code.id, quote: 'The `*never*` flag stays disabled', subject: 'Never flag', predicate: 'stays', object: null, statement: 'The never flag stays disabled.' }) })
+assert.equal(r5.status, 200, JSON.stringify(r5.data))
+assert.equal((await evidenceOf(r5.data.id)).quote, 'The `*never*` flag stays disabled')
+ok('Add fact: * inside a code span is typed as is', 'The `*never*` flag stays disabled')
+
+// Unpaired marks and code-span marks are text, the minimum counts the typed words, and separate dash runs stay separate.
+for (const [label, passage, quote] of [['unpaired * typed without it', star, '2 3 equals six today'], ['4-char quote padded by ** marks', bold, 'Arin'], ['two dash runs typed as one', dashes, '2-3 equals five today'], ['code-span * typed without it', code, 'The `never` flag stays disabled all night']]) {
   const r = await a('/api/facts', { method: 'POST', body: fact({ passage_id: passage.id, quote, statement: `Refused ${label}.` }) })
   assert.equal(r.status, 422, `${label}: ${JSON.stringify(r.data)}`)
   ok(`Add fact: ${label} is refused`, r.status)

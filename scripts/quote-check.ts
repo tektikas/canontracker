@@ -47,6 +47,18 @@ one('*Arin waits at sea for the keeper.', 'Arin waits at sea', 'Arin waits at se
 none('Arin waits at sea_ for the keeper.', 'Arin waits at sea for the keeper')
 none('Pay 2*3 and 4*5 today.', 'Pay 23 and 45 today')
 none('A **bold* claim stands.', 'A bold claim stands')
+// Code spans and backslash escapes: their * / _ are literal and never pair (attempt-4 repros).
+none('The `*never*` flag stays disabled all night.', 'The `never` flag stays disabled all night')
+one('The `*never*` flag stays disabled all night.', 'The `*never*` flag stays disabled', 'The `*never*` flag stays disabled')
+none('Write \\*bright\\* markers exactly today', 'Write \\bright\\ markers exactly today')
+none('Write \\*bright\\* markers exactly today', 'Write bright markers exactly today')
+one('Write \\*bright\\* markers exactly today', 'Write \\*bright\\* markers', 'Write \\*bright\\* markers')
+none('Use ``a_b_c`` and `x_y_` now.', 'Use ``abc`` and')
+none('Use ``*a* `` here.', 'Use ``a `` here')
+// An unclosed `` run is literal; the single-backtick span after it still protects its marks.
+none('Use ``a `b *x*` here.', 'Use ``a `b x` here')
+one('Keep `code` but *this* folds.', 'Keep `code` but this folds', 'Keep `code` but *this* folds')
+one('An escaped \\\\*real* pair still folds.', 'escaped \\\\real pair', 'escaped \\\\*real* pair')
 // A closing run adjoining the next word still closes the pair.
 one('*Bright*star shines all night.', 'Brightstar shines all night', '*Bright*star shines all night')
 one('__Old__ keeper waits at dawn.', 'Old keeper waits', '__Old__ keeper waits')
@@ -72,9 +84,15 @@ none('😀 Arin waits.', '😁 Arin waits')
 // Line breaks and whitespace runs, NBSP.
 one('Arin waits on the\nharbour wall  until\r\ndawn.', 'waits on the harbour wall until dawn', 'waits on the\nharbour wall  until\r\ndawn')
 one('Arin waits by the wall.', 'Arin waits by', 'Arin waits by')
-// NFC: decomposed source, composed quote, and back; the offset map keeps the raw (decomposed) characters.
+// Canonical equivalence: decomposed source, composed quote, and back; the offset map keeps the raw (decomposed) characters.
 one('Café Noir opens at dawn.', 'Café Noir opens', 'Café Noir opens')
 one('Café Noir opens at dawn.', 'Café Noir opens', 'Café Noir opens')
+// Hangul: composed source vs decomposed (jamo) quote and back; NFD per char needs no neighbour, raw chars are stored.
+one('한국 항구에서 기다린다.', '한국 항구에서 기다린다', '한국 항구에서 기다린다')
+one('한국 항구에서 기다린다.', '한국 항구에서 기다린다', '한국 항구에서 기다린다')
+none('한국 항구에서 기다린다.', '한국 항구에서 기다렸다')
+// Base char without its accent is not a match: "Cafe" must not cite "Café".
+none('Café Noir opens at dawn.'.normalize('NFC'), 'Cafe Noir opens')
 // Offset mapping: hit starts and ends on the right raw chars with everything mixed in front of it.
 one('“A” — *b*\n… then Arin’s “boat” left.', 'Arin\'s "boat" left', 'Arin’s “boat” left')
 assert.deepEqual(foldQuoteText('a — *b*\n…').str, 'a-b ...')
@@ -87,4 +105,4 @@ assert.equal(quoteMatches('the tide—the tide', 'the tide').length, 2)
 assert.deepEqual(quoteMatches('Mara said “the tide is ours”.', 'the tide is mine'), [])
 assert.deepEqual(quoteMatches('Arin waits.', 'arin waits'), [], 'case still matters')
 assert.deepEqual(quoteMatches('Arin waits.', '** __'), [])
-console.log('ok  quote folding: quotes, dashes, ellipsis, Markdown (emphasis only), line breaks, NFC, emoji offsets, absent')
+console.log('ok  quote folding: quotes, dashes, ellipsis, Markdown (emphasis only; code spans and escapes literal), line breaks, NFD, Hangul, emoji offsets, absent')

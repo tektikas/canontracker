@@ -1,4 +1,4 @@
-// Quote matching that survives typography. Source and quote are compared in a folded form: NFC; curly quotes → straight;
+// Quote matching that survives typography. Source and quote are compared in a folded form: NFD; curly quotes → straight;
 // a run of consecutive dashes → one "-" (spaces around it ignored, so "a — b", "a—b" and "a -- b" meet; "a - - b" stays two
 // runs); … → ...; any whitespace run, line breaks included → one space; paired Markdown emphasis delimiters and invisible
 // soft hyphens / zero-width spaces dropped.
@@ -15,10 +15,13 @@ interface Folded { str: string, start: number[], end: number[], marks: Set<numbe
  * Raw offsets of `*` / `_` that are Markdown emphasis delimiters. Only pairs count: an opening run and a later closing run of
  * the same char and length (`*x*`, `**x**`, `_x_`, `__x__`), CommonMark flanking rules. An unpaired mark is text and stays,
  * so `2 *3` or a stray leading `*` must be typed. `_` opens/closes only at a word boundary (snake_case is text); a pair of two
- * intra-word `*` runs (2*3 and 4*5) is text too, but one intra-word side is fine (`*Bright*star`).
+ * intra-word `*` runs (2*3 and 4*5) is text too, but one intra-word side is fine (`*Bright*star`). A `*` / `_` inside a
+ * backtick code span or after a backslash is literal and never pairs.
  */
-function emphasisMarks(raw: string): Set<number> {
+function emphasisMarks(source: string): Set<number> {
   const marks = new Set<number>()
+  // Code spans (matching backtick runs) and backslash escapes, scanned left to right: their marks become '#' (literal punctuation).
+  const raw = source.replace(/(?<!`)(`+)(?!`)[\s\S]*?(?<!`)\1(?!`)|\\[\s\S]/g, m => m.replace(/[*_]/g, '#'))
   const ws = (c: string | undefined) => c === undefined || /\s/u.test(c)
   const punct = (c: string | undefined) => c !== undefined && /[\p{P}\p{S}]/u.test(c)
   const open: { i: number, run: string, both: boolean }[] = []
@@ -46,11 +49,12 @@ export function foldQuoteText(raw: string): Folded {
   const marks = emphasisMarks(raw)
   const units: { c: string, s: number, e: number }[] = []
   let gap = false // whitespace seen after a dash: a following dash starts a new run, not the same one
-  // A base char with its combining marks is one unit, so NFC can compose it without breaking the offset map.
+  // NFD per base char + its combining marks: decomposing never needs a neighbour (Hangul jamo, é vs e + ´ meet), so every
+  // folded unit still maps to the raw chars it came from.
   for (const m of raw.matchAll(/\P{M}\p{M}*|\p{M}+/gu)) {
     const s = m.index
     const e = s + m[0].length
-    for (const ch of m[0].normalize('NFC')) {
+    for (const ch of m[0].normalize('NFD')) {
       const c = FOLD[ch] ?? (DASH.test(ch) ? '-' : /\s/.test(ch) ? ' ' : DROP.test(ch) || marks.has(s) ? '' : ch)
       // One entry per UTF-16 unit, so indexes into str (indexOf) and into start/end agree for astral chars (emoji).
       for (const x of c.split('')) {
