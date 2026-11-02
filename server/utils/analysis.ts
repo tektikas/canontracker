@@ -55,7 +55,7 @@ export function ruleHits(a: Fact, b: Fact, travel: Fact[]) {
       : b.t_to != null && a.t_from != null && a.t_from > b.t_to ? [b, a] : []
     if (ended && later)
       hits.push({ a: ended, b: later, rule: 'RELATIONSHIP_AFTER_END',
-        rationale: `"${ended.predicate}" between ${ended.subject} and ${ended.object} ended at ${formatStoryTime(ended.t_to!, isDayOnlyLabel(ended.time_label))}, but is used as active at ${later.time_label}.`,
+        rationale: `"${ended.predicate}" between ${ended.subject} and ${ended.object} ended at ${formatStoryTime(ended.t_to!, isDayOnlyLabel(ended.time_label, 'to'))}, but is used as active at ${later.time_label}.`,
         confidence: 0.85 })
   }
   return hits

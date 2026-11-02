@@ -27,7 +27,13 @@ export function parseStoryRange(from?: string | null, to?: string | null) {
 }
 
 // A fact is day-only when its stored label has a bare "D<day>" edge. Day-only means "some time that day", not "all day".
-export const isDayOnlyLabel = (label?: string | null) => !!label && /D-?\d+(?!\d| \d)/.test(label)
+// With `edge`, only that edge of a range label is checked ("D-3650 08:00 – D-3649": from is timed, to is day-only).
+export const isDayOnlyLabel = (label?: string | null, edge?: 'from' | 'to') => {
+  if (!label) return false
+  const parts = label.replace(/^~\s*/, '').split(' – ')
+  const part = edge === 'from' ? parts[0] : edge === 'to' ? parts[parts.length - 1] : label
+  return /D-?\d+(?!\d| \d)/.test(part!)
+}
 
 export function formatStoryTime(t: number, dayOnly = false) {
   const day = Math.floor(t / DAY) + 1

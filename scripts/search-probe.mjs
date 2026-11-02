@@ -3,8 +3,6 @@
 // every group returns (facts, entities by alias, documents by title and by text with the exact passage, notes), candidates
 // and rejected facts never appear as canon, the limit per group holds, odd input is safe, and signed-out gets 401.
 import assert from 'node:assert/strict'
-import { execFileSync } from 'node:child_process'
-import { readFileSync } from 'node:fs'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
 const run = Date.now().toString(36)
@@ -115,18 +113,24 @@ await ada.c(`/api/projects/${project_id(ada)}/switch`, { method: 'POST' })
 check('switching back finds it again', (await search(ada.c, alias)).data.entities.length, 1)
 
 check('signed out is 401', (await client()('/api/search?q=tide')).status, 401)
-// Throttle: a burst is cut off with 429 and rejected requests keep no state (server memory stays flat).
-const pidOf = (port) => { try { return execFileSync('ss', ['-ltnpH', `sport = :${port}`], { encoding: 'utf8' }).match(/pid=(\d+)/)?.[1] } catch {} }
-const rss = (pid) => Number(readFileSync(`/proc/${pid}/status`, 'utf8').match(/VmRSS:\s+(\d+)/)[1]) / 1024
-const spid = /localhost|127\.0\.0\.1/.test(base) ? pidOf(new URL(base).port) : undefined
+// Throttle: 200 requests per user per 10 s window. Checked by what it serves, not by server memory: RSS moves with GC
+// by tens of MiB, and even 10,000 stored timestamps weigh under 1 MiB, so RSS cannot see the bug it was meant to catch.
 const burst = await owner('Burst')
-let rssBefore
+const neighbour = await owner('Calm')
+const steady = await owner('Steady')
 const codes = { 200: 0, 429: 0 }
+const t0 = Date.now()
 for (let i = 0; i < 10_000; i++) {
-  if (i === 5_000 && spid) rssBefore = rss(spid) // after warm-up: a fresh server's heap grows by itself at first
   const s = (await burst.c('/api/search?q=tide')).status; codes[s] = (codes[s] ?? 0) + 1 }
-check('burst of 10,000: at most 200 served, the rest 429', [codes[200] <= 200, codes[429] >= 9_800, codes[200] + codes[429]], [true, true, 10_000])
-if (spid) { const grew = rss(spid) - rssBefore; check(`10,000 rejected requests keep memory flat (grew ${grew.toFixed(0)} MiB, under 40)`, grew < 40, true) }
+const windows = Math.floor((Date.now() - t0) / 10_000) + 1 // a slow run may cross a fixed-window boundary
+check('burst of 10,000: at most 200 served per window, the rest 429', [codes[200] <= 200 * windows, codes[429] > 0, codes[200] + codes[429]], [true, true, 10_000])
+check('another user is served during the burst', (await neighbour.c('/api/search?q=tide')).status, 200)
+// Sustained over-limit traffic for longer than one window: a fixed window reopens (~400 served in 12 s); a sliding log
+// that also records rejected requests stays full and serves only the first 200.
+let served = 0
+const t1 = Date.now()
+while (Date.now() - t1 < 12_000) if ((await steady.c('/api/search?q=tide')).status === 200) served++
+check('12 s of over-limit traffic: the window reopens (served > 200)', served > 200, true)
 console.log('\nall search probes passed')
 
 function project_id(a) { return a.project.id }

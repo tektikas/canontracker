@@ -1,9 +1,9 @@
 <script setup lang="ts">
-import type { TextSelection } from './SelectionDialog.vue'
+import type { SelectionMode, TextSelection } from './SelectionDialog.vue'
 
 // A source document read as passages with line numbers. `active` highlights one passage; `quote` marks the cited words inside it.
 // `contained`: the reader is its own scroll box (review split view) and keeps the active passage centred in it.
-// `annotate`: selecting words offers "Add fact" and "Add note" (keys F and N). `notes` puts a marker beside passages that have one.
+// `annotate`: selecting words offers "Add fact", "Add entity" and "Add note" (keys F, E and N). `notes` puts a marker beside passages that have one.
 const props = defineProps<{
   doc: { id?: string, title?: string, content: string, passages: Record<string, any>[] }
   active?: string | null, quote?: string, contained?: boolean, annotate?: boolean
@@ -45,7 +45,7 @@ watch(() => [props.active, props.doc] as const, async () => {
 // Selection → a small toolbar under it. The quote is the selected text as the passage holds it (white-space: pre-wrap keeps
 // line breaks), trimmed at the ends; the server checks it again before storing anything.
 const sel = ref<(TextSelection & { top: number, left: number }) | { multi: true, top: number, left: number } | null>(null)
-const open = ref<{ selection: TextSelection, mode: 'fact' | 'note' } | null>(null)
+const open = ref<{ selection: TextSelection, mode: SelectionMode } | null>(null)
 const textOf = (n: Node | null) => (n?.nodeType === 1 ? n as Element : n?.parentElement)?.closest('.passage .text')
 let timer: ReturnType<typeof setTimeout> | undefined
 function readSelection() {
@@ -66,7 +66,7 @@ function readSelection() {
       : null
   }, 120)
 }
-function start(mode: 'fact' | 'note') {
+function start(mode: SelectionMode) {
   const s = sel.value
   if (!s || 'multi' in s) return
   open.value = { selection: { doc: s.doc, passage: s.passage, quote: s.quote }, mode }
@@ -75,10 +75,10 @@ function start(mode: 'fact' | 'note') {
 function onKey(e: KeyboardEvent) {
   if (!sel.value || 'multi' in sel.value || open.value || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return
   if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable]')) return
-  const k = e.key.toLowerCase()
-  if (k !== 'f' && k !== 'n') return
+  const mode = ({ f: 'fact', e: 'entity', n: 'note' } as const)[e.key.toLowerCase() as 'f' | 'e' | 'n']
+  if (!mode) return
   e.preventDefault()
-  start(k === 'f' ? 'fact' : 'note')
+  start(mode)
 }
 function saved(kind: 'fact' | 'note', result: Record<string, any>) {
   open.value = null
@@ -123,6 +123,7 @@ onBeforeUnmount(() => {
       <span v-if="'multi' in sel" class="sel-multi">Select words within one paragraph</span>
       <template v-else>
         <button type="button" class="sel-btn" @click="start('fact')"><UiIcon name="canon" :size="16" />Add fact <kbd>F</kbd></button>
+        <button type="button" class="sel-btn" @click="start('entity')"><UiIcon name="entities" :size="16" />Add entity <kbd>E</kbd></button>
         <button type="button" class="sel-btn" @click="start('note')"><UiIcon name="note" :size="16" />Add note <kbd>N</kbd></button>
       </template>
     </div>

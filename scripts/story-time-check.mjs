@@ -33,3 +33,10 @@ assert.equal(l(p('D1 09:00'), p('D1 10:30', 'to'), 'approximate'), '~ D1 09:00 �
 assert.equal(l(null, p('D3 08:00')), 'until D3 08:00')
 
 console.log('story-time ok')
+
+// Edge-only day-only check (RELATIONSHIP_AFTER_END rationale): a timed end must not read as day-only.
+assert.equal(dayOnly('D-3650 08:00', 'to'), false)
+assert.equal(dayOnly('D-3650 08:00 – D-3649', 'to'), true)
+assert.equal(dayOnly('D-3650 08:00 – D-3649', 'from'), false)
+assert.equal(dayOnly('D-3650 – D-3649 08:00', 'to'), false)
+assert.equal(dayOnly('~ D-3650', 'to'), true)

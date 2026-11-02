@@ -143,7 +143,8 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
     <header class="up-head">
       <div>
         <h2>Uploads</h2>
-        <p class="small muted" role="status">{{ busy ? `Uploading ${Math.min(done + 1, items.length)} of ${items.length}…` : summary }}</p>
+        <p class="small muted" role="status">{{ busy ? `Uploading ${Math.min(done + 1, items.length)} of ${items.length}…` : [summary, candidates && `${counted(candidates, 'candidate')} sent to Review`].filter(Boolean).join(' · ') }}</p>
+        <p class="small faint">Files are stored read-only, as they are. The model proposes candidates; nothing becomes canon until a person accepts it in Review.</p>
       </div>
       <div class="row">
         <UiButton v-if="candidates && !busy" size="sm" to="/review">Review {{ counted(candidates, 'candidate') }}</UiButton>
@@ -173,7 +174,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
               <b>{{ i.result.version === 1 ? `Added to ${place(i.result.folder)}` : `New version v${i.result.version} of ${i.name} in ${place(i.result.folder)}` }}</b>
               <template v-if="i.result.same_name_in"> · a separate document: the {{ i.name }} {{ i.result.same_name_in.folder ? `in ${i.result.same_name_in.folder}` : 'in the Library root' }} is unchanged</template>
               · {{ counted(i.result.passages ?? 0, 'passage') }}
-              · {{ counted(i.result.candidates ?? 0, 'candidate') }}<template v-if="i.result.skipped"> ({{ i.result.skipped }} already in the project)</template>
+              · {{ counted(i.result.candidates ?? 0, 'candidate') }}{{ i.result.candidates ? ' sent to Review' : '' }}<template v-if="i.result.skipped"> ({{ i.result.skipped }} already in the project)</template>
               <template v-if="i.result.evidence_moved"> · {{ counted(i.result.evidence_moved, 'pending candidate') }} now {{ i.result.evidence_moved === 1 ? 'cites' : 'cite' }} v{{ i.result.version }}</template>
               <template v-if="i.result.stale_facts">
                 · <NuxtLink :to="`/documents/${i.result.document_id}/history`" class="warn-text">{{ counted(i.result.stale_facts, 'canon fact') }} to re-check</NuxtLink>
