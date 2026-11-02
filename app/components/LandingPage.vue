@@ -18,7 +18,7 @@ const recorded = computed(() => me.value?.model.mode !== 'meta')
 
 const STEPS = [
   { title: 'Import', art: 'import', alt: 'Manuscript pages gathered with a paper clip.', text: 'Bring lore docs and scene scripts as Markdown or text. Sources are hashed, versioned and never edited.' },
-  { title: 'Review', art: 'review', alt: 'A pen and a reviewed manuscript card.', text: 'The model proposes facts, each with the exact quote it came from. A person accepts, corrects or rejects every one.' },
+  { title: 'Review', art: 'review', alt: 'A pen and a reviewed manuscript card.', text: 'Muse Spark proposes facts, each with the exact quote it came from. A person accepts, corrects or rejects every one.' },
   { title: 'Canon', art: 'canon', alt: 'A reference ledger with an ink-blue bookmark.', text: 'Accepted facts become canon: characters, places, relationships and rules, each cited to its passage.' },
   { title: 'Conflicts', art: 'conflicts', alt: 'Two scene cards with an interrupted connection.', text: 'Catch someone in two places at once, a trip that’s too fast, or a relationship used after it ended.' },
   { title: 'Impact', art: 'impact', alt: 'A story card connected to two downstream scenes.', text: 'Before you change canon, see which facts and scenes it touches, up to two steps away. Export the list for re-review.' },
@@ -54,7 +54,7 @@ const TEAM = [
           <span class="kicker">Narrative canon &amp; impact QA for game teams</span>
           <h1>Know what’s canon.<br>See what a change breaks before it ships.</h1>
           <p class="lead">
-            Story Bible reads your lore docs and scene scripts, proposes facts with the exact quote they came from,
+            Story Bible’s AI reads your lore docs and scene scripts, proposes facts with the exact quote they came from,
             and lets your narrative lead decide what becomes canon. Then it flags contradictions and shows which scenes a change will touch.
           </p>
           <div class="row cta">
@@ -130,15 +130,14 @@ const TEAM = [
         <div class="panel sunk model-note" :class="{ live: !recorded }">
           <span class="status-dot" aria-hidden="true" />
           <div>
-            <h3>About the model</h3>
-            <p v-if="recorded">
-              Story Bible is built on the Meta Model API (Muse Spark). This instance runs in <b>recorded mode</b>: extraction and model checks
-              replay a recorded run of the demo stories instead of calling the model live, and the app labels every recorded result as recorded.
-              Your own files import and work normally, but get no model candidates until a live model is connected.
+            <h3>AI built into the workflow</h3>
+            <p>
+              Story Bible runs on Meta’s Muse Spark through the Meta Model API. Extraction reads your sources and proposes facts, each with a verbatim quote.
+              It also suggests world-rule violations, answers questions in Ask from accepted canon only, and generates entity portraits with Muse Image.
+              Your own AI agents can read canon and propose facts through MCP. The model only proposes: nothing becomes canon without a person.
             </p>
-            <p v-else>
-              This instance calls {{ me?.model.label }} live. Every call is logged with the sources it was given, and nothing it says becomes canon without a person.
-            </p>
+            <p v-if="!recorded">This instance calls {{ me?.model.label }} live. Every call is logged with the sources it was given.</p>
+            <p v-else class="small muted">Demo mode: extraction replays a recorded run for the sample stories, labeled as recorded. Connect a model key to extract from your own files.</p>
           </div>
         </div>
       </section>
