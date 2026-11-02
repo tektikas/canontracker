@@ -30,7 +30,7 @@ const cmdMatch = (c: { title: string, words?: string }, w: string) => `${c.title
 interface Cmd { icon: IconName, title: string, words?: string, edit?: boolean, to?: string, run?: () => void | Promise<void>, busyKey?: string }
 const NAV: [string, string, IconName][] = [
   ['/', 'Home', 'home'], ['/library', 'Library', 'library'], ['/review', 'Review', 'review'], ['/canon', 'Canon', 'canon'], ['/entities', 'Entities', 'entities'],
-  ['/conflicts', 'Conflicts', 'conflicts'], ['/changes', 'Changes', 'changes'], ['/notes', 'Notes', 'note'], ['/ask', 'Ask canon', 'ask'],
+  ['/conflicts', 'Conflicts', 'conflicts'], ['/changes', 'Changes', 'changes'], ['/notes', 'Notes', 'note'], ['/ask', 'Ask', 'ask'],
   ['/metrics', 'Metrics', 'metrics'], ['/audit', 'Audit log', 'audit'], ['/settings/projects', 'Projects', 'folder'], ['/settings/team', 'Team', 'team'], ['/settings', 'Studio settings', 'settings'],
 ]
 const commands = computed<Cmd[]>(() => {

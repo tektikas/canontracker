@@ -303,6 +303,39 @@ onBeforeUnmount(() => {
   if (document.fullscreenElement) document.exitFullscreen().catch(() => {})
 })
 
+// Ask beside the text on wide screens (not in focus mode): the same chat as the drawer. ⌘/Ctrl+J and the floating button
+// show and focus it; it can be hidden. Selected words can be researched: the draft isn't a saved source, so the selection
+// goes into the question as quoted text rather than as a cited passage.
+const chat = useChat()
+const wide = ref(false)
+const chatOpen = ref(true)
+onMounted(() => {
+  const mq = matchMedia('(min-width: 1200px)')
+  wide.value = mq.matches
+  mq.addEventListener('change', e => { wide.value = e.matches })
+  try { chatOpen.value = localStorage.getItem('storybible.write-chat') !== '0' } catch { /* storage blocked: shown */ }
+})
+watch(chatOpen, (on) => { try { localStorage.setItem('storybible.write-chat', on ? '1' : '0') } catch { /* storage blocked */ } })
+useChatDock('focus', () => focus.value)
+useChatDock('write', () => wide.value && !focus.value)
+watch(() => chat.value.tick, async () => {
+  if (chat.value.dock !== 'write') return
+  chatOpen.value = true
+  await nextTick()
+  document.querySelector<HTMLTextAreaElement>('.write-thread textarea')?.focus({ preventScroll: true })
+})
+const chatShown = computed(() => wide.value && !focus.value && chatOpen.value && editor.value && !loadError.value)
+useChatContext(() => (editing.value ? [{ type: 'document' as const, id: editing.value.id, label: editing.value.title }] : []))
+const selected = ref('')
+function readSelection() {
+  const el = body.value
+  selected.value = el ? el.value.slice(el.selectionStart, el.selectionEnd).trim() : ''
+}
+function researchSelection() {
+  const q = selected.value.length > 600 ? `${selected.value.slice(0, 600)}…` : selected.value
+  openChat({ fresh: true, mode: 'research', prefill: `“${q}”\n\n` })
+}
+
 // The text area grows with the text, so the page scrolls instead of a box inside it.
 const body = ref<HTMLTextAreaElement>()
 function grow() {
@@ -328,8 +361,9 @@ const time = (iso: string) => clock(iso).slice(0, 5)
       <template #actions><UiButton to="/write">Start a new document</UiButton></template>
     </UiEmptyState>
   </UiPanel>
+  <div v-else class="write-wrap" :class="{ 'with-chat': chatShown }">
   <form
-    v-else ref="root" class="write" :class="{ focusing: focus, typing: focus && typing && status !== 'error' }"
+    ref="root" class="write" :class="{ focusing: focus, typing: focus && typing && status !== 'error' }"
     :role="focus ? 'dialog' : undefined" :aria-modal="focus || undefined" :aria-label="focus ? 'Focus mode' : undefined"
     @keydown="keys" @mousemove="onPointer" @submit.prevent="saveToStory()"
   >
@@ -396,7 +430,7 @@ const time = (iso: string) => clock(iso).slice(0, 5)
       <textarea
         ref="body" v-model="f.content" class="body-input" :disabled="loading" aria-label="Text"
         :placeholder="loading ? 'Opening…' : 'Write or paste a scene. A blank line starts a new passage.'"
-        @input="grow(); caretSoon()" @keydown="onType" @keyup="caretSoon" @click="caretSoon"
+        @input="grow(); caretSoon(); readSelection()" @keydown="onType" @keyup="caretSoon(); readSelection()" @click="caretSoon" @select="readSelection" @mouseup="readSelection"
       />
     </UiPanel>
     <p class="small faint syntax">A blank line starts a new passage; facts and notes are pinned to passages by line. Start a line with # for a heading.</p>
@@ -412,6 +446,8 @@ const time = (iso: string) => clock(iso).slice(0, 5)
         <template v-else>Drafts save as you type. Only you see them.</template>
       </span>
       <div class="row">
+        <UiButton v-if="selected" variant="ghost" icon="research" class="research-btn" title="Ask Research about the selected words" @mousedown.prevent @click="researchSelection">Research this</UiButton>
+        <UiButton v-if="wide && !chatOpen" variant="ghost" icon="ask" title="Show the chat beside the text" @click="chatOpen = true">Ask</UiButton>
         <UiButton variant="ghost" icon="focus" :disabled="loading" title="Only the text on screen (Ctrl+Shift+F)" @click="enterFocus">Focus</UiButton>
         <UiButton v-if="draftId" variant="ghost" :disabled="saving" @click="discard">{{ editing ? 'Discard changes' : 'Discard draft' }}</UiButton>
         <UiButton variant="primary" type="submit" icon="check" :loading="saving" :disabled="!canSave || loading" :title="canSave ? undefined : 'Add a title and some text first'">
@@ -420,10 +456,32 @@ const time = (iso: string) => clock(iso).slice(0, 5)
       </div>
     </footer>
   </form>
+  <aside v-if="chatShown" class="write-chat" aria-label="Ask">
+    <header class="write-chat-head">
+      <span class="write-chat-title"><UiIcon name="ask" :size="16" />Ask</span>
+      <NuxtLink v-if="chat.conv" :to="`/ask?c=${chat.conv}`" class="small">Open in Ask</NuxtLink>
+      <button type="button" class="icon-btn" aria-label="New conversation" title="New conversation" @click="openChat({ fresh: true })"><UiIcon name="plus" :size="16" /></button>
+      <button type="button" class="icon-btn" aria-label="Hide the chat" title="Hide the chat" @click="chatOpen = false"><UiIcon name="close" :size="16" /></button>
+    </header>
+    <ChatThread v-model:conv="chat.conv" contained class="write-thread">
+      <template #empty><p class="small muted chat-empty">Ask while you write. Canon answers from accepted canon only; Research looks outside and never becomes canon. Select words and choose <b>Research this</b> to ask about them.</p></template>
+    </ChatThread>
+  </aside>
+  </div>
 </template>
 
 <style scoped>
 .write { display: grid; gap: var(--s-4); max-width: 820px; }
+.write-wrap.with-chat { display: grid; grid-template-columns: minmax(0, 1fr) 340px; gap: var(--s-5); align-items: start; }
+.write-chat {
+  position: sticky; top: var(--s-4); height: calc(100dvh - 2 * var(--s-4)); display: flex; flex-direction: column; overflow: hidden;
+  border: 1px solid var(--line); border-radius: var(--r-lg); background: var(--surface);
+}
+.write-chat-head { display: flex; align-items: center; gap: var(--s-2); padding: var(--s-2) var(--s-2) var(--s-2) var(--s-4); border-bottom: 1px solid var(--line); }
+.write-chat-title { display: inline-flex; align-items: center; gap: 6px; flex: 1; font-weight: 600; }
+.write-thread { flex: 1; min-height: 0; }
+.chat-empty { margin: var(--s-2) 0; }
+.research-btn :deep(svg) { color: var(--research); }
 .crumbs { display: flex; gap: var(--s-2); align-items: center; color: var(--muted); }
 .crumbs a { color: var(--muted); }
 .edit-note svg { flex: none; margin-top: 2px; }

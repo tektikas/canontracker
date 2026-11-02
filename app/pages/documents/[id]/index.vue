@@ -37,7 +37,7 @@ const latest = computed(() => !doc.value || doc.value.latest.id === doc.value.id
 // Facts and notes are only added to the latest version: an older one is already superseded.
 const annotate = computed(() => editor.value && latest.value)
 
-type Side = 'facts' | 'notes' | 'images'
+type Side = 'facts' | 'notes' | 'images' | 'chat'
 const side = ref<Side>(route.query.notes ? 'notes' : route.query.images ? 'images' : 'facts')
 // The palette can open a note while this page is already showing: follow the link.
 watch(() => route.fullPath, () => { if (route.query.notes) side.value = 'notes' })
@@ -46,7 +46,31 @@ const sideTabs = computed(() => [
   { value: 'facts' as Side, label: 'Facts', count: doc.value?.facts.length ?? 0 },
   { value: 'notes' as Side, label: 'Notes', count: openNotes.value },
   { value: 'images' as Side, label: 'Images', count: gallery.value?.images.length ?? 0 },
+  { value: 'chat' as Side, label: 'Ask' },
 ])
+// The chat sits in the side panel's Ask tab while the panel is beside the text (wide screens); ⌘/Ctrl+J, the floating button
+// and "Research this" switch to it. Narrower, the panel drops below the text and they open the drawer instead.
+const chat = useChat()
+const wide = ref(false)
+onMounted(() => {
+  const mq = matchMedia('(min-width: 901px)')
+  wide.value = mq.matches
+  mq.addEventListener('change', e => { wide.value = e.matches })
+})
+useChatDock('reader', () => wide.value)
+watch(() => chat.value.tick, async () => {
+  if (chat.value.dock !== 'reader') return
+  side.value = 'chat'
+  await nextTick()
+  document.querySelector<HTMLTextAreaElement>('.side-chat textarea')?.focus({ preventScroll: true })
+})
+// What this page is about, attached to a question as removable chips: the document, and the passage in the address.
+useChatContext(() => {
+  if (!doc.value) return []
+  const p = doc.value.passages.find(x => x.id === active.value)
+  return [{ type: 'document' as const, id: doc.value.id, label: doc.value.title },
+    ...(p ? [{ type: 'passage' as const, id: p.id, label: `${doc.value.title}, line ${p.start_line}${p.end_line !== p.start_line ? `–${p.end_line}` : ''}` }] : [])]
+})
 // This version's image history (uploads and generated together); one of them may be the cover.
 const { data: gallery, refresh: refreshImages } = await useFetch('/api/images', { query: computed(() => ({ target_type: 'document', target_id: String(route.params.id) })) })
 const coverChanged = () => Promise.all([refresh(), refreshImages()])
@@ -261,13 +285,14 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
     <div class="layout">
       <UiPanel class="doc">
         <ReaderTools :content="doc.content" :passages="doc.passages" :target="readerBox" />
-        <p v-if="annotate" class="small faint hint"><UiIcon name="canon" :size="14" />Select words to add a fact, an entity or a note. <span class="hide-sm">Then press <kbd>F</kbd>, <kbd>E</kbd> or <kbd>N</kbd>.</span></p>
+        <p v-if="annotate" class="small faint hint"><UiIcon name="canon" :size="14" />Select words to add a fact, an entity or a note, or to research them. <span class="hide-sm">Then press <kbd>F</kbd>, <kbd>E</kbd>, <kbd>N</kbd> or <kbd>R</kbd>.</span></p>
+        <p v-else class="small faint hint"><UiIcon name="research" :size="14" />Select words to research them. <span class="hide-sm">Then press <kbd>R</kbd>.</span></p>
         <div ref="readerBox">
-          <PassageReader :doc="doc" :active="active" :quote="activeQuote" :annotate="annotate" :notes="doc.notes" @saved="onSaved" @notes="showNotes" />
+          <PassageReader :doc="doc" :active="active" :quote="activeQuote" :annotate="annotate" research :notes="doc.notes" @saved="onSaved" @notes="showNotes" />
         </div>
       </UiPanel>
 
-      <UiPanel as="aside" class="side">
+      <UiPanel as="aside" class="side" :class="{ chatting: side === 'chat' }">
         <UiTabs v-model="side" :items="sideTabs" class="side-tabs" />
         <template v-if="side === 'facts'">
           <p v-if="!doc.facts.length" class="small muted none">No canon facts or pending candidates cite this document.<template v-if="annotate"> Select words in the text to add one.</template></p>
@@ -290,6 +315,9 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
             </li>
           </ul>
         </template>
+        <ChatThread v-else-if="side === 'chat'" v-model:conv="chat.conv" contained class="side-chat">
+          <template #empty><p class="small muted chat-empty">Ask about this document. Canon answers from accepted canon only; Research looks outside and never becomes canon. The whole team sees the conversation.</p></template>
+        </ChatThread>
         <ImageHistory v-else-if="side === 'images' && gallery" v-model:images="gallery.images" type="document" :id="doc.id" :name="doc.title" noun="cover" :editable="editor" @changed="coverChanged" />
         <template v-else>
           <p v-if="!doc.notes.length" class="small muted none">No notes yet.<template v-if="annotate"> Select words in the text and choose Add note.</template></p>
@@ -334,6 +362,9 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
 .hint { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 var(--s-3); padding-left: 10px; }
 .side { position: sticky; top: var(--s-5); max-height: calc(100vh - 2 * var(--s-5)); overflow-y: auto; padding-top: var(--s-2); }
 .side-tabs { margin-bottom: var(--s-3); }
+.side.chatting { display: flex; flex-direction: column; height: calc(100vh - 2 * var(--s-5)); overflow: hidden; padding-bottom: 0; }
+.side-chat { flex: 1; min-height: 0; margin: 0 calc(-1 * var(--s-4)); }
+.chat-empty { margin: var(--s-2) 0; }
 .none { margin: 0; }
 .fact-list, .notes-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
 .fact-list li { display: grid; gap: 6px; padding: var(--s-3); border-radius: var(--r-md); border: 1px solid var(--line); }

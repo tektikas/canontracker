@@ -4,7 +4,7 @@ Comics and animation teams draw in pencil and commit in ink. Story Bible works t
 
 - **Pencil** (graphite, dashed outlines): proposed, not yet canon. Pending candidates, future workflow steps.
 - **Ink** (Prussian blue `--accent`, solid fill): canon, primary actions, the current location.
-- **Vermilion** (`--bad`): conflicts and unverified quotes. **Ochre** (`--warn`): caution, approximate times, recorded run. **Moss** (`--good`): verified evidence.
+- **Vermilion** (`--bad`): conflicts and unverified quotes. **Ochre** (`--warn`): caution, approximate times, recorded run. **Moss** (`--good`): verified evidence. **Plum** (`--research`): research answers from outside sources, never canon.
 - **Serif is the story's voice.** Literata appears only for words from the story: statements, quotes, passages. Everything that belongs to the tool (labels, buttons, headings, tables) is Instrument Sans. Never set UI in the serif.
 - Calm by default: flat bordered panels, no gradients, no decorative shadows, no entrance animations. One bold element per page at most (on Home it is the workflow rail).
 
@@ -17,7 +17,7 @@ All colors are CSS variables with a light set and a dark set (`prefers-color-sch
 | Surfaces | `--canvas` (page), `--surface` (sidebar, table heads, sunk panels), `--raised` (panels, inputs), `--sunken` (hover, neutral badge), `--quote-bg` |
 | Text | `--ink`, `--muted` (secondary), `--faint` (meta, counts). All three meet 4.5:1 on every surface in both themes; keep it that way when tuning. |
 | Lines | `--line`, `--line-strong` (inputs, buttons, dashed pencil) |
-| Meaning | `--accent` / `--accent-strong` / `--accent-soft` / `--accent-ink`, `--pencil` / `--pencil-soft`, `--good`, `--warn`, `--bad` (each with `-soft`) |
+| Meaning | `--accent` / `--accent-strong` / `--accent-soft` / `--accent-ink`, `--pencil` / `--pencil-soft`, `--good`, `--warn`, `--bad`, `--research` (each with `-soft`) |
 | Type | `--font-ui` Instrument Sans, `--font-story` Literata, `--font-code` JetBrains Mono (hashes, triples, line numbers only). Sizes `--text-xs` 12 · `sm` 13 · `base` 14 (UI body) · `md` 16 (story text) · `lg` 19 · `xl` 24 · `2xl` 30 |
 | Space | 4px grid: `--s-1` 4, `--s-2` 8, `--s-3` 12, `--s-4` 16, `--s-5` 24, `--s-6` 32, `--s-7` 48 |
 | Radius | `--r-sm` 4 (badges), `--r-md` 6 (buttons, inputs, nav), `--r-lg` 10 (panels). Small things are squarer. |
