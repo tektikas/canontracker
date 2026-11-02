@@ -371,6 +371,7 @@ export function resetData() {
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })
+  rmSync(join(ORIGINALS_DIR, pid()), { recursive: true, force: true })
 }
 
 // The project's audit trail. Targets of events before the latest project.reset were deleted by that reset (tokens and the

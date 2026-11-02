@@ -9,7 +9,7 @@ const { data: stats } = useNuxtData<{ model: { mode: string } }>('stats')
 
 interface Item {
   key: number, name: string, size: number, state: 'queued' | 'uploading' | 'done' | 'error', error?: string
-  result?: { status: string, document_id?: string, version?: number, folder?: string | null, same_name_in?: { folder: string | null } | null, passages?: number, candidates?: number, skipped?: number, stale_facts?: number, outdated_facts?: number, evidence_moved?: number, extraction_error?: string | null, same_as?: { filename: string, title: string, version: number }, error?: string }
+  result?: { status: string, document_id?: string, version?: number, folder?: string | null, same_name_in?: { folder: string | null } | null, passages?: number, candidates?: number, skipped?: number, stale_facts?: number, outdated_facts?: number, evidence_moved?: number, word_notes?: number, extraction_error?: string | null, same_as?: { filename: string, title: string, version: number }, error?: string }
 }
 const items = ref<Item[]>([])
 const busy = computed(() => items.value.some(i => i.state === 'queued' || i.state === 'uploading'))
@@ -124,14 +124,14 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
 </script>
 
 <template>
-  <input ref="input" type="file" accept=".md,.markdown,.txt,text/markdown,text/plain" multiple hidden @change="onPick">
+  <input ref="input" type="file" :accept="UPLOAD_ACCEPT" multiple hidden @change="onPick">
 
   <Teleport to="body">
     <div v-if="over" class="drop-overlay" aria-hidden="true">
       <div class="drop-card">
         <UiIcon name="upload" :size="28" />
         <b>Drop to add {{ folder ? `to ${folder.label}` : 'to the Library' }}</b>
-        <span>Markdown or plain text, up to 1 MB each. A file with the same name as one {{ folder ? `in ${folder.label}` : 'in the Library root' }} becomes its next version.</span>
+        <span>Markdown, plain text or Word (.docx), up to 1 MB each. A file with the same name as one {{ folder ? `in ${folder.label}` : 'in the Library root' }} becomes its next version.</span>
       </div>
     </div>
   </Teleport>
@@ -171,6 +171,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
               <template v-if="i.result.same_name_in"> · a separate document: the {{ i.name }} {{ i.result.same_name_in.folder ? `in ${i.result.same_name_in.folder}` : 'in the Library root' }} is unchanged</template>
               · {{ counted(i.result.passages ?? 0, 'passage') }}
               · {{ counted(i.result.candidates ?? 0, 'candidate') }}{{ i.result.candidates ? ' sent to Review' : '' }}<template v-if="i.result.skipped"> ({{ i.result.skipped }} already in the project)</template>
+              <template v-if="i.result.word_notes"> · {{ counted(i.result.word_notes, 'Word comment') }} added as {{ i.result.word_notes === 1 ? 'a note' : 'notes' }}</template>
               <template v-if="i.result.evidence_moved"> · {{ counted(i.result.evidence_moved, 'pending candidate') }} now {{ i.result.evidence_moved === 1 ? 'cites' : 'cite' }} v{{ i.result.version }}</template>
               <template v-if="i.result.stale_facts">
                 · <NuxtLink to="/canon?recheck=1" class="warn-text">{{ i.result.outdated_facts ? `${counted(i.result.outdated_facts, 'canon fact')} lost ${i.result.outdated_facts === 1 ? 'its' : 'their'} quote` : 'no canon quote lost' }}<template v-if="i.result.stale_facts - (i.result.outdated_facts ?? 0)">, {{ i.result.stale_facts - (i.result.outdated_facts ?? 0) }} unchanged to confirm</template></NuxtLink>

@@ -1,4 +1,6 @@
 import { createHash } from 'node:crypto'
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 // A passage is a heading line or a run of non-empty lines. Line numbers are 1-based.
 export function splitPassages(content: string) {
@@ -34,7 +36,8 @@ const derivedTitle = (filename: string, content: string) => content.match(/^#\s+
 // Writing in the app names the document directly (`filename` is its key). The key (`documents.filename`) is unique per
 // document; `name` is the file's own name. A same-named file in another folder becomes its own document under a key that
 // carries its folder. A new version keeps the folder, kind and (if renamed) title of the earlier ones.
-export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }, folderId?: string | null) {
+// `word`: a .docx upload. Its file is kept as it came (originalPath), and its comments become editorial notes by the uploader.
+export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }, folderId?: string | null, word?: { original: Buffer, comments: WordComment[] }) {
   const db = useDb()
   const projectId = pid()
   const sha256 = createHash('sha256').update(content).digest('hex')
@@ -71,6 +74,7 @@ export async function importDocument(filename: string, content: string, written?
   let staleFacts = 0
   let outdatedFacts = 0
   let evidenceMoved = 0
+  let wordNotes = 0
   tx(() => {
     db.prepare(`insert into documents (id, title, filename, name, kind, sha256, version, content, imported_at, project_id, origin, created_by, folder_id)
       values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, title, key, name, kind, sha256, version, content, now(), projectId, written ? 'written' : 'import', access().user.id, folder)
@@ -92,7 +96,12 @@ export async function importDocument(filename: string, content: string, written?
       if (byFact.size) audit('citation.stale', 'document', documentId, { filename: name, title, folder: where, version, fact_ids: [...byFact.keys()], outdated_fact_ids: outdated, unchanged_fact_ids: ids('unchanged') })
       evidenceMoved = movePendingEvidence(key, documentId, version, passages, { name, folder: where })
     }
+    if (word) wordNotes = commentNotes(word.comments, key, documentId, passages)
   })
+  if (word) {
+    mkdirSync(join(ORIGINALS_DIR, projectId), { recursive: true })
+    writeFileSync(originalPath(projectId, sha256), word.original)
+  }
 
   // Extraction failing must not lose the import.
   let extraction: Awaited<ReturnType<typeof extractInto>> | null = null
@@ -106,8 +115,37 @@ export async function importDocument(filename: string, content: string, written?
 
   return {
     filename, title, status: 'imported' as const, document_id: documentId, version, folder: where, same_name_in: sameNameIn, passages: passages.length, stale_facts: staleFacts, outdated_facts: outdatedFacts, evidence_moved: evidenceMoved,
-    candidates: extraction?.created ?? 0, unverified: extraction?.unverified ?? 0, skipped: extraction?.skipped ?? 0, extraction_error: extractionError,
+    word_notes: wordNotes, candidates: extraction?.created ?? 0, unverified: extraction?.unverified ?? 0, skipped: extraction?.skipped ?? 0, extraction_error: extractionError,
   }
+}
+
+// The uploaded .docx, kept byte for byte per document version (keyed by the version's text hash), served only through
+// GET /api/documents/<id>/original. Cleared with the project's data on reset.
+export const ORIGINALS_DIR = join('.data', 'originals')
+export const originalPath = (projectId: string, sha256: string) => join(ORIGINALS_DIR, projectId, `${sha256}.docx`)
+
+// Word comments → notes by the uploader, pinned to the passage where the commented words start (the words themselves when
+// they are found there, as a note made in the reader would be). A comment already noted on an earlier version is not repeated.
+function commentNotes(comments: WordComment[], key: string, documentId: string, passages: { id: string, text: string, start_line: number, end_line: number }[]) {
+  const db = useDb()
+  const user = access().user.id
+  const seen = db.prepare('select 1 from notes n join documents d on d.id = n.document_id where n.project_id = ? and d.filename = ? and n.body = ? and n.quote = ?')
+  const ins = db.prepare(`insert into notes (id, document_id, passage_id, quote, body, status, created_by, created_at, updated_at, project_id)
+    values (?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`)
+  let n = 0
+  for (const c of comments) {
+    const passage = passages.find(p => p.start_line <= c.line && c.line <= p.end_line)
+    if (!passage) continue
+    const body = `From Word comment by ${c.author}: ${c.text}`.slice(0, 4000)
+    const match = findQuotePassage([passage], c.quote)
+    const quote = match?.quote ?? (c.quote && passage.text.includes(c.quote) ? c.quote : '')
+    if (seen.get(pid(), key, body, quote)) continue
+    const id = newId('note')
+    ins.run(id, documentId, passage.id, quote, body, user, now(), now(), pid())
+    audit('note.created', 'note', id, { document_id: documentId, passage_id: passage.id, quote, body, from: 'word_comment', comment_author: c.author })
+    n++
+  }
+  return n
 }
 
 // A new version: a PENDING candidate's quote that appears exactly once in it (matched like findQuotePassage) now cites that

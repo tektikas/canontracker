@@ -82,7 +82,7 @@ const next = computed(() => {
   const s = stats.value
   switch (nextKey.value) {
     case 'import': return editor.value
-      ? { title: 'Add your lore and scenes', text: admin.value ? 'Load the demo set, import Markdown and text files, or write a document here. Sources are stored read-only.' : 'Import Markdown and text files, or write a document here. Sources are stored read-only.' }
+      ? { title: 'Add your lore and scenes', text: admin.value ? 'Load the demo set, import Markdown, text or Word files, or write a document here. Sources are stored read-only.' : 'Import Markdown, text or Word files, or write a document here. Sources are stored read-only.' }
       : { title: 'No sources yet', text: 'An editor on your team imports lore and scenes. You will see them here as soon as they do.' }
     case 'review': return editor.value
       ? { title: `Review ${s?.pending} ${plural(s?.pending ?? 0, 'candidate')}`, text: 'The model proposed these facts with a quote. Nothing becomes canon until you accept it.', to: '/review', action: 'Start review' }
@@ -241,7 +241,7 @@ const next = computed(() => {
         </div>
         <div class="source-option">
           <h3>Your files</h3>
-          <p>Markdown or plain text, up to 1 MB each. Files are stored as they are and never edited. The model then proposes candidate facts into Review; nothing becomes canon until a person accepts it. An unchanged file is skipped; a changed one becomes a new version.</p>
+          <p>Markdown, plain text or Word (.docx), up to 1 MB each. Files are stored as they are and never edited. The model then proposes candidate facts into Review; nothing becomes canon until a person accepts it. An unchanged file is skipped; a changed one becomes a new version.</p>
           <UiButton icon="upload" :disabled="!!busy" @click="uploader?.pick()">Import files</UiButton>
           <p class="small faint">Or drop files anywhere on this page.</p>
         </div>

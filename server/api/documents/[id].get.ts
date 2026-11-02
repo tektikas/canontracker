@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs'
+
 export default defineEventHandler((event) => {
   const db = useDb()
   const id = getRouterParam(event, 'id')
@@ -23,5 +25,5 @@ export default defineEventHandler((event) => {
   const tags = db.prepare(`select t.id, t.name, t.color from document_tags dt join tags t on t.id = dt.tag_id
     where dt.project_id = ? and dt.filename = ? order by lower(t.name)`).all(pid(), doc.filename) as { id: string, name: string, color: string }[]
   const folder = doc.folder_id ? { id: doc.folder_id, path: folderPath(doc.folder_id) } : null
-  return { ...doc, created_by_name: author, versions: history, tags, folder, latest: { id: latest.id, version: latest.version }, passages, facts, notes, cover: appliedImage('document', doc.id) }
+  return { ...doc, created_by_name: author, versions: history, tags, folder, latest: { id: latest.id, version: latest.version }, passages, facts, notes, cover: appliedImage('document', doc.id), original: existsSync(originalPath(pid(), doc.sha256)) }
 })

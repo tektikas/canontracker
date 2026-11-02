@@ -20,8 +20,9 @@ export default defineEventHandler(async (event) => {
   // One bad file never undoes the others.
   for (const p of parts) {
     const filename = p.filename!
-    if (!/\.(md|markdown|txt)$/i.test(filename)) {
-      results.push({ filename, status: 'error', error: 'Not a text file: use .md or .txt.' })
+    const problem = uploadNameProblem(filename)
+    if (problem) {
+      results.push({ filename, status: 'error', error: problem, code: 415 })
       continue
     }
     if (p.data.length > MAX_BYTES) {
@@ -29,9 +30,15 @@ export default defineEventHandler(async (event) => {
       continue
     }
     try {
-      results.push(await importDocument(filename, p.data.toString('utf8'), undefined, folderId))
+      // Word: converted to text here; the text is the source (hash, passages, quotes), the .docx is kept beside it.
+      if (/\.docx$/i.test(filename)) {
+        if (p.type && ![DOCX_MIME, 'application/octet-stream', 'application/zip'].includes(p.type)) throw createError({ statusCode: 415, statusMessage: 'UNSUPPORTED_FILE', message: 'This is not a Word document (.docx).' })
+        const { text, comments } = docxToText(p.data)
+        results.push(await importDocument(filename, text, undefined, folderId, { original: p.data, comments }))
+      } else results.push(await importDocument(filename, p.data.toString('utf8'), undefined, folderId))
     } catch (e) {
-      results.push({ filename, status: 'error', error: (e as Error).message })
+      const code = (e as { statusCode?: number }).statusCode
+      results.push({ filename, status: 'error', error: (e as Error).message, ...(code && { code }) })
     }
   }
   return { results }

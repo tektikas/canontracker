@@ -396,6 +396,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                   <div class="sub-line">
                     <span class="mono faint">{{ d.name }}</span>
                     <span v-if="d.origin === 'written'" class="small faint">· latest saved here</span>
+                    <span v-else-if="/\.docx$/i.test(d.name)" class="small faint">· converted from Word</span>
                     <button v-for="t in d.tags.map(id => tagById.get(id)).filter(Boolean)" :key="t!.id" type="button" class="tag-btn" :title="`Show only “${t!.name}”`" @click="pickTag(t!.id)"><UiBadge :tone="t!.color" class="tag">{{ t!.name }}</UiBadge></button>
                   </div>
                   <div class="only-sm small faint meta-sm">
@@ -436,7 +437,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
             </tbody>
           </table>
         </div>
-        <p v-if="editor && docs.length" class="drop-hint small faint hide-sm"><UiIcon name="upload" :size="14" />Drop .md or .txt files anywhere on this page{{ currentFolder ? ` to add them to ${currentFolder.label}` : '' }}.</p>
+        <p v-if="editor && docs.length" class="drop-hint small faint hide-sm"><UiIcon name="upload" :size="14" />Drop .md, .txt or .docx files anywhere on this page{{ currentFolder ? ` to add them to ${currentFolder.label}` : '' }}.</p>
       </section>
     </div>
   </div>

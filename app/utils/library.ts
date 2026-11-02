@@ -22,7 +22,8 @@ export type TagTone = typeof TAG_TONES[number]['value']
 // Same limits the server applies (server/api/documents/index.post.ts), checked first so a person hears at once.
 export const UPLOAD_MAX_BYTES = 1_000_000
 export function uploadProblem(f: File) {
-  if (!/\.(md|markdown|txt)$/i.test(f.name)) return 'Not a text file: use .md or .txt.'
+  const bad = uploadNameProblem(f.name)
+  if (bad) return bad
   if (f.size > UPLOAD_MAX_BYTES) return `Too big: ${(f.size / 1e6).toFixed(1)} MB, the limit is 1 MB per file.`
   if (!f.size) return 'Empty file.'
   return null
