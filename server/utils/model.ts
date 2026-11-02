@@ -12,7 +12,7 @@ export interface CandidateDraft {
 
 export interface RuleViolation { fact_id: string, rationale: string, confidence: number }
 
-export const PROMPT_VERSIONS = { extract: 'extract-v2', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1' } as const
+export const PROMPT_VERSIONS = { extract: 'extract-v2', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', research: 'research-v1' } as const
 
 export function modelInfo() {
   const { modelMode, modelId } = useRuntimeConfig()
@@ -47,7 +47,7 @@ async function traced<T>(
   }
 }
 
-function apiKey() {
+export function apiKey() {
   const { metaApiKey } = useRuntimeConfig()
   if (!metaApiKey)
     throw createError({ statusCode: 503, statusMessage: 'MODEL_NOT_CONFIGURED', message: 'Meta Model API key is not set (NUXT_META_API_KEY).' })
@@ -55,7 +55,7 @@ function apiKey() {
 }
 
 // One plain sentence for every way a Meta Model API call can fail. Never falls back to recorded output.
-function apiFailure(
+export function apiFailure(
   e: { statusCode?: number, data?: { error?: { code?: string, message?: string }, detail?: string }, name?: string, message: string, cause?: { code?: string } },
   what = 'Model call failed', after = 'Nothing was replaced with recorded output.',
 ) {

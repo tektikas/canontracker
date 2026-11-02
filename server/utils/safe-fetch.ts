@@ -1,4 +1,4 @@
-// Size- and time-bounded HTTP for the image model, and SSRF-safe downloads of model-supplied image URLs.
+// Size- and time-bounded HTTP for the model API, and SSRF-safe downloads of model-supplied URLs (images, cited pages).
 // No Nuxt imports: scripts/image-fetch-probe.mjs runs this file directly with Node.
 import { lookup } from 'node:dns/promises'
 import type { IncomingMessage } from 'node:http'
@@ -61,23 +61,26 @@ const vettedLookup: LookupFunction = (host, opts, cb) => {
 // Agent options override request options, so every connection goes through vettedLookup.
 const directAgent = new Agent({ lookup: vettedLookup, proxyEnv: undefined })
 
-// Downloads an image URL handed to us by the model: https only, public addresses only, at most 3 redirects (each hop
-// checked again), body capped while streaming. `signal` is the caller's deadline for every hop and the body.
-export async function downloadImage(url: string, maxBytes: number, signal: AbortSignal): Promise<Buffer> {
+// Downloads a URL handed to us by the model (an image, or a page a research answer cites): https only, public addresses
+// only, at most 3 redirects (each hop checked again), body capped while streaming. `signal` is the caller's deadline for
+// every hop and the body. `what` names the thing in refusals ("the image", "the page").
+export async function safeGet(url: string, maxBytes: number, signal: AbortSignal, opts: { accept: string, what: string, agent: string }) {
   let next = new URL(url)
+  const noun = opts.what.replace(/^the /, '')
   for (let hop = 0; hop <= 3; hop++) {
-    if (next.protocol !== 'https:') throw new FetchRefused('only https image URLs are allowed')
+    if (next.protocol !== 'https:') throw new FetchRefused(`only https ${noun} URLs are allowed`)
+    if (next.username || next.password) throw new FetchRefused(`${noun} URLs with a login are not allowed`)
     const host = next.hostname.replace(/^\[|\]$/g, '')
     if (isIP(host) && !publicAddress(host)) throw new FetchRefused(`${host} is a private network address`)
     // Every way a request can end settles this promise: response, error (incl. abort), upgrade, or a close before either.
     const res = await new Promise<IncomingMessage>((resolve, reject) =>
-      request(next, { agent: directAgent, signal, headers: { 'accept': 'image/*', 'user-agent': 'StoryBible image download' } }, resolve)
+      request(next, { agent: directAgent, signal, headers: { 'accept': opts.accept, 'user-agent': opts.agent } }, resolve)
         .on('error', reject)
         .on('upgrade', (r, socket) => {
           socket.destroy()
-          reject(new FetchRefused(`the image host answered ${r.statusCode} (switching protocols)`))
+          reject(new FetchRefused(`the ${noun} host answered ${r.statusCode} (switching protocols)`))
         })
-        .on('close', () => reject(new FetchRefused('the image host closed the connection')))
+        .on('close', () => reject(new FetchRefused(`the ${noun} host closed the connection`)))
         .end())
     const status = res.statusCode ?? 0
     if (status >= 300 && status < 400 && res.headers.location) {
@@ -87,13 +90,17 @@ export async function downloadImage(url: string, maxBytes: number, signal: Abort
     }
     if (status !== 200) {
       res.destroy()
-      throw new FetchRefused(`the image host answered ${status}`)
+      throw new FetchRefused(`the ${noun} host answered ${status}`)
     }
     if (Number(res.headers['content-length']) > maxBytes) {
       res.destroy()
-      throw new FetchRefused(`the image is larger than ${mb(maxBytes)}`)
+      throw new FetchRefused(`${opts.what} is larger than ${mb(maxBytes)}`)
     }
-    return readCapped(res, maxBytes, 'the image')
+    return { body: await readCapped(res, maxBytes, opts.what), contentType: String(res.headers['content-type'] ?? ''), url: next.href }
   }
-  throw new FetchRefused('the image URL redirected more than 3 times')
+  throw new FetchRefused(`the ${noun} URL redirected more than 3 times`)
+}
+
+export async function downloadImage(url: string, maxBytes: number, signal: AbortSignal): Promise<Buffer> {
+  return (await safeGet(url, maxBytes, signal, { accept: 'image/*', what: 'the image', agent: 'StoryBible image download' })).body
 }
