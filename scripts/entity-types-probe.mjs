@@ -9,7 +9,7 @@
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
 import { randomBytes, scryptSync } from 'node:crypto'
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { DatabaseSync } from 'node:sqlite'
@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url'
 const check = (label, actual, expected) => { assert.deepEqual(actual, expected, label); console.log(`ok  ${label}`) }
 function client(base) {
   let cookie = ''
-  return async (path, { method = 'GET', body, query } = {}) => {
+  const call = async (path, { method = 'GET', body, query } = {}) => {
     const res = await fetch(base + path + (query ? `?${new URLSearchParams(query)}` : ''), { method, headers: { 'content-type': 'application/json', cookie }, body: body && JSON.stringify(body) })
     const set = res.headers.getSetCookie().map(c => c.split(';')[0]).filter(c => c.includes('='))
     if (set.length) cookie = set.join('; ')
@@ -27,6 +27,8 @@ function client(base) {
     try { data = JSON.parse(text) } catch { data = text }
     return { status: res.status, data }
   }
+  call.cookie = () => cookie
+  return call
 }
 const GAME = ['character', 'npc', 'location', 'item', 'ability', 'quest', 'faction', 'event', 'other']
 const PROSE = ['character', 'location', 'item', 'faction', 'event', 'other']
@@ -91,6 +93,13 @@ async function api(base) {
   check('bible carries the types of the pages shown, in project order', bible.types.map(t => t.key), [...keys].filter(k => bible.entities.some(e => e.kind === k)))
   const md = (await a('/api/export/bible', { query: { format: 'md' } })).data
   check('markdown has a section per type', bible.types.every(t => md.includes(`## ${t.many}\n`)), true)
+  // The book (EPUB; the print view builds the same chapters) has a chapter per type, under the project's own label.
+  check('rename Character to Hero', (await a('/api/entity-types/character', { method: 'PATCH', body: { one: 'Hero', many: 'Heroes' } })).status, 200)
+  const epub = join(mkdtempSync(join(tmpdir(), 'types-epub-')), 'b.epub')
+  writeFileSync(epub, Buffer.from(await (await fetch(`${base}/api/export/bible?book=bible&format=epub`, { headers: { cookie: a.cookie() } })).arrayBuffer()))
+  const nav = execFileSync('unzip', ['-p', epub, 'OEBPS/nav.xhtml']).toString()
+  const booked = (await a('/api/export/bible', { query: { book: 'bible' } })).data.types
+  check('book chapters follow the project types and labels', [booked.every(t => nav.includes(`>${t.many}<`)), nav.includes('>Heroes<'), nav.includes('>Characters<')], [true, true, false])
 
   // A project always keeps one type; a viewer cannot change types (guard).
   for (const t of (await types()).slice(1)) {
