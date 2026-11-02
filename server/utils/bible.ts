@@ -27,6 +27,54 @@ export function cleanBibleOptions(raw: Record<string, unknown>): BibleOptions {
   return { scope, entity_ids, folder_id, sections, images: flag(raw.images) }
 }
 
+// A folder and its subfolders (two levels at most).
+const folderTree = (folder: FolderRow | undefined) => folder
+  ? [folder.id, ...(useDb().prepare('select id from folders where parent_id = ? and project_id = ?').all(folder.id, pid()) as { id: string }[]).map(r => r.id)]
+  : []
+
+// Book cover: the applied cover image of the first document (in reading order) that has one. Null = a typographic cover.
+function coverImage(filenames: string[], only?: Set<string>) {
+  const q = useDb().prepare(`select i.id, i.mime from images i join documents d on d.id = i.target_id where i.project_id = ? and i.target_type = 'document'
+    and i.applied_at is not null and d.project_id = i.project_id and d.filename = ? limit 1`)
+  for (const f of filenames) {
+    if (only && !only.has(f)) continue
+    const r = q.get(pid(), f) as { id: string, mime: string } | undefined
+    if (r) return r
+  }
+  return null
+}
+
+// Latest version of every document, in reading order: folder path (root first), then title with numbers in order (S2 before S10).
+function readingOrder(opts: BibleOptions) {
+  const db = useDb()
+  const folder = opts.scope === 'folder' ? db.prepare('select id, name, parent_id from folders where id = ? and project_id = ?').get(opts.folder_id, pid()) as FolderRow | undefined : undefined
+  const inFolder = new Set(folderTree(folder))
+  const paths = new Map<string, string>()
+  const path = (id: string | null) => (id ? paths.get(id) ?? (paths.set(id, folderPath(id) ?? ''), paths.get(id)!) : '')
+  return (db.prepare(`select d.id, d.title, d.filename, d.kind, d.version, d.content, d.folder_id from documents d where d.project_id = ?
+    and d.version = (select max(x.version) from documents x where x.project_id = d.project_id and x.filename = d.filename)`).all(pid()) as { id: string, title: string, filename: string, kind: string, version: number, content: string, folder_id: string | null }[])
+    .filter(d => opts.scope !== 'folder' || (!!d.folder_id && inFolder.has(d.folder_id)))
+    .map(d => ({ ...d, folder: d.folder_id ? path(d.folder_id) : null }))
+    .sort((a, b) => (a.folder ?? '').localeCompare(b.folder ?? '', 'en', { numeric: true }) || a.title.localeCompare(b.title, 'en', { numeric: true }))
+}
+
+export function buildManuscript(opts: BibleOptions, coverUrl: (imageId: string) => string): Manuscript {
+  const { project, studio } = access()
+  const docs = readingOrder(opts)
+  const folder = opts.scope === 'folder' ? useDb().prepare('select id from folders where id = ? and project_id = ?').get(opts.folder_id, pid()) as { id: string } | undefined : undefined
+  const cover = coverImage(docs.map(d => d.filename))
+  return {
+    title: project.name, studio: studio.name, generated_at: now(),
+    scope: { kind: opts.scope, label: opts.scope === 'folder' ? (folder ? `Folder: ${folderPath(folder.id)}` : 'Folder (removed)') : 'Whole project' },
+    cover: cover ? coverUrl(cover.id) : null,
+    counts: { documents: docs.length, words: docs.reduce((n, d) => n + (d.content.match(/\S+/g)?.length ?? 0), 0) },
+    chapters: docs.map((d, i) => ({ key: `ch-${i + 1}`, title: d.title, folder: d.folder, kind: d.kind, version: d.version, text: d.content })),
+  }
+}
+
+// Only documents inside the export count: for the bible, the ones its facts cite (`cited`); for the manuscript, its own chapters.
+export const bookCover = (opts: BibleOptions, cited?: string[]) => coverImage(readingOrder(opts).map(d => d.filename), cited && new Set(cited))
+
 const slug = (s: string) => s.toLowerCase().normalize('NFKD').replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-|-$/g, '') || 'entity'
 
 export function buildBible(opts: BibleOptions, portrait: (e: EntityRow) => string | null) {
@@ -50,7 +98,7 @@ export function buildBible(opts: BibleOptions, portrait: (e: EntityRow) => strin
     label = names.length ? `${names.slice(0, 3).join(', ')}${names.length > 3 ? ` and ${names.length - 3} more` : ''}` : 'Selected entities (removed)'
   } else if (opts.scope === 'folder') {
     const folder = db.prepare('select id, name, parent_id from folders where id = ? and project_id = ?').get(opts.folder_id, pid()) as FolderRow | undefined
-    const ids = folder ? [folder.id, ...(db.prepare('select id from folders where parent_id = ? and project_id = ?').all(folder.id, pid()) as { id: string }[]).map(r => r.id)] : []
+    const ids = folderTree(folder)
     const docs = new Set((db.prepare(`select id from documents where project_id = ? and folder_id in (${ids.map(() => '?').join(', ') || 'null'})`).all(pid(), ...ids) as { id: string }[]).map(r => r.id))
     scoped = scoped.filter(f => f.evidence.some(e => e.verified && docs.has(e.document_id)))
     label = folder ? `Folder: ${folderPath(folder.id)}` : 'Folder (removed)'
@@ -138,14 +186,12 @@ export function buildBible(opts: BibleOptions, portrait: (e: EntityRow) => strin
     conflicts: openConflicts.map(c => ({ rule: CONFLICT_RULE_LABEL[c.rule] ?? c.rule, model: c.origin === 'model', rationale: c.rationale, facts: [num.get(c.left_fact_id)!, num.get(c.right_fact_id)!] })),
     sources: on.has('sources') ? [...docs.values()] : [],
   }
-  return { bible, rows: new Map(shown.map(e => [keys.get(e.id)!, e])) }
+  return { bible, rows: new Map(shown.map(e => [keys.get(e.id)!, e])), cited: [...docs.values()].map(d => d.file) }
 }
 
 const day = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 const cell = (s: string) => s.replaceAll('|', '\\|').replace(/\n+/g, ' ')
 const quoteBlock = (s: string) => s.split('\n').map(l => `> ${l}`).join('\n')
-export const citeLine = (c: BibleCitation) => [`${c.document} (${[c.folder, c.file].filter(Boolean).join(' / ')})`, `v${c.version}`, lineLabel(c),
-  c.prior_source ? 'prior source, wording changed' : '', c.latest_version > c.version ? `stale: source now v${c.latest_version}` : ''].filter(Boolean).join(', ')
 
 // Markdown for the download. imageFile names the portrait file next to the .md (zip), or null for a text-only file.
 export function bibleMarkdown(b: Bible, imageFile: (e: BibleEntity) => string | null) {
@@ -235,6 +281,9 @@ export function bibleMarkdown(b: Bible, imageFile: (e: BibleEntity) => string | 
 
 // A stored (uncompressed) zip: enough for one Markdown file and its portraits, without a dependency.
 export function zip(files: { name: string, data: Buffer }[]) {
+  // No ZIP64: 16-bit entry count, 32-bit sizes and offsets. Refuse cleanly; the input cap keeps memory sane too.
+  const total = files.reduce((n, f) => n + f.data.length, 0)
+  if (files.length > 65535 || total > 256 * 1024 * 1024) throw createError({ statusCode: 413, statusMessage: 'TOO_LARGE', message: 'This export is too large to download as one file. Narrow the scope (a folder or fewer entities) or leave out portraits.' })
   const local: Buffer[] = []
   const central: Buffer[] = []
   let offset = 0
@@ -277,4 +326,70 @@ export function bibleDownload(b: Bible, rows: Map<string, EntityRow>, asZip: boo
   }
   const md = bibleMarkdown(b, e => images.get(e.key)?.file ?? null)
   return { filename: `${name}.zip`, type: 'application/zip', body: zip([{ name: `${name}.md`, data: Buffer.from(md) }, ...[...images.values()].map(i => ({ name: i.file, data: i.data }))]) }
+}
+
+export function manuscriptMarkdown(m: Manuscript) {
+  const out = [`# ${m.title}: manuscript`, '', `${m.studio} · ${m.scope.label} · ${m.counts.documents} documents, ${m.counts.words} words · generated ${day(m.generated_at)}`, '']
+  for (const c of m.chapters) {
+    out.push(`## ${c.title}`, '')
+    // The document's own title line is the chapter heading above.
+    out.push(c.text.replace(/\r\n?/g, '\n').replace(new RegExp(`^# ${c.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\n`), '').trim(), '')
+  }
+  return `${out.join('\n').trim()}\n`
+}
+
+// EPUB 3: a stored zip (mimetype first) of XHTML chapters; citations are real footnotes. No dependency.
+// XML 1.0 forbids most control chars, U+FFFE/FFFF and lone surrogates; they are dropped, not escaped.
+const XML_BAD = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\uFFFE\uFFFF]|[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g
+const esc = (s: string) => s.replace(XML_BAD, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;')
+const xhtml = (title: string, body: string) => `<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en"><head><meta charset="utf-8"/><title>${esc(title)}</title><link rel="stylesheet" href="style.css"/></head><body>${body}</body></html>`
+const EPUB_CSS = `body{font-family:serif;line-height:1.5}h1{margin:1.2em 0 .6em}h2{margin:1.4em 0 .2em}h3{margin:1em 0 .3em}.sub,.small{color:#555;font-size:.9em}.ed{font-size:.8em;font-weight:bold;text-transform:uppercase;color:#7a5c1e}.fact{margin:.8em 0}.n{font-size:.75em;color:#666;margin-right:.5em}.lab{font-size:.8em;font-weight:bold;margin-right:.5em}aside p{font-size:.85em;margin:.2em 0}img.portrait{max-width:40%;float:right;margin:0 0 .5em 1em}.cover img{max-width:100%}`
+
+export function bookEpub(book: Book, images: Map<string, { file: string, data: Buffer, mime: string }>, cover: { data: Buffer, mime: string } | null) {
+  const para = (p: BookPara) => (p.kind === 'h' ? `<h3>${esc(p.text)}</h3>` : `<p class="${p.kind ?? ''}">${esc(p.text).replace(/\n/g, '<br/>')}</p>`)
+  const chapters = book.chapters.map((c, i) => {
+    const sections = c.sections.map((s) => {
+      const img = s.portraitKey ? images.get(s.portraitKey) : null
+      return `<section id="${esc(s.id)}">${s.title ? `<h2>${esc(s.title)}</h2>` : ''}${s.sub ? `<p class="sub">${esc(s.sub)}</p>` : ''}${img ? `<img class="portrait" src="${img.file}" alt="${esc(s.title)}"/>` : ''}${s.paras.map(para).join('')}`
+        + s.facts.map(f => `<p class="fact"><span class="n">${esc(f.n)}</span>${f.label ? `<span class="lab">${esc(f.label)}</span>` : ''}${esc(f.statement)}${f.sample ? ' <em>(sample canon)</em>' : ''}${f.notes.map(k => `<a epub:type="noteref" href="#fn${k}"><sup>${k}</sup></a>`).join('')}</p>`).join('') + '</section>'
+    }).join('')
+    const notes = c.notes.map(n => `<aside epub:type="footnote" id="fn${n.n}"><p>${n.n}. ${esc(n.text)}</p></aside>`).join('')
+    return { file: `ch${i + 1}.xhtml`, title: c.title, html: xhtml(c.title, `<h1>${esc(c.title)}</h1>${c.intro ? `<p class="sub">${esc(c.intro)}</p>` : ''}${sections}${notes}`) }
+  })
+  const front = xhtml(book.title, `<h1>${esc(book.title)}</h1><p>${esc(book.kicker)}</p><p class="sub">${esc(book.studio)} · ${esc(book.line)}</p>`)
+  const nav = xhtml('Contents', `<nav epub:type="toc"><h1>Contents</h1><ol>${chapters.map(c => `<li><a href="${c.file}">${esc(c.title)}</a></li>`).join('')}</ol></nav>`)
+  const mediaOf = (f: string, mime: string) => `<item id="${f.replace(/\W/g, '-')}" href="${f}" media-type="${mime}"/>`
+  const imgItems = [...images.values()].map(i => mediaOf(i.file, i.mime)).join('')
+  const coverExt = cover ? EXT[cover.mime] ?? 'img' : ''
+  const opf = `<?xml version="1.0" encoding="utf-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="id"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+<dc:identifier id="id">urn:uuid:${crypto.randomUUID()}</dc:identifier><dc:title>${esc(`${book.title}: ${book.kicker.toLowerCase()}`)}</dc:title><dc:creator>${esc(book.studio)}</dc:creator><dc:language>en</dc:language>
+<meta property="dcterms:modified">${new Date().toISOString().replace(/\.\d+Z$/, 'Z')}</meta></metadata><manifest>
+<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/><item id="css" href="style.css" media-type="text/css"/><item id="front" href="front.xhtml" media-type="application/xhtml+xml"/>
+${cover ? `<item id="cover-img" href="images/cover.${coverExt}" media-type="${cover.mime}" properties="cover-image"/><item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>` : ''}
+${chapters.map((c, i) => `<item id="c${i + 1}" href="${c.file}" media-type="application/xhtml+xml"/>`).join('')}${imgItems}</manifest>
+<spine>${cover ? '<itemref idref="cover"/>' : ''}<itemref idref="front"/><itemref idref="nav"/>${chapters.map((_, i) => `<itemref idref="c${i + 1}"/>`).join('')}</spine></package>`
+  const b = (name: string, text: string) => ({ name, data: Buffer.from(text) })
+  return zip([
+    b('mimetype', 'application/epub+zip'),
+    b('META-INF/container.xml', '<?xml version="1.0"?><container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>'),
+    b('OEBPS/content.opf', opf), b('OEBPS/nav.xhtml', nav), b('OEBPS/front.xhtml', front), b('OEBPS/style.css', EPUB_CSS),
+    ...(cover ? [b('OEBPS/cover.xhtml', xhtml(book.title, `<div class="cover"><img src="images/cover.${coverExt}" alt="Cover"/></div>`)), { name: `OEBPS/images/cover.${coverExt}`, data: cover.data }] : []),
+    ...chapters.map(c => b(`OEBPS/${c.file}`, c.html)),
+    ...[...images.values()].map(i => ({ name: `OEBPS/${i.file}`, data: i.data })),
+  ])
+}
+
+// The EPUB download of the bible (book = 'bible') or the manuscript. Portraits go in when the bible carries them.
+export function epubDownload(book: Book, kind: BibleBook, rows: Map<string, EntityRow>, coverId: { id: string, mime: string } | null) {
+  const images = new Map<string, { file: string, data: Buffer, mime: string }>()
+  for (const c of book.chapters) for (const s of c.sections) {
+    const row = s.portraitKey ? rows.get(s.portraitKey) : null
+    const data = s.portrait && row?.portrait_type ? readPortrait(row.id) : null
+    if (data && row) images.set(s.portraitKey!, { file: `images/${s.portraitKey}.${EXT[row.portrait_type!] ?? 'img'}`, data, mime: row.portrait_type! })
+  }
+  const data = coverId ? readPortrait(coverId.id) : null
+  return { filename: `${slug(book.title)}-${kind === 'bible' ? 'story-bible' : 'manuscript'}.epub`, type: 'application/epub+zip', body: bookEpub(book, images, coverId && data ? { data, mime: coverId.mime } : null) }
 }

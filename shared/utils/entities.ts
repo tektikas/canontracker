@@ -32,6 +32,11 @@ export function typeOf(types: readonly EntityType[], key: string): EntityType {
   return types.find(t => t.key === key) ?? DEFAULT_TYPES[key] ?? { key, one, many: pluralOf(one), color: 'neutral', icon: 'other' }
 }
 
+// A type name inside a sentence keeps the team's casing: "Character" → "character", but "NPC" and "Voice Actor" stay.
+export const typeWord = (w: string) => /^\p{Lu}[\p{Ll}\s]*$/u.test(w) ? w.toLowerCase() : w
+// "a" or "an" by sound, letter-named acronyms included: "an item", "an NPC", "a quest".
+export const withArticle = (w: string) => `${/^[aeiou]/i.test(w) || /^[AEFHILMNORSX](?:[A-Z\d]|$)/.test(w) ? 'an' : 'a'} ${w}`
+
 // Project medium decides which extra fields each built-in type shows (a type the team made has none; summary and notes cover it), and
 // which types a new project starts with. Values are stored by key, so switching medium hides fields
 // without losing what was typed.

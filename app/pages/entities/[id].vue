@@ -385,7 +385,7 @@ const ago = (iso: string) => {
           <UiButton size="sm" variant="ghost" icon="review" @click="edit('fields')">Edit</UiButton>
         </template>
         <p class="small faint side-note">Notes for your team. Not canon; never used for conflicts or impact.</p>
-        <p v-if="!fieldKeys.length" class="small muted none">No fields for {{ kindLabel(e.kind).one.toLowerCase() }} pages. Use the summary and notes.</p>
+        <p v-if="!fieldKeys.length" class="small muted none">No fields for {{ typeWord(kindLabel(e.kind).one) }} pages. Use the summary and notes.</p>
         <form v-else-if="editing === 'fields'" class="stack" novalidate @submit.prevent="save({ fields: draft.fields })">
           <UiField v-for="k in fieldKeys" :key="k" :label="FIELD_LABEL[k]?.label ?? k" :hint="presetKeys.includes(k) ? FIELD_LABEL[k]?.hint : 'Kept from another medium or kind. Clear it to remove.'">
             <textarea v-model="draft.fields[k]" rows="2" maxlength="500" @keydown.esc="editing = ''" />
@@ -405,13 +405,13 @@ const ago = (iso: string) => {
         </dl>
         <div class="medium">
           <span class="small faint">Fields for a {{ MEDIA[e.medium].label.toLowerCase() }} project.</span>
-          <UiButton v-if="manager" size="sm" icon="settings" to="/settings/projects">Change medium</UiButton>
+          <UiButton v-if="manager" size="sm" icon="settings" :to="`/settings/projects/${me?.current?.project.id}`">Change medium</UiButton>
         </div>
       </UiPanel>
     </div>
 
     <!-- Timeline -->
-    <UiPanel v-else-if="tab === 'timeline'" :title="`${e.name} on the story timeline`" description="Timed canon facts that name this entity, by story time. Day 1 starts at 00:00.">
+    <UiPanel v-else-if="tab === 'timeline'" :title="`${e.name} on the story timeline`" description="Timed canon facts that name this entity, by story time. Day 1 starts at 00:00; earlier days are D0, D-1, ….">
       <StoryTimeline v-if="timedCount" :facts="facts" />
       <UiEmptyState v-else title="No timed facts yet" icon="event">
         None of the accepted facts about {{ e.name }} has a story time.

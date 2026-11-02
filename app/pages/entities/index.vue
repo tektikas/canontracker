@@ -112,7 +112,7 @@ async function create() {
             </button>
           </template>
         </div>
-        <NuxtLink v-if="editable" to="/settings/projects#entity-types" class="small manage"><UiIcon name="settings" :size="14" />Edit types</NuxtLink>
+        <NuxtLink v-if="editable" :to="`/settings/projects/${me?.current?.project.id}#entity-types`" class="small manage"><UiIcon name="settings" :size="14" />Edit types</NuxtLink>
       </div>
     </div>
 

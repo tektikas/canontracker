@@ -28,6 +28,10 @@ export default defineEventHandler(async (event) => {
   if (!set) throw createError({ statusCode: 400, statusMessage: 'BAD_SET', message: `set must be one of ${SETS.join(', ')}.` })
 
   const project = pid()
+  // expect_project: the page that sends it names the project it showed; a switch from another tab in between refuses the reset.
+  const expected = (body as { expect_project?: unknown }).expect_project
+  if (expected !== undefined && expected !== project)
+    throw createError({ statusCode: 409, statusMessage: 'PROJECT_CHANGED', message: 'Another tab switched projects; nothing was changed. Try again.' })
   if (loading.has(project)) throw createError({ statusCode: 409, statusMessage: 'LOAD_IN_PROGRESS', message: 'A sample is already loading into this project. Wait for it to finish.' })
   loading.add(project)
   try {
@@ -60,13 +64,12 @@ function preload(facts: Record<string, string>[], docs: { filename: string, docu
       const passages = db.prepare('select * from passages where document_id = ? order by ordinal').all(docId ?? '') as unknown as PassageRow[]
       const match = findQuotePassage(passages, f.quote)
       if (!docId || !match) throw createError({ statusCode: 500, statusMessage: 'BAD_SAMPLE', message: `Sample fact “${f.statement}” has no verbatim quote in ${file}.` })
-      const tFrom = parseStoryTime(f.time_from)
-      const tTo = parseStoryTime(f.time_to)
+      const { from: tFrom, to: tTo, day } = parseStoryRange(f.time_from, f.time_to)
       const precision = tFrom == null && tTo == null ? null : 'exact'
       const id = newId('fact')
       db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision, status, confidence,
         origin, model_id, created_at, decided_at, decided_by, created_by, project_id) values (?, ?, ?, ?, ?, null, ?, ?, ?, ?, ?, 'canon', null, 'sample', null, ?, ?, null, null, ?)`)
-        .run(id, f.kind!, f.subject!, f.predicate!, f.object ?? null, f.statement!, tFrom, tTo, timeLabel(tFrom, tTo, precision), precision, now(), now(), pid())
+        .run(id, f.kind!, f.subject!, f.predicate!, f.object ?? null, f.statement!, tFrom, tTo, timeLabel(tFrom, tTo, precision, day), precision, now(), now(), pid())
       db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, 1, ?)')
         .run(newId('ev'), id, docId, match.passage.id, match.quote, pid())
       ids.push(id)

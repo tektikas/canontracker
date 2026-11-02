@@ -131,6 +131,8 @@ if (imgA) {
 }
 const projA = (await a('/api/me')).data.current.project.id
 check('B gets 404 switching into A’s project', (await b(`/api/projects/${projA}/switch`, { method: 'POST' })).status, 404)
+check('B gets 404 reading A’s project page data', (await b(`/api/projects/${projA}`)).status, 404)
+check('A reads own project page data', (await a(`/api/projects/${projA}`)).status, 200)
 check('Signed-out caller gets 401', (await client()('/api/stats')).status, 401)
 
 const viewerLink = (await a('/api/team/invites', { method: 'POST', body: { role: 'viewer', days: 7 } })).data

@@ -1,6 +1,6 @@
 // Self-check for the Add fact guesses: node scripts/predicate-check.ts (Node 24 strips the types). Exits non-zero on a failure.
 import assert from 'node:assert/strict'
-import { suggestParts, timesIn } from '../app/utils/predicate.ts'
+import { storyTime, suggestParts, timesIn } from '../app/utils/predicate.ts'
 
 const LEYA = { name: 'Leya', kind: 'character' }
 const HARBOR = { name: 'Harbor', kind: 'location' }
@@ -41,3 +41,13 @@ check("Leya's lantern is lit.", [], { subject: 'Leya' })
 check('The Chord Stone is kept in the Vault.', [{ name: 'Chord Stone', kind: 'item' }], {})
 
 console.log('predicate-check: ok')
+
+// Story time before day 1 (c45): zero and negative days, day-only values.
+assert.equal(storyTime('Day -3650'), 'D-3650')
+assert.equal(storyTime('D-3650'), 'D-3650')
+assert.equal(storyTime('D0 09:00'), 'D0 09:00')
+assert.equal(storyTime('Day -3650 9:00'), 'D-3650 09:00')
+assert.equal(storyTime('D2'), 'D2')
+assert.equal(storyTime('Day 1 08:00 09:00'), null)
+assert.equal(storyTime('soon'), null)
+assert.deepEqual(timesIn('From 08:00 on Day -3650 until 09:00 on Day -3649.'), { from: 'D-3650 08:00', to: 'D-3649 09:00' })

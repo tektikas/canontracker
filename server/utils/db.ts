@@ -370,16 +370,23 @@ export function getFact(id: string) {
 // Facts with their evidence resolved to document + line range, for the UI.
 // latest_version > document_version means the citation points at an older version of the source (stale).
 export const MIN_QUOTE_CHARS = 8
-/** The one quote check: non-blank (>= MIN_QUOTE_CHARS non-space chars) and verbatim in a passage. */
+/** The raw quote check on a stored string: non-blank (>= MIN_QUOTE_CHARS non-space chars) and verbatim in a passage. */
 export function isVerbatimQuote(text: string, quote: string | null | undefined): boolean {
   return !!quote && quote === quote.trim() && quote.replace(/\s/g, '').length >= MIN_QUOTE_CHARS && text.includes(quote)
 }
-/** Returns the matched passage and the exact normalized (trimmed) quote; callers must store that string, not the input.
+/** Returns the matched passage and the quote exactly as that passage writes it; callers must store that string, not the input.
+ * Matching folds typography (smart quotes, dashes, …, line breaks, Markdown emphasis: see quoteMatches), and the result still
+ * passes isVerbatimQuote against the raw passage. A quote must sit inside one passage (a paragraph or heading): one that runs
+ * across a blank line is refused, the same as the reader refusing a selection over two passages.
  * `prefer`: the passage the quote was selected in, checked first so a phrase that repeats is cited where it was picked. */
 export function findQuotePassage<T extends { text: string, id?: string }>(passages: T[], quote: string | null | undefined, prefer?: string | null): { passage: T, quote: string } | undefined {
   const q = quote?.trim()
-  const passage = [...passages.filter(p => prefer && p.id === prefer), ...passages].find(p => isVerbatimQuote(p.text, q))
-  return passage && q ? { passage, quote: q } : undefined
+  // The minimum counts the submitted words (folded, recomposed to NFC so é / 한 count once), so Markdown marks taken in around a short quote cannot pad it.
+  if (!q || foldQuoteText(q).str.normalize('NFC').replace(/\s/g, '').length < MIN_QUOTE_CHARS) return undefined
+  for (const passage of [...passages.filter(p => prefer && p.id === prefer), ...passages]) {
+    const hit = quoteMatches(passage.text, q).find(raw => isVerbatimQuote(passage.text, raw))
+    if (hit) return { passage, quote: hit }
+  }
 }
 
 export function listFacts(where = '1 = 1', ...params: (string | number)[]) {

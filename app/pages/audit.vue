@@ -3,6 +3,7 @@ const { data: events } = await useFetch('/api/audit')
 const route = useRoute() // /audit#<event id> highlights that event (links from Conflicts and Changes)
 const filter = ref('')
 const kindLabel = useKind()
+const me = useMe()
 const shown = computed(() => (events.value ?? []).filter(e => !filter.value || e.event_type.startsWith(`${filter.value}.`)))
 const types = computed(() => [...new Set((events.value ?? []).map(e => e.event_type.split('.')[0]!))])
 const count = (t: string) => (events.value ?? []).filter(e => e.event_type.startsWith(`${t}.`)).length
@@ -70,8 +71,8 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'qa.asked': return [`${who} asked: ${q(d.question)}`, `Result: ${({ supported: 'Supported by canon', source_only: 'Related canon only', unknown: 'Unknown' } as Record<string, string>)[d.status] ?? d.status}`]
     case 'eval.completed': return [`${who} ran the evaluation`, `${d.passed} met, ${d.failed} missed`]
     case 'export.created': return [`${who} exported ${d.format?.toUpperCase()}`, d.items != null ? `${d.items} impact items` : d.events != null ? `${d.events} audit events` : '']
-    case 'bible.exported': return [`${who} exported the story bible as ${({ md: 'Markdown', zip: 'Markdown with portraits', pdf: 'a PDF print view' } as Record<string, string>)[d.format] ?? d.format}`,
-      `${d.scope} · ${counted(d.facts ?? 0, 'canon fact')}, ${counted(d.entities ?? 0, 'entity', 'entities')}`]
+    case 'bible.exported': return [`${who} exported the ${d.book === 'manuscript' ? 'manuscript' : d.book === 'bible' ? 'story bible as a book' : 'story bible'} as ${({ md: 'Markdown', zip: 'Markdown with portraits', pdf: 'a PDF print view', epub: 'an EPUB' } as Record<string, string>)[d.format] ?? d.format}`,
+      d.book === 'manuscript' ? `${d.scope} · ${counted(d.documents ?? 0, 'document')}, ${counted(d.words ?? 0, 'word')}` : `${d.scope} · ${counted(d.facts ?? 0, 'canon fact')}, ${counted(d.entities ?? 0, 'entity', 'entities')}`]
     case 'share.created': return [`${who} created the read-only link “${d.name}”`, `${d.scope} · ${counted(d.facts ?? 0, 'canon fact')} · ${d.expires_at ? `expires ${shortDate(d.expires_at)}` : 'never expires'} · stored hashed`]
     case 'share.revoked': return [`${who} turned off the read-only link “${d.name}”`, 'Opening it now says the link isn’t available']
     case 'share.opened': return [`The read-only link “${d.name}” was opened for the first time`, 'Later opens are counted on the link, not logged here']
@@ -142,7 +143,7 @@ function target(e: { event_type: string, target_type: string, target_id: string,
   const t = e.target_type
   const short = e.target_id.replace(/^[a-z]+_/, '').slice(0, 6)
   if (e.target_removed) return { to: '', label: `${t.charAt(0).toUpperCase() + t.slice(1)} · ${short}… (removed by reset)` }
-  if (t === 'entity_type') return { to: '/settings/projects#entity-types', label: `Entity type · ${e.target_id}` }
+  if (t === 'entity_type') return { to: `/settings/projects/${me.value?.current?.project.id}#entity-types`, label: `Entity type · ${e.target_id}` }
   const to = t === 'entity' ? (e.event_type === 'entity.deleted' ? '' : `/entities/${e.target_id}`) : t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' || e.event_type === 'conflict.scan' ? '/conflicts' : t === 'change' ? '/changes'
     : t === 'fact' ? (e.event_type.startsWith('candidate.') && !e.event_type.endsWith('accepted') ? '/review' : '/canon') : t === 'note' ? '/notes' : t === 'task' ? '/tasks' : t === 'share' || e.event_type === 'bible.exported' ? '/export' : ['folder', 'tag', 'library'].includes(t) ? '/library' : ''
   // Ids already carry a type prefix ("fact_d0e…", "trc_e02c…"): drop it and label the thing in words.
