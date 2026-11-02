@@ -166,22 +166,33 @@ async function live(base) {
   const rss = (pid) => Number(readFileSync(`/proc/${pid}/status`, 'utf8').match(/VmRSS:\s+(\d+)/)[1]) / 1024
   const pid = /localhost|127\.0\.0\.1/.test(base) ? pidOf(new URL(base).port) : undefined
   const rssBefore = pid && rss(pid)
-  // Streams the parts one chunk at a time with no Content-Length (chunked); a function part is a generator of chunks.
-  const chunked = async (parts, path = '/api/images/upload') => {
+  // Writes the parts with node:http and resolves with the status of the first response. The server answers 413 and
+  // closes while we may still be writing, so EPIPE/ECONNRESET is ignored only once a response has arrived; with no
+  // response the error rejects and the check fails. A function part is a generator of chunks.
+  const send = (path, parts, headers) => new Promise((resolve, reject) => {
+    let status
+    const req = request(`${base}${path}`, { method: 'POST', headers: { cookie: a.cookie(), ...headers } }, (res) => {
+      status = res.statusCode; res.resume(); resolve(status); req.destroy()
+    })
+    req.on('error', (e) => { if (status === undefined) reject(e) })
     const it = (function* () { for (const p of parts) typeof p === 'function' ? yield* p() : yield p })()
-    const body = new ReadableStream({ pull(c) { const { value, done } = it.next(); done ? c.close() : c.enqueue(value) } })
-    const res = await fetch(`${base}${path}`, { method: 'POST', duplex: 'half', body, headers: { 'content-type': `multipart/form-data; boundary=${bnd}`, cookie: a.cookie() } })
-      .catch(e => ({ status: `error: ${e.cause?.code ?? e.message}` }))
-    return res.status
-  }
-  // Declares 90 MB, sends a few bytes and waits: the answer must come from the header alone.
-  const declared = () => new Promise((resolve) => {
-    const req = request(`${base}/api/images/upload`, { method: 'POST', headers: { 'content-type': `multipart/form-data; boundary=${bnd}`, 'content-length': '90000000', cookie: a.cookie() } },
-      (res) => { resolve(res.statusCode); res.resume(); req.destroy() })
-    req.on('error', e => resolve(`error: ${e.code}`))
-    req.write('--' + bnd)
+    const pump = () => {
+      for (;;) {
+        if (status !== undefined || req.destroyed) return
+        const { value, done } = it.next()
+        if (done) return req.end()
+        if (!req.write(value)) return req.once('drain', pump)
+      }
+    }
+    pump()
   })
   const bnd = `----probe${run}`
+  // Streamed with no Content-Length (chunked).
+  const chunked = (parts, path = '/api/images/upload') => send(path, parts, { 'content-type': `multipart/form-data; boundary=${bnd}`, 'transfer-encoding': 'chunked' })
+    .catch(e => `error: ${e.code ?? e.message}`)
+  // Declares 90 MB, sends a few bytes: the answer must come from the header alone.
+  const declared = () => send('/api/images/upload', [Buffer.from('--' + bnd)], { 'content-type': `multipart/form-data; boundary=${bnd}`, 'content-length': '90000000' })
+    .catch(e => `error: ${e.code ?? e.message}`)
   const field = (name, value) => Buffer.from(`--${bnd}\r\ncontent-disposition: form-data; name="${name}"\r\n\r\n${value}\r\n`)
   const file = (name, bytes) => Buffer.concat([Buffer.from(`--${bnd}\r\ncontent-disposition: form-data; name="files"; filename="${name}"\r\ncontent-type: image/png\r\n\r\n`), bytes, Buffer.from('\r\n')])
   const mb = Buffer.alloc(1_000_000, 0x61)
