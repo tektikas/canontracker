@@ -222,7 +222,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                 </form>
                 <div v-else class="side-row">
                   <button type="button" class="side-item" :class="{ on: folderSel === x.id }" :aria-pressed="folderSel === x.id" @click="pickFolder(x.id)">
-                    <UiIcon name="folder" :size="16" /><span class="name">{{ x.name }}</span><span class="n">{{ folderCount(x.id) }}</span>
+                    <UiIcon name="folder" :size="16" /><span class="name" :title="x.name">{{ x.name }}</span><span class="n">{{ folderCount(x.id) }}</span>
                   </button>
                   <UiMenu v-if="editor" :label="`Folder actions for ${x.name}`" class="row-menu">
                     <template #trigger><UiIcon name="more" :size="16" /></template>
@@ -261,7 +261,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
               </form>
               <div v-else class="side-row">
                 <button type="button" class="side-item" :class="{ on: tagSel === t.id }" :aria-pressed="tagSel === t.id" @click="pickTag(t.id)">
-                  <span class="swatch" :class="t.color" aria-hidden="true" /><span class="name">{{ t.name }}</span><span class="n">{{ tagCount(t.id) }}</span>
+                  <span class="swatch" :class="t.color" aria-hidden="true" /><span class="name" :title="t.name">{{ t.name }}</span><span class="n">{{ tagCount(t.id) }}</span>
                 </button>
                 <UiMenu v-if="editor" :label="`Tag actions for ${t.name}`" class="row-menu">
                   <template #trigger><UiIcon name="more" :size="16" /></template>
@@ -447,10 +447,11 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .up-wrap :deep(.uploads) { margin-bottom: var(--s-4); }
 .lib-grid { display: grid; grid-template-columns: 216px minmax(0, 1fr); gap: var(--s-4); align-items: start; }
-.side { display: grid; gap: var(--s-5); padding: var(--s-4) var(--s-3); position: sticky; top: var(--s-5); max-height: calc(100vh - 2 * var(--s-5)); overflow-y: auto; }
+.side { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--s-5); padding: var(--s-4) var(--s-3); position: sticky; top: var(--s-5); max-height: calc(100vh - 2 * var(--s-5)); overflow-y: auto; }
 .side-head { display: flex; align-items: center; justify-content: space-between; padding: 0 6px 6px; }
 .side-head h2 { margin: 0; font-size: var(--text-xs); font-weight: 600; color: var(--faint); }
 .icon-btn.sm { width: 28px; height: 28px; color: var(--muted); }
+.side-list li { min-width: 0; }
 .side-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 1px; }
 .side-list li.sub { padding-left: 18px; }
 .side-row { display: flex; align-items: center; gap: 2px; }
@@ -534,7 +535,7 @@ tbody tr.picked { background: var(--accent-soft); }
 
 @media (max-width: 900px) {
   .lib-grid { grid-template-columns: minmax(0, 1fr); }
-  .side { order: 2; position: static; max-height: none; grid-template-columns: 1fr 1fr; gap: var(--s-4); }
+  .side { order: 2; position: static; max-height: none; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-4); }
   .only-sm { display: revert !important; }
 }
 @media (max-width: 720px) {
