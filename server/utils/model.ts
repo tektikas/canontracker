@@ -104,16 +104,21 @@ function identityNotes(facts: PromptFact[]) {
     : ''
 }
 
-const recorded = <T>(key: string) => useStorage('assets:server').getItem<T>(`broken-tide:${key}`)
+// The demo sets with a recorded run. Their filenames are disjoint (S01.md vs S01-homecoming.md) and so are their rule phrases,
+// so one lookup across all of them is exact.
+const RECORDED_SETS = ['broken-tide', 'ashbell-pass']
+const recorded = async <T>(key: string) => Promise.all(RECORDED_SETS.map(set => useStorage('assets:server').getItem<T>(`${set}:${key}`)))
+const recordedCandidates = async (filename: string) =>
+  (await recorded<Record<string, CandidateDraft[]>>('candidates.json')).map(c => c?.[filename]).find(Boolean)
 
-// Recorded mode only has extraction output for the Broken Tide demo files, keyed by filename.
+// Recorded mode only has extraction output for the demo sets' files, keyed by filename.
 export async function hasRecordedExtraction(filename: string) {
-  return !!(await recorded<Record<string, CandidateDraft[]>>('candidates.json'))?.[filename]
+  return !!(await recordedCandidates(filename))
 }
 
 export function extractCandidates(doc: { id: string, filename: string, title: string, text: string }) {
   return traced('extract', { type: 'document', id: doc.id }, [doc.id], null, async (): Promise<CandidateDraft[]> => {
-    if (modelInfo().mode === 'mock') return (await recorded<Record<string, CandidateDraft[]>>('candidates.json'))?.[doc.filename] ?? []
+    if (modelInfo().mode === 'mock') return (await recordedCandidates(doc.filename)) ?? []
     const out = await chatJson(
       `You extract narrative canon candidates from game lore documents. Return JSON {"candidates":[...]}.
 Each candidate: {"kind":"character|location|relationship|event|rule|claim","subject":"short entity name","predicate":"snake_case verb","object":"entity name or null","value":"number for measurable rules (e.g. travel minutes) or null","statement":"one plain sentence","quote":"EXACT verbatim substring of the document that supports it","time":{"from":"D<day> HH:MM","to":"D<day> HH:MM","precision":"exact|approximate"} or omitted (day-only "D<day>" means the whole day; days before D1 are D0, D-1, D-3650 …),"confidence":0-1}.
@@ -145,8 +150,8 @@ export function checkRule(rule: PromptFact, facts: PromptFact[]) {
   const input = `Rule:\n${factLines([rule])}\n\nFacts:\n${factLines(facts)}${identityNotes([rule, ...facts])}`
   return traced('rule_check', { type: 'fact', id: rule.id }, facts.map(f => f.id), input, async (): Promise<RuleViolation[]> => {
     if (modelInfo().mode === 'mock') {
-      const runs = await recorded<{ rule_contains: string, violations: { statement: string, rationale: string, confidence: number }[] }[]>('rule-checks.json')
-      const run = runs?.find(r => rule.statement.includes(r.rule_contains))
+      const runs = (await recorded<{ rule_contains: string, violations: { statement: string, rationale: string, confidence: number }[] }[]>('rule-checks.json')).flatMap(r => r ?? [])
+      const run = runs.find(r => rule.statement.includes(r.rule_contains))
       return (run?.violations ?? []).flatMap((v) => {
         const fact = facts.find(f => f.statement === v.statement)
         return fact ? [{ fact_id: fact.id, rationale: v.rationale, confidence: v.confidence }] : []

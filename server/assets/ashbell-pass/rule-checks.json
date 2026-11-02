@@ -1,0 +1,31 @@
+[
+  {
+    "rule_contains": "until the next sunrise",
+    "violations": [
+      {
+        "statement": "Corin shouts a warning to the Pass Guard moments after ringing the Ashbell.",
+        "rationale": "Corin rang the Ashbell at 19:00 on Day 1 (S02) and shouts a warning moments later; under this rule he has no voice until sunrise.",
+        "confidence": 0.74
+      }
+    ]
+  },
+  {
+    "rule_contains": "for one hour",
+    "violations": [
+      {
+        "statement": "Ves still cannot speak at noon on Day 4 after ringing the Ashbell.",
+        "rationale": "Ves rang the Ashbell at 06:00 on Day 4 (S11); under a one-hour rule her voice returns by 07:00, but S13 has her voiceless at noon.",
+        "confidence": 0.78
+      },
+      {
+        "statement": "Corin shouts a warning to the Pass Guard moments after ringing the Ashbell.",
+        "rationale": "Moments after ringing is still inside the one-hour silence.",
+        "confidence": 0.7
+      }
+    ]
+  },
+  {
+    "rule_contains": "before dawn",
+    "violations": []
+  }
+]

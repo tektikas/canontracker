@@ -152,7 +152,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
         <UiButton v-if="!busy" size="sm" variant="ghost" @click="clear">Clear</UiButton>
       </div>
     </header>
-    <p v-if="noRecorded && !busy" class="small muted up-note">No candidates: the recorded run only has model output for the Broken Tide demo files. Open a file and select words to add facts by hand.</p>
+    <p v-if="noRecorded && !busy" class="small muted up-note">No candidates: the recorded run only has model output for the demo stories’ files. Open a file and select words to add facts by hand.</p>
     <ul v-if="rows.length" class="up-list">
       <li v-for="i in rows" :key="i.key" :class="i.state">
         <UiIcon :name="i.state === 'error' ? 'conflicts' : i.state === 'done' ? 'check' : 'file'" :size="16" class="up-icon" />

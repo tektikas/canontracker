@@ -61,7 +61,7 @@ const TEAM = [
             <UiButton to="/signup" variant="primary" size="lg">Create your studio<UiIcon name="arrow" :size="16" /></UiButton>
             <UiButton to="/login" size="lg">Log in</UiButton>
           </div>
-          <p class="small muted">Comes with Broken Tide, an original demo story with planted contradictions, so you can try it before importing your own lore.</p>
+          <p class="small muted">Comes with two original demo stories with planted contradictions, Broken Tide and the longer The Ashbell Pass, so you can try it before importing your own lore.</p>
         </div>
 
         <div class="hero-visual">
@@ -133,7 +133,7 @@ const TEAM = [
             <h3>About the model</h3>
             <p v-if="recorded">
               Story Bible is built on the Meta Model API (Muse Spark). This instance runs in <b>recorded mode</b>: extraction and model checks
-              replay a recorded run of the Broken Tide demo instead of calling the model live, and the app labels every recorded result as recorded.
+              replay a recorded run of the demo stories instead of calling the model live, and the app labels every recorded result as recorded.
               Your own files import and work normally, but get no model candidates until a live model is connected.
             </p>
             <p v-else>
@@ -166,7 +166,7 @@ const TEAM = [
 
     <footer class="lp-foot small faint">
       <span>Story Bible · built for the Meta AI Developer Hackathon</span>
-      <span>Broken Tide is an original, synthetic story made for this demo.</span>
+      <span>Broken Tide and The Ashbell Pass are original, synthetic stories made for this demo.</span>
     </footer>
   </div>
 </template>

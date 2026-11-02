@@ -94,7 +94,7 @@ const next = computed(() => {
       : !editor.value
         ? { title: 'Nothing is canon yet', text: 'No facts have been added from these sources yet. An editor on your team adds them; you’ll see them here as soon as they do.', to: '/library', action: 'Open the library' }
         : recordedMode.value
-          ? { title: 'Add facts by hand', text: 'No model proposed facts from your sources: the recorded run only covers the Broken Tide demo files. Open a source, select the words that say something, and add them as a fact. Or use the live model to propose facts for you.', manual: true }
+          ? { title: 'Add facts by hand', text: 'No model proposed facts from your sources: the recorded run only covers the demo stories’ files. Open a source, select the words that say something, and add them as a fact. Or use the live model to propose facts for you.', manual: true }
           : { title: 'Add facts by hand', text: 'The model found no facts it could quote from your sources. Open a source, select the words that say something, and add them as a fact.', manual: true }
     // only reachable with open conflicts: zero open is `done` or `skip`
     case 'conflicts': return editor.value
@@ -191,7 +191,7 @@ const next = computed(() => {
                   <UiBadge v-else tone="bad">{{ r.error }}</UiBadge>
                   <div v-if="r.extraction_error" class="field-error">Extraction failed: {{ r.extraction_error }}</div>
                   <div v-else-if="r.status === 'imported' && r.candidates === 0" class="small muted">{{ stats?.model.mode === 'mock'
-                    ? 'No candidates: the recorded run only covers the Broken Tide demo files. Open the file to add facts by hand, or use the live model.'
+                    ? 'No candidates: the recorded run only covers the demo stories’ files. Open the file to add facts by hand, or use the live model.'
                     : stats?.model.mode === 'meta' ? 'No candidates: the model found no facts it could quote from this file. Open it to add facts by hand.'
                       : 'No candidates were proposed from this file. Open it to add facts by hand.' }}</div>
                 </td>

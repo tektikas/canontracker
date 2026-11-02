@@ -8,7 +8,13 @@ const currentId = computed(() => me.value?.current?.project.id)
 const creating = ref(route.query.new === '1')
 const newName = ref('')
 // A new project can start from one of the sample sets; loading one is the same admin action as Load demo set on Home.
-const SAMPLES = { empty: '', 'broken-tide': 'Broken Tide (demo)', 'lantern-row': 'Lantern Row (sample)' } as const
+const SAMPLES = { empty: '', 'broken-tide': 'Broken Tide (demo)', 'lantern-row': 'Lantern Row (sample)', 'ashbell-pass': 'The Ashbell Pass (demo)' } as const
+const HINTS: Record<keyof typeof SAMPLES, string> = {
+  'empty': 'Add your own sources from Home.',
+  'broken-tide': 'An island story in 13 sources with planted contradictions. In recorded mode its candidates replay a recorded run.',
+  'lantern-row': 'Three short sources that come with five preloaded canon facts, each quoted from its source. Sample canon: no one reviewed it and no model proposed it.',
+  'ashbell-pass': 'A mountain-town game in 28 sources, filed in folders with tags, plus wiki pages for its cast, places, items and quests. In recorded mode its candidates replay a recorded run.',
+}
 const startWith = ref<keyof typeof SAMPLES>('empty')
 watch(startWith, (v, old) => { if (!newName.value.trim() || newName.value === SAMPLES[old]) newName.value = SAMPLES[v] })
 const createBusy = ref(false)
@@ -64,11 +70,12 @@ const ago = (iso: string | null) => {
         <UiField label="Game or project name" :error="createError">
           <input ref="createInput" v-model="newName" type="text" maxlength="80" placeholder="e.g. Saltmarsh Chronicles" @keydown.esc="creating = false">
         </UiField>
-        <UiField label="Start with" :hint="startWith === 'broken-tide' ? 'An island story in 13 sources with planted contradictions. In recorded mode its candidates replay a recorded run.' : startWith === 'lantern-row' ? 'Three short sources that come with five preloaded canon facts, each quoted from its source. Sample canon: no one reviewed it and no model proposed it.' : 'Add your own sources from Home.'">
+        <UiField label="Start with" :hint="HINTS[startWith]">
           <select v-model="startWith">
             <option value="empty">An empty project</option>
             <option value="broken-tide">The Broken Tide demo</option>
             <option value="lantern-row">The Lantern Row sample (preloaded canon)</option>
+            <option value="ashbell-pass">The Ashbell Pass demo (28 sources)</option>
           </select>
         </UiField>
         <div class="row">

@@ -139,7 +139,7 @@ async function reextract() {
     const skipped = Object.entries(r.skipped_by_status).map(([s, n]) => `${n} ${s === 'canon' ? 'in canon' : s}`).join(', ')
     const skipLine = r.skipped ? ` ${counted(r.skipped, 'reading')} already in the project ${r.skipped === 1 ? 'was' : 'were'} skipped (${skipped}).` : ''
     if (r.mode === 'mock' && !r.recorded_covers)
-      reextracted.value = { tone: 'warn', text: 'Recorded demo run: only the Broken Tide demo files have recorded model output, so nothing was proposed for this document. Select words in the text to add facts by hand, or turn on the live model.' }
+      reextracted.value = { tone: 'warn', text: 'Recorded demo run: only the demo stories’ files have recorded model output, so nothing was proposed for this document. Select words in the text to add facts by hand, or turn on the live model.' }
     else if (r.created)
       reextracted.value = { tone: 'info', text: `${r.mode === 'mock' ? 'Recorded demo run' : r.model_label}: ${counted(r.created, 'new candidate')} sent to review from v${r.version}${r.unverified ? `, ${r.unverified} with a quote not found in the text` : ''}.${skipLine}`, review: true }
     else

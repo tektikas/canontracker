@@ -9,13 +9,19 @@ const DEMO_EXAMPLES = [
   'Where is Arin at 22:00 on Day 1?',
   'What did the harbor master eat on Day 3?',
 ]
-// The Broken Tide questions only fit a project holding the demo; elsewhere, ask about the project's own most-cited pages.
+const ASHBELL_EXAMPLES = [
+  'Who rings the Ashbell at dusk?',
+  'How long is the walk from the Bell Gate to Saltgate?',
+  'What is Corin\'s favourite song?',
+]
+// The demo questions only fit a project holding that demo; elsewhere, ask about the project's own most-cited pages.
 const { data: docs } = await useFetch('/api/documents')
 const { data: entities } = await useEntityList()
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
 const fill = useFillAction()
 const examples = computed(() => {
   if (docs.value?.some(d => d.filename === 'lore-chord-stone.md')) return DEMO_EXAMPLES
+  if (docs.value?.some(d => d.filename === 'lore-the-ashbell.md')) return ASHBELL_EXAMPLES
   const cited = entities.value.filter(e => e.facts > 0).sort((a, b) => b.facts - a.facts)
   const who = cited.find(e => e.kind === 'character')
   const where = cited.find(e => e.kind === 'location')
