@@ -5,7 +5,7 @@ const editor = computed(() => canEdit(me.value))
 const { data: doc, error, refresh } = await useFetch(() => `/api/documents/${route.params.id}`)
 // :target does not update on client-side navigation, so highlight from the route hash.
 const active = computed(() => route.hash.slice(1))
-const lineOf = (ev: Record<string, any>) => `Line ${ev.start_line}${ev.end_line !== ev.start_line ? `–${ev.end_line}` : ''}`
+const lineOf = (ev: Record<string, any>) => (ev.start_ms != null ? `At ${clockMs(ev.start_ms)}` : `Line ${ev.start_line}${ev.end_line !== ev.start_line ? `–${ev.end_line}` : ''}`)
 // Evidence from this document, any version. One that cites another version is shown as such, never as this text.
 const here = (f: Record<string, any>) => f.evidence.filter((ev: any) => ev.document_key === doc.value?.filename)
 const activeQuote = computed(() => doc.value?.facts.flatMap(f => f.evidence).find(ev => ev.verified && ev.passage_id === active.value)?.quote)
@@ -150,6 +150,26 @@ async function reextract() {
     reextracting.value = false
   }
 }
+// A recording: the full player shares the one audio element with the passages' play buttons.
+const clip = useClip()
+const audioEl = ref<HTMLAudioElement | null>(null)
+watch(audioEl, a => clip.attach(a))
+onBeforeUnmount(() => clip.attach(null))
+const transcribing = ref(false)
+const transcribed = ref<{ tone: 'info' | 'bad', text: string }>()
+async function transcribeAgain() {
+  transcribing.value = true
+  transcribed.value = undefined
+  try {
+    const r = await $fetch(`/api/documents/${doc.value!.id}/transcribe`, { method: 'POST' }) as Record<string, any>
+    if (r.status === 'duplicate') transcribed.value = { tone: 'info', text: `The new transcript reads the same as v${r.same_as.version}, so no version was added.` }
+    else await navigateTo(`/documents/${r.document_id}`)
+  } catch (e) {
+    transcribed.value = { tone: 'bad', text: errorMessage(e) }
+  } finally {
+    transcribing.value = false
+  }
+}
 const readerBox = ref<HTMLElement>()
 const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
 </script>
@@ -189,7 +209,8 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
             <NuxtLink to="/library" class="menu-item"><UiIcon name="tag" :size="16" />Manage tags in Library</NuxtLink>
           </template>
         </UiMenu>
-        <UiBadge tone="good" :title="doc.origin === 'written' ? 'Each save is a new version; saved versions never change' : 'Story Bible never edits imported sources; Edit saves your changes as a new version'">{{ doc.origin === 'written' ? 'Saved version' : 'Read-only source' }}</UiBadge>
+        <UiBadge v-if="doc.recording" tone="good" title="The transcript is the source: quotes match it word for word. Transcribing again makes a new version; it is never edited.">Read-only transcript</UiBadge>
+        <UiBadge v-else tone="good" :title="doc.origin === 'written' ? 'Each save is a new version; saved versions never change' : 'Story Bible never edits imported sources; Edit saves your changes as a new version'">{{ doc.origin === 'written' ? 'Saved version' : 'Read-only source' }}</UiBadge>
         <span v-if="doc.origin === 'written'" class="small muted">Written in Story Bible<template v-if="doc.created_by_name"> by {{ doc.created_by_name }}</template>, {{ shortDate(doc.imported_at) }}</span>
         <span class="mono faint" :title="`sha256 ${doc.sha256}`">sha256 {{ String(doc.sha256).slice(0, 12) }}…</span>
       </span>
@@ -197,7 +218,7 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
         <UiButton icon="history" :to="`/documents/${doc.id}/history`">History<template v-if="doc.versions.length > 1"> · {{ doc.versions.length }}</template></UiButton>
         <template v-if="editor">
           <UiButton v-if="latest" icon="refresh" :loading="reextracting" :title="'Run extraction again; new candidates go to review'" @click="reextract">Re-extract</UiButton>
-          <UiButton v-if="latest" icon="review" :to="`/write?doc=${doc.latest.id}`">Edit</UiButton>
+          <UiButton v-if="latest && !doc.recording" icon="review" :to="`/write?doc=${doc.latest.id}`">Edit</UiButton>
         </template>
       </template>
     </UiPageHeader>
@@ -233,6 +254,25 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
       </div>
       <p v-if="coverError" class="field-error" role="alert">{{ coverError }}</p>
     </div>
+
+    <UiPanel v-if="doc.recording" class="rec">
+      <audio ref="audioEl" class="rec-audio" controls preload="metadata" :src="doc.recording.audio" />
+      <div class="rec-info">
+        <p class="small muted">
+          <UiIcon name="mic" :size="14" /> {{ clockMs(doc.recording.duration_ms) }} of audio · {{ counted(doc.passages.length, 'timed passage') }}.
+          Transcribed by AI; the transcript is the source, and quotes are checked against it, not the audio.
+        </p>
+        <p class="small">
+          <template v-if="doc.recording.script">Script: <NuxtLink :to="`/documents/${doc.recording.script.id}`">{{ doc.recording.script.title }}</NuxtLink></template>
+          <span v-else class="muted">Not compared with a script yet.</span>
+        </p>
+      </div>
+      <div class="row">
+        <UiButton icon="dialogue" :to="`/documents/${doc.id}/script`">{{ doc.recording.script ? 'Script vs recording' : 'Compare with a script' }}</UiButton>
+        <UiButton v-if="editor && latest" icon="refresh" variant="ghost" :loading="transcribing" title="Transcribe the audio again; a different transcript becomes a new version" @click="transcribeAgain">Transcribe again</UiButton>
+      </div>
+      <p v-if="transcribed" class="notice" :class="transcribed.tone" :role="transcribed.tone === 'bad' ? 'alert' : 'status'">{{ transcribed.text }}</p>
+    </UiPanel>
 
     <p v-for="g in taskGroups" :key="g.id" class="notice warn gap" role="status">
       <UiIcon name="tasks" :size="16" />
@@ -327,6 +367,10 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
 .cover details { flex: 1 1 320px; min-width: 0; }
 .cover summary { display: flex; flex-wrap: wrap; gap: 4px var(--s-2); align-items: center; cursor: pointer; color: var(--muted); }
 .cover .prompt { margin: var(--s-2) 0 0; padding: var(--s-2) var(--s-3); border-left: 2px solid var(--line-strong); white-space: pre-line; color: var(--muted); overflow-wrap: anywhere; max-width: 70ch; }
+.rec { display: grid; gap: var(--s-3); margin-bottom: var(--s-4); }
+.rec-audio { width: 100%; }
+.rec-info p { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; margin: 0; }
+.rec .notice { margin: 0; }
 .layout { display: grid; gap: var(--s-4); grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
 .doc { padding: var(--s-5) var(--s-4); align-self: stretch; }
 .hint { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; margin: 0 0 var(--s-3); padding-left: 10px; }

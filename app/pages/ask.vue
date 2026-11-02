@@ -115,6 +115,8 @@ const statusOf = (t: Turn) => STATUS[t.result?.status as keyof typeof STATUS]
 
     <form class="composer" @submit.prevent="ask()">
       <textarea v-model="question" rows="1" aria-label="Question" placeholder="Ask the canon…" @keydown="onKey" />
+      <!-- Voice fills the box; the person reads it and sends it themselves. -->
+      <MicButton label="Speak" :max="60" @text="t => (question = `${question.trim()} ${t}`.trim())" />
       <UiButton type="submit" variant="primary" :disabled="busy || !question.trim()" :loading="busy">{{ busy ? 'Searching…' : 'Ask' }}</UiButton>
     </form>
   </template>

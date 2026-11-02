@@ -12,7 +12,9 @@ const props = defineProps<{
 const emit = defineEmits<{ saved: [kind: 'fact' | 'note', result: Record<string, any>], notes: [passageId: string] }>()
 
 // Line gutter grows with the longest label ("1204–1206" must not run into the text).
-const gutter = computed(() => `${Math.max(3, ...props.doc.passages.map(p => String(p.start_line).length + (p.end_line !== p.start_line ? String(p.end_line).length + 1 : 0))) + 1}ch`)
+const gutter = computed(() => (timed.value ? '10ch' : `${Math.max(3, ...props.doc.passages.map(p => String(p.start_line).length + (p.end_line !== p.start_line ? String(p.end_line).length + 1 : 0))) + 1}ch`))
+// A recording's transcript: each passage is one transcribed turn and plays from its start time instead of showing a line number.
+const timed = computed(() => props.doc.passages.some(p => p.start_ms != null))
 const lines = computed(() => props.doc.content.split('\n'))
 const heading = (p: Record<string, any>) => /^#{1,6}\s/.test(lines.value[p.start_line - 1] ?? '')
 
@@ -109,7 +111,11 @@ onBeforeUnmount(() => {
       :aria-current="active === p.id ? 'location' : undefined"
     >
       <span class="ln">
-        {{ p.start_line }}<template v-if="p.end_line !== p.start_line">–{{ p.end_line }}</template>
+        <template v-if="p.start_ms != null && doc.id">
+          <ClipButton :doc-id="doc.id" :start="p.start_ms" :end="p.end_ms" />
+          <span v-if="p.speaker" class="speaker" :title="`Speaker ${p.speaker}`">{{ p.speaker }}</span>
+        </template>
+        <template v-else>{{ p.start_line }}<template v-if="p.end_line !== p.start_line">–{{ p.end_line }}</template></template>
         <button v-if="markOf(p.id)" type="button" class="note-mark" :class="markOf(p.id)!.status" :aria-label="markOf(p.id)!.aria" :title="markOf(p.id)!.aria" @click="emit('notes', p.id)">
           <UiIcon :name="markOf(p.id)!.icon" :size="14" /><span v-if="markOf(p.id)!.n > 1">{{ markOf(p.id)!.n }}</span>
         </button>
@@ -143,6 +149,7 @@ onBeforeUnmount(() => {
 .passage.heading .text { font-weight: 600; font-size: var(--text-lg); line-height: 1.4; }
 .passage.heading { padding-top: var(--s-3); }
 mark { background: color-mix(in srgb, var(--accent) 22%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
+.speaker { font: 600 var(--text-xs) var(--font-ui); color: var(--muted); }
 .note-mark {
   display: inline-flex; align-items: center; gap: 2px; min-width: 26px; height: 24px; padding: 0 4px; justify-content: center;
   border: 1px solid color-mix(in srgb, var(--warn) 40%, transparent); border-radius: var(--r-sm); background: var(--warn-soft); color: var(--warn);

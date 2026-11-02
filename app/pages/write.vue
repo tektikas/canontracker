@@ -312,6 +312,20 @@ function grow() {
   el.style.height = `${el.scrollHeight + 2}px`
 }
 watch(() => f.content, () => nextTick(grow), { flush: 'post' })
+// Dictation lands where the caret was (or replaces the selection), with a space on either side when the words would touch.
+function insertText(text: string) {
+  const el = body.value
+  const at = el?.selectionStart ?? f.content.length
+  const before = f.content.slice(0, at)
+  const after = f.content.slice(el?.selectionEnd ?? at)
+  const head = `${before}${before && !/\s$/.test(before) ? ' ' : ''}${text}`
+  f.content = `${head}${after && !/^\s/.test(after) ? ' ' : ''}${after}`
+  nextTick(() => {
+    el?.focus()
+    el?.setSelectionRange(head.length, head.length)
+    caretSoon()
+  })
+}
 const time = (iso: string) => clock(iso).slice(0, 5)
 </script>
 
@@ -345,6 +359,7 @@ const time = (iso: string) => clock(iso).slice(0, 5)
         <span v-else>Not saved yet</span>
       </span>
       <span class="row">
+        <MicButton @text="insertText" />
         <button type="button" role="switch" class="btn ghost sm tw" :aria-checked="typewriter" title="Keep the line you’re typing near the middle" @click="typewriter = !typewriter">
           <span class="switch" aria-hidden="true" />Typewriter<span class="tw-state hide-sm" aria-hidden="true">{{ typewriter ? 'On' : 'Off' }}</span>
         </button>
@@ -412,6 +427,7 @@ const time = (iso: string) => clock(iso).slice(0, 5)
         <template v-else>Drafts save as you type. Only you see them.</template>
       </span>
       <div class="row">
+        <MicButton v-if="!loading" @text="insertText" />
         <UiButton variant="ghost" icon="focus" :disabled="loading" title="Only the text on screen (Ctrl+Shift+F)" @click="enterFocus">Focus</UiButton>
         <UiButton v-if="draftId" variant="ghost" :disabled="saving" @click="discard">{{ editing ? 'Discard changes' : 'Discard draft' }}</UiButton>
         <UiButton variant="primary" type="submit" icon="check" :loading="saving" :disabled="!canSave || loading" :title="canSave ? undefined : 'Add a title and some text first'">

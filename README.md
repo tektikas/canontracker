@@ -29,7 +29,7 @@ No `.env` is needed in dev: the session password is generated and written to `.e
 NUXT_MODEL_MODE=meta NUXT_META_API_KEY=<your key> pnpm dev --port 3000
 ```
 
-Optional: `NUXT_MODEL_ID` (default `muse-spark-1.3`), `NUXT_IMAGE_MODEL_ID` (default `muse-image-1.0`), `NUXT_META_BASE_URL` (default `https://api.meta.ai/v1`). The key is read on the server only and never reaches the browser. Live runs have not been tested against a funded key yet: Meta billing was not active when this was written.
+Optional: `NUXT_MODEL_ID` (default `muse-spark-1.3`), `NUXT_IMAGE_MODEL_ID` (default `muse-image-1.0`), `NUXT_META_BASE_URL` (default `https://api.meta.ai/v1`), `NUXT_TRANSCRIBE_MODEL_ID` (default `muse-voice-transcribe-1.0`; `NUXT_TRANSCRIBE_BASE_URL` / `NUXT_TRANSCRIBE_API_KEY` default to the Meta ones). Recordings in formats other than mono 16 or 24 kHz WAV need `ffmpeg` on the server (the production image installs it). The key is read on the server only and never reaches the browser. Live runs have not been tested against a funded key yet: Meta billing was not active when this was written.
 
 ## Meta AI in Story Bible
 
@@ -40,6 +40,7 @@ Every model call goes through one file, `server/utils/model.ts`. The Meta Model 
 | Extractor | Reads an imported document and proposes fact candidates, each with a quote. Nothing becomes canon until a person accepts it. | Muse Spark 1.3 | Chat completions (`/chat/completions`, JSON output) | Story Bible server |
 | Rule checker | Tests a world rule against accepted canon and suggests `WORLD_RULE_VIOLATION` conflicts (labelled as model-suggested). | Muse Spark 1.3 | Chat completions | Story Bible server |
 | Ask / Canon | Answers a question from accepted canon only, with citations; no evidence means `unknown`. | Muse Spark 1.3 | Chat completions | Story Bible server |
+| Transcriber | Turns audio into text: recordings (voice-actor takes, table reads, interviews, voice notes) become read-only transcripts with a time on every passage (citations play "at 02:14"), and dictation fills the writer and Ask. Sends the project's entity names as recognition keywords. Script vs recording then flags changed or ad-libbed lines that contradict canon (deterministic rules, no model). | Muse Voice Transcribe 1.0 | Speech to text (`/asr/transcribe`, multipart WAV, ENDPOINTING turns, `keywords`) | Story Bible server (audio converted with ffmpeg) |
 | Illustrator | Generates portrait and location images for wiki pages (editorial, never canon). | Muse Image 1.0 | Images (`/images/generations`) | Story Bible server |
 | MCP bridge | Lets Muse Spark read canon and propose candidates through Story Bible's `/mcp` tools (16 tools, one write: `sb_propose_candidate`). A small script from Settings > Agents & API relays Muse's function calls to `/mcp`. Not yet run against a live Meta key. | Muse Spark 1.3 | Chat completions with function calling | User's machine (the script); `/mcp` runs on the server |
 | Research | In progress: web research with the Responses API, `web_search` and function-calling calculators. | Muse Spark | Responses API | Planned: server |
@@ -59,7 +60,7 @@ Rows marked "in progress" are not in the app yet.
 
 - **Broken Tide:** original island story, 2 lore documents and 11 scenes, with planted contradictions and a guided tour.
 - **Lantern Row:** three short documents with five preloaded sample canon facts and one planted conflict.
-- **The Ashbell Pass:** 28 documents (about 22.5k words) with folders, NPCs and quests, for a larger-scale run.
+- **The Ashbell Pass:** 28 documents (about 22.5k words) with folders, NPCs and quests, for a larger-scale run. To try voice in recorded mode, drop `public/samples/harl-crier-take.wav` (a synthetic text-to-speech take of the town crier's lines, with one ad-libbed line) on the Library, open it and choose **Compare with a script** → "Dialogue: The Town Crier". Accept S05 first to see the ad-lib flagged against canon. In recorded mode only this file has a transcript.
 
 `POST /api/demo/load` takes `{ "set": "broken-tide" | "lantern-row" | "ashbell-pass" }` and replaces the current project's data (admin and above).
 

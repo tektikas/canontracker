@@ -414,8 +414,6 @@ export function buildMcpServer(token: { id: string, name: string }) {
     },
     annotations: read,
   }, ({ facts: input }) => {
-    const db = useDb()
-    const canon = db.prepare(`select * from facts where project_id = ? and status = 'canon'`).all(pid()) as unknown as Fact[]
     // Names merged away are analysed under the kept name, as they would be on accept.
     const kept = (n: string | null | undefined) => (n ? mergedIdentity(n)?.to ?? n.trim() : null)
     const proposed: Fact[] = input.map((p, i) => {
@@ -428,22 +426,7 @@ export function buildMcpServer(token: { id: string, name: string }) {
         t_from: from, t_to: to, time_label: timeLabel(from, to, precision, day), precision, status: 'proposed', confidence: null, origin: 'agent:check', model_id: null,
         version: 1, supersedes_id: null, created_at: now(), decided_at: null, rationale: null, decided_by: null, project_id: pid(), created_by: null }
     })
-    const travel = [...canon, ...proposed].filter(isTravel)
-    const hits: ReturnType<typeof ruleHits> = []
-    for (const [i, a] of proposed.entries()) {
-      for (const b of canon) hits.push(...ruleHits(a, b, travel))
-      for (const b of proposed.slice(i + 1)) hits.push(...ruleHits(a, b, travel))
-    }
-    // A new travel time can turn two canon placements into a conflict: report those pairs too (canon-only hits already exist).
-    if (proposed.some(isTravel)) {
-      const canonTravel = canon.filter(isTravel)
-      for (const [i, a] of canon.entries()) {
-        for (const b of canon.slice(i + 1)) {
-          const before = new Set(ruleHits(a, b, canonTravel).map(h => h.rule))
-          hits.push(...ruleHits(a, b, travel).filter(h => !before.has(h.rule)))
-        }
-      }
-    }
+    const { canon, hits } = dryRunRules(proposed)
     const canonFacts = new Map(listFacts(`status = 'canon'`).map(f => [f.id, f]))
     const side = (f: Fact) => (f.status === 'proposed' ? { proposed_index: Number(f.id.slice(9, -1)), statement: f.statement, time: f.time_label } : brief(canonFacts.get(f.id)!))
     const severity = severityFor(access().project.severity_defaults)

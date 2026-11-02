@@ -10,6 +10,8 @@ export default defineEventHandler(async (event) => {
   if (body.document_id) {
     const doc = db.prepare('select * from documents where id = ? and project_id = ?').get(String(body.document_id), pid()) as unknown as DocumentRow | undefined
     if (!doc) throw createError({ statusCode: 404, statusMessage: 'NOT_FOUND', message: 'Document not found.' })
+    // A transcript is what the audio says: it changes only by transcribing again (a new version), never by hand.
+    if (doc.origin === 'recording') throw createError({ statusCode: 409, statusMessage: 'READ_ONLY', message: 'A recording’s transcript can’t be edited. Transcribe it again to make a new version.' })
     filename = doc.filename
     const open = db.prepare('select id from drafts where project_id = ? and user_id = ? and filename = ?').get(pid(), user, filename) as { id: string } | undefined
     if (open) return getDraft(open.id)

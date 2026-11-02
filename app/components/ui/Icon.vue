@@ -57,6 +57,9 @@ const ICONS = {
   down: ['M6 9l6 6 6-6'],
   moon: ['M21 12.8A9 9 0 1 1 11.2 3a7 7 0 0 0 9.8 9.8z'],
   more: ['M5 13a1 1 0 1 0 0-2a1 1 0 1 0 0 2', 'M12 13a1 1 0 1 0 0-2a1 1 0 1 0 0 2', 'M19 13a1 1 0 1 0 0-2a1 1 0 1 0 0 2'],
+  mic: ['M12 2.5a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0v-6a3 3 0 0 0-3-3z', 'M19 10.5v1a7 7 0 0 1-14 0v-1', 'M12 18.5V22', 'M8.5 22h7'],
+  play: ['M7 4.5v15l12-7.5z'],
+  stop: ['M6.5 6.5h11v11h-11z'],
 } as const
 
 export type IconName = keyof typeof ICONS

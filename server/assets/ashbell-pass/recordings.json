@@ -1,0 +1,73 @@
+[
+  {
+    "_note": "Recorded run of Muse Voice Transcribe (muse-voice-transcribe-1.0, ENDPOINTING, keywords = Ashbell names) on public/samples/harl-crier-take.wav, a synthetic text-to-speech take of Harl's barks from dlg-town-crier.md (not real speech data). Turns are the API's output as returned on 2026-11-02, mishearings included. The third bark is improvised: Harl places Captain Rourke at the Ember Well at 21:00 on Day 2, against S05. Candidates are the recorded extraction of this transcript.",
+    "file": "harl-crier-take.wav",
+    "audio_sha256": "6dd472867dfe9423269d4603f69444c37967467f0309676b0b54fa5ee899cf55",
+    "script": "dlg-town-crier.md",
+    "duration_ms": 36760,
+    "session_id": "voyager/transcribe/7BBED37E9EA0400AA7B16BF88B2C5C85",
+    "turns": [
+      {
+        "start_ms": 0,
+        "end_ms": 10140,
+        "text": "The Red Mule Caravan is back in Kettlehold and its wagons are loaded with lamp oil and salt. Fair prices on the upper road for anyone who gets here early.",
+        "speaker": null
+      },
+      {
+        "start_ms": 11580,
+        "end_ms": 16460,
+        "text": "Die too. there is talk at the foot of the Bell Gate about the bridge and the talk is loud.",
+        "speaker": null
+      },
+      {
+        "start_ms": 17020,
+        "end_ms": 20780,
+        "text": "Ysaim mind your own business and buy your salt before the the stores close.",
+        "speaker": null
+      },
+      {
+        "start_ms": 22620,
+        "end_ms": 28060,
+        "text": "Day three Captain Rourke swears he watched the tower all through the dark",
+        "speaker": null
+      },
+      {
+        "start_ms": 28460,
+        "end_ms": 31420,
+        "text": "at the Ember Well at nine o'clock on the night of day two",
+        "speaker": null
+      },
+      {
+        "start_ms": 33420,
+        "end_ms": 36140,
+        "text": "And somebody tell Pell still",
+        "speaker": null
+      }
+    ],
+    "candidates": [
+      {
+        "kind": "event",
+        "subject": "Rourke",
+        "predicate": "located_at",
+        "object": "Ember Well",
+        "statement": "Harl says Captain Rourke was at the Ember Well at 21:00 on Day 2.",
+        "quote": "at the Ember Well at nine o'clock on the night of day two",
+        "time": {
+          "from": "D2 21:00",
+          "precision": "exact"
+        },
+        "confidence": 0.7
+      },
+      {
+        "kind": "claim",
+        "subject": "Red Mule Caravan",
+        "predicate": "carries",
+        "object": null,
+        "value": null,
+        "statement": "The Red Mule Caravan's wagons are loaded with lamp oil and salt.",
+        "quote": "its wagons are loaded with lamp oil and salt",
+        "confidence": 0.8
+      }
+    ]
+  }
+]

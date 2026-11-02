@@ -83,9 +83,19 @@ create table if not exists tasks (
   assignee_id text, due_date text, comment text not null default '', path text not null, evidence_ids text not null,
   rationale text not null, hop_count integer not null, created_at text not null, updated_by text, updated_at text not null, project_id text not null
 );
+-- start_ms/end_ms/speaker: only on a recording's transcript (one passage per transcribed turn; times from the audio start).
 create table if not exists passages (
   id text primary key, document_id text not null references documents(id), ordinal integer not null,
-  start_line integer not null, end_line integer not null, text text not null, project_id text not null
+  start_line integer not null, end_line integer not null, text text not null, project_id text not null,
+  start_ms integer, end_ms integer, speaker text
+);
+-- A recording's transcript version (documents.origin = 'recording'): the audio it was transcribed from (stored once per sha256 in
+-- .data/recordings/<project>/, served only through the project guard), how, and the script document it is compared with
+-- (script_key = documents.filename; the same on every version of the recording). A new transcription is a new version.
+create table if not exists recordings (
+  document_id text primary key, audio_sha256 text not null, bytes integer not null, duration_ms integer not null, original_name text not null,
+  model_id text not null, mode text not null, session_ids text not null default '[]', script_key text,
+  created_by text not null, created_at text not null, project_id text not null
 );
 -- candidates and canon share this table; status: pending | canon | rejected | superseded
 -- origin: model:<prompt> (extracted) | human (a person added it from a passage they selected; created_by) | change:<id>
@@ -203,6 +213,9 @@ export function useDb() {
     // drafts.base_document_id (the version an edit draft started from; null on older drafts = unknown): added in place, no version bump.
     if (!(conn.prepare('pragma table_info(drafts)').all() as { name: string }[]).some(r => r.name === 'base_document_id'))
       conn.exec('alter table drafts add column base_document_id text')
+    // passages.start_ms/end_ms/speaker (recording transcripts): added in place too; null on every text document.
+    if (!(conn.prepare('pragma table_info(passages)').all() as { name: string }[]).some(r => r.name === 'start_ms'))
+      conn.exec('alter table passages add column start_ms integer; alter table passages add column end_ms integer; alter table passages add column speaker text')
   } catch (e) {
     conn.close()
     throw e
@@ -332,10 +345,11 @@ export function audit(eventType: string, targetType: string, targetId: string, d
 // the caller appends a project.reset event, and events before it whose target was cleared read as removed (listAudit).
 export function resetData() {
   tx(() => {
-    for (const t of ['document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'recordings', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })
+  rmSync(recordingDir(), { recursive: true, force: true })
 }
 
 // The project's audit trail. Targets of events before the latest project.reset were deleted by that reset (tokens and the
@@ -362,12 +376,13 @@ export interface DocumentRow {
   id: string, title: string, filename: string, name: string, kind: string, sha256: string, version: number, content: string, imported_at: string
   origin: string, created_by: string | null, folder_id: string | null
 }
-export interface PassageRow { id: string, document_id: string, ordinal: number, start_line: number, end_line: number, text: string }
+export interface PassageRow { id: string, document_id: string, ordinal: number, start_line: number, end_line: number, text: string, start_ms?: number | null, end_ms?: number | null, speaker?: string | null }
 export interface EvidenceRow {
   // document_filename: the file's own name; document_folder: the folder it is in now (null: the Library root). document_key: the
   // document's identity (documents.filename), for matching only; never shown, since it can carry an older folder.
   id: string, passage_id: string | null, quote: string, verified: number, support: string, document_id: string, document_filename: string
   document_key: string, document_folder: string | null, document_title: string, document_kind: string, document_version: number, latest_version: number, start_line: number | null, end_line: number | null
+  start_ms: number | null, end_ms: number | null // a recording transcript's passage: where it plays in the audio
   // Canon only, on a citation of an older version (server/utils/recheck.ts); null otherwise. latest_document_id: the source's
   // latest version; recheck_line: where an unchanged quote now sits in it; recheck_count: how many times the quote appears in
   // it (0 = gone, 2+ = ambiguous, so outdated).
@@ -434,7 +449,7 @@ export function listFacts(where = '1 = 1', ...params: (string | number)[]) {
     where f.project_id = ? and (${where}) order by f.rowid`).all(pid(), ...params) as unknown as (Fact & { decided_by_name: string | null, created_by_name: string | null, agent_name: string | null, proposed_by_name: string | null })[]
   const ev = d.prepare(`
     select e.id, e.passage_id, e.quote, e.verified, e.support, e.document_id, doc.name document_filename, doc.filename document_key, doc.folder_id,
-      doc.title document_title, doc.kind document_kind, doc.version document_version, p.start_line, p.end_line,
+      doc.title document_title, doc.kind document_kind, doc.version document_version, p.start_line, p.end_line, p.start_ms, p.end_ms,
       (select max(d2.version) from documents d2 where d2.filename = doc.filename and d2.project_id = doc.project_id) latest_version
     from evidence e join documents doc on doc.id = e.document_id left join passages p on p.id = e.passage_id
     where e.fact_id = ? order by e.rowid`)

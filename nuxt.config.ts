@@ -50,5 +50,11 @@ export default defineNuxtConfig({
     imageModelId: 'muse-image-1.0', // NUXT_IMAGE_MODEL_ID
     metaApiKey: '', // NUXT_META_API_KEY, used as stored in pass
     metaBaseUrl: 'https://api.meta.ai/v1', // NUXT_META_BASE_URL
+    // Muse Voice Transcribe. Base URL and key default to the ones above; mode ENDPOINTING (turns with times) or DIARIZATION.
+    transcribeModelId: 'muse-voice-transcribe-1.0', // NUXT_TRANSCRIBE_MODEL_ID
+    transcribeMode: 'ENDPOINTING', // NUXT_TRANSCRIBE_MODE
+    transcribeBaseUrl: '', // NUXT_TRANSCRIBE_BASE_URL
+    transcribeApiKey: '', // NUXT_TRANSCRIBE_API_KEY
+    transcribeApi: 'meta', // NUXT_TRANSCRIBE_API: meta (/asr/transcribe) | openai (an /audio/transcriptions stand-in, for tests)
   },
 })

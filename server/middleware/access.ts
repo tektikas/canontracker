@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
   event.context.access = a
   // Anyone may leave a studio; memberChange still requires admin to touch anyone else.
   const leaving = event.method === 'DELETE' && /^\/api\/team\/[^/]+$/.test(path)
-  if (a.role === 'viewer' && event.method !== 'GET' && path !== '/api/qa' && !leaving)
+  // Voice input only turns speech into text for the person to review (nothing is stored), so viewers can ask by voice too.
+  if (a.role === 'viewer' && event.method !== 'GET' && path !== '/api/qa' && path !== '/api/voice/transcribe' && !leaving)
     throw createError({ statusCode: 403, statusMessage: 'FORBIDDEN', message: 'Viewers can read and ask questions. Ask a studio owner or admin for editor access.' })
 })
