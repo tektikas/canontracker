@@ -11,6 +11,8 @@ const props = defineProps<{
 }>()
 const emit = defineEmits<{ saved: [kind: 'fact' | 'note', result: Record<string, any>], notes: [passageId: string] }>()
 
+// Line gutter grows with the longest label ("1204–1206" must not run into the text).
+const gutter = computed(() => `${Math.max(3, ...props.doc.passages.map(p => String(p.start_line).length + (p.end_line !== p.start_line ? String(p.end_line).length + 1 : 0))) + 1}ch`)
 const lines = computed(() => props.doc.content.split('\n'))
 const heading = (p: Record<string, any>) => /^#{1,6}\s/.test(lines.value[p.start_line - 1] ?? '')
 
@@ -100,7 +102,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div ref="root" class="reader" :class="{ contained }">
+  <div ref="root" class="reader" :class="{ contained }" :style="{ '--gutter': gutter }">
     <div
       v-for="p in doc.passages" :id="String(p.id)" :key="String(p.id)"
       class="passage" :class="{ active: active === p.id, heading: heading(p) }"
@@ -135,7 +137,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .reader { display: grid; gap: 2px; max-width: 72ch; }
 .reader.contained { position: relative; overflow-y: auto; overscroll-behavior: contain; max-width: none; }
-.passage { grid-template-columns: 44px 1fr; scroll-margin-top: 96px; }
+.passage { grid-template-columns: max(44px, var(--gutter)) 1fr; scroll-margin-top: 96px; }
 .passage .ln { display: grid; justify-items: end; align-content: start; gap: 4px; text-align: right; }
 .passage .text { font-size: var(--text-md); }
 .passage.heading .text { font-weight: 600; font-size: var(--text-lg); line-height: 1.4; }
@@ -161,7 +163,7 @@ mark { background: color-mix(in srgb, var(--accent) 22%, transparent); color: in
 .sel-btn svg { color: var(--accent); }
 .sel-multi { padding: 6px 10px; font-size: var(--text-sm); color: var(--muted); white-space: nowrap; }
 @media (max-width: 720px) {
-  .passage { grid-template-columns: 30px 1fr; gap: var(--s-2); padding: 6px 8px; }
+  .passage { grid-template-columns: max(30px, var(--gutter)) 1fr; gap: var(--s-2); padding: 6px 8px; }
   .sel-btn { min-height: 40px; }
 }
 </style>

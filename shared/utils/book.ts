@@ -7,7 +7,7 @@ export interface BookSection {
   id: string, title: string, sub: string, portrait: string | null, portraitKey: string | null, paras: BookPara[], facts: BookFact[]
 }
 export interface BookChapter { id: string, title: string, intro: string, sections: BookSection[], notes: { n: number, text: string }[] }
-export interface Book { kicker: string, title: string, studio: string, line: string, cover: string | null, chapters: BookChapter[] }
+export interface Book { kicker: string, title: string, studio: string, line: string, cover: string | null, chapters: BookChapter[], flow?: boolean }
 
 const section = (id: string, title = '', extra: Partial<BookSection> = {}): BookSection =>
   ({ id, title, sub: '', portrait: null, portraitKey: null, paras: [], facts: [], ...extra })
@@ -111,5 +111,5 @@ export function manuscriptBook(m: Manuscript): Book {
     }
     return { id: d.key, title: d.title, intro: '', notes: [], sections: [section(`${d.key}-body`, '', { paras })] }
   })
-  return { kicker: 'Manuscript', title: m.title, studio: m.studio, line: `${m.scope.label} · ${plural(m.counts.documents, 'document')}, ${m.counts.words.toLocaleString('en-GB')} words · generated ${shortDate(m.generated_at)}`, cover: m.cover, chapters }
+  return { kicker: 'Manuscript', title: m.title, studio: m.studio, line: `${m.scope.label} · ${plural(m.counts.documents, 'document')}, ${m.counts.words.toLocaleString('en-GB')} words · generated ${shortDate(m.generated_at)}`, cover: m.cover, chapters, flow: true }
 }

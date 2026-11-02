@@ -55,6 +55,8 @@ none('Write \\*bright\\* markers exactly today', 'Write bright markers exactly t
 one('Write \\*bright\\* markers exactly today', 'Write \\*bright\\* markers', 'Write \\*bright\\* markers')
 none('Use ``a_b_c`` and `x_y_` now.', 'Use ``abc`` and')
 none('Use ``*a* `` here.', 'Use ``a `` here')
+// An escaped closing backtick does not end a code span: the span stays open, so *bright* is real emphasis.
+one('The `*bright*\\` beacon burns all night.', 'The `bright\\` beacon burns all night', 'The `*bright*\\` beacon burns all night')
 // An unclosed `` run is literal; the single-backtick span after it still protects its marks.
 none('Use ``a `b *x*` here.', 'Use ``a `b x` here')
 one('Keep `code` but *this* folds.', 'Keep `code` but this folds', 'Keep `code` but *this* folds')
