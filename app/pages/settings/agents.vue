@@ -80,12 +80,14 @@ const messages = [
 for (let turn = 0; turn < 6; turn++) {
   const msg = await chat(messages, tools)
   messages.push(msg) // the full assistant message that holds tool_calls must stay in the list
-  if (!msg.tool_calls?.length) { console.log(msg.content); break }
+  if (!msg.tool_calls?.length) { console.log(msg.content); process.exit(0) }
   for (const call of msg.tool_calls) {
     const out = await rpc('tools/call', { name: call.function.name, arguments: JSON.parse(call.function.arguments || '{}') })
     messages.push({ role: 'tool', tool_call_id: call.id, content: out.content.map(c => c.text).join('\\n') })
   }
-}`
+}
+console.error('Stopped after 6 tool rounds without an answer.')
+process.exit(1)`
 const snippets = computed(() => ({
   muse: { file: 'Save as muse-story-bible.mjs, then run: META_API_KEY=… node muse-story-bible.mjs "your question"', text: museScript(secret.value) },
   claude: { file: 'Run in your terminal', text: `claude mcp add --transport http story-bible ${endpoint} \\\n  --header "Authorization: Bearer ${secret.value}"` },
@@ -160,8 +162,8 @@ const TOOLS = [
     <UiPanel title="Connect your agent" description="Paste one of these into your client. The endpoint is Streamable HTTP; the token goes in the Authorization header. Muse Spark uses a small script instead (see below).">
       <UiTabs v-model="client" :items="[{ value: 'muse', label: 'Muse Spark (Meta)' }, { value: 'claude', label: 'Claude Code' }, { value: 'cursor', label: 'Cursor' }, { value: 'other', label: 'Other client' }]" />
       <p v-if="client === 'muse'" class="small muse-note">
-        <b>Muse Spark can’t connect to an MCP server directly.</b> Meta’s Model API documents function tools (Chat Completions and Responses) but no remote MCP connector, so this script is the bridge:
-        Muse Spark decides which Story Bible tool to call, the script runs it against this project’s <code>/mcp</code> endpoint with your token, and passes the answer back. Same tools, same read-only guard, same rule that nothing becomes canon until a person accepts it.
+        <b>Meta’s docs describe function tools for Muse Spark and no remote MCP connector,</b> so this script bridges the two:
+        Muse Spark decides which Story Bible tool to call, the script runs it against this project’s <code>/mcp</code> endpoint with your token, and passes the answer back. Same project and role checks as any MCP client; anything it proposes waits for a person in Review.
         Docs: <a href="https://dev.meta.ai/docs/cookbook/tool-function-calling" target="_blank" rel="noopener">tool calling</a>. The script has not been run against a live Meta key yet (billing is off).
       </p>
       <div class="snippet">
