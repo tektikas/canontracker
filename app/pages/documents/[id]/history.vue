@@ -105,7 +105,7 @@ const how = (v: { origin: string, created_by_name: string | null }) => `${v.orig
 
       <section class="panel flush diff" aria-label="What changed">
         <UiEmptyState v-if="versions.length < 2" icon="history" title="Only one version so far">
-          {{ doc.origin === 'written' ? 'Edit the document and save it to the story: the saved text becomes v2, and this page shows what changed.' : 'Upload a changed file with the same name and it becomes v2. This page then shows what changed and which canon to re-check.' }}
+          {{ doc.origin === 'written' ? 'Edit the document and save it to the story: the saved text becomes v2, and this page shows what changed.' : 'Edit the text here, or upload a changed file with the same name: either becomes v2. This page then shows what changed and which canon to re-check.' }}
         </UiEmptyState>
         <template v-else>
           <div class="diff-head">

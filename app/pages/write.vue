@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Write a document in the app. The text autosaves as a private draft; "Save to story" turns it into a read-only document
-// version (hashed, split into passages) exactly like an import. ?doc=<id> edits a written document (the save is a new
+// version (hashed, split into passages) exactly like an import. ?doc=<id> edits a document, written or uploaded (the save is a new
 // version), ?draft=<id> resumes a draft.
 useHead({ title: 'Write · Story Bible' })
 const route = useRoute()

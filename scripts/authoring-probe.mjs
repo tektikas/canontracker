@@ -153,7 +153,13 @@ check('facts can’t cite an old version', (await a('/api/facts', { method: 'POS
 const form = new FormData()
 form.append('files', new Blob(['# Tide Lore\n\nThe sea is cold.'], { type: 'text/markdown' }), 'tide-lore.md')
 const upload = await (await fetch(`${base}/api/documents`, { method: 'POST', headers: { cookie: a.cookie() }, body: form })).json()
-check('editing an imported file is refused', (await a('/api/drafts', { method: 'POST', body: { document_id: upload.results[0].document_id } })).status, 409)
+const upDraft = (await a('/api/drafts', { method: 'POST', body: { document_id: upload.results[0].document_id } }))
+check('an imported file can be edited: the draft holds its text', upDraft.data.content, '# Tide Lore\n\nThe sea is cold.')
+await a(`/api/drafts/${upDraft.data.id}`, { method: 'PUT', body: { content: '# Tide Lore\n\nThe sea is very cold.' } })
+const upSave = (await a(`/api/drafts/${upDraft.data.id}/save`, { method: 'POST' })).data
+check('saving an edited upload is v2', upSave.version, 2)
+check('v1 of the upload is unchanged', (await a(`/api/documents/${upload.results[0].document_id}`)).data.content, '# Tide Lore\n\nThe sea is cold.')
+check('v2 of the upload is a written version', (await a(`/api/documents/${upSave.document_id}`)).data.origin, 'written')
 
 // 6. Drafts are private: a teammate in the same studio can't open them.
 const own = (await a('/api/drafts', { method: 'POST', body: { title: 'Secret', content: 'Not yet.' } })).data
@@ -170,7 +176,7 @@ check('teammate can add a note', (await e('/api/notes', { method: 'POST', body: 
 const log = (await a('/api/audit')).data
 const by = (type, who = 'Ada') => log.filter(x => x.event_type === type && x.actor_name === who).length
 check('audit: document.written', by('document.written'), 1)
-check('audit: document.version_written', by('document.version_written'), 1)
+check('audit: document.version_written', by('document.version_written'), 2)
 check('audit: fact.authored to canon', log.filter(x => x.event_type === 'fact.authored' && x.detail.to === 'canon' && x.actor_name === 'Ada').length, 2)
 check('audit: fact.authored to review', log.filter(x => x.event_type === 'fact.authored' && x.detail.to === 'review').length, 1)
 check('audit: fact.authored keeps the quote', log.find(x => x.event_type === 'fact.authored').detail.quote.length > 0, true)

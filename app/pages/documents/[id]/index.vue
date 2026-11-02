@@ -21,6 +21,18 @@ const taskGroups = computed(() => {
   }
   return [...g.values()]
 })
+// Tags are labels on the document (every version): the organise call never touches text or hash.
+const { data: lib, refresh: refreshLib } = await useFetch('/api/library', { default: () => ({ tags: [] as { id: string, name: string }[] }) })
+const allTags = computed(() => lib.value.tags as { id: string, name: string }[])
+const hasTag = (id: string) => !!doc.value?.tags.some(t => t.id === id)
+const tagError = ref('')
+async function setTag(id: string, on: boolean) {
+  try {
+    tagError.value = ''
+    await $fetch('/api/library/organise', { method: 'POST', body: { document_ids: [doc.value!.latest.id], [on ? 'add_tags' : 'remove_tags']: [id] } })
+    await Promise.all([refresh(), refreshLib()])
+  } catch (e) { tagError.value = errorMessage(e) }
+}
 const latest = computed(() => !doc.value || doc.value.latest.id === doc.value.id)
 // Facts and notes are only added to the latest version: an older one is already superseded.
 const annotate = computed(() => editor.value && latest.value)
@@ -164,8 +176,22 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
           <option v-for="v in doc.versions" :key="v.id" :value="v.id">v{{ v.version }}{{ v.id === doc.latest.id ? ' · latest' : '' }} · {{ shortDate(v.imported_at) }}</option>
         </select>
         <UiBadge v-else>v{{ doc.version }}</UiBadge>
-        <UiBadge v-for="t in doc.tags" :key="t.id" :tone="(t.color as TagTone)">{{ t.name }}</UiBadge>
-        <UiBadge tone="good" :title="doc.origin === 'written' ? 'Each save is a new version; saved versions never change' : 'Story Bible never edits imported sources'">{{ doc.origin === 'written' ? 'Saved version' : 'Read-only source' }}</UiBadge>
+        <span v-for="t in doc.tags" :key="t.id" class="tag-chip">
+          <NuxtLink :to="{ path: '/library', query: { tag: t.id } }" :title="`Show every document tagged ${t.name}`"><UiBadge :tone="(t.color as TagTone)">{{ t.name }}</UiBadge></NuxtLink>
+          <button v-if="editor" type="button" class="tag-x" :aria-label="`Remove tag ${t.name}`" title="Remove tag" @click="setTag(t.id, false)"><UiIcon name="close" :size="12" /></button>
+        </span>
+        <span v-if="tagError" class="field-error" role="alert">{{ tagError }}</span>
+        <UiMenu v-if="editor" label="Tags" class="tag-menu">
+          <template #trigger><UiIcon name="tag" :size="14" />{{ doc.tags.length ? 'Tags' : 'Add tag' }}</template>
+          <template #default>
+            <button v-for="t in allTags" :key="t.id" type="button" class="menu-item" role="menuitemcheckbox" :aria-checked="hasTag(t.id)" @click="setTag(t.id, !hasTag(t.id))">
+              <UiIcon :name="hasTag(t.id) ? 'checked' : 'square'" :size="16" />{{ t.name }}
+            </button>
+            <p v-if="!allTags.length" class="menu-label">No tags yet.</p>
+            <NuxtLink to="/library" class="menu-item"><UiIcon name="tag" :size="16" />Manage tags in Library</NuxtLink>
+          </template>
+        </UiMenu>
+        <UiBadge tone="good" :title="doc.origin === 'written' ? 'Each save is a new version; saved versions never change' : 'Story Bible never edits imported sources; Edit saves your changes as a new version'">{{ doc.origin === 'written' ? 'Saved version' : 'Read-only source' }}</UiBadge>
         <span v-if="doc.origin === 'written'" class="small muted">Written in Story Bible<template v-if="doc.created_by_name"> by {{ doc.created_by_name }}</template>, {{ shortDate(doc.imported_at) }}</span>
         <span class="mono faint" :title="`sha256 ${doc.sha256}`">sha256 {{ String(doc.sha256).slice(0, 12) }}…</span>
       </span>
@@ -173,7 +199,7 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
         <UiButton icon="history" :to="`/documents/${doc.id}/history`">History<template v-if="doc.versions.length > 1"> · {{ doc.versions.length }}</template></UiButton>
         <template v-if="editor">
           <UiButton v-if="latest" icon="refresh" :loading="reextracting" :title="recordedNoOutput ? 'Recorded demo run: only the demo files have recorded output' : 'Run extraction again; new candidates go to review'" @click="reextract">Re-extract</UiButton>
-          <UiButton v-if="doc.origin === 'written'" icon="review" :to="`/write?doc=${doc.latest.id}`">Edit</UiButton>
+          <UiButton v-if="latest" icon="review" :to="`/write?doc=${doc.latest.id}`">Edit</UiButton>
         </template>
       </template>
     </UiPageHeader>
@@ -280,6 +306,11 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
 </template>
 
 <style scoped>
+.tag-menu :deep(.menu-pop) { min-width: 220px; }
+.tag-chip { display: inline-flex; align-items: center; gap: 2px; }
+.tag-chip a { text-decoration: none; }
+.tag-x { display: inline-grid; place-items: center; width: 20px; height: 20px; padding: 0; border: 0; border-radius: 50%; background: none; color: var(--muted); cursor: pointer; }
+.tag-x:hover { color: var(--bad, var(--ink)); background: var(--sunken); }
 .crumbs { display: flex; gap: var(--s-2); align-items: center; color: var(--muted); margin-bottom: var(--s-2); }
 .crumbs a { color: var(--muted); }
 .version-pick { width: auto; min-height: 26px; padding: 1px 28px 1px 8px; font-size: var(--text-xs); font-weight: 600; background-position: right 8px center; }

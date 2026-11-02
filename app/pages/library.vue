@@ -395,8 +395,8 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                   </div>
                   <div class="sub-line">
                     <span class="mono faint">{{ d.name }}</span>
-                    <span v-if="d.origin === 'written'" class="small faint">· written here</span>
-                    <UiBadge v-for="t in d.tags.map(id => tagById.get(id)).filter(Boolean)" :key="t!.id" :tone="t!.color" class="tag">{{ t!.name }}</UiBadge>
+                    <span v-if="d.origin === 'written'" class="small faint">· latest saved here</span>
+                    <button v-for="t in d.tags.map(id => tagById.get(id)).filter(Boolean)" :key="t!.id" type="button" class="tag-btn" :title="`Show only “${t!.name}”`" @click="pickTag(t!.id)"><UiBadge :tone="t!.color" class="tag">{{ t!.name }}</UiBadge></button>
                   </div>
                   <div class="only-sm small faint meta-sm">
                     v{{ d.version }} · {{ shortDate(d.imported_at) }}<template v-if="d.folder_id"> · {{ folderPath(d.folder_id) }}</template> · {{ d.canon_facts }} cited
@@ -422,6 +422,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                     <template #default="{ close }">
                       <NuxtLink :to="`/documents/${d.id}`" class="menu-item"><UiIcon name="file" :size="16" />Open</NuxtLink>
                       <NuxtLink :to="`/documents/${d.id}/history`" class="menu-item"><UiIcon name="history" :size="16" />History{{ d.version > 1 ? ` (${d.version} versions)` : '' }}</NuxtLink>
+                      <NuxtLink :to="`/write?doc=${d.id}`" class="menu-item"><UiIcon name="review" :size="16" />Edit text</NuxtLink>
                       <button type="button" class="menu-item" @click="close(); startRename(d)"><UiIcon name="review" :size="16" />Rename</button>
                     </template>
                   </UiMenu>
@@ -515,6 +516,8 @@ tbody tr.picked { background: var(--accent-soft); }
 .sub-line { display: flex; flex-wrap: wrap; gap: 4px 6px; align-items: center; margin: 4px 0 0 34px; }
 .sub-line .mono { font-size: var(--text-xs); }
 .tag { font-weight: 500; }
+.tag-btn { padding: 0; border: 0; background: none; cursor: pointer; }
+.tag-btn:hover .tag { text-decoration: underline; }
 .meta-sm { margin: 4px 0 0 34px; }
 .warn-link, .stale-link { color: var(--warn); text-decoration: none; }
 .folder-cell { white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
