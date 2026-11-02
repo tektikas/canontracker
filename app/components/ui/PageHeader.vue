@@ -6,7 +6,7 @@ defineProps<{ title: string, description?: string }>()
   <header class="page-head">
     <div>
       <h1>{{ title }}</h1>
-      <p v-if="description || $slots.default"><slot>{{ description }}</slot></p>
+      <div v-if="description || $slots.default" class="page-sub"><slot>{{ description }}</slot></div>
     </div>
     <div v-if="$slots.actions" class="page-actions"><slot name="actions" /></div>
   </header>
