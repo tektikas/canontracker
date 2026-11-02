@@ -5,8 +5,10 @@ const props = defineProps<{ bible: Bible }>()
 const b = computed(() => props.bible)
 const on = computed(() => new Set(b.value.sections))
 const fact = computed(() => new Map(b.value.facts.map(f => [f.n, f])))
-const kinds = computed(() => (Object.keys(KIND_LABEL) as EntityKind[])
-  .map(k => ({ kind: k, label: KIND_LABEL[k].many, items: b.value.entities.filter(e => e.kind === k) })).filter(g => g.items.length))
+// Groups follow the project's entity types, in its order, as the bible carries them (a share page has no other source).
+const typeFor = (k: string) => typeOf(b.value.types, k)
+const kinds = computed(() => b.value.types
+  .map(t => ({ kind: t.key, label: t.many, items: b.value.entities.filter(e => e.kind === t.key) })).filter(g => g.items.length))
 const withCanon = computed(() => b.value.entities.filter(e => e.facts.length))
 const extra = computed(() => b.value.facts.filter(f => !shownElsewhere(b.value, f.n)))
 const showFacts = computed(() => on.value.has('facts') && (withCanon.value.length > 0 || b.value.other_facts.length > 0))
@@ -59,7 +61,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
         <div class="cards">
           <article v-for="e in g.items" :id="e.key" :key="e.key" class="card-e">
             <div class="card-top">
-              <EntityAvatar :entity="e" :size="64" />
+              <EntityAvatar :entity="e" :type="typeFor(e.kind)" :size="64" />
               <div class="card-name">
                 <h3>{{ e.name }}</h3>
                 <p v-if="e.aliases.length" class="small muted">Also known as {{ e.aliases.join(', ') }}</p>
@@ -84,7 +86,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
     <section v-if="showFacts" id="canon" class="sec">
       <h2>Canon by entity</h2>
       <div v-for="e in withCanon" :id="`${e.key}-canon`" :key="e.key" class="group">
-        <h3 class="group-head"><EntityAvatar :entity="e" :size="28" />{{ e.name }} <span class="faint small">{{ KIND_LABEL[e.kind as EntityKind]?.one ?? e.kind }}</span></h3>
+        <h3 class="group-head"><EntityAvatar :entity="e" :type="typeFor(e.kind)" :size="28" />{{ e.name }} <span class="faint small">{{ typeFor(e.kind).one }}</span></h3>
         <BibleFact v-for="n in e.facts" :key="n" :fact="fact.get(n)!" />
       </div>
       <div v-if="b.other_facts.length" class="group">

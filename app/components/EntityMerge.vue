@@ -3,6 +3,7 @@
 const props = defineProps<{ entity: { id: string, name: string, kind: string } }>()
 const emit = defineEmits<{ close: [] }>()
 const { data: list } = useNuxtData<EntityListItem[]>('entities')
+const kindLabel = useKind()
 
 // Same kind first, then the rest, so the likely target is near the top.
 const options = computed(() => (list.value ?? []).filter(e => e.id !== props.entity.id)

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import type { IconName } from '~/components/ui/Icon.vue'
+
 const route = useRoute()
 const router = useRouter()
 const me = useMe()
@@ -8,6 +10,8 @@ const { data: gallery, refresh: refreshImages } = await useFetch('/api/images', 
 useHead(() => ({ title: `${e.value?.name ?? 'Entity'} · Story Bible` }))
 const editable = computed(() => canEdit(me.value))
 const manager = computed(() => canManage(me.value))
+const { data: types } = await useEntityTypes()
+const kindLabel = useKind()
 
 // Hand-typed aliases are edited here; names a merge mapped to this page are shown apart, and the name canon uses for it
 // when neither the title nor an alias still says it.
@@ -49,15 +53,15 @@ const linkedOnly = computed(() => facts.value.filter(f => f.kind === 'relationsh
 // Fields for this project's medium and the page's kind, plus any value kept from another medium or kind.
 const fieldKeys = computed(() => {
   if (!e.value) return []
-  const preset = MEDIA[e.value.medium].fields[e.value.kind] as string[]
+  const preset = fieldsFor(e.value.medium, e.value.kind)
   return [...preset, ...Object.keys(e.value.fields).filter(k => !preset.includes(k))]
 })
-const presetKeys = computed(() => (e.value ? MEDIA[e.value.medium].fields[e.value.kind] as string[] : []))
+const presetKeys = computed(() => (e.value ? fieldsFor(e.value.medium, e.value.kind) : []))
 
 // One edit at a time: details (name, kind, aliases), summary, fields or notes.
 type Section = '' | 'details' | 'summary' | 'fields' | 'notes'
 const editing = ref<Section>('')
-const draft = reactive({ name: '', kind: 'character' as EntityKind, aliases: [] as string[], alias: '', summary: '', fields: {} as Record<string, string>, notes: '' })
+const draft = reactive({ name: '', kind: '', aliases: [] as string[], alias: '', summary: '', fields: {} as Record<string, string>, notes: '' })
 const saving = ref(false)
 const saveError = ref('')
 function edit(s: Section) {
@@ -236,8 +240,8 @@ const ago = (iso: string) => {
       </div>
       <div class="ident">
         <div class="row">
-          <UiBadge><UiIcon :name="e.kind" :size="13" />{{ kindLabel(e.kind).one }}</UiBadge>
-          <UiBadge v-if="e.origin === 'canon'" title="Story Bible made this page because accepted canon names it. The kind is a guess; change it if it's wrong.">From canon</UiBadge>
+          <UiBadge :class="`kt-${kindLabel(e.kind).color}`" class="type-badge"><UiIcon :name="kindLabel(e.kind).icon as IconName" :size="13" />{{ kindLabel(e.kind).one }}</UiBadge>
+          <UiBadge v-if="e.origin === 'canon'" title="Story Bible made this page because accepted canon names it. The type is a guess; change it if it's wrong.">From canon</UiBadge>
         </div>
         <h1>{{ e.name }}</h1>
         <p v-if="handAliases.length" class="aliases">Also known as {{ handAliases.join(', ') }}</p>
@@ -272,9 +276,10 @@ const ago = (iso: string) => {
           <UiField label="Name" hint="If canon uses the old name, it stays as an alias so facts keep linking here.">
             <input v-model="draft.name" type="text" maxlength="80" required spellcheck="false" @keydown.esc="editing = ''">
           </UiField>
-          <UiField label="Kind">
+          <UiField label="Type">
             <select v-model="draft.kind">
-              <option v-for="k in ENTITY_KINDS" :key="k" :value="k">{{ KIND_LABEL[k].one }}</option>
+              <option v-for="t in types" :key="t.key" :value="t.key">{{ t.one }}</option>
+              <option v-if="!types.some(t => t.key === draft.kind)" :value="draft.kind" disabled>{{ kindLabel(draft.kind).one }} (removed)</option>
             </select>
           </UiField>
         </div>
@@ -496,6 +501,7 @@ const ago = (iso: string) => {
 .ident { flex: 1 1 320px; min-width: 0; display: grid; gap: var(--s-1); align-content: start; }
 .ident h1 { margin: var(--s-1) 0 0; font-size: var(--text-2xl); line-height: 1.2; overflow-wrap: anywhere; }
 .ident .chip { gap: 5px; }
+.ident .type-badge { background: var(--tone-soft); color: var(--tone); }
 .aliases { margin: 0; color: var(--muted); }
 .merged { margin: 0; display: flex; align-items: center; gap: 6px; color: var(--muted); }
 .merged svg { flex: none; color: var(--faint); }

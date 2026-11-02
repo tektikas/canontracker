@@ -48,7 +48,7 @@ export interface Bible {
   title: string, studio: string, medium: string, generated_at: string
   scope: { kind: BibleScope, label: string }, sections: BibleSection[], images: boolean
   counts: { facts: number, entities: number, documents: number, sample: number, stale: number }
-  entities: BibleEntity[], facts: BibleFact[], other_facts: string[]
+  types: EntityType[], entities: BibleEntity[], facts: BibleFact[], other_facts: string[]
   rules: string[], timeline: string[]
   conflicts: { rule: string, model: boolean, rationale: string, facts: string[] }[]
   sources: { document: string, file: string, folder: string | null, kind: string, version: number, latest_version: number, sha256: string, citations: { fact: string, line_from: number | null, line_to: number | null, quote: string }[] }[]

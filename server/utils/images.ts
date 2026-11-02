@@ -189,11 +189,11 @@ export function imageTarget(type: unknown, id: unknown) {
     const fields = fieldsOf(e)
     // Only what can be drawn: no rules, travel times or timings, which are logistics and not looks.
     const facts = factsAbout(e).filter(f => ['character', 'location', 'item', 'claim'].includes(f.kind) && f.t_from == null && !LOGISTICS.test(f.statement)).slice(0, 6)
-    const kind = KIND_LABEL[e.kind].one.toLowerCase()
+    const kind = kindOf(e.kind).one.toLowerCase()
     // Canon's name, names merged into the page and hand-typed aliases: editorial here, they only help the prompt.
     const aka = namesOf(e).filter(n => normName(n) !== normName(e.name))
     const lines = [
-      `${e.kind === 'location' ? 'A view of' : e.kind === 'character' ? 'A portrait of' : 'An illustration of'} ${e.name}${e.kind === 'other' ? '' : `, ${/^[aeiou]/.test(kind) ? 'an' : 'a'} ${kind} in the story`}.`,
+      `${e.kind === 'location' ? 'A view of' : imageNoun('entity', e.kind) === 'portrait' ? 'A portrait of' : 'An illustration of'} ${e.name}${e.kind === 'other' ? '' : `, ${/^[aeiou]/.test(kind) ? 'an' : 'a'} ${kind} in the story`}.`,
       aka.length && `Also known as ${aka.join(', ')}.`,
       e.summary && line(e.summary),
       ...['look', 'casting', 'mood', 'item_type'].filter(k => fields[k]).map(k => `${FIELD_LABEL[k]!.label}: ${line(fields[k]!)}`),

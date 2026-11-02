@@ -362,6 +362,15 @@ label { display: grid; gap: 6px; font-size: var(--text-sm); font-weight: 500; co
 .chip.good { background: var(--good-soft); color: var(--good); }
 .chip.dot::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
+/* Entity type colours (Settings → Projects → Entity types): --tone is the ink, --tone-soft its quiet tile. */
+.kt-neutral { --tone: var(--muted); --tone-soft: var(--sunken); }
+.kt-accent { --tone: var(--accent); --tone-soft: var(--accent-soft); }
+.kt-good { --tone: var(--good); --tone-soft: var(--good-soft); }
+.kt-warn { --tone: var(--warn); --tone-soft: var(--warn-soft); }
+.kt-bad { --tone: var(--bad); --tone-soft: var(--bad-soft); }
+.kt-pencil { --tone: var(--pencil); --tone-soft: var(--pencil-soft); }
+.kt-dot { flex: none; display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: var(--tone); }
+
 /* ---------- Notices ---------- */
 .notice { display: flex; gap: 10px; align-items: flex-start; margin: 0; border-radius: var(--r-md); padding: 10px 14px; font-size: var(--text-sm); border: 1px solid transparent; }
 .notice.warn { background: var(--warn-soft); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 25%, transparent); }

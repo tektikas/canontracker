@@ -7,6 +7,16 @@ export type EntityPage = InternalApi['/api/entities/:id']['get']
 export const useEntityList = () => useFetch('/api/entities', { key: 'entities', default: () => [] as EntityListItem[] })
 export const refreshEntities = () => refreshNuxtData('entities')
 
+// The project's entity types, shared under one key (the shell loads them). useKind() reads that list: label, colour and icon
+// for a page's type, with a readable fallback for a type the project no longer has.
+export type EntityTypeItem = InternalApi['/api/entity-types']['get'][number]
+export const useEntityTypes = () => useFetch('/api/entity-types', { key: 'entity-types', default: () => [] as EntityTypeItem[] })
+export const refreshEntityTypes = () => refreshNuxtData('entity-types')
+export function useKind() {
+  const { data } = useNuxtData<EntityTypeItem[]>('entity-types')
+  return (k: string) => typeOf(data.value ?? [], k)
+}
+
 // Name/alias lookup and one matcher per list, built once and shared by every MentionText on the page.
 interface Lookup { byName: Map<string, EntityListItem>, pattern: RegExp | null }
 const lookups = new WeakMap<object, Lookup>()
@@ -51,5 +61,4 @@ export function useMentionCard() {
   return { state, open, leave, stay, close }
 }
 
-export const kindLabel = (k: string) => KIND_LABEL[k as EntityKind] ?? KIND_LABEL.other
 export const counted = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`

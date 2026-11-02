@@ -127,6 +127,13 @@ create table if not exists entities (
   fields text not null default '{}', notes text not null default '', portrait_type text, portrait_at text, origin text not null,
   created_at text not null, created_by text, updated_at text not null, updated_by text, project_id text not null
 );
+-- The project's entity types (seeded per project by seedEntityTypes; see shared/utils/entities.ts). key: what entities.kind
+-- stores, fixed at creation. one/many: labels; color: a design-token name; icon: an Icon.vue name; position: display order.
+-- A new table only, so an existing database gains it in place (create if not exists) without a version bump.
+create table if not exists entity_types (
+  project_id text not null, key text not null, one text not null, many text not null, color text not null, icon text not null,
+  position integer not null, created_at text not null, primary key (project_id, key)
+);
 -- An entity's or document's image history: generated (Muse Image) and uploaded images together. Editorial, never canon.
 -- target_type: entity (portrait) | document (cover). applied_at is set on the one image currently used as the target's
 -- portrait or cover; the bytes live next to portraits. source: generated | upload. An upload has no prompt, style or model
@@ -308,7 +315,7 @@ export function resetData() {
 
 // The project's audit trail. Targets of events before the latest project.reset were deleted by that reset (tokens and the
 // project itself survive one), so those events carry target_removed instead of pointing at an id that no longer exists.
-const SURVIVES_RESET = ['token', 'project', 'audit', 'question', 'user', 'share']
+const SURVIVES_RESET = ['token', 'project', 'audit', 'question', 'user', 'share', 'entity_type']
 export function listAudit(order: 'asc' | 'desc') {
   const db = useDb()
   const reset = (db.prepare(`select max(rowid) r from audit_events where project_id = ? and event_type = 'project.reset'`).get(pid()) as { r: number | null }).r ?? 0

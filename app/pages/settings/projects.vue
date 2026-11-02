@@ -235,6 +235,7 @@ const ago = (iso: string | null) => {
       </li>
     </ul>
     <p v-if="!data.can_manage" class="small faint">Only owners and admins can create or rename projects.</p>
+    <EntityTypesEditor v-if="me?.current" :project="me.current.project.name" />
     <p class="sr-only" aria-live="polite">{{ data.projects.length }} {{ plural(data.projects.length, 'project') }}</p>
   </div>
 </template>

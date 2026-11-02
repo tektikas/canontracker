@@ -19,7 +19,7 @@ export const composeImagePrompt = (prompt: string, style: ImageStyle, artStyle: 
 export const IMAGE_DEADLINE_MS = 150_000
 
 // What the picture is called on screen: characters get a portrait, documents a cover, every other page just an image.
-export const imageNoun = (type: ImageTarget, kind?: string) => (type === 'document' ? 'cover' : kind === 'character' ? 'portrait' : 'image')
+export const imageNoun = (type: ImageTarget, kind?: string) => (type === 'document' ? 'cover' : kind === 'character' || kind === 'npc' ? 'portrait' : 'image')
 
 // Uploads: raster only (checked by magic bytes on the server), one size cap per file, and a pixel cap so a small file can't
 // unpack into a picture no browser can draw. The client checks the same numbers first for instant feedback.

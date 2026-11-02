@@ -4,6 +4,7 @@ import type { IconName } from '~/components/ui/Icon.vue'
 const me = useMe()
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
 const { data: entities } = await useEntityList()
+await useEntityTypes()
 const route = useRoute()
 const navOpen = ref(false)
 const paletteOpen = usePaletteOpen()
