@@ -4,8 +4,10 @@
 definePageMeta({ layout: false })
 const route = useRoute()
 const params = computed(() => new URLSearchParams(Object.entries(route.query).filter(([k, v]) => k !== 'print' && typeof v === 'string') as [string, string][]).toString())
-const { data: bible, error } = await useFetch<Bible>(() => `/api/export/bible?${params.value}&format=json`)
-useHead(() => ({ title: bible.value ? `${bible.value.title} · Story bible` : 'Story bible' }))
+const asBook = computed(() => route.query.book === 'bible' || route.query.book === 'manuscript')
+const { data: bible, error } = await useFetch<Bible | Manuscript>(() => `/api/export/bible?${params.value}&format=json`)
+useHead(() => ({ title: bible.value ? `${bible.value.title} · ${route.query.book === 'manuscript' ? 'Manuscript' : 'Story bible'}` : 'Story bible' }))
+const book = computed(() => (!bible.value || !asBook.value ? null : route.query.book === 'manuscript' ? manuscriptBook(bible.value as Manuscript) : bibleBook(bible.value as Bible)))
 const back = computed(() => `/export?${params.value}`)
 // Only a press of Save as PDF (or the auto-print after it on Export) is audited, not every preview load.
 const print = async () => {
@@ -27,8 +29,9 @@ onMounted(async () => {
       <span class="small muted hint">Choose “Save as PDF” as the printer.</span>
       <UiButton variant="primary" icon="canon" :disabled="!bible" @click="print">Save as PDF</UiButton>
     </div>
-    <main class="doc">
-      <BibleView v-if="bible" :bible="bible" />
+    <main class="doc" :class="{ book: !!book }">
+      <BookView v-if="book" :book="book" />
+      <BibleView v-else-if="bible" :bible="bible as Bible" />
       <UiEmptyState v-else title="This export can’t be built" icon="conflicts">{{ (error?.data as { message?: string } | undefined)?.message ?? 'Go back and check what goes in.' }}</UiEmptyState>
     </main>
   </div>
@@ -48,12 +51,12 @@ onMounted(async () => {
 }
 @media print {
   .no-print { display: none !important; }
-  .print-page { background: none; }
+  .print-page { background: none; min-height: 0; }
   .doc { max-width: none; margin: 0; padding: 0; border: 0; background: none; }
 }
 </style>
 
 <style>
 @page { size: A4; margin: 16mm 14mm; }
-@media print { html, body { background: var(--raised); } }
+@media print { html, body { background: var(--raised); } #teleports { display: none; } }
 </style>

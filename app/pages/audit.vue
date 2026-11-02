@@ -69,8 +69,8 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'qa.asked': return [`${who} asked: ${q(d.question)}`, `Result: ${({ supported: 'Supported by canon', source_only: 'Related canon only', unknown: 'Unknown' } as Record<string, string>)[d.status] ?? d.status}`]
     case 'eval.completed': return [`${who} ran the evaluation`, `${d.passed} met, ${d.failed} missed`]
     case 'export.created': return [`${who} exported ${d.format?.toUpperCase()}`, d.items != null ? `${d.items} impact items` : d.events != null ? `${d.events} audit events` : '']
-    case 'bible.exported': return [`${who} exported the story bible as ${({ md: 'Markdown', zip: 'Markdown with portraits', pdf: 'a PDF print view' } as Record<string, string>)[d.format] ?? d.format}`,
-      `${d.scope} · ${counted(d.facts ?? 0, 'canon fact')}, ${counted(d.entities ?? 0, 'entity', 'entities')}`]
+    case 'bible.exported': return [`${who} exported the ${d.book === 'manuscript' ? 'manuscript' : d.book === 'bible' ? 'story bible as a book' : 'story bible'} as ${({ md: 'Markdown', zip: 'Markdown with portraits', pdf: 'a PDF print view', epub: 'an EPUB' } as Record<string, string>)[d.format] ?? d.format}`,
+      d.book === 'manuscript' ? `${d.scope} · ${counted(d.documents ?? 0, 'document')}, ${counted(d.words ?? 0, 'word')}` : `${d.scope} · ${counted(d.facts ?? 0, 'canon fact')}, ${counted(d.entities ?? 0, 'entity', 'entities')}`]
     case 'share.created': return [`${who} created the read-only link “${d.name}”`, `${d.scope} · ${counted(d.facts ?? 0, 'canon fact')} · ${d.expires_at ? `expires ${shortDate(d.expires_at)}` : 'never expires'} · stored hashed`]
     case 'share.revoked': return [`${who} turned off the read-only link “${d.name}”`, 'Opening it now says the link isn’t available']
     case 'share.opened': return [`The read-only link “${d.name}” was opened for the first time`, 'Later opens are counted on the link, not logged here']
