@@ -1,5 +1,5 @@
-// A person adds a fact from text they selected in a source. The quote must appear verbatim in that passage (findQuotePassage,
-// the same check extraction, MCP proposals and accept use). to = canon: the person creating and confirming it is the human decision (audited as fact.authored);
+// A person adds a fact from text they selected in a source. The quote must appear in that passage (findQuotePassage folds
+// typography and returns the passage's own characters, which are stored; the same check extraction, MCP proposals and accept use). to = canon: the person creating and confirming it is the human decision (audited as fact.authored);
 // to = review: it waits in the review queue like any candidate.
 const KINDS = ['character', 'location', 'relationship', 'event', 'rule', 'claim']
 const fail = (statusCode: number, statusMessage: string, message: string) => createError({ statusCode, statusMessage, message })
@@ -19,7 +19,7 @@ export default defineEventHandler(async (event) => {
   if (!quote) throw fail(422, 'QUOTE_REQUIRED', 'Select the words in the source that say this.')
   const passages = db.prepare('select * from passages where document_id = ? order by ordinal').all(doc.id) as unknown as PassageRow[]
   const match = findQuotePassage(passages, quote, typeof b.passage_id === 'string' ? b.passage_id : null)
-  if (!match) throw fail(422, 'UNVERIFIED_EVIDENCE', `The quote must appear verbatim in the source and be at least ${MIN_QUOTE_CHARS} characters, so it can back a fact.`)
+  if (!match) throw fail(422, 'UNVERIFIED_EVIDENCE', `The quote must be words from one paragraph of the source (curly quotes, dashes and line breaks may differ) and at least ${MIN_QUOTE_CHARS} characters, so it can back a fact.`)
   const passage = match.passage
 
   const kind = str(b.kind) || 'claim'
@@ -71,9 +71,9 @@ export default defineEventHandler(async (event) => {
       .run(id, kind, names.subject, predicate, names.object, value, statement, tFrom, tTo, timeLabel(tFrom, tTo, precision), precision,
         to === 'canon' ? 'canon' : 'pending', now(), to === 'canon' ? now() : null, to === 'canon' ? user : null, user, pid())
     db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, 1, ?)')
-      .run(newId('ev'), id, doc.id, passage.id, quote, pid())
+      .run(newId('ev'), id, doc.id, passage.id, match.quote, pid())
     audit('fact.authored', 'fact', id, {
-      to, statement, subject: names.subject, predicate, object: names.object, document_id: doc.id, passage_id: passage.id, quote,
+      to, statement, subject: names.subject, predicate, object: names.object, document_id: doc.id, passage_id: passage.id, quote: match.quote,
       ...(linked.length && { linked }),
       ...(identity.length && { identity: identity.map(i => ({ role: i.role, from: i.from, to: i.to, merge_audit_id: i.audit_id })) }),
     })
