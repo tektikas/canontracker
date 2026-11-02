@@ -54,7 +54,18 @@ const timeKey = (label: string | null) => {
   const { from, to, approximate } = splitTimeLabel(label)
   const r = parseStoryRange(from, to)
   if (r.bad) return undefined
+  if (r.from != null && r.to != null && r.to < r.from) return 'reversed' // reversed range: the whole suggestion is dropped
   return r.from == null && r.to == null ? 'none' : JSON.stringify([r.from, r.to, approximate])
+}
+// A batch flag (reject / needs edit) after its two single-candidate rereads (null = the call failed, [] = nothing usable):
+// a keep from either reread wins (that reread's opinion); the flag stands, with its first opinion, only if both rereads
+// returned a flagging opinion. Anything else is unconfirmed: no opinion is stored, and `why` goes in model_calls.
+export function confirmFlag(first: CriticDraft, rereads: (CriticDraft[] | null)[]): { draft: CriticDraft | null, why: string } {
+  const got = rereads.map(r => r?.[0])
+  const keep = got.find(o => o?.verdict === 'keep')
+  if (keep) return { draft: keep, why: '' }
+  if (got.length >= 2 && got.every(o => o)) return { draft: first, why: '' }
+  return { draft: null, why: `unconfirmed ${first.verdict}: ${got.filter(o => !o).length} of ${got.length} rereads failed or gave no opinion` }
 }
 const norm = (v: string | null) => (v ?? '').toLowerCase().replace(/[^\p{L}\p{N}]+/gu, ' ').trim()
 const same = (a: string | null, b: string | null) => norm(a) === norm(b)
@@ -97,6 +108,7 @@ export function cleanOpinions(raw: unknown, asked: Map<string, CriticAsked>) {
       if (!suggestion.statement || !suggestion.subject || !suggestion.predicate) return drop('incomplete suggestion')
       const time = timeKey(suggestion.time)
       if (!time) return drop('suggested time unreadable')
+      if (time === 'reversed') return drop('suggested time range runs backwards')
       const rest = same(suggestion.subject, c.subject) && same(suggestion.predicate, c.predicate) && time === timeKey(c.time_label)
       const wording = rest && same(suggestion.object, c.object)
       const party = rest && !!c.object && !conflictRead(c) && ` ${norm(c.text ?? '')} `.includes(` ${norm(c.object)} `)

@@ -298,6 +298,9 @@ Do not flag:
 - a reasonable reading of the passage with its context (who "he" is, where a scene happens, why someone acts);
 - design notes, codex entries, gameplay notes and lore documents: they are sources like any scene, and what they state is stated.
 If you are unsure, keep it; the person still reads every candidate. Judge only from the passage, its context and the canon given; never use outside knowledge. Each subject and object is a canonical entity name; names listed under "Same entity" refer to one entity.`
+// A batch flag its rereads didn't confirm is stored as no opinion; this leaves the reason in the trace.
+export const noteCriticUnconfirmed = (factId: string, why: string) =>
+  traced('critic', { type: 'fact', id: factId }, [factId], null, async () => [] as CriticDraft[], () => `no opinion stored (${why})`, criticModelId())
 // reasoning: the reasoning_effort sent on live calls (criticReasoning in critic.ts); it and the tokens used go in the trace.
 export function critiqueCandidates(items: CriticItem[], reasoning: string) {
   const asked = new Map(items.map(i => [i.id, { ...i, canon: new Set(i.canon.map(f => f.id)), text: [...i.before, i.passage, ...i.after].join('\n') }]))

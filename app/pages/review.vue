@@ -18,7 +18,8 @@ const reviewed = computed(() => Math.max(0, total.value - all.value.length))
 
 // The AI critic's opinion is advice on a candidate: a badge and one line why. The queue can be narrowed or sorted by it.
 type Cand = NonNullable<typeof pending.value>[number]
-const verdictOf = (f: Cand) => (f.critic?.current ? f.critic.verdict : null)
+// A keep read before canon about its names changed is stale (it may now repeat a fact): no verdict here, like bulk accept.
+const verdictOf = (f: Cand) => (f.critic?.current && !(f.critic.verdict === 'keep' && f.critic.canon_changed) ? f.critic.verdict : null)
 const CRITIC_TONE = { keep: 'good', reject: 'bad', needs_edit: 'warn' } as const
 const CRITIC_ORDER = { reject: 0, needs_edit: 1, keep: 2 } as const
 const criticFilter = ref<'all' | CriticVerdict | 'none'>('all')
@@ -163,7 +164,7 @@ async function decide(decision: 'accept' | 'correct_and_accept' | 'reject') {
 const verifiedLeft = computed(() => all.value.filter(verified))
 // "Accept all the AI critic keeps": the verified candidates whose current opinion is keep, read against today's canon about
 // their names. Same sheet, same one human click; the fingerprint then covers the opinion shown too.
-const criticKeeps = computed(() => verifiedLeft.value.filter(f => verdictOf(f) === 'keep' && !f.critic!.canon_changed))
+const criticKeeps = computed(() => verifiedLeft.value.filter(f => verdictOf(f) === 'keep'))
 const bulkMode = ref<'verified' | 'critic'>('verified')
 const bulkList = () => (bulkMode.value === 'critic' ? criticKeeps.value : verifiedLeft.value)
 const bulkOpen = ref(false)
@@ -474,7 +475,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
             <option value="reject" :disabled="!criticCount('reject')">Says reject ({{ criticCount('reject') }})</option>
             <option value="needs_edit" :disabled="!criticCount('needs_edit')">Says needs edit ({{ criticCount('needs_edit') }})</option>
             <option value="keep" :disabled="!criticCount('keep')">Says keep ({{ criticCount('keep') }})</option>
-            <option value="none" :disabled="!criticCount('none')">No opinion ({{ criticCount('none') }})</option>
+            <option value="none" :disabled="!criticCount('none')">No current opinion ({{ criticCount('none') }})</option>
           </select>
         </label>
         <label><input v-model="criticFirst" type="checkbox"> Rejects first</label>

@@ -12,7 +12,7 @@
 // - A keep read before canon about its names changed (an equivalent fact accepted into canon) no longer counts as a keep.
 // - Edit & accept can correct story time (validated by the story-time parser); a bad time is refused and nothing changes.
 import assert from 'node:assert/strict'
-import { candidateFingerprint, cleanOpinions, OTHER_PARTY, WORDING_ONLY } from '../shared/utils/review.ts'
+import { candidateFingerprint, cleanOpinions, confirmFlag, OTHER_PARTY, WORDING_ONLY } from '../shared/utils/review.ts'
 import { goldCheck } from './critic-gold.mjs'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
@@ -55,6 +55,19 @@ check('clean: swapping the object for another party named in the passage is a ke
 check('clean: … not when the candidate\'s object is not in the passage', refuses('Mara', 'Cinder Bridge')[0][0], 'needs_edit')
 check('clean: … nor for a place the conflict rules read (f3 above stayed needs edit)', cleaned.kept[1].verdict, 'needs_edit')
 check('clean: not an array → nothing', cleanOpinions({ opinions: "x" }, askedFor), { kept: [], dropped: 0, softened: 0, why: [] })
+
+// A batch flag stands only if both rereads flag it; failed or empty rereads leave no opinion (never a flag, never a keep).
+const flag = { fact_id: 'f1', verdict: 'reject', reason: 'figurative', duplicate_of: null, explanation: 'Figurative.', suggestion: null }
+const reread = { ...flag, explanation: 'Still figurative.' }
+const kept = { ...flag, verdict: 'keep', reason: 'ok', explanation: 'Stated.' }
+check('confirm: both rereads flag → the flag stands', confirmFlag(flag, [[reread], [reread]]).draft, flag)
+check('confirm: rereads returning [] → no opinion, with why', confirmFlag(flag, [[], []]), { draft: null, why: 'unconfirmed reject: 2 of 2 rereads failed or gave no opinion' })
+check('confirm: both rereads failing → no opinion', confirmFlag(flag, [null, null]).draft, null)
+check('confirm: one flag, one failure → no opinion', confirmFlag(flag, [[reread], null]).draft, null)
+check('confirm: a keep from either reread wins', confirmFlag(flag, [null, [kept]]).draft, kept)
+const backwards = t => cleanOpinions([{ id: 'f1', statement: st('f1'), verdict: 'needs_edit', reason: 'ambiguous_time_place', explanation: 'Time.', suggestion: { statement: 'x', subject: 'Ves', predicate: 'located_at', object: 'Bell Gate', time: t } }], askedFor)
+check('clean: a reversed time range drops the suggestion, saying so', [backwards('D3 18:00 – D3 17:00').kept.length, backwards('D3 18:00 – D3 17:00').why], [0, ['suggested time range runs backwards']])
+check('clean: an ordered range is fine', backwards('D3 15:00 – D3 16:00').kept.map(o => o.verdict), ['needs_edit'])
 
 function client() {
   let cookie = ''

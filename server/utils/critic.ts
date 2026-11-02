@@ -55,7 +55,7 @@ function canonNear() {
 
 export async function runCritic(factIds: string[]) {
   const effort = criticEffort()
-  if (!effort || !factIds.length) return { asked: 0, opinions: 0, unverified: 0, left: 0 }
+  if (!effort || !factIds.length) return { asked: 0, opinions: 0, unconfirmed: 0, unverified: 0, left: 0 }
   const db = useDb()
   const wanted = new Set(factIds)
   const pending = listFacts(`status = 'pending'`).filter(f => wanted.has(f.id))
@@ -92,15 +92,19 @@ export async function runCritic(factIds: string[]) {
   const seen = new Map(batch.map(f => [f.id, shown(f)]))
   const reasoning = criticReasoning(effort)
   let opinions = 0
+  let unconfirmed = 0
   for (let i = 0; i < items.length; i += effort.batch) {
     // A batch reading sees a few paragraphs and is the noisier one, so a flag (reject or needs edit) must hold up on two more
-    // single-candidate readings with the whole document: it stands only if both flag it too (their first opinion is kept);
-    // a keep from either wins. Readings that fail or give nothing usable don't count; with none left, the first stands. Every
-    // call is in model_calls. The person still reads every candidate either way.
+    // single-candidate readings with the whole document (confirmFlag): it stands only if both flag it too (their first opinion
+    // is kept); a keep from either wins. A flag whose rereads fail or give nothing is unconfirmed: no opinion is stored (it is
+    // neither a flag nor a keep) and model_calls says why. Every call is in model_calls. The person still reads every candidate.
     const drafts: CriticDraft[] = []
     for (const d of await critiqueCandidates(items.slice(i, i + effort.batch), reasoning.batch)) {
-      const again = d.verdict === 'keep' ? [] : (await Promise.all([0, 1].map(() => critiqueCandidates([wide.get(d.fact_id)!()], reasoning.confirm).catch(() => [])))).flat()
-      drafts.push(again.find(o => o.verdict === 'keep') ?? again[0] ?? d)
+      if (d.verdict === 'keep') { drafts.push(d); continue }
+      const again = await Promise.all([0, 1].map(() => critiqueCandidates([wide.get(d.fact_id)!()], reasoning.confirm).catch(() => null)))
+      const { draft, why } = confirmFlag(d, again)
+      if (draft) drafts.push(draft)
+      else { noteCriticUnconfirmed(d.fact_id, why); unconfirmed++ }
     }
     const insert = db.prepare(`insert into critic_opinions (id, fact_id, verdict, reason, duplicate_of, explanation, suggestion, seen, canon_seen,
       model_id, prompt_version, created_at, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`)
@@ -112,7 +116,7 @@ export async function runCritic(factIds: string[]) {
     })
     opinions += drafts.length
   }
-  return { asked: items.length, opinions, unverified: pending.length - ready.length, left: ready.length - batch.length }
+  return { asked: items.length, opinions, unconfirmed, unverified: pending.length - ready.length, left: ready.length - batch.length }
 }
 
 // The newest opinion per candidate, for the review list. current = the candidate still reads as it did when the Critic read it
