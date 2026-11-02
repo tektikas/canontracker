@@ -400,7 +400,7 @@ const ago = (iso: string) => {
         </dl>
         <div class="medium">
           <span class="small faint">Fields for a {{ MEDIA[e.medium].label.toLowerCase() }} project.</span>
-          <UiButton v-if="manager" size="sm" icon="settings" to="/settings/projects">Change medium</UiButton>
+          <UiButton v-if="manager" size="sm" icon="settings" :to="`/settings/projects/${me?.current?.project.id}`">Change medium</UiButton>
         </div>
       </UiPanel>
     </div>

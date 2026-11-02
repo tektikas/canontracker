@@ -28,6 +28,10 @@ export default defineEventHandler(async (event) => {
   if (!set) throw createError({ statusCode: 400, statusMessage: 'BAD_SET', message: `set must be one of ${SETS.join(', ')}.` })
 
   const project = pid()
+  // expect_project: the page that sends it names the project it showed; a switch from another tab in between refuses the reset.
+  const expected = (body as { expect_project?: unknown }).expect_project
+  if (expected !== undefined && expected !== project)
+    throw createError({ statusCode: 409, statusMessage: 'PROJECT_CHANGED', message: 'Another tab switched projects; nothing was changed. Try again.' })
   if (loading.has(project)) throw createError({ statusCode: 409, statusMessage: 'LOAD_IN_PROGRESS', message: 'A sample is already loading into this project. Wait for it to finish.' })
   loading.add(project)
   try {

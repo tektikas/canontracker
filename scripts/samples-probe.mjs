@@ -64,6 +64,16 @@ for (const raw of ['{"set":', '[]', '"lantern-row"', 'null', '{"set": "nope"}'])
   check(`data intact after ${raw}`, await shape(), LANTERN)
 }
 
+// 3. expect_project: a switch from another tab between the page's switch and its load must not reset the wrong project.
+const projA = (await a('/api/me')).data.current.project.id
+const projB = (await a('/api/projects', { method: 'POST', body: { name: 'Race B', studio_id: studio.id } })).data
+check('switch to A', (await a(`/api/projects/${projA}/switch`, { method: 'POST' })).status, 200)
+check('switch to B (other tab)', (await a(`/api/projects/${projB.id}/switch`, { method: 'POST' })).status, 200)
+const bBefore = await shape()
+check('load expecting A while B is open → 409', (await load(a, { set: 'lantern-row', expect_project: projA })).status, 409)
+check('B untouched by the refused load', await shape(), bBefore)
+check('switch back to A', (await a(`/api/projects/${projA}/switch`, { method: 'POST' })).status, 200)
+
 // 6. Audit survives a reset. Scan first so there are conflict rows and a scan tick that the reset removes.
 const scan = (await a('/api/conflicts/scan', { method: 'POST' }))
 check('scan canon', scan.status, 200)
