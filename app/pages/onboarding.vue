@@ -39,7 +39,7 @@ const createStudio = () => run('studio', async () => {
 })
 
 const createProject = () => run('project', async () => {
-  if (!projectName.value.trim()) throw new Error('Name the game or project you are writing.')
+  if (!projectName.value.trim()) throw new Error('Name the story or project you are writing.')
   await $fetch('/api/projects', { method: 'POST', body: { name: projectName.value, studio_id: adminStudio.value?.id } })
   await loadMe()
   step.value = 'start'
@@ -90,10 +90,10 @@ const tryAshbell = () => run('ashbell', async () => {
     <form v-else-if="step === 'project'" class="stack" novalidate @submit.prevent="createProject">
       <div>
         <h1>What are you writing?</h1>
-        <p class="muted">A project holds one game’s lore, scenes and canon. Studios can have as many as they need.</p>
+        <p class="muted">A project holds one story world’s lore, scenes and canon. Studios can have as many as they need.</p>
       </div>
       <div class="panel stack form">
-        <UiField label="Game or project name" hint="For example the game’s working title. You can rename it later.">
+        <UiField label="Story or project name" hint="For example the working title. You can rename it later.">
           <input v-model="projectName" type="text" maxlength="80" placeholder="e.g. Saltmarsh Chronicles" autofocus>
         </UiField>
         <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
@@ -112,23 +112,23 @@ const tryAshbell = () => run('ashbell', async () => {
           <span class="option-title">Try the Broken Tide demo</span>
           <span class="option-text">An original island story, 2 lore documents and 11 scenes, with planted contradictions. It also adds Lantern Row, a three-page sample that comes with five preloaded canon facts, so you can switch projects. Both open in their own projects; nothing in {{ me?.current?.project.name }} changes.</span>
           <span class="option-cta">
-            <template v-if="busy === 'demo'"><span class="spinner" aria-hidden="true" />Loading 16 sources…</template>
+            <template v-if="busy === 'demo'"><span class="spinner" aria-hidden="true" />Loading the sample stories…</template>
             <template v-else>Load demo and take the tour<UiIcon name="arrow" :size="16" /></template>
           </span>
         </button>
         <NuxtLink to="/" class="option" :class="{ disabled: !!busy }">
           <span class="option-icon"><UiIcon name="upload" :size="20" /></span>
           <span class="option-title">Bring your own story</span>
-          <span class="option-text">Import Markdown or plain text lore docs and scene scripts (up to 1 MB each), or write and paste scenes in the app. Saved sources are read-only and never changed.</span>
+          <span class="option-text">Import Markdown or plain text lore docs and scene scripts (up to 1 MB each), or write and paste scenes in the app. The AI proposes facts with quotes for you to review. Saved sources are read-only and never changed.</span>
           <span class="option-cta">Go to {{ me?.current?.project.name }}<UiIcon name="arrow" :size="16" /></span>
         </NuxtLink>
       </div>
       <p class="small muted center">
-        Want a bigger story? <button type="button" class="linkish" :disabled="!!busy" @click="tryAshbell">{{ busy === 'ashbell' ? 'Loading 28 sources…' : 'Load The Ashbell Pass' }}</button>,
-        a mountain-town game with NPC schedules, quests and items, in its own project.
+        Want a bigger story? <button type="button" class="linkish" :disabled="!!busy" @click="tryAshbell">{{ busy === 'ashbell' ? 'Loading The Ashbell Pass…' : 'Load The Ashbell Pass' }}</button>,
+        a mountain-town game story with NPC schedules, quests and items, in its own project.
       </p>
-      <p v-if="me?.model.mode === 'mock'" class="notice warn">
-        <span><b>Recorded run.</b> The model is offline in this instance, so extraction replays a recorded run of the demo story. Your own files import fine but get no candidates until a live model is connected; you can add facts from their text by hand.</span>
+      <p v-if="me?.model.mode !== 'meta'" class="notice warn">
+        <span><b>Demo mode.</b> Extraction replays a recorded run for the sample stories. Connect a model key to extract from your own files.</span>
       </p>
       <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
       <p class="small muted center"><NuxtLink to="/">Skip for now</NuxtLink> · you can load the demo, import files or write a document any time from Home.</p>

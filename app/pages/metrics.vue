@@ -74,7 +74,7 @@ const tone = (id: string) => ({ recorded: 'warn', live: 'good', mixed: 'pencil',
       <div class="score-meta small muted">
         {{ dateTime(latest!.created_at) }} · dataset <span class="mono">{{ latest!.dataset }}</span> ·
         scored data: <UiBadge :tone="tone(latest!.model_id)" dot>{{ provenance(latest!.model_id).label }}</UiBadge>
-        <span class="faint">Scores the database as it is now. Ask checks use retrieval only; no model is called.</span>
+        <span class="faint">Scores the database as it is now. Ask checks run against accepted canon, with no model call in the scoring.</span>
       </div>
     </section>
 
@@ -105,7 +105,7 @@ const tone = (id: string) => ({ recorded: 'warn', live: 'good', mixed: 'pencil',
     </UiPanel>
   </template>
 
-  <UiPanel flush title="Model calls" description="Every call to the model (Meta Model API, Muse Spark, or the recorded demo run): what it was for, which sources it saw, how long it took. Prompts, keys and full documents are not stored." class="gap">
+  <UiPanel flush title="Model calls" description="Every call to the model (Meta Model API, Muse Spark): what it was for, which sources it saw, how long it took. Prompts, keys and full documents are not stored." class="gap">
     <p v-if="!calls?.length" class="empty-note muted">No model calls yet.</p>
     <div v-else class="table-wrap">
       <table>

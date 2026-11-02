@@ -36,7 +36,7 @@ async function submit() {
     <h1>{{ inviteInfo?.status === 'valid' ? `Join ${inviteInfo.studio_name}` : 'Create your account' }}</h1>
     <p class="muted lead">
       <template v-if="inviteInfo?.status === 'valid'">{{ inviteInfo.created_by_name }} invited you as {{ ROLE_LABEL[inviteInfo.role as Role].toLowerCase() }}. Create your account to accept.</template>
-      <template v-else>Set up your studio in a minute. You can try it on our demo story before importing your own lore.</template>
+      <template v-else>Set up your studio in a minute. You can try it on a sample story before importing your own lore.</template>
     </p>
 
     <form class="panel stack form" novalidate @submit.prevent="submit">

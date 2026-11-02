@@ -11,9 +11,9 @@ const newName = ref('')
 const SAMPLES = { empty: '', 'broken-tide': 'Broken Tide (demo)', 'lantern-row': 'Lantern Row (sample)', 'ashbell-pass': 'The Ashbell Pass (demo)' } as const
 const HINTS: Record<keyof typeof SAMPLES, string> = {
   'empty': 'Add your own sources from Home.',
-  'broken-tide': 'An island story in 13 sources with planted contradictions. In recorded mode its candidates replay a recorded run.',
+  'broken-tide': 'An island story in 13 sources with planted contradictions.',
   'lantern-row': 'Three short sources that come with five preloaded canon facts, each quoted from its source. Sample canon: no one reviewed it and no model proposed it.',
-  'ashbell-pass': 'A mountain-town game in 28 sources, filed in folders with tags, plus wiki pages for its cast, places, items and quests. In recorded mode its candidates replay a recorded run.',
+  'ashbell-pass': 'A mountain-town game story in 28 sources, filed in folders with tags, plus wiki pages for its cast, places, items and quests.',
 }
 const startWith = ref<keyof typeof SAMPLES>('empty')
 watch(startWith, (v, old) => { if (!newName.value.trim() || newName.value === SAMPLES[old]) newName.value = SAMPLES[v] })
@@ -61,16 +61,16 @@ const ago = (iso: string | null) => {
 <template>
   <div v-if="data" class="stack" style="gap: var(--s-5)">
     <div class="spread">
-      <p class="muted intro">Each project holds one game’s sources, canon, conflicts and changes. Nothing is shared between projects.</p>
+      <p class="muted intro">Each project holds one story world’s sources, canon, conflicts and changes. Nothing is shared between projects.</p>
       <UiButton v-if="data.can_manage && !creating" variant="primary" icon="plus" @click="creating = true">New project</UiButton>
     </div>
 
     <UiPanel v-if="creating" title="New project">
       <form class="create" novalidate @submit.prevent="create">
-        <UiField label="Game or project name" :error="createError">
+        <UiField label="Story or project name" :error="createError">
           <input ref="createInput" v-model="newName" type="text" maxlength="80" placeholder="e.g. Saltmarsh Chronicles" @keydown.esc="creating = false">
         </UiField>
-        <UiField label="Start with" :hint="HINTS[startWith]">
+        <UiField label="Start with" :hint="HINTS[startWith] + (startWith !== 'empty' && startWith !== 'lantern-row' && me?.model.mode === 'mock' ? ' Its candidates replay a recorded run.' : '')">
           <select v-model="startWith">
             <option value="empty">An empty project</option>
             <option value="broken-tide">The Broken Tide demo</option>
