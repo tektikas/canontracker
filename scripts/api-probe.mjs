@@ -86,6 +86,16 @@ const chunked = (path, text, headers = {}) => fetch(base + path, { method: 'POST
   .then(r => r.status, e => `error ${e.cause?.code ?? e.message}`)
 assert.equal(await chunked('/api/auth/login', JSON.stringify({ email: 'a@b.c', password: 'x'.repeat(4_100_000) })), 413)
 assert.equal(await chunked('/api/auth/login', JSON.stringify({ email: `nobody-${run}@probe.test`, password: 'x'.repeat(1000) })), 401)
+// The multipart media type is case-insensitive: a 4.1 MB five-file upload is the same request whatever its Content-Type's case.
+{
+  const bnd = 'ci-probe'
+  const part = i => Buffer.concat([Buffer.from(`--${bnd}\r\nContent-Disposition: form-data; name="files"; filename="ci-${run}-${i}.md"\r\nContent-Type: text/markdown\r\n\r\n# Case ${i}\n\n${String.fromCharCode(97 + i).repeat(820_000)}\r\n`)])
+  const raw = Buffer.concat([...[0, 1, 2, 3, 4].map(part), Buffer.from(`--${bnd}--\r\n`)])
+  for (const ct of ['multipart/form-data', 'Multipart/Form-Data', ' MULTIPART/form-data']) {
+    const res = await ada('/api/documents', { method: 'POST', raw, headers: { 'content-type': `${ct}; boundary=${bnd}` } })
+    assert.equal(res.status, 200, `${ct}: ${res.status}`)
+  }
+}
 ok('size caps: 413 over 4 MB (also chunked); long question / statement / email 400')
 
 // Log-in and sign-up throttles. Fake client IPs (X-Forwarded-For, as the proxy sets it) keep this probe's misses away from the

@@ -3,6 +3,6 @@
 const MAX_JSON = 4_000_000
 
 export default defineEventHandler(async (event) => {
-  if (!event.path.startsWith('/api/') || getRequestHeader(event, 'content-type')?.startsWith('multipart/')) return
+  if (!event.path.startsWith('/api/') || /^\s*multipart\//i.test(getRequestHeader(event, 'content-type') ?? '')) return
   await readLimitedBody(event, MAX_JSON)
 })
