@@ -53,7 +53,7 @@ Rows marked "in progress" are not in the app yet.
 
 - **Human gate:** the model only proposes candidates. Nothing becomes canon without an explicit human decision.
 - **Verbatim citations:** every canon fact has at least one evidence row whose quote appears word for word in a passage of an imported document. Hallucinated quotes are blocked.
-- **Sources stay read-only:** imported documents are never modified; a changed file becomes a new version and flags stale citations.
+- **Sources stay read-only:** imported documents (`.md`, `.txt`, or Word `.docx`, converted to text on upload with the original file kept) are never modified; a changed file becomes a new version and flags stale citations.
 - **No evidence, no answer:** the answer is `unknown`. Change proposals, conflict candidates and possible review impact are three separate things; impact stays inside accepted canon, at most 2 hops, with path, evidence and rationale.
 
 ## Samples
@@ -90,7 +90,7 @@ node scripts/research-probe.mjs http://localhost:3000
 node scripts/calculators-check.ts
 ```
 
-Others (`ashbell-probe`, `authoring-probe`, `library-probe`, `share-probe`, ...) are in `scripts/`; the first lines of each file say how to run it. The UI itself is checked in a browser, and the gates are `pnpm exec nuxi typecheck` and `pnpm build`.
+Others (`ashbell-probe`, `authoring-probe`, `docx-probe`, `library-probe`, `share-probe`, ...) are in `scripts/`; the first lines of each file say how to run it. The UI itself is checked in a browser, and the gates are `pnpm exec nuxi typecheck` and `pnpm build`.
 
 ## More
 

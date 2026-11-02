@@ -100,9 +100,13 @@ const WORD_AFTER = /^[\p{L}\p{N}\p{M}_]/u
  * `edges`: a hit must start (start) / end (end) at a word boundary in `text`, so a retried quote cannot land inside a word.
  */
 export function quoteMatches(text: string, quote: string, t: Folded = folded(text), edges?: { start?: boolean, end?: boolean }): string[] {
+  return [...quoteHits(text, quote, t, edges)]
+}
+
+/** quoteMatches one hit at a time, for a caller that stops at the first it can use (repetitive text has a hit per word). */
+export function* quoteHits(text: string, quote: string, t: Folded = folded(text), edges?: { start?: boolean, end?: boolean }): Generator<string> {
   const q = foldQuoteText(quote).str
-  if (!q) return []
-  const out: string[] = []
+  if (!q) return
   for (let i = t.str.indexOf(q); i !== -1; i = t.str.indexOf(q, i + 1)) {
     const s0 = t.start[i]!
     const e0 = t.end[i + q.length - 1]!
@@ -115,7 +119,6 @@ export function quoteMatches(text: string, quote: string, t: Folded = folded(tex
     if (!at) continue
     if (edges?.start && WORD_BEFORE.test(text.slice(Math.max(0, at[0] - 2), at[0]))) continue
     if (edges?.end && WORD_AFTER.test(text.slice(at[1], at[1] + 2))) continue
-    out.push(text.slice(at[0], at[1]))
+    yield text.slice(at[0], at[1])
   }
-  return out
 }

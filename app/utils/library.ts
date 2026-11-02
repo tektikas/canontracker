@@ -27,7 +27,8 @@ export const AUDIO_UPLOAD = /\.(wav|mp3|m4a|ogg|oga|opus|webm|flac|aac)$/i
 export const AUDIO_MAX_BYTES = 64 * 1024 * 1024
 export function uploadProblem(f: File) {
   if (AUDIO_UPLOAD.test(f.name)) return f.size > AUDIO_MAX_BYTES ? `Too big: ${(f.size / 1e6).toFixed(1)} MB, recordings can be up to 64 MB.` : f.size ? null : 'Empty file.'
-  if (!/\.(md|markdown|txt)$/i.test(f.name)) return 'Not a text or audio file: use .md, .txt, or MP3, WAV, M4A, OGG, WebM or FLAC audio.'
+  const bad = uploadNameProblem(f.name, 'Not a text, Word or audio file: use .md, .txt, .docx, or MP3, WAV, M4A, OGG, WebM or FLAC audio.')
+  if (bad) return bad
   if (f.size > UPLOAD_MAX_BYTES) return `Too big: ${(f.size / 1e6).toFixed(1)} MB, the limit is 1 MB per file.`
   if (!f.size) return 'Empty file.'
   return null

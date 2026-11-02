@@ -394,6 +394,7 @@ export function resetData() {
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })
+  rmSync(join(ORIGINALS_DIR, pid()), { recursive: true, force: true })
   rmSync(recordingDir(), { recursive: true, force: true })
 }
 
@@ -481,8 +482,7 @@ export function findQuotePassage<T extends { text: string, id?: string }>(passag
   const tries = [...starts.map(s => ({ ...s, end: false })), ...starts.filter(s => s.q.endsWith('.') && !s.q.endsWith('..')).map(s => ({ q: s.q.slice(0, -1), start: s.start, end: true }))]
   for (const attempt of tries) {
     for (const passage of [...passages.filter(p => prefer && p.id === prefer), ...passages]) {
-      const hit = quoteMatches(passage.text, attempt.q, undefined, attempt).find(raw => isVerbatimQuote(passage.text, raw))
-      if (hit) return { passage, quote: hit }
+      for (const hit of quoteHits(passage.text, attempt.q, undefined, attempt)) if (isVerbatimQuote(passage.text, hit)) return { passage, quote: hit }
     }
   }
 }

@@ -6,9 +6,9 @@
 // v1 plus exactly the three designed edits. Exits non-zero on the first failing group.
 import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
-import { foldQuoteText, quoteMatches } from '../server/utils/quote.ts'
+import { foldQuoteText, quoteHits, quoteMatches } from '../server/utils/quote.ts'
 
-Object.assign(globalThis, { foldQuoteText, quoteMatches }) // db.ts reaches them as Nitro auto-imports
+Object.assign(globalThis, { foldQuoteText, quoteHits, quoteMatches }) // db.ts reaches them as Nitro auto-imports
 const { findQuotePassage } = await import('../server/utils/db.ts')
 const { splitPassages } = await import('../server/utils/importer.ts')
 const { parseStoryRange } = await import('../shared/utils/story-time.ts')
