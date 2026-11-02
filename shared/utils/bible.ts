@@ -49,9 +49,23 @@ export interface Bible {
   scope: { kind: BibleScope, label: string }, sections: BibleSection[], images: boolean
   counts: { facts: number, entities: number, documents: number, sample: number, stale: number }
   entities: BibleEntity[], facts: BibleFact[], other_facts: string[]
+  // Book exports only: applied cover image of the first document that has one.
+  cover?: string | null
   rules: string[], timeline: string[]
   conflicts: { rule: string, model: boolean, rationale: string, facts: string[] }[]
   sources: { document: string, file: string, folder: string | null, kind: string, version: number, latest_version: number, sha256: string, citations: { fact: string, line_from: number | null, line_to: number | null, quote: string }[] }[]
+}
+
+// "Scene S01 (Harbor / S01.md), v1, line 3"
+export const citeLine = (c: BibleCitation) => [`${c.document} (${[c.folder, c.file].filter(Boolean).join(' / ')})`, `v${c.version}`, lineLabel(c),
+  c.prior_source ? 'prior source, wording changed' : '', c.latest_version > c.version ? `stale: source now v${c.latest_version}` : ''].filter(Boolean).join(', ')
+
+// The manuscript: the project's source documents, latest versions only, in reading order (folder, then title with numbers in order).
+export type BibleBook = 'bible' | 'manuscript'
+export interface Manuscript {
+  title: string, studio: string, generated_at: string, scope: { kind: BibleScope, label: string }, cover: string | null
+  counts: { documents: number, words: number }
+  chapters: { key: string, title: string, folder: string | null, kind: string, version: number, text: string }[]
 }
 
 export const lineLabel = (c: { line_from: number | null, line_to: number | null }) =>
