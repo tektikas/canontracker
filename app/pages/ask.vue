@@ -23,20 +23,37 @@ const examples = computed(() => {
   return [who && `Where is ${who.name}?`, where && `Who has been to ${placePhrase(where.name)}?`, top && `What do we know about ${top.name}?`].filter((q): q is string => !!q)
 })
 
+// Independent questions shown as a chat: /api/qa has no conversation memory, so each turn is answered on its own.
+type Turn = { id: number, q: string, result?: Record<string, any>, error?: string }
+const turns = ref<Turn[]>([])
+let seq = 0
+
 async function ask(q = question.value) {
-  question.value = q
-  if (!q.trim()) return
+  q = q.trim()
+  if (!q || busy.value) return
+  question.value = ''
   busy.value = true
-  error.value = ''
+  const turn = reactive<Turn>({ id: ++seq, q })
+  turns.value.push(turn)
+  scrollEnd()
   try {
-    result.value = await $fetch('/api/qa', { method: 'POST', body: { question: q } })
-    asked.value = q
+    turn.result = await $fetch('/api/qa', { method: 'POST', body: { question: q } })
     refreshNuxtData('stats')
   } catch (e) {
-    error.value = errorMessage(e)
+    turn.error = errorMessage(e)
   } finally {
     busy.value = false
+    scrollEnd()
   }
+}
+function scrollEnd() {
+  nextTick(() => window.scrollTo({ top: document.documentElement.scrollHeight }))
+}
+// Enter and Ctrl/Cmd+Enter send; Shift+Enter (and IME composition) leave the newline alone.
+function onKey(e: KeyboardEvent) {
+  if (e.key !== 'Enter' || e.shiftKey || e.isComposing) return
+  e.preventDefault()
+  ask()
 }
 
 const STATUS = {
@@ -44,65 +61,70 @@ const STATUS = {
   source_only: { tone: 'warn', label: 'Related canon only', text: 'The model is offline, so no answer was written. These accepted facts look related; read them yourself.' },
   unknown: { tone: 'neutral', label: 'Unknown', text: 'No accepted canon fact answers this. Nothing was guessed.' },
 } as const
-const status = computed(() => result.value ? STATUS[result.value.status as keyof typeof STATUS] : null)
+const statusOf = (t: Turn) => STATUS[t.result?.status as keyof typeof STATUS]
 </script>
 
 <template>
-  <UiPageHeader title="Ask the canon" description="Answers come only from accepted canon and cite their sources. If the canon doesn't support an answer, the result is “unknown”." />
+  <UiPageHeader title="Ask the canon" description="Answers come only from accepted canon and cite their sources. If the canon doesn't support an answer, the result is “unknown”. Each question is answered on its own; earlier ones aren't remembered." />
 
-  <UiPanel v-if="stats && !stats.canon && !result">
+  <UiPanel v-if="stats && !stats.canon && !turns.length">
     <UiEmptyState title="Nothing to ask yet" icon="ask">
       Answers come only from accepted canon, and this project has none yet. Once facts are accepted, ask about who, where and when.
       <template #actions><UiButton variant="primary" :icon="fill.icon" :to="fill.to">{{ fill.label }}</UiButton></template>
     </UiEmptyState>
   </UiPanel>
-  <UiPanel v-else>
-    <form class="ask-form" @submit.prevent="ask()">
-      <UiField label="Question">
-        <div class="ask-input">
-          <input v-model="question" type="text" placeholder="Ask about characters, places, rules, timing…">
-          <UiButton type="submit" variant="primary" :disabled="busy || !question.trim()" :loading="busy">{{ busy ? 'Searching…' : 'Ask' }}</UiButton>
+  <template v-else>
+    <div class="chat" role="log" aria-live="polite" aria-label="Conversation">
+      <div v-if="!turns.length" class="starter">
+        <p class="muted">Ask about characters, places, rules or timing. Try one of these:</p>
+        <div v-if="examples.length" class="examples">
+          <button v-for="ex in examples" :key="ex" type="button" class="example" @click="ask(ex)">{{ ex }}</button>
         </div>
-      </UiField>
-      <div v-if="examples.length" class="examples">
-        <span class="faint small">Try</span>
-        <button v-for="ex in examples" :key="ex" type="button" class="example" @click="ask(ex)">{{ ex }}</button>
       </div>
-    </form>
-  </UiPanel>
-
-  <p v-if="error" class="notice bad" role="alert" style="margin-top: var(--s-4)">{{ error }}</p>
-
-  <section v-if="result && status" class="result" aria-live="polite">
-    <p class="asked"><span class="faint">You asked</span> {{ asked }}</p>
-    <div class="verdict" :class="status.tone" :data-status="result.status">
-      <div class="verdict-head">
-        <UiBadge :tone="status.tone" dot>{{ status.label }}</UiBadge>
-        <span class="small muted">{{ result.model.label }} · <span class="mono">{{ result.trace_id }}</span></span>
-      </div>
-      <p v-if="result.answer" class="statement answer">{{ result.answer }}</p>
-      <p v-if="result.model_error" class="notice bad" role="alert">{{ result.model_error }} The related facts below were found by keyword match, not by the model.</p>
-      <p v-else-if="!result.answer" class="verdict-text">{{ status.text }}</p>
+      <template v-for="t in turns" :key="t.id">
+        <p class="bubble me">{{ t.q }}</p>
+        <div class="reply">
+          <p v-if="!t.result && !t.error" class="bubble them faint" role="status">Searching the canon…</p>
+          <p v-else-if="t.error" class="notice bad" role="alert">{{ t.error }}</p>
+          <template v-else-if="t.result">
+            <div class="verdict" :class="statusOf(t).tone" :data-status="t.result.status">
+              <div class="verdict-head">
+                <UiBadge :tone="statusOf(t).tone" dot>{{ statusOf(t).label }}</UiBadge>
+                <span class="small muted">{{ t.result.model.label }} · <span class="mono">{{ t.result.trace_id }}</span></span>
+              </div>
+              <p v-if="t.result.answer" class="statement answer">{{ t.result.answer }}</p>
+              <p v-if="t.result.model_error" class="notice bad" role="alert">{{ t.result.model_error }} The related facts below were found by keyword match, not by the model.</p>
+              <p v-else-if="!t.result.answer" class="verdict-text">{{ statusOf(t).text }}</p>
+            </div>
+            <template v-if="t.result.cited.length">
+              <h2 class="cited-title">{{ t.result.status === 'supported' ? 'Sources' : 'Related accepted facts' }} <span class="faint">{{ t.result.cited.length }}</span></h2>
+              <UiPanel v-for="f in t.result.cited" :key="f.id" sunk>
+                <FactSummary :fact="f" sources />
+              </UiPanel>
+            </template>
+          </template>
+        </div>
+      </template>
     </div>
 
-    <template v-if="result.cited.length">
-      <h2 class="cited-title">{{ result.status === 'supported' ? 'Sources' : 'Related accepted facts' }} <span class="faint">{{ result.cited.length }}</span></h2>
-      <UiPanel v-for="f in result.cited" :key="f.id" sunk>
-        <FactSummary :fact="f" sources />
-      </UiPanel>
-    </template>
-  </section>
+    <form class="composer" @submit.prevent="ask()">
+      <textarea v-model="question" rows="1" aria-label="Question" placeholder="Ask the canon…" @keydown="onKey" />
+      <UiButton type="submit" variant="primary" :disabled="busy || !question.trim()" :loading="busy">{{ busy ? 'Searching…' : 'Ask' }}</UiButton>
+    </form>
+  </template>
 </template>
 
 <style scoped>
-.ask-form { display: grid; gap: var(--s-3); }
-.ask-input { display: flex; gap: var(--s-2); }
-.ask-input input { flex: 1; min-width: 0; }
+.chat { display: grid; gap: var(--s-4); min-height: calc(100dvh - 20rem - var(--bottom-nav-h, 0px)); align-content: start; padding-bottom: var(--s-4); }
+.starter { display: grid; gap: var(--s-3); padding: var(--s-5) 0; }
+.starter p { margin: 0; }
 .examples { display: flex; flex-wrap: wrap; gap: var(--s-2); align-items: center; }
 .example { font: inherit; font-size: var(--text-sm); color: var(--muted); background: var(--sunken); border: 1px solid var(--line); border-radius: var(--r-md); padding: 6px 10px; min-height: 34px; cursor: pointer; text-align: left; transition: color var(--dur-1) var(--ease); }
 .example:hover { color: var(--ink); border-color: var(--line-strong); }
-.result { display: grid; gap: var(--s-4); margin-top: var(--s-5); }
-.asked { margin: 0; font-weight: 500; overflow-wrap: anywhere; }
+.bubble { margin: 0; overflow-wrap: anywhere; white-space: pre-wrap; padding: var(--s-2) var(--s-4); border-radius: var(--r-lg); }
+.bubble.me { justify-self: end; max-width: min(80%, 60ch); background: var(--accent-soft, var(--sunken)); border: 1px solid var(--line-strong); font-weight: 500; }
+.bubble.them { justify-self: start; }
+.reply { display: grid; gap: var(--s-3); max-width: 80ch; }
 .verdict { border: 1px solid var(--line); border-left-width: 4px; border-radius: var(--r-lg); background: var(--raised); padding: var(--s-4); display: grid; gap: var(--s-3); }
 .verdict.good { border-left-color: var(--good); }
 .verdict.warn { border-left-color: var(--warn); background: var(--warn-soft); }
@@ -112,6 +134,6 @@ const status = computed(() => result.value ? STATUS[result.value.status as keyof
 .answer { margin: 0; }
 .cited-title { margin: var(--s-2) 0 0; font-size: var(--text-md); }
 .cited-title .faint { font-weight: 400; font-size: var(--text-sm); }
-@media (max-width: 520px) { .ask-input { flex-direction: column; } }
-@media (max-width: 720px) { .example { min-height: 44px; } }
+.composer { position: sticky; bottom: var(--bottom-nav-h, 0px); z-index: 5; display: flex; gap: var(--s-2); align-items: flex-end; padding: var(--s-3) 0; background: var(--bg); border-top: 1px solid var(--line); }
+.composer textarea { flex: 1; min-height: 0; padding-block: 9px; min-width: 0; resize: none; field-sizing: content; max-height: 8lh; font: inherit; }
 </style>
