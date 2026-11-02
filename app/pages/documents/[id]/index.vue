@@ -152,7 +152,6 @@ async function removeCover() {
   }
 }
 // Re-extract: runs extraction again on the latest version. It only ever adds pending candidates.
-const { data: stats } = useNuxtData<{ model: { mode: string } }>('stats')
 const reextracting = ref(false)
 const reextracted = ref<{ tone: 'info' | 'warn' | 'bad', text: string, review?: boolean }>()
 async function reextract() {
@@ -163,11 +162,11 @@ async function reextract() {
     const skipped = Object.entries(r.skipped_by_status).map(([s, n]) => `${n} ${s === 'canon' ? 'in canon' : s}`).join(', ')
     const skipLine = r.skipped ? ` ${counted(r.skipped, 'reading')} already in the project ${r.skipped === 1 ? 'was' : 'were'} skipped (${skipped}).` : ''
     if (r.mode === 'mock' && !r.recorded_covers)
-      reextracted.value = { tone: 'warn', text: 'Recorded demo run: only the sample stories have recorded output, so nothing was proposed for this document. Connect a model key to extract from it, or select words in the text to add a fact.' }
+      reextracted.value = { tone: 'warn', text: 'Nothing was proposed for this document. Connect a model key to extract from it, or select words in the text to add a fact.' }
     else if (r.created)
-      reextracted.value = { tone: 'info', text: `${r.mode === 'mock' ? 'Recorded demo run' : r.model_label}: ${counted(r.created, 'new candidate')} sent to review from v${r.version}${r.unverified ? `, ${r.unverified} with a quote not found in the text` : ''}.${skipLine}`, review: true }
+      reextracted.value = { tone: 'info', text: `${counted(r.created, 'new candidate')} sent to review from v${r.version}${r.unverified ? `, ${r.unverified} with a quote not found in the text` : ''}.${skipLine}`, review: true }
     else
-      reextracted.value = { tone: 'info', text: `${r.mode === 'mock' ? 'Recorded demo run' : r.model_label}: nothing new in v${r.version}.${skipLine || ' The model proposed nothing.'}` }
+      reextracted.value = { tone: 'info', text: `Nothing new in v${r.version}.${skipLine || ' The model proposed nothing.'}` }
     await Promise.all([refresh(), refreshNuxtData('stats')])
   } catch (e) {
     reextracted.value = { tone: 'bad', text: errorMessage(e) }
@@ -175,7 +174,6 @@ async function reextract() {
     reextracting.value = false
   }
 }
-const recordedNoOutput = computed(() => stats.value?.model.mode === 'mock')
 const readerBox = ref<HTMLElement>()
 const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
 </script>
@@ -222,7 +220,7 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
       <template #actions>
         <UiButton icon="history" :to="`/documents/${doc.id}/history`">History<template v-if="doc.versions.length > 1"> · {{ doc.versions.length }}</template></UiButton>
         <template v-if="editor">
-          <UiButton v-if="latest" icon="refresh" :loading="reextracting" :title="recordedNoOutput ? 'Recorded demo run: only the demo files have recorded output' : 'Run extraction again; new candidates go to review'" @click="reextract">Re-extract</UiButton>
+          <UiButton v-if="latest" icon="refresh" :loading="reextracting" :title="'Run extraction again; new candidates go to review'" @click="reextract">Re-extract</UiButton>
           <UiButton v-if="latest" icon="review" :to="`/write?doc=${doc.latest.id}`">Edit</UiButton>
         </template>
       </template>

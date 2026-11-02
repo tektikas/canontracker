@@ -14,7 +14,6 @@ useSeoMeta({
   twitterImageAlt: 'Story Bible — Know what’s canon. See what a change touches.',
 })
 const me = useMe()
-const recorded = computed(() => me.value?.model.mode !== 'meta')
 
 const STEPS = [
   { title: 'Import', art: 'import', alt: 'Manuscript pages gathered with a paper clip.', text: 'Bring lore docs and scene scripts as Markdown or text. Sources are hashed, versioned and never edited.' },
@@ -127,7 +126,7 @@ const TEAM = [
       </section>
 
       <section class="band">
-        <div class="panel sunk model-note" :class="{ live: !recorded }">
+        <div class="panel sunk model-note">
           <span class="status-dot" aria-hidden="true" />
           <div>
             <h3>AI built into the workflow</h3>
@@ -136,8 +135,6 @@ const TEAM = [
               It also suggests world-rule violations, answers questions in Ask from accepted canon only, and generates entity portraits with Muse Image.
               Your own AI agents can read canon and propose facts through MCP. The model only proposes: nothing becomes canon without a person.
             </p>
-            <p v-if="!recorded">This instance calls {{ me?.model.label }} live. Every call is logged with the sources it was given.</p>
-            <p v-else class="small muted">Demo mode: extraction replays a recorded run for the sample stories, labeled as recorded. Connect a model key to extract from your own files.</p>
           </div>
         </div>
       </section>

@@ -199,7 +199,7 @@ const chipIcon = (c: ChatChip) => (c.type === 'entity' ? 'entities' : c.type ===
                   <FactSummary :fact="f" sources />
                 </div>
               </details>
-              <span class="small faint model">{{ p.model }} · <span class="mono">{{ p.trace_id }}</span></span>
+              <span class="small faint model">AI ·<span class="mono">{{ p.trace_id }}</span></span>
             </div>
 
             <div v-else-if="p.type === 'research'" class="from research">

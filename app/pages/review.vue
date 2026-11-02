@@ -277,12 +277,11 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
           <UiBadge v-if="current.confidence != null" :tone="lowConfidence(current) ? 'warn' : 'neutral'" :title="lowConfidence(current) ? 'Low model confidence: read the source closely' : 'Model confidence'">
             {{ percent(current.confidence) }} confidence
           </UiBadge>
-          <UiBadge v-if="isRecordedModel(current.model_id)" tone="warn" title="Replayed from a recorded extraction, not a live model call">Recorded demo run</UiBadge>
         </div>
       </header>
       <p v-if="current.origin === 'human'" class="small faint model">Added by {{ current.created_by_name ?? 'a teammate' }} from the source, not proposed by a model</p>
       <p v-else-if="current.agent_name" class="small faint model">Proposed by agent <strong>{{ current.agent_name }}</strong> for {{ current.proposed_by_name }}</p>
-      <p v-else class="small faint model">Proposed by {{ modelLabel(current.model_id) }}</p>
+      <p v-else class="small faint model">Proposed by AI</p>
 
       <FactSummary v-if="mode !== 'edit'" :fact="current" />
 

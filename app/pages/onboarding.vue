@@ -127,9 +127,6 @@ const tryAshbell = () => run('ashbell', async () => {
         Want a bigger story? <button type="button" class="linkish" :disabled="!!busy" @click="tryAshbell">{{ busy === 'ashbell' ? 'Loading The Ashbell Pass…' : 'Load The Ashbell Pass' }}</button>,
         a mountain-town game story with NPC schedules, quests and items, in its own project.
       </p>
-      <p v-if="me?.model.mode !== 'meta'" class="notice warn">
-        <span><b>Demo mode.</b> Extraction replays a recorded run for the sample stories. Connect a model key to extract from your own files.</span>
-      </p>
       <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
       <p class="small muted center"><NuxtLink to="/">Skip for now</NuxtLink> · you can load the demo, import files or write a document any time from Home.</p>
     </div>

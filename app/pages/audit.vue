@@ -131,7 +131,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'document.reextracted': return [`${who} re-extracted ${d.title ?? d.filename} v${d.version}`, [
       `${d.created} new candidate${d.created === 1 ? '' : 's'} sent to review`,
       Object.values(d.skipped ?? {}).length ? `${Object.values(d.skipped as Record<string, number>).reduce((a, b) => a + b, 0)} already in the project, skipped` : '',
-      isRecordedModel(d.model_id) ? 'Recorded demo run' : modelLabel(d.model_id),
+      'AI',
       'canon unchanged',
     ].filter(Boolean).join(' · ')]
     case 'job.failed': return [`${d.step === 're-extraction' ? 'Re-extraction' : 'Extraction'} failed for ${d.filename ?? 'a document'}`, clip(d.error, 140)]

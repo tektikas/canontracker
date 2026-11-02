@@ -9,12 +9,10 @@ const { data: docs, refresh: refreshDocs } = await useFetch('/api/documents')
 const { data: conflicts, refresh: refreshConflicts } = await useFetch('/api/conflicts')
 const { data: evals, refresh: refreshEvals } = await useFetch('/api/eval')
 const { data: drafts } = await useFetch('/api/drafts', { default: () => [] })
-const recordedMode = computed(() => stats.value?.model.mode === 'mock')
 // The first source (the list holds latest versions only): where adding facts by hand starts.
 const firstSource = computed(() => docs.value?.[0])
 // The guided tour only fits the Broken Tide demo.
 const demoLoaded = computed(() => !!docs.value?.some(d => d.filename === 'lore-chord-stone.md'))
-const liveHelp = ref(false)
 // No scan record in the API: a scan in this session (set on /conflicts) counts until new sources arrive.
 const scanned = useState('conflicts-scanned', () => false)
 const busy = ref<'' | 'demo'>('')
@@ -93,9 +91,7 @@ const next = computed(() => {
       ? { title: 'Nothing is canon yet', text: 'Every candidate was rejected. Check the rejected list, or add a fact from a selection in a source.', to: '/review', action: 'Open review' }
       : !editor.value
         ? { title: 'Nothing is canon yet', text: 'No facts have been added from these sources yet. An editor on your team adds them; you’ll see them here as soon as they do.', to: '/library', action: 'Open the library' }
-        : recordedMode.value
-          ? { title: 'Build your canon', text: 'Demo mode: extraction replays a recorded run for the sample stories only. Connect a model key to propose facts from your own files, or select words in a source to add a fact.', manual: true }
-          : { title: 'Build your canon', text: 'The model found no facts it could quote from your sources. Open a source and select the words that say something to add a fact, or re-extract after adding more.', manual: true }
+        : { title: 'Build your canon', text: 'No candidates for this project yet. Open a source and select the words that say something to add a fact, or re-extract after adding more.', manual: true }
     // only reachable with open conflicts: zero open is `done` or `skip`
     case 'conflicts': return editor.value
       ? { title: `Decide on ${s?.open_conflicts} possible ${plural(s?.open_conflicts ?? 0, 'conflict')}`, text: `${s?.open_hard} hard (breaks canon) and ${s?.open_soft} soft (worth a look). Start with the hard ones. Deciding never edits canon.`, to: '/conflicts', action: 'Resolve conflicts' }
@@ -123,10 +119,6 @@ const next = computed(() => {
       Your team’s lore and scenes show up here. Canon holds only facts a person accepted, each tied to its exact passage.
     </template>
   </UiPageHeader>
-
-  <p v-if="['recorded', 'mixed'].includes(provenance(stats?.data_model_id).kind)" class="notice warn home-notice">
-    <span><b>Recorded run.</b> These candidates and model checks are replayed from a recorded extraction, not a live model call.</span>
-  </p>
 
   <GettingStarted v-if="editor" :demo="demoLoaded" />
 
@@ -160,14 +152,9 @@ const next = computed(() => {
         </template>
         <template v-else-if="'manual' in next">
           <UiButton v-if="firstSource" variant="primary" icon="canon" :to="`/documents/${firstSource.id}`">Add a fact from a selection</UiButton>
-          <UiButton v-if="recordedMode" :aria-expanded="liveHelp" @click="liveHelp = !liveHelp">Connect a model</UiButton>
         </template>
         <UiButton v-else variant="primary" :to="next.to">{{ next.action }}<UiIcon name="arrow" :size="16" /></UiButton>
       </div>
-      <p v-if="liveHelp && 'manual' in next" class="live-help small">
-        Muse Spark (Meta Model API) reads your own files and proposes facts, each with a quote, for you to review.
-        It is turned on where Story Bible is hosted, with a Meta Model API key. Once it’s on, import a file or save a document again and its candidates show up in Review.
-      </p>
     </div>
   </section>
 
@@ -190,10 +177,7 @@ const next = computed(() => {
                   <UiBadge v-else-if="r.status === 'duplicate'" tone="warn">Already imported</UiBadge>
                   <UiBadge v-else tone="bad">{{ r.error }}</UiBadge>
                   <div v-if="r.extraction_error" class="field-error">Extraction failed: {{ r.extraction_error }}</div>
-                  <div v-else-if="r.status === 'imported' && r.candidates === 0" class="small muted">{{ stats?.model.mode === 'mock'
-                    ? 'No candidates: demo mode only replays a recorded run for the sample stories. Open the file and select words to add a fact, or connect a model key.'
-                    : stats?.model.mode === 'meta' ? 'No candidates: the model found no facts it could quote from this file. Open it and select words to add a fact.'
-                      : 'No candidates were proposed from this file. Open it and select words to add a fact.' }}</div>
+                  <div v-else-if="r.status === 'imported' && r.candidates === 0" class="small muted">No candidates for this file yet. Open it and select words to add a fact.</div>
                 </td>
                 <td class="num">{{ r.passages ?? '—' }}</td>
                 <td class="num">
@@ -308,7 +292,6 @@ const next = computed(() => {
 .source-option h3 { margin: 0; font-size: var(--text-base); }
 .source-option p { margin: 0; font-size: var(--text-sm); color: var(--muted); }
 .notice + .home-grid, .workflow + .notice { margin-top: var(--s-4); }
-.live-help { flex: 1 1 100%; margin: 0; padding: var(--s-3); border: 1px dashed var(--line-strong); border-radius: var(--r-md); color: var(--muted); max-width: 72ch; }
 .drafts { list-style: none; margin: 0; padding: 0; }
 .drafts li { display: flex; flex-wrap: wrap; gap: 2px var(--s-3); align-items: baseline; justify-content: space-between; padding: 10px var(--s-5); border-top: 1px solid var(--line); }
 .drafts li:first-child { border-top: 0; }

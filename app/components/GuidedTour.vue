@@ -8,16 +8,12 @@ const route = useRoute()
 
 interface Ids { sister?: string, made?: string, rule?: string, verified: number }
 const ids = ref<Ids>({ verified: 0 })
-// What the stored candidates and checks came from (their model ids), so the intro only claims a recorded run when it is one.
-const prov = ref<ReturnType<typeof provenance>['kind']>('none')
 async function loadIds() {
   try {
-    const [pending, canon, stats] = await Promise.all([
+    const [pending, canon] = await Promise.all([
       $fetch('/api/facts', { query: { status: 'pending' } }),
       $fetch('/api/facts', { query: { status: 'canon' } }),
-      $fetch('/api/stats'),
     ])
-    prov.value = provenance(stats.data_model_id).kind
     const verified = (f: (typeof pending)[number]) => f.evidence.some((e: { verified: number | boolean }) => e.verified)
     ids.value = {
       sister: pending.find(f => /\bsisters\b/i.test(f.statement))?.id,
@@ -37,12 +33,7 @@ const cand = (id: string) => `[data-tour="candidate"][data-fact="${id}"]`
 const STEPS = computed<Step[]>(() => [
   {
     title: 'Broken Tide in five steps',
-    intro: `A short tour of the demo story, about two minutes. ${{
-      recorded: 'Its candidates and model checks replay a recorded run, labeled “Recorded demo run” wherever they show. ',
-      live: 'Its candidates and model checks come from a live model, labeled with the model wherever they show. ',
-      mixed: 'Some candidates replay a recorded run and some come from a live model; each is labeled where it shows. ',
-      none: '',
-    }[prov.value]}You make every decision yourself; the tour points and moves on when you act.`,
+    intro: `A short tour of the demo story, about two minutes. You make every decision yourself; the tour points and moves on when you act.`,
   },
   {
     title: 'The model proposes. You decide.',

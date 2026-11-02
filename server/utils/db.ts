@@ -429,9 +429,17 @@ export function findQuotePassage<T extends { text: string, id?: string }>(passag
   const q = quote?.trim()
   // The minimum counts the submitted words (folded, recomposed to NFC so é / 한 count once), so Markdown marks taken in around a short quote cannot pad it.
   if (!q || foldQuoteText(q).str.normalize('NFC').replace(/\s/g, '').length < MIN_QUOTE_CHARS) return undefined
-  for (const passage of [...passages.filter(p => prefer && p.id === prefer), ...passages]) {
-    const hit = quoteMatches(passage.text, q).find(raw => isVerbatimQuote(passage.text, raw))
-    if (hit) return { passage, quote: hit }
+  // A model quoting part of a sentence tends to capitalise its first letter ("His judgement…" for "…his judgement…") and end it
+  // with a full stop ("…does not let go." for "…does not let go, and…"). Only those two may differ, and only when the quote as
+  // given is nowhere; the hit is still the source's own characters. A changed edge must sit on a word boundary in the source,
+  // so "Pass near the edge." never cites "pass near the edge" inside "compass near the edge".
+  const starts = [{ q, start: false }, ...(/^\p{Lu}/u.test(q) ? [{ q: q.charAt(0).toLowerCase() + q.slice(1), start: true }] : [])]
+  const tries = [...starts.map(s => ({ ...s, end: false })), ...starts.filter(s => s.q.endsWith('.') && !s.q.endsWith('..')).map(s => ({ q: s.q.slice(0, -1), start: s.start, end: true }))]
+  for (const attempt of tries) {
+    for (const passage of [...passages.filter(p => prefer && p.id === prefer), ...passages]) {
+      const hit = quoteMatches(passage.text, attempt.q, undefined, attempt).find(raw => isVerbatimQuote(passage.text, raw))
+      if (hit) return { passage, quote: hit }
+    }
   }
 }
 

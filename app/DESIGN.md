@@ -4,7 +4,7 @@ Comics and animation teams draw in pencil and commit in ink. Story Bible works t
 
 - **Pencil** (graphite, dashed outlines): proposed, not yet canon. Pending candidates, future workflow steps.
 - **Ink** (Prussian blue `--accent`, solid fill): canon, primary actions, the current location.
-- **Vermilion** (`--bad`): conflicts and unverified quotes. **Ochre** (`--warn`): caution, approximate times, recorded run. **Moss** (`--good`): verified evidence. **Plum** (`--research`): research answers from outside sources, never canon.
+- **Vermilion** (`--bad`): conflicts and unverified quotes. **Ochre** (`--warn`): caution, approximate times. **Moss** (`--good`): verified evidence. **Plum** (`--research`): research answers from outside sources, never canon.
 - **Serif is the story's voice.** Literata appears only for words from the story: statements, quotes, passages. Everything that belongs to the tool (labels, buttons, headings, tables) is Instrument Sans. Never set UI in the serif.
 - Calm by default: flat bordered panels, no gradients, no decorative shadows, no entrance animations. One bold element per page at most (on Home it is the workflow rail).
 
@@ -59,7 +59,7 @@ The components render the same global classes old pages use, so both stay consis
 
 ## Layout
 
-- **Shell** (`app/app.vue`): sidebar 240px on desktop with nav grouped as Home / Workflow (Review, Canon, Conflicts, Changes) / Tools (Ask, Metrics, Audit). Live counts: pending review (ink), open conflicts (vermilion), canon and changes (quiet). Model status sits at the bottom: "Recorded run" with a hollow ochre dot in mock mode, "Live model" with a filled dot otherwise. Recorded output must always be labeled as recorded.
+- **Shell** (`app/app.vue`): sidebar 240px on desktop with nav grouped as Home / Workflow (Review, Canon, Conflicts, Changes) / Tools (Ask, Metrics, Audit). Live counts: pending review (ink), open conflicts (vermilion), canon and changes (quiet). The shell shows no model status; the UI says "AI", provenance lives in the Metrics trace.
 - **Mobile (≤ 900px)**: a 52px top bar with menu, brand and the model badge; the sidebar becomes a drawer that closes on navigation, scrim tap or Esc.
 - **Phones (≤ 720px)**: a bottom nav with Home, Review, Canon, Entities and More (opens the drawer). Review carries the pending count; More shows a vermilion dot for open conflicts. It respects the safe-area inset; anything fixed or sticky at the bottom sits at `bottom: var(--bottom-nav-h)`. Focus mode and modal dialogs cover it.
 - **Empty pages**: `UiEmptyState` with one sentence of why and one primary action. When the fix is "add or review something", use `useFillAction()` so every page sends people to the same next step.
