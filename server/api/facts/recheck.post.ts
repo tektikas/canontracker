@@ -1,7 +1,8 @@
 // A person re-checks canon citations that point at an older version of their source (server/utils/recheck.ts). The client
 // sends what it showed; each is re-classified now, so only what is still true is done and the rest is named as skipped.
 //   confirm (fact_ids):  citations whose quote reads the same, exactly once, in the latest version now cite that version's
-//                        passage. One citation.confirmed per fact.
+//                        passage, holding the quote as that version writes it
+//                        (new_quote in the audit when its typography changed). One citation.confirmed per fact.
 //   keep (evidence_ids): each named outdated citation stays on its old version, marked as checked against the latest one.
 //                        Citation by citation: keeping one source of a fact says nothing about its others. One citation.kept
 //                        per citation.
@@ -50,8 +51,8 @@ export default defineEventHandler(async (event) => {
         continue
       }
       audit('citation.confirmed', 'fact', id, { citations: cs.map((c) => {
-        db.prepare('update evidence set document_id = ?, passage_id = ?, checked_version = null where id = ?').run(c.latest_id, c.to!.passage_id, c.evidence_id)
-        return { evidence_id: c.evidence_id, filename: filenameOf(c), quote: c.quote, from: fromOf(c), to: { document_id: c.latest_id, version: c.latest_version, passage_id: c.to!.passage_id, line: c.to!.start_line } }
+        db.prepare('update evidence set document_id = ?, passage_id = ?, quote = ?, checked_version = null where id = ?').run(c.latest_id, c.to!.passage_id, c.to!.quote, c.evidence_id)
+        return { evidence_id: c.evidence_id, filename: filenameOf(c), quote: c.quote, ...(c.to!.quote !== c.quote && { new_quote: c.to!.quote }), from: fromOf(c), to: { document_id: c.latest_id, version: c.latest_version, passage_id: c.to!.passage_id, line: c.to!.start_line } }
       }) })
       done.push(id)
     }

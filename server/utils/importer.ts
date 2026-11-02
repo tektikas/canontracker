@@ -110,24 +110,25 @@ export async function importDocument(filename: string, content: string, written?
   }
 }
 
-// A new version: a PENDING candidate's quote that appears exactly once in it now cites that passage, so nobody re-reviews an
-// unrelated edit. The candidate keeps its origin and proposer; the audit keeps where the quote was. A quote that is gone or
+// A new version: a PENDING candidate's quote that appears exactly once in it (matched like findQuotePassage) now cites that
+// passage, so nobody re-reviews an unrelated edit. The candidate keeps its origin and proposer; the audit keeps where the quote was. A quote that is gone or
 // appears more than once stays on the old version (stale). Canon evidence never moves: a person re-checks it.
 function movePendingEvidence(key: string, documentId: string, version: number, passages: { id: string, text: string, start_line: number }[], doc: { name: string, folder: string | null }) {
   const db = useDb()
   const rows = db.prepare(`select e.id, e.fact_id, e.quote, e.document_id, e.passage_id, d.version, p.start_line from evidence e
     join facts f on f.id = e.fact_id join documents d on d.id = e.document_id left join passages p on p.id = e.passage_id
     where f.project_id = ? and f.status = 'pending' and e.verified = 1 and d.filename = ? and d.version < ?`).all(pid(), key, version) as { id: string, fact_id: string, quote: string, document_id: string, passage_id: string, version: number, start_line: number | null }[]
-  const move = db.prepare('update evidence set document_id = ?, passage_id = ? where id = ?')
+  const move = db.prepare('update evidence set document_id = ?, passage_id = ?, quote = ? where id = ?')
   let moved = 0
   for (const r of rows) {
-    const hit = soleQuotePassage(passages, r.quote)
-    if (!hit) continue
-    move.run(documentId, hit.id, r.id)
+    // Matched like any quote (findQuotePassage's folding, counted as canon re-check counts it); the evidence then holds the new version's exact characters.
+    const { passage: p, quote } = quoteOccurrences(passages, r.quote)
+    if (!p || !quote) continue
+    move.run(documentId, p.id, quote, r.id)
     audit('candidate.evidence_moved', 'fact', r.fact_id, {
-      filename: doc.name, folder: doc.folder, quote: r.quote,
+      filename: doc.name, folder: doc.folder, quote: r.quote, ...(quote !== r.quote && { new_quote: quote }),
       from: { document_id: r.document_id, version: r.version, passage_id: r.passage_id, line: r.start_line },
-      to: { document_id: documentId, version, passage_id: hit.id, line: hit.start_line },
+      to: { document_id: documentId, version, passage_id: p.id, line: p.start_line },
     })
     moved++
   }
@@ -160,8 +161,7 @@ export async function extractInto(doc: { id: string, filename: string, title: st
   const skipped: Record<string, number> = {}
   tx(() => {
     for (const c of drafts) {
-      const tFrom = parseStoryTime(c.time?.from)
-      const tTo = parseStoryTime(c.time?.to)
+      const { from: tFrom, to: tTo, day } = parseStoryRange(c.time?.from, c.time?.to)
       const keys = [`s:${norm(c.statement)}`, `k:${keyOf({ ...c, t_from: tFrom, t_to: tTo, precision: c.time ? (c.time.precision ?? 'exact') : null })}`]
       const already = keys.map(k => seen.get(k)).find(Boolean)
       if (already) {
@@ -176,7 +176,7 @@ export async function extractInto(doc: { id: string, filename: string, title: st
       db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision,
         status, confidence, origin, model_id, created_at, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`)
         .run(factId, c.kind, c.subject, c.predicate, c.object ?? null, c.value == null ? null : String(c.value), c.statement, tFrom, tTo,
-          timeLabel(tFrom, tTo, precision), precision, c.confidence ?? null, `model:${PROMPT_VERSIONS.extract}`, model.id, now(), projectId)
+          timeLabel(tFrom, tTo, precision, day), precision, c.confidence ?? null, `model:${PROMPT_VERSIONS.extract}`, model.id, now(), projectId)
       db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, ?, ?)')
         .run(newId('ev'), factId, doc.id, passage?.id ?? null, match?.quote ?? c.quote ?? '', passage ? 1 : 0, projectId)
       audit('candidate.created', 'fact', factId, { document_id: doc.id, quote_verified: !!passage, model_id: model.id })

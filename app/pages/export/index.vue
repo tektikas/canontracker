@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Export the story bible (Markdown, or PDF through the print view) and manage read-only share links.
+// Export the story bible (Markdown, or PDF through the print view), as a book (PDF, EPUB) or the manuscript, and manage read-only share links.
 // Everyone in the project may export (it holds only canon they can already read); editors and up create and revoke links.
 useHead({ title: 'Export & share · Story Bible' })
 const me = useMe()
@@ -18,6 +18,15 @@ const picked = ref<string[]>(q('entities') ? q('entities').split(',') : [])
 const folder = ref(q('folder'))
 const sections = ref<BibleSection[]>(q('sections') ? SECTION_KEYS.filter(k => q('sections').split(',').includes(k)) : [...DEFAULT_SECTIONS])
 const images = ref(route.query.images !== '0')
+// Layout: the report (default), the bible as a book, or the manuscript (source documents in reading order) as a book.
+const book = ref<'' | BibleBook>(route.query.book === 'bible' || route.query.book === 'manuscript' ? route.query.book : '')
+const manuscript = computed(() => book.value === 'manuscript')
+const FORMATS: { value: '' | BibleBook, label: string, hint: string }[] = [
+  { value: '', label: 'Report', hint: 'Facts with their source quotes, for reading on screen or sharing a link.' },
+  { value: 'bible', label: 'Story bible as a book', hint: 'Cover, contents, a chapter per kind of entity, citations as notes. PDF or EPUB.' },
+  { value: 'manuscript', label: 'Manuscript', hint: 'Your source documents, latest versions, in reading order as one book. PDF or EPUB.' },
+]
+watch(manuscript, (m) => { if (m && scope.value === 'entities') scope.value = 'project' })
 
 const folders = computed(() => {
   const all = lib.value.folders
@@ -27,35 +36,39 @@ const folders = computed(() => {
   }
   return all.map(f => ({ id: f.id, label: name(f) })).sort((a, b) => a.label.localeCompare(b.label))
 })
-const missing = computed(() => (!sections.value.length ? 'Pick at least one section.'
+const missing = computed(() => (!manuscript.value && !sections.value.length ? 'Pick at least one section.'
   : scope.value === 'entities' && !picked.value.length ? 'Pick at least one entity.'
     : scope.value === 'folder' && !folder.value ? (folders.value.length ? 'Pick a folder.' : 'This project has no folders yet. Make one in the Library.') : ''))
 const query = computed(() => ({
   scope: scope.value,
   entities: scope.value === 'entities' ? picked.value.join(',') : undefined,
   folder: scope.value === 'folder' ? folder.value : undefined,
-  sections: SECTION_KEYS.filter(k => sections.value.includes(k)).join(','),
-  images: images.value ? '1' : '0',
+  sections: manuscript.value ? undefined : SECTION_KEYS.filter(k => sections.value.includes(k)).join(','),
+  images: manuscript.value ? undefined : images.value ? '1' : '0',
+  book: book.value || undefined,
 }))
 watch(query, v => router.replace({ query: Object.fromEntries(Object.entries(v).filter(([, x]) => x)) }))
 const qs = computed(() => new URLSearchParams(Object.entries(query.value).filter(([, v]) => v) as [string, string][]).toString())
 
 // Live preview of what the export holds (no audit: only downloads and the print view are logged).
-const preview = ref<Bible | null>(null)
+const preview = ref<Bible | Manuscript | null>(null)
+const previewBible = computed(() => (preview.value && 'entities' in preview.value ? preview.value : null))
+const previewMs = computed(() => (preview.value && 'chapters' in preview.value ? preview.value : null))
 const previewError = ref('')
 let seq = 0
 watch([qs, missing], async () => {
   const n = ++seq
   if (missing.value) return
   try {
-    const b = await $fetch<Bible>(`/api/export/bible?${qs.value}&format=json`)
+    const b = await $fetch<Bible | Manuscript>(`/api/export/bible?${qs.value}&format=json`)
     if (n === seq) { preview.value = b; previewError.value = '' }
   } catch (e) {
     if (n === seq) previewError.value = errorMessage(e)
   }
 }, { immediate: true })
-const hasPortraits = computed(() => images.value && !!preview.value?.entities.some(e => e.portrait))
+const hasPortraits = computed(() => images.value && !!previewBible.value?.entities.some(e => e.portrait))
 const mdHref = computed(() => `/api/export/bible?${qs.value}&format=${hasPortraits.value ? 'zip' : 'md'}`)
+const epubHref = computed(() => `/api/export/bible?${qs.value}&format=epub`)
 const printHref = computed(() => `/export/print?${qs.value}&print=1`)
 
 const entityFilter = ref('')
@@ -66,7 +79,8 @@ const entityList = computed(() => {
 })
 const togglePick = (id: string) => { picked.value = picked.value.includes(id) ? picked.value.filter(x => x !== id) : [...picked.value, id] }
 const toggleSection = (k: BibleSection) => { sections.value = sections.value.includes(k) ? sections.value.filter(x => x !== k) : [...sections.value, k] }
-const SCOPES: { value: BibleScope, label: string }[] = [{ value: 'project', label: 'Whole project' }, { value: 'entities', label: 'Selected entities' }, { value: 'folder', label: 'One folder' }]
+const ALL_SCOPES: { value: BibleScope, label: string }[] = [{ value: 'project', label: 'Whole project' }, { value: 'entities', label: 'Selected entities' }, { value: 'folder', label: 'One folder' }]
+const SCOPES = computed(() => (manuscript.value ? ALL_SCOPES.filter(s => s.value !== 'entities') : ALL_SCOPES))
 
 // What a link (or this set-up) shows, in one line.
 const sectionList = (keys: BibleSection[]) => keys.map(k => BIBLE_SECTIONS[k].label.toLowerCase()).join(', ')
@@ -135,6 +149,16 @@ const opened = (s: Share) => (s.open_count ? `opened ${counted(s.open_count, 'ti
   <div class="layout">
     <UiPanel title="What goes in">
       <div class="setup">
+        <div class="group" role="radiogroup" aria-label="Format">
+          <span class="label">Format</span>
+          <div class="chips">
+            <label v-for="f in FORMATS" :key="f.value" class="pick" :class="{ on: book === f.value }">
+              <input v-model="book" type="radio" name="format" :value="f.value">{{ f.label }}
+            </label>
+          </div>
+          <p class="small muted fmt-hint">{{ FORMATS.find(f => f.value === book)!.hint }}</p>
+        </div>
+
         <div class="group" role="radiogroup" aria-label="Scope">
           <span class="label">Scope</span>
           <div class="chips">
@@ -172,7 +196,7 @@ const opened = (s: Share) => (s.open_count ? `opened ${counted(s.open_count, 'ti
           </UiField>
         </div>
 
-        <fieldset class="group">
+        <fieldset v-if="!manuscript" class="group">
           <legend class="label">Sections</legend>
           <div class="sections">
             <label v-for="k in SECTION_KEYS" :key="k" class="sec-opt" :class="{ on: sections.includes(k), ed: k === 'editorial' }">
@@ -182,7 +206,7 @@ const opened = (s: Share) => (s.open_count ? `opened ${counted(s.open_count, 'ti
           </div>
         </fieldset>
 
-        <label class="sec-opt img-opt" :class="{ on: images }">
+        <label v-if="!manuscript" class="sec-opt img-opt" :class="{ on: images }">
           <input v-model="images" type="checkbox">
           <span><b>Include portraits</b><span class="small muted">Entity images, in the PDF and as an images folder with the Markdown</span></span>
         </label>
@@ -194,29 +218,42 @@ const opened = (s: Share) => (s.open_count ? `opened ${counted(s.open_count, 'ti
         <p v-if="missing" class="notice info">{{ missing }}</p>
         <p v-else-if="previewError" class="notice bad" role="alert">{{ previewError }}</p>
         <template v-else-if="preview">
-          <dl class="counts">
-            <div><dt>Canon facts</dt><dd>{{ preview.counts.facts }}</dd></div>
-            <div><dt>Entities</dt><dd>{{ preview.counts.entities }}</dd></div>
-            <div><dt>Sources</dt><dd>{{ preview.counts.documents }}</dd></div>
-          </dl>
-          <p v-if="preview.counts.sample" class="small muted">{{ counted(preview.counts.sample, 'fact is', 'facts are') }} sample canon and marked as such.</p>
-          <p v-if="preview.counts.stale" class="small warn-text">{{ counted(preview.counts.stale, 'fact cites', 'facts cite') }} an older source version; the export says so.</p>
-          <p v-if="!preview.counts.facts && !preview.counts.entities" class="small muted">Nothing in this scope yet. Accept candidates in Review to build canon.</p>
+          <template v-if="previewBible">
+            <dl class="counts">
+              <div><dt>Canon facts</dt><dd>{{ previewBible.counts.facts }}</dd></div>
+              <div><dt>Entities</dt><dd>{{ previewBible.counts.entities }}</dd></div>
+              <div><dt>Sources</dt><dd>{{ previewBible.counts.documents }}</dd></div>
+            </dl>
+            <p v-if="previewBible.counts.sample" class="small muted">{{ counted(previewBible.counts.sample, 'fact is', 'facts are') }} sample canon and marked as such.</p>
+            <p v-if="previewBible.counts.stale" class="small warn-text">{{ counted(previewBible.counts.stale, 'fact cites', 'facts cite') }} an older source version; the export says so.</p>
+            <p v-if="!previewBible.counts.facts && !previewBible.counts.entities" class="small muted">Nothing in this scope yet. Accept candidates in Review to build canon.</p>
+          </template>
+          <template v-else-if="previewMs">
+            <dl class="counts">
+              <div><dt>Documents</dt><dd>{{ previewMs.counts.documents }}</dd></div>
+              <div><dt>Words</dt><dd>{{ previewMs.counts.words.toLocaleString('en-GB') }}</dd></div>
+            </dl>
+            <p class="small muted">Latest version of each document, folder by folder, then by title. {{ previewMs.cover ? 'The cover is the first document cover you set.' : 'No document has a cover image yet, so the cover is typographic.' }}</p>
+            <p v-if="!previewMs.counts.documents" class="small muted">No documents in this scope yet. Add some in the Library.</p>
+          </template>
         </template>
         <div class="dl-actions">
           <a class="btn primary" :class="{ disabled: !!missing }" :href="missing ? undefined : mdHref" :aria-disabled="!!missing || undefined" download>
             <UiIcon name="file" :size="16" />Download Markdown
           </a>
           <a class="btn" :class="{ disabled: !!missing }" :href="missing ? undefined : printHref" :aria-disabled="!!missing || undefined" target="_blank" rel="noopener">
-            <UiIcon name="canon" :size="16" />Save as PDF
+            <UiIcon name="canon" :size="16" />{{ book ? 'Book as PDF' : 'Save as PDF' }}
+          </a>
+          <a v-if="book" class="btn" :class="{ disabled: !!missing }" :href="missing ? undefined : epubHref" :aria-disabled="!!missing || undefined" download>
+            <UiIcon name="file" :size="16" />Download EPUB
           </a>
         </div>
-        <p class="small faint">Markdown: {{ hasPortraits ? 'a .zip with the .md file and an images folder' : 'one .md file' }}. PDF opens a print-ready page; choose “Save as PDF” in the print dialog.</p>
+        <p class="small faint">Markdown: {{ hasPortraits && !manuscript ? 'a .zip with the .md file and an images folder' : 'one .md file' }}. PDF opens a print-ready page; choose “Save as PDF” in the print dialog{{ book ? ' (A4, margins: default, headers and footers off)' : '' }}.</p>
       </UiPanel>
 
       <UiPanel title="Read-only links" class="shares">
         <template #actions>
-          <UiButton v-if="editor" size="sm" variant="primary" icon="link" :disabled="!!missing" @click="openCreate">Create link</UiButton>
+          <UiButton v-if="editor" size="sm" variant="primary" icon="link" :disabled="!!missing || manuscript" :title="manuscript ? 'Links share the report, not the manuscript' : undefined" @click="openCreate">Create link</UiButton>
         </template>
         <p class="small muted intro">People with a link see this bible and nothing else: no drafts, candidates, notes, team or other projects. No sign-in needed.</p>
         <p v-if="!editor" class="notice info">Editors and above can create and turn off links.</p>
@@ -314,6 +351,7 @@ const opened = (s: Share) => (s.open_count ? `opened ${counted(s.open_count, 'ti
 .sec-opt.on { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
 .sec-opt.ed { border-style: dashed; }
 .img-opt { margin-top: calc(-1 * var(--s-2)); }
+.fmt-hint { margin: 0; }
 .counts { display: flex; flex-wrap: wrap; gap: var(--s-5); margin: 0 0 var(--s-3); }
 .counts dt { color: var(--muted); font-size: var(--text-sm); }
 .counts dd { margin: 0; font-size: var(--text-xl); font-weight: 600; font-variant-numeric: tabular-nums; }

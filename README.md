@@ -6,3 +6,5 @@ Narrative Canon & Impact QA for game teams: human-approved, source-cited canon a
 pnpm install
 pnpm dev
 ```
+
+What comes next: [ROADMAP.md](ROADMAP.md).

@@ -21,6 +21,9 @@ const busy = ref<'' | 'demo'>('')
 const error = ref('')
 const results = ref<Record<string, any>[]>([])
 const uploader = ref<{ pick: () => void }>()
+const versionsTotal = computed(() => docs.value?.reduce((n, d) => n + d.version, 0) ?? 0)
+const pendingTotal = computed(() => stats.value?.pending ?? 0)
+const recentDocs = computed(() => [...(docs.value ?? [])].sort((a, b) => b.imported_at.localeCompare(a.imported_at)).slice(0, 6))
 
 async function run(kind: 'demo', fn: () => Promise<{ results: Record<string, any>[] }>) {
   busy.value = kind
@@ -212,14 +215,30 @@ const next = computed(() => {
         </ul>
       </UiPanel>
 
-      <UiPanel title="Library" :description="docs?.length ? `${counted(docs.length, 'source')}, read-only. Folders, tags, version history and what changed between versions.` : undefined">
+      <UiPanel title="Library" :description="docs?.length ? 'Your sources, read-only. Folders, tags, version history and what changed between versions.' : undefined">
         <template v-if="docs?.length" #actions><UiButton size="sm" icon="library" to="/library">Open the library</UiButton></template>
         <UiEmptyState v-if="!docs?.length" icon="library" title="No sources yet">
           {{ editor ? 'Start from the next step above, or drop files anywhere on this page.' : 'Nothing has been added to this project yet.' }}
         </UiEmptyState>
-        <p v-else-if="stats?.recheck_outdated || stats?.recheck_unchanged" class="small library-stale">
-          <UiIcon name="history" :size="14" /><NuxtLink to="/canon?recheck=1">Needs re-check: {{ stats.recheck_outdated ? counted(stats.recheck_outdated, 'canon fact') + ' with outdated evidence' : 'no outdated evidence' }}<template v-if="stats.recheck_unchanged">, {{ stats.recheck_unchanged }} unchanged to confirm</template></NuxtLink> after a source changed.
-        </p>
+        <template v-else>
+          <p class="small library-counts">
+            <b>{{ docs.length }}</b> {{ plural(docs.length, 'document') }} · <b>{{ versionsTotal }}</b> {{ plural(versionsTotal, 'version') }}
+            <template v-if="pendingTotal"> · <NuxtLink to="/review"><b>{{ pendingTotal }}</b> to review</NuxtLink></template>
+          </p>
+          <p v-if="stats?.recheck_outdated || stats?.recheck_unchanged" class="small library-stale">
+            <UiIcon name="history" :size="14" /><NuxtLink to="/canon?recheck=1">Needs re-check: {{ stats.recheck_outdated ? counted(stats.recheck_outdated, 'canon fact') + ' with outdated evidence' : 'no outdated evidence' }}<template v-if="stats.recheck_unchanged">, {{ stats.recheck_unchanged }} unchanged to confirm</template></NuxtLink> after a source changed.
+          </p>
+          <ul class="recent" aria-label="Recently changed documents">
+            <li v-for="d in recentDocs" :key="d.id">
+              <NuxtLink :to="`/documents/${d.id}`" class="recent-main">
+                <UiIcon :name="docKind(d.kind).icon" :size="16" class="faint" />
+                <span class="recent-title">{{ d.title }}</span>
+              </NuxtLink>
+              <span class="recent-meta small faint">{{ docKind(d.kind).label }} · v{{ d.version }} · {{ shortDate(d.imported_at) }}<template v-if="d.created_by_name"> · {{ d.created_by_name }}</template></span>
+            </li>
+          </ul>
+          <p v-if="docs.length > recentDocs.length" class="small faint recent-more">Latest {{ recentDocs.length }} of {{ docs.length }}. <NuxtLink to="/library">See all</NuxtLink></p>
+        </template>
       </UiPanel>
     </div>
 
@@ -238,7 +257,7 @@ const next = computed(() => {
         </div>
         <div class="source-option">
           <h3>Your files</h3>
-          <p>Markdown or plain text, up to 1 MB each. Re-importing an unchanged file is detected; a changed one becomes a new version.</p>
+          <p>Markdown or plain text, up to 1 MB each. Files are stored as they are and never edited. The model then proposes candidate facts into Review; nothing becomes canon until a person accepts it. An unchanged file is skipped; a changed one becomes a new version.</p>
           <UiButton icon="upload" :disabled="!!busy" @click="uploader?.pick()">Import files</UiButton>
           <p class="small faint">Or drop files anywhere on this page.</p>
         </div>
@@ -293,7 +312,15 @@ const next = computed(() => {
 .drafts { list-style: none; margin: 0; padding: 0; }
 .drafts li { display: flex; flex-wrap: wrap; gap: 2px var(--s-3); align-items: baseline; justify-content: space-between; padding: 10px var(--s-5); border-top: 1px solid var(--line); }
 .drafts li:first-child { border-top: 0; }
-.library-stale { margin: 0; color: var(--warn); }
+.library-counts { margin: 0 0 var(--s-2); color: var(--muted); }
+.library-counts b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.recent { list-style: none; margin: var(--s-3) 0 0; padding: 0; border-top: 1px solid var(--line); }
+.recent li { display: flex; flex-wrap: wrap; gap: 2px var(--s-4); align-items: baseline; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.recent-main { display: flex; gap: var(--s-2); align-items: center; min-width: 0; color: var(--ink); text-decoration: none; font-weight: 500; }
+.recent-main:hover { color: var(--accent); text-decoration: underline; }
+.recent-title { overflow-wrap: anywhere; }
+.recent-more { margin: var(--s-3) 0 0; }
+.library-stale { margin: 0 0 var(--s-2); color: var(--warn); }
 .library-stale svg { vertical-align: -2px; margin-right: 6px; }
 .library-stale a { color: var(--warn); }
 
