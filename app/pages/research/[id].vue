@@ -139,7 +139,7 @@ async function savePin(value: { document_id: string, quote: string } | null) {
       </ol>
     </UiPanel>
 
-    <UiPanel v-if="n.sources.length" title="Sources" description="Each page was fetched and its quote looked up word for word.">
+    <UiPanel v-if="n.sources.length" title="Sources" description="Each web page was fetched and its quote looked up word for word. PDFs are listed but not text-checked.">
       <ol class="sources">
         <li v-for="s in n.sources" :id="`src-${s.n}`" :key="s.n">
           <div class="spread">
@@ -283,7 +283,7 @@ async function savePin(value: { document_id: string, quote: string } | null) {
 .spread { gap: var(--s-2); }
 .src-quote { margin: 0; padding: 8px 12px; border-left: 3px solid var(--good); background: var(--sunken); border-radius: 0 var(--r-md) var(--r-md) 0; font-size: var(--text-sm); }
 .src-quote.unverified { border-left-color: var(--bad); text-decoration: underline wavy color-mix(in srgb, var(--bad) 55%, transparent); text-underline-offset: 4px; }
-.src-quote.not_checked { border-left-color: var(--research); }
+.src-quote.not_checked { border-left-color: var(--warn); }
 .calcs { display: grid; gap: var(--s-3); }
 .calc { border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s-3); }
 .calc summary { cursor: pointer; text-transform: capitalize; display: flex; gap: var(--s-2); align-items: center; }

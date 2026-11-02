@@ -126,7 +126,7 @@ export async function runAgent(o: {
     const cited = texts.flatMap(c => c.annotations ?? []).filter(a => a.type === 'url_citation' && a.url).map(a => ({ url: a.url!, title: a.title ?? '' }))
     run.citations.push(...(cited.length ? cited : (text.match(URL_IN_TEXT) ?? []).map(url => ({ url, title: '' }))))
     recordStep({ ...base, step, tool: searches.length ? 'web_search' : null, input: step ? null : o.input, status: 'ok', latency: Date.now() - t0, tokens, error: null,
-      summary: [searches.length && `${plural(searches.length, 'web search')}: ${short(searches.join(' | '), 300)}`,
+      summary: [searches.length && `${searches.length} web search${searches.length === 1 ? '' : 'es'}: ${short(searches.join(' | '), 300)}`,
         calls.length && `asked for ${calls.map(c => c.name).join(', ')}`, text && !calls.length && 'answered'].filter(Boolean).join('; ') || 'no output' })
 
     // In split mode the search step's message is notes for the next step, not the answer.
