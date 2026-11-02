@@ -2,7 +2,7 @@ import { mkdirSync, readFileSync, rmSync, renameSync, writeFileSync, existsSync 
 import { join } from 'node:path'
 
 export interface EntityRow {
-  id: string, name: string, analysis_name: string | null, kind: EntityKind, summary: string, aliases: string, fields: string, notes: string
+  id: string, name: string, analysis_name: string | null, kind: string, summary: string, aliases: string, fields: string, notes: string
   portrait_type: string | null, portrait_at: string | null, origin: string, created_at: string, created_by: string | null
   updated_at: string, updated_by: string | null, project_id: string
 }
@@ -33,8 +33,9 @@ export function getEntity(id: string) {
   return e
 }
 
-// The kind a name most likely has, judged from how accepted canon uses it. A guess people can change on the page.
-function kindVotes(f: { kind: string, predicate: string }, role: 'subject' | 'object'): EntityKind | null {
+// The type a name most likely has, judged from how accepted canon uses it. A guess people can change on the page; it only
+// names built-in keys, and only those the project still has count.
+function kindVotes(f: { kind: string, predicate: string }, role: 'subject' | 'object'): string | null {
   if (f.predicate === 'travel_time') return 'location'
   if (role === 'object' && /^(located_at|kept_in|lives_in|born_in)$/.test(f.predicate)) return 'location'
   if (role === 'subject' && f.predicate === 'kept_in') return 'item'
@@ -48,7 +49,7 @@ export function syncEntities() {
   const d = useDb()
   const known = new Set(listEntities().flatMap(namesOf).map(normName))
   const facts = d.prepare(`select kind, subject, predicate, object from facts where project_id = ? and status = 'canon' order by rowid`).all(pid()) as { kind: string, subject: string, predicate: string, object: string | null }[]
-  const found = new Map<string, { name: string, votes: Map<EntityKind, number> }>()
+  const found = new Map<string, { name: string, votes: Map<string, number> }>()
   for (const f of facts) {
     for (const role of ['subject', 'object'] as const) {
       const name = f[role]?.trim()
@@ -61,8 +62,12 @@ export function syncEntities() {
   if (!found.size) return
   const insert = d.prepare(`insert into entities (id, name, analysis_name, kind, origin, created_at, updated_at, project_id) values (?, ?, ?, ?, 'canon', ?, ?, ?)`)
   tx(() => {
+    // The project's types are read under the write lock, so a guess never names a type another process just removed.
+    const types = entityTypes()
+    const keys = new Set(types.map(t => t.key))
+    const fallback = keys.has('other') ? 'other' : types[0]!.key
     for (const { name, votes } of found.values()) {
-      const kind = [...votes].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 'other'
+      const kind = [...votes].filter(([k]) => keys.has(k)).sort((a, b) => b[1] - a[1])[0]?.[0] ?? fallback
       insert.run(newId('ent'), name, name, kind, now(), now(), pid())
     }
   })
@@ -127,11 +132,6 @@ export function cleanFields(v: unknown, current: Record<string, string>) {
     else delete out[k]
   }
   return out
-}
-
-export function cleanKind(v: unknown): EntityKind {
-  if (!ENTITY_KINDS.includes(v as EntityKind)) throw fail(400, 'INVALID', `Kind must be one of ${ENTITY_KINDS.join(', ')}.`)
-  return v as EntityKind
 }
 
 // What a page looks like in the audit trail: enough to rebuild it by hand.

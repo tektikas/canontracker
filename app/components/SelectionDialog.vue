@@ -15,12 +15,14 @@ const dialog = ref<HTMLDialogElement>()
 onMounted(() => dialog.value?.showModal())
 
 const { data: entities } = useEntityList()
+const { data: types } = useEntityTypes()
 const lookup = useEntityLookup()
 const oneLine = (s: string) => s.replace(/\s+/g, ' ').trim()
 const f = reactive({
   statement: oneLine(props.selection.quote), subject: '', relation: '', object: '', value: '', time_from: '', time_to: '', approximate: false,
-  body: '', name: oneLine(props.selection.quote).replace(/^[\p{P}\s]+|[\p{P}\s]+$/gu, '').slice(0, 80), kind: 'character' as EntityKind,
+  body: '', name: oneLine(props.selection.quote).replace(/^[\p{P}\s]+|[\p{P}\s]+$/gu, '').slice(0, 80), kind: '',
 })
+watch(types, (list) => { if (!list.some(t => t.key === f.kind)) f.kind = list.some(t => t.key === 'character') ? 'character' : list[0]?.key ?? '' }, { immediate: true })
 
 // Sentence first: the writer says what the passage establishes, and who / does what / where / when are read from that sentence
 // as it is edited (known names, a known place, story times; see `suggestParts`). A part the writer has typed in keeps their words.
@@ -151,14 +153,14 @@ const TITLE = { fact: 'Add a fact', entity: 'Add an entity', note: 'Add a note' 
       </template>
 
       <template v-else-if="mode === 'entity'">
-        <!-- An existing page keeps its kind; the form only offers to open it. -->
+        <!-- An existing page keeps its type; the form only offers to open it. -->
         <div class="entity-fields" :class="{ found: existing }">
           <UiField label="Name">
             <input v-model="f.name" type="text" required maxlength="80" autofocus spellcheck="false" autocomplete="off">
           </UiField>
-          <UiField v-if="!existing" label="Kind">
+          <UiField v-if="!existing" label="Type">
             <select v-model="f.kind">
-              <option v-for="k in ENTITY_KINDS" :key="k" :value="k">{{ KIND_LABEL[k].one }}</option>
+              <option v-for="t in types" :key="t.key" :value="t.key">{{ t.one }}</option>
             </select>
           </UiField>
         </div>

@@ -17,6 +17,9 @@ export default defineEventHandler(async (event) => {
     }
     severities = JSON.stringify(next)
   }
-  useDb().prepare('update projects set name = ?, medium = ?, art_style = ?, severity_defaults = ? where id = ?').run(name, medium, artStyle, severities, project.id)
+  tx(() => {
+    useDb().prepare('update projects set name = ?, medium = ?, art_style = ?, severity_defaults = ? where id = ?').run(name, medium, artStyle, severities, project.id)
+    if (medium !== project.medium) retypeForMedium(project.id)
+  })
   return { id: project.id, name, medium, art_style: artStyle, severity_defaults: projectSeverities(severities) }
 })

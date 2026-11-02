@@ -4,6 +4,7 @@
 useHead({ title: 'Export & share · Story Bible' })
 const me = useMe()
 const editor = computed(() => canEdit(me.value))
+const kindLabel = useKind()
 const origin = useRequestURL().origin
 const { data: entities } = await useEntityList()
 const { data: lib } = await useFetch('/api/library', { default: () => ({ folders: [] as { id: string, name: string, parent_id: string | null }[] }) })

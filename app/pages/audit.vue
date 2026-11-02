@@ -2,9 +2,11 @@
 const { data: events } = await useFetch('/api/audit')
 const route = useRoute() // /audit#<event id> highlights that event (links from Conflicts and Changes)
 const filter = ref('')
-const shown = computed(() => (events.value ?? []).filter(e => !filter.value || e.event_type.startsWith(filter.value)))
+const kindLabel = useKind()
+const me = useMe()
+const shown = computed(() => (events.value ?? []).filter(e => !filter.value || e.event_type.startsWith(`${filter.value}.`)))
 const types = computed(() => [...new Set((events.value ?? []).map(e => e.event_type.split('.')[0]!))])
-const count = (t: string) => (events.value ?? []).filter(e => e.event_type.startsWith(t)).length
+const count = (t: string) => (events.value ?? []).filter(e => e.event_type.startsWith(`${t}.`)).length
 
 const clip = (v: unknown, n = 90) => {
   const t = typeof v === 'string' ? v : v == null ? '' : JSON.stringify(v)
@@ -84,7 +86,11 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'account.password_changed': return [`${who} changed their password`, 'The password itself is never logged']
     case 'token.created': return [`${who} created the API token “${d.name}”`, 'Shown once, stored hashed']
     case 'token.revoked': return [`${who} revoked an API token`, '']
-    case 'entity.created': return [`${who} created a page for ${d.name}`, `${KIND_LABEL[d.kind as EntityKind]?.one ?? d.kind}`]
+    case 'entity.created': return [`${who} created a page for ${d.name}`, `${kindLabel(d.kind).one}`]
+    case 'entity_type.created': return [`${who} added the entity type “${d.one}”`, 'Wiki structure · canon unaffected']
+    case 'entity_type.updated': return [d.before?.one && d.before.one !== d.after?.one ? `${who} renamed the entity type “${d.before.one}” to “${d.after.one}”` : `${who} changed the entity type “${kindLabel(d.key).one}”`,
+      `Changed: ${(d.changed ?? []).map((k: string) => ({ one: 'name', many: 'plural', color: 'colour', icon: 'icon' } as Record<string, string>)[k] ?? k).join(', ')} · pages keep their type`]
+    case 'entity_type.deleted': return [`${who} removed the entity type “${d.one}”`, d.entities?.length ? `${counted(d.entities.length, 'page')} became ${d.moved_to_name}: ${d.entities.map((x: { name: string }) => x.name).join(', ')}` : 'No pages used it']
     case 'entity.updated': return [`${who} edited ${d.name}’s page`, `Changed: ${(d.changed ?? []).join(', ')}. Editorial, not canon`]
     case 'entity.merged': return [`${who} merged ${d.from?.name} into ${d.into}`, [
       d.facts?.length ? `${d.facts.length} fact${d.facts.length === 1 ? '' : 's'} now name ${d.canonical ?? d.into}` : 'No facts needed re-pointing',
@@ -142,6 +148,7 @@ function target(e: { event_type: string, target_type: string, target_id: string,
   const t = e.target_type
   const short = e.target_id.replace(/^[a-z]+_/, '').slice(0, 6)
   if (e.target_removed) return { to: '', label: `${t.charAt(0).toUpperCase() + t.slice(1)} · ${short}… (removed by reset)` }
+  if (t === 'entity_type') return { to: `/settings/projects/${me.value?.current?.project.id}#entity-types`, label: `Entity type · ${e.target_id}` }
   const to = t === 'entity' ? (e.event_type === 'entity.deleted' ? '' : `/entities/${e.target_id}`) : t === 'document' ? `/documents/${e.target_id}` : t === 'conflict' || e.event_type === 'conflict.scan' ? '/conflicts' : t === 'change' ? '/changes'
     : t === 'fact' ? (e.event_type.startsWith('candidate.') && !e.event_type.endsWith('accepted') ? '/review' : '/canon') : t === 'note' ? '/notes' : t === 'task' ? '/tasks' : t === 'share' || e.event_type === 'bible.exported' ? '/export' : ['folder', 'tag', 'library'].includes(t) ? '/library' : ''
   // Ids already carry a type prefix ("fact_d0e…", "trc_e02c…"): drop it and label the thing in words.
@@ -176,7 +183,7 @@ const groups = computed(() => {
 
   <div v-if="events?.length" class="filters" role="group" aria-label="Filter by event type">
     <button type="button" class="f" :class="{ on: !filter }" :aria-pressed="!filter" @click="filter = ''">All <span>{{ events.length }}</span></button>
-    <button v-for="t in types" :key="t" type="button" class="f" :class="{ on: filter === t }" :aria-pressed="filter === t" @click="filter = t">{{ t }} <span>{{ count(t) }}</span></button>
+    <button v-for="t in types" :key="t" type="button" class="f" :class="{ on: filter === t }" :aria-pressed="filter === t" @click="filter = t">{{ t.replace('_', ' ') }} <span>{{ count(t) }}</span></button>
   </div>
 
   <UiEmptyState v-if="!shown.length" title="No events yet" icon="audit">Imports, decisions and exports show up here as they happen.</UiEmptyState>

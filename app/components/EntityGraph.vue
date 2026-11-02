@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Circle layout of canon entities. One edge per entity pair: solid ink + label when a relationship fact links them,
-// thin dashed otherwise. Hovering or focusing an entity dims everything not connected to it.
+// thin dashed otherwise. Hovering or focusing an entity dims everything not connected to it. Nodes take their page's type colour.
 const props = defineProps<{ facts: { id: string, kind: string, subject: string, predicate: string, object: string | null, statement: string }[], selected?: string }>()
 const emit = defineEmits<{ select: [entity: string] }>()
 
@@ -18,6 +18,10 @@ const Rx = computed(() => Math.max(36, Math.min(180, W.value / 2 - LABEL_ROOM)))
 const Ry = computed(() => narrow.value ? Math.max(180, props.facts.length * 9) : 180)
 const H = computed(() => Ry.value * 2 + 80)
 const active = ref<string | null>(null)
+const lookup = useEntityLookup()
+const kindOf = useKind()
+const { data: types } = useNuxtData<EntityTypeItem[]>('entity-types')
+const typeOfName = (name: string) => kindOf(lookup.value.byName.get(normName(name))?.kind ?? 'other')
 
 const links = computed(() => props.facts.filter(f => f.object && f.predicate !== 'travel_time'))
 const nodes = computed(() => {
@@ -27,7 +31,7 @@ const nodes = computed(() => {
   return names.map((name, i) => {
     const a = (i / names.length) * 2 * Math.PI - Math.PI / 2
     const cos = Math.cos(a)
-    return { name, degree: degree.get(name)!, x: W.value / 2 + Rx.value * cos, y: H.value / 2 + Ry.value * Math.sin(a), anchor: Math.abs(cos) < 0.25 ? 'middle' : cos > 0 ? 'start' : 'end', cos, sin: Math.sin(a) }
+    return { name, type: typeOfName(name), degree: degree.get(name)!, x: W.value / 2 + Rx.value * cos, y: H.value / 2 + Ry.value * Math.sin(a), anchor: Math.abs(cos) < 0.25 ? 'middle' : cos > 0 ? 'start' : 'end', cos, sin: Math.sin(a) }
   })
 })
 const pos = computed(() => new Map(nodes.value.map(n => [n.name, n])))
@@ -48,6 +52,11 @@ const edges = computed(() => {
     return { key, ...p, label: [...p.rels].join(' / '), rel: p.rels.size > 0, x1: A.x, y1: A.y, x2: B.x, y2: B.y, mx: A.x * 0.4 + B.x * 0.6, my: A.y * 0.4 + B.y * 0.6 }
   })
 })
+// The legend lists only the types on the graph, in the project's order.
+const legend = computed(() => {
+  const order = (k: string) => { const i = (types.value ?? []).findIndex(t => t.key === k); return i < 0 ? Infinity : i }
+  return [...new Map(nodes.value.map(n => [n.type.key, n.type])).values()].sort((a, b) => order(a.key) - order(b.key))
+})
 const on = (e: { a: string, b: string }) => !active.value || e.a === active.value || e.b === active.value
 const summary = computed(() => `${nodes.value.length} entities linked by ${links.value.length} canon facts`)
 </script>
@@ -57,6 +66,7 @@ const summary = computed(() => `${nodes.value.length} entities linked by ${links
     <div class="legend small muted">
       <span><i class="l rel" /> Relationship</span>
       <span><i class="l" /> Other shared facts</span>
+      <span v-for="t in legend" :key="t.key"><i class="kt-dot" :class="`kt-${t.color}`" /> {{ t.many }}</span>
       <span class="faint">Select an entity to open its profile.</span>
     </div>
     <div ref="box" class="scroll">
@@ -68,8 +78,8 @@ const summary = computed(() => `${nodes.value.length} entities linked by ${links
           <text :x="e.mx" :y="e.my" class="edge-label" text-anchor="middle" dominant-baseline="middle">{{ e.label }}</text>
         </g>
         <g
-          v-for="n in nodes" :key="n.name" class="node" :class="{ sel: n.name === selected, dim: active && active !== n.name && !edges.some(e => on(e) && (e.a === n.name || e.b === n.name)) }"
-          tabindex="0" role="button" :aria-label="`${n.name}, ${n.degree} links`"
+          v-for="n in nodes" :key="n.name" class="node" :class="[`kt-${n.type.color}`, { sel: n.name === selected, dim: active && active !== n.name && !edges.some(e => on(e) && (e.a === n.name || e.b === n.name)) }]"
+          tabindex="0" role="button" :aria-label="`${n.name}, ${n.type.one}, ${n.degree} links`"
           @click="emit('select', n.name)" @keydown.enter="emit('select', n.name)" @keydown.space.prevent="emit('select', n.name)"
           @mouseenter="active = n.name" @mouseleave="active = null" @focus="active = n.name" @blur="active = null"
         >
@@ -87,6 +97,7 @@ const summary = computed(() => `${nodes.value.length} entities linked by ${links
 .legend { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); align-items: center; }
 .l { display: inline-block; width: 24px; vertical-align: middle; margin-right: 6px; border-top: 1.5px dashed var(--line-strong); }
 .l.rel { border-top: 3px solid var(--accent); }
+.legend .kt-dot { vertical-align: middle; margin-right: 4px; }
 .scroll { overflow-x: auto; max-width: 100%; }
 svg { max-width: 100%; height: auto; display: block; }
 .narrow .edge-label { font-size: 11px; }
@@ -94,8 +105,8 @@ svg { max-width: 100%; height: auto; display: block; }
 .edge.rel { stroke: var(--accent); stroke-width: 3; stroke-dasharray: none; }
 .edge-label { fill: var(--accent); font: 600 12px var(--font-ui); paint-order: stroke; stroke: var(--raised); stroke-width: 6px; stroke-linejoin: round; }
 .node { cursor: pointer; }
-.node circle { fill: color-mix(in srgb, var(--accent) 30%, var(--raised)); stroke: var(--accent); stroke-width: 2; }
-.node:hover circle, .node:focus-visible circle, .node.sel circle { fill: var(--accent); }
+.node circle { fill: color-mix(in srgb, var(--tone) 30%, var(--raised)); stroke: var(--tone); stroke-width: 2; }
+.node:hover circle, .node:focus-visible circle, .node.sel circle { fill: var(--tone); }
 .node:focus-visible { outline: none; }
 .node:focus-visible circle { stroke: var(--ink); stroke-width: 3; }
 .node text { fill: var(--ink); font: 600 13px var(--font-ui); paint-order: stroke; stroke: var(--raised); stroke-width: 4px; stroke-linejoin: round; }

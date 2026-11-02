@@ -45,10 +45,10 @@ export function bibleBook(b: Bible): Book {
     c.sections.push(s)
   }
   if (on.has('entities') || on.has('facts')) {
-    for (const kind of Object.keys(KIND_LABEL) as EntityKind[]) {
-      const group = b.entities.filter(e => e.kind === kind && (on.has('entities') || e.facts.length))
+    for (const t of b.types) {
+      const group = b.entities.filter(e => e.kind === t.key && (on.has('entities') || e.facts.length))
       if (!group.length) continue
-      const c = chapter(`kind-${kind}`, KIND_LABEL[kind].many)
+      const c = chapter(`kind-${t.key}`, t.many)
       for (const e of group) {
         const s = section(e.key, e.name, { sub: e.aliases.length ? `Also known as ${e.aliases.join(', ')}` : '', portrait: e.portrait, portraitKey: e.key })
         if (e.editorial) {

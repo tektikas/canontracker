@@ -50,7 +50,7 @@ const matchCmds = computed(() => (words.value.length
   ? commands.value.filter(c => words.value.every(w => cmdMatch(c, w)))
   : commands.value))
 
-const KIND_ICON: Record<string, IconName> = { character: 'character', location: 'location', item: 'item', faction: 'faction', event: 'event', other: 'other' }
+const kindOf = useKind()
 const items = computed<Item[]>(() => {
   const out: Item[] = []
   const cmd = (c: Cmd): Item => ({ key: `c:${c.title}`, group: 'Commands', icon: c.icon, title: c.title, to: c.to, run: c.run })
@@ -63,7 +63,7 @@ const items = computed<Item[]>(() => {
   const cmds = matchCmds.value.slice(0, 4).map(cmd)
   const leads = matchCmds.value.some(c => c.title.toLowerCase().split(/\W+/).some(t => t.startsWith(words.value[0]!)))
   if (leads) out.push(...cmds)
-  out.push(...r.entities.map(e => ({ key: `e:${e.id}`, group: 'Entities', icon: KIND_ICON[e.kind] ?? 'entities', title: e.name, sub: e.via ? `also known as ${e.via}` : e.kind, snippet: e.via ? undefined : e.summary, to: `/entities/${e.id}` })))
+  out.push(...r.entities.map(e => ({ key: `e:${e.id}`, group: 'Entities', icon: kindOf(e.kind).icon as IconName, title: e.name, sub: e.via ? `also known as ${e.via}` : kindOf(e.kind).one, snippet: e.via ? undefined : e.summary, to: `/entities/${e.id}` })))
   out.push(...r.facts.map(f => ({ key: `f:${f.id}`, group: 'Canon facts', icon: 'canon' as IconName, title: f.statement, sub: `${f.kind} · ${f.subject}`, to: `/canon#fact-${f.id}` })))
   out.push(...r.documents.map(d => ({ key: `d:${d.id}`, group: 'Documents', icon: 'file' as IconName, title: d.title, sub: d.line ? `Line ${d.line}` : undefined, snippet: d.snippet, to: `/documents/${d.id}${d.passage_id ? `#${d.passage_id}` : ''}` })))
   out.push(...r.notes.map(n => ({ key: `n:${n.id}`, group: 'Notes', icon: 'note' as IconName, title: n.snippet ?? '', sub: `On ${n.title} · ${n.status}`, to: `/documents/${n.document_id}?notes=1#${n.passage_id}` })))
