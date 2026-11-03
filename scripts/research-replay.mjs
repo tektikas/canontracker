@@ -88,7 +88,7 @@ check('trace says which page was opened', rows[0].summary, '1 web search: Big Be
 // 3. A refused request (Meta's real 400) fails once with Meta's message: no retry without max_tool_calls, no split retry.
 rows.length = 0
 await queue(['error-responses-bad-combo'])
-await assert.rejects(agent(), e => /^Research failed: Meta Model API error 400 — `reasoning\.encrypted_content` cannot be used with `previous_response_id`\. Nothing was stored\.$/.test(e.message))
+await assert.rejects(agent(), e => /^Research failed: AI provider error 400 — `reasoning\.encrypted_content` cannot be used with `previous_response_id`\. Nothing was stored\.$/.test(e.message))
 console.log('ok  a real 400 is shown as is')
 await sent('refused request', 1)
 check('one failed trace row', rows.map(r => [r.step, r.status]), [[0, 'failed']])
@@ -102,7 +102,7 @@ globalThis.$fetch = async (url, o) => {
   throw Object.assign(new Error('HTTP 400'), { statusCode: 400, data: { error: { message: 'Unsupported parameter: max_tool_calls', type: 'invalid_request_error' } } })
 }
 baseUrl = 'https://api.meta.ai/v1'
-await assert.rejects(agent(), /Meta Model API error 400/)
+await assert.rejects(agent(), /AI provider error 400/)
 check('api.meta.ai: a 400 naming max_tool_calls is not retried', bodies.map(b => 'max_tool_calls' in b), [true])
 bodies.length = 0
 baseUrl = 'https://omniroute.example/v1'

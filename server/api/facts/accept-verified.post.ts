@@ -9,7 +9,7 @@
 // showed (a newer opinion, one on an older form of the candidate, or canon about its names changing since the Critic read it,
 // refuses the lot with 409), and a candidate whose opinion is not a current "keep" read against today's canon is skipped
 // (critic_not_keep). The Critic only narrows the list; the person's confirmation is the decision.
-const MAX = 500
+const MAX = BULK_MAX
 
 export default defineEventHandler(async (event) => {
   requireRole('editor')

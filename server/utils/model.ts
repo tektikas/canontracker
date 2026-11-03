@@ -52,7 +52,7 @@ async function traced<T>(
 export function apiKey() {
   const { metaApiKey } = useRuntimeConfig()
   if (!metaApiKey)
-    throw createError({ statusCode: 503, statusMessage: 'MODEL_NOT_CONFIGURED', message: 'Meta Model API key is not set (NUXT_META_API_KEY).' })
+    throw createError({ statusCode: 503, statusMessage: 'MODEL_NOT_CONFIGURED', message: 'The AI provider key is not set (NUXT_META_API_KEY).' })
   return metaApiKey
 }
 
@@ -62,11 +62,11 @@ export function apiFailure(
   what = 'Model call failed', after = 'Nothing was replaced with recorded output.',
 ) {
   const code = e.data?.error?.code, detail = (e.data?.error?.message ?? e.data?.detail)?.replace(/\.$/, '')
-  const why = e.statusCode === 402 ? 'billing is not set up for this Meta Model API key (402)'
-    : e.statusCode === 401 || e.statusCode === 403 ? `the Meta Model API rejected the key (${e.statusCode})`
-    : e.statusCode === 429 ? 'rate limited by the Meta Model API (429)'
-    : !e.statusCode ? (e.name === 'TimeoutError' || /timeout|aborted/i.test(e.message) ? 'the Meta Model API timed out' : `could not reach the Meta Model API (${e.cause?.code ?? e.message})`)
-    : `Meta Model API error ${e.statusCode}`
+  const why = e.statusCode === 402 ? 'billing is not set up for this AI provider key (402)'
+    : e.statusCode === 401 || e.statusCode === 403 ? `the AI provider rejected the key (${e.statusCode})`
+    : e.statusCode === 429 ? 'rate limited by the AI provider (429)'
+    : !e.statusCode ? (e.name === 'TimeoutError' || /timeout|aborted/i.test(e.message) ? 'the AI provider timed out' : `could not reach the AI provider (${e.cause?.code ?? e.message})`)
+    : `AI provider error ${e.statusCode}`
   return createError({ statusCode: 503, statusMessage: 'MODEL_UNAVAILABLE', message: `${what}: ${why}${code || detail ? ` — ${[code, detail].filter(Boolean).join(': ')}` : ''}. ${after}` })
 }
 
@@ -423,7 +423,7 @@ type MuseTranscript = { sessionId?: string, transcript?: string, audioDurationMs
 async function transcribeChunk(file: Buffer, durationMs: number, keywords: string[]): Promise<{ turns: Turn[], session_id: string | null }> {
   const { metaBaseUrl, metaApiKey, transcribeBaseUrl, transcribeApiKey, transcribeModelId, transcribeMode, transcribeApi } = useRuntimeConfig()
   const key = transcribeApiKey || metaApiKey
-  if (!key) throw createError({ statusCode: 503, statusMessage: 'MODEL_NOT_CONFIGURED', message: 'Meta Model API key is not set (NUXT_META_API_KEY).' })
+  if (!key) throw createError({ statusCode: 503, statusMessage: 'MODEL_NOT_CONFIGURED', message: 'The AI provider key is not set (NUXT_META_API_KEY).' })
   const base = transcribeBaseUrl || metaBaseUrl
   const form = new FormData()
   const audio = new Blob([new Uint8Array(file)], { type: 'audio/wav' })
