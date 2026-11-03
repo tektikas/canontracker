@@ -177,7 +177,7 @@ const ASKS = [
             <span><b>{{ l.label }}</b><span class="small muted">{{ l.hint }}</span></span>
           </label>
         </fieldset>
-        <p v-if="level === 'full'" class="notice warn" role="note">This agent can accept and reject candidates, apply changes, edit pages, notes and the Library, and post for you: anything your role allows. Every action is logged as yours, via this token. Only give it to an agent you trust; you can revoke it any time.</p>
+        <p v-if="level === 'full'" class="notice warn" role="note">This agent can accept and reject candidates, apply changes, edit pages, notes and the Library, and post for you: anything your role allows. Every change it makes is logged as yours, via this token. Only give it to an agent you trust; you can revoke it any time.</p>
         <UiButton type="submit" variant="primary" icon="plus" :loading="busy" :disabled="!name.trim()">Create token</UiButton>
       </form>
       <p v-if="data.role === 'viewer'" class="notice info token-note">You are a viewer: a token can read canon but can’t propose or decide, whatever its access.</p>
