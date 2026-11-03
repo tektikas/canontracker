@@ -9,7 +9,7 @@ export const SEVERITIES = ['hard', 'soft'] as const
 export type Severity = typeof SEVERITIES[number]
 // hard = breaks canon, soft = worth a look. A project can override a rule's default (projects.severity_defaults, JSON).
 export const RULE_SEVERITY: Record<string, Severity> = {
-  EXACT_TIME_LOCATION_OVERLAP: 'hard', RELATIONSHIP_AFTER_END: 'hard', TRAVEL_TIME_TOO_SHORT: 'hard',
+  EXACT_TIME_LOCATION_OVERLAP: 'hard', RELATIONSHIP_AFTER_END: 'hard', TRAVEL_TIME_TOO_SHORT: 'hard', ATTRIBUTE_MISMATCH: 'hard',
   APPROX_TIME_LOCATION_OVERLAP: 'soft', WORLD_RULE_VIOLATION: 'soft',
 }
 export function projectSeverities(raw: string): Record<string, Severity> {
@@ -65,6 +65,15 @@ export function ruleHits(a: Fact, b: Fact, travel: Fact[]) {
         rationale: `"${ended.predicate}" between ${ended.subject} and ${ended.object} ended at ${formatStoryTime(ended.t_to!, isDayOnlyLabel(ended.time_label, 'to'))}, but is used as active at ${later.time_label}.`,
         confidence: 0.85 })
   }
+
+  // Same detail, two answers: one subject, one single-valued detail (shared/utils/detail.ts), values that disagree, at times
+  // that overlap (no time = always). A value that only adds words ("left shoulder" for "shoulder") agrees.
+  if (detailClash(a, b)) {
+    const when = (f: Fact) => (f.time_label ? ` (${f.time_label})` : '')
+    hits.push({ a, b, rule: 'ATTRIBUTE_MISMATCH',
+      rationale: `${a.subject}'s ${detailName(a.predicate)} is "${a.value!.trim()}"${when(a)} in one source and "${b.value!.trim()}"${when(b)} in the other; it can only have one answer${a.t_from == null && b.t_from == null ? '' : ' at a time'}.`,
+      confidence: 0.85 })
+  }
   return hits
 }
 
@@ -93,11 +102,13 @@ export function dryRunRules(proposed: Fact[]) {
   return { canon, hits }
 }
 
+// Facts per world-rule call. A rule with more context than this is checked in several calls, so every fact is read once.
+export const RULE_BATCH = 120
 // Narrow conflict checks over accepted canon. Every hit is a candidate for a human, never a verdict.
 // Deterministic rules run in code; the world-rule check is model-suggested and labeled as such.
 export async function scanConflicts() {
   const db = useDb()
-  const facts = db.prepare(`select * from facts where project_id = ? and status = 'canon'`).all(pid()) as unknown as Fact[]
+  const facts = db.prepare(`select * from facts where project_id = ? and status = 'canon' order by rowid`).all(pid()) as unknown as Fact[]
   const ins = db.prepare(`insert or ignore into conflicts (id, left_fact_id, right_fact_id, rule, origin, model_id, rationale, confidence, status, pair_hash, created_at, project_id, severity)
     values (?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?, ?, ?)`)
   const severityOf = severityFor(access().project.severity_defaults)
@@ -120,25 +131,34 @@ export async function scanConflicts() {
   })
 
   // World rules: give the model the rule and the facts around it (facts sharing its entity, plus other facts about the same actors).
+  // The context is in canon order and read in batches of RULE_BATCH facts: a long canon (a whole novel's worth of facts about
+  // one hero) takes several bounded calls, never a truncated one. Up to RULE_BATCH facts it is one call, as before.
   let modelError: string | null = null
+  const ruleChecks = { rules: 0, calls: 0, facts: 0 }
   for (const rule of facts.filter(isRule)) {
     const entity = normEntity(rule.subject)
     const direct = facts.filter(f => f.id !== rule.id && [f.subject, f.object].some(e => normEntity(e) === entity))
     const actors = new Set(direct.map(f => normEntity(f.subject)))
     const context = facts.filter(f => f.id !== rule.id && !isRule(f) && (direct.includes(f) || actors.has(normEntity(f.subject))))
     if (!context.length) continue
-    try {
-      const violations = await checkRule(rule, context)
-      tx(() => {
-        for (const v of violations) add(rule, context.find(f => f.id === v.fact_id)!, 'WORLD_RULE_VIOLATION', v.rationale, v.confidence, modelInfo().id)
-      })
-    } catch (e) {
-      modelError = (e as Error).message
+    ruleChecks.rules++
+    for (let i = 0; i < context.length; i += RULE_BATCH) {
+      const batch = context.slice(i, i + RULE_BATCH)
+      ruleChecks.calls++
+      ruleChecks.facts += batch.length
+      try {
+        const violations = await checkRule(rule, batch)
+        tx(() => {
+          for (const v of violations) add(rule, batch.find(f => f.id === v.fact_id)!, 'WORLD_RULE_VIOLATION', v.rationale, v.confidence, modelInfo().id)
+        })
+      } catch (e) {
+        modelError = (e as Error).message
+      }
     }
   }
   // A scan that finds nothing is still a result: Conflicts says when canon was last checked and how much of it.
-  audit('conflict.scan', 'project', pid(), { facts: facts.length, created, model_error: modelError })
-  return { created, model_error: modelError }
+  audit('conflict.scan', 'project', pid(), { facts: facts.length, created, model_error: modelError, rule_checks: ruleChecks })
+  return { created, model_error: modelError, rule_checks: ruleChecks }
 }
 
 export interface ImpactItem {
@@ -165,9 +185,12 @@ export function analyzeImpact(targetId: string): ImpactItem[] {
     addScene(s, { dependency_type: 'scene_cites_fact', path: [targetId, s.id], via: null, hop_count: 1, confidence: 0.95,
       rationale: 'This scene is a direct source of the changed fact.' })
 
-  const entities = new Set([normEntity(target.subject), normEntity(target.object)].filter(Boolean))
+  // A detail's answer counts as a name when canon uses it as one ("spouse_is Mary" reaches facts about Mary; "shoulder" doesn't).
+  const used = new Set([target, ...canon].flatMap(f => [normEntity(f.subject), normEntity(f.object)]))
+  const names = (f: Fact) => factNames(f).filter((n, i) => i < 2 || used.has(normEntity(n)))
+  const entities = new Set(names(target).map(normEntity).filter(Boolean))
   for (const f of canon) {
-    const shared = [f.subject, f.object].find(e => entities.has(normEntity(e)))
+    const shared = names(f).find(e => entities.has(normEntity(e)))
     if (!shared) continue
     const ev = db.prepare('select id from evidence where fact_id = ? and verified = 1').all(f.id) as { id: string }[]
     items.push({ target_type: 'fact', target_id: f.id, label: f.statement, dependency_type: 'shared_entity', path: [targetId, f.id],

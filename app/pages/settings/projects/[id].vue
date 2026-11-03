@@ -67,6 +67,7 @@ const RULE_LABEL: Record<string, string> = {
   APPROX_TIME_LOCATION_OVERLAP: 'Same person, two places, approximate times overlap',
   RELATIONSHIP_AFTER_END: 'Relationship used after it ended',
   TRAVEL_TIME_TOO_SHORT: 'Not enough time to travel (near-limit trips are soft unless you change this)',
+  ATTRIBUTE_MISMATCH: 'Same detail, two answers (a wound in the shoulder, then in the leg)',
   WORLD_RULE_VIOLATION: 'Fact breaks a world rule (model-suggested)',
 }
 const setSeverity = (rule: string, e: Event) => patch({ severity_defaults: { [rule]: (e.target as HTMLSelectElement).value } }, 'sev')
@@ -76,6 +77,7 @@ const SAMPLES = [
   { set: 'broken-tide', label: 'Broken Tide demo', hint: 'An island story in 13 sources with planted contradictions.' },
   { set: 'lantern-row', label: 'Lantern Row sample', hint: 'Three short sources with five preloaded canon facts.' },
   { set: 'ashbell-pass', label: 'The Ashbell Pass demo', hint: 'A mountain-town game in 28 sources, in folders, with NPCs, quests and planted contradictions.' },
+  { set: 'sherlock-holmes', label: 'Sherlock Holmes sample', hint: 'Doyle’s A Study in Scarlet, The Sign of the Four and five stories (public domain), with the famous slips readers found.' },
 ]
 const sampleError = ref('')
 async function loadSample(s: typeof SAMPLES[number]) {

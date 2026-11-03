@@ -6,15 +6,20 @@ export interface EvalMetric { key: string, label: string, target: string, measur
 interface Gold {
   dataset: string
   conflicts: { id: string, rule: string, statements: string[] }[]
-  false_alarms: { id: string, statements: string[] }[]
-  figurative: string[]
-  hallucinated: string[]
+  // A set without a planted beat of a kind (no approximate false alarm, no figurative line, no rule change) leaves it out,
+  // and that metric is not shown.
+  false_alarms?: { id: string, statements: string[] }[]
+  figurative?: string[]
+  hallucinated?: string[]
   unknown_questions: string[]
-  impact: { id: string, rule_contains: string, expected_scenes: string[], excluded_scenes: string[] }
+  impact?: { id: string, rule_contains: string, expected_scenes: string[], excluded_scenes: string[] }
   passages: { statement: string, file: string, line: number }[]
   // Conflicts a set plants for after a merge or an applied change: not in the baseline recall, but true alerts, not false ones.
   after_merge?: { id: string, rule: string, statements: string[] }[]
   after_change?: { id: string, rule: string, rule_statement: string, statements: string[] }[]
+  // Hits a rule is expected to raise that a person should dismiss (Sherlock's F1: shoulder vs left arm). Open, one counts
+  // against alert precision; dismissed as a false alarm, it is a judged alert and leaves precision.
+  expected_false_alarms?: { id: string, rule: string, statements: string[] }[]
 }
 
 // "C1–C4", "C1–C5, M1": consecutive ids with one prefix read as a range.
@@ -68,23 +73,37 @@ export async function runEval() {
   results.push(ratio('conflict_recall', `Conflict recall (${idList(gold.conflicts.map(g => g.id))})`, allOf(gold.conflicts.length), found.length, gold.conflicts.length, (n, d) => n === d,
     gold.conflicts.filter(g => !found.includes(g)).map(g => `missing ${g.id}`).join(', ') || undefined))
 
-  const alerts = conflicts.filter(c => c.confidence >= 0.5)
+  const expected = gold.expected_false_alarms ?? []
+  const dismissed = (c: typeof conflicts[number]) => c.status === 'false_positive' && expected.some(g => g.rule === c.rule && samePair(c.pair, g.statements))
+  const alerts = conflicts.filter(c => c.confidence >= 0.5 && !dismissed(c))
   const known = [...gold.conflicts, ...gold.after_merge ?? [], ...(gold.after_change ?? []).flatMap(g => g.statements.map(s => ({ rule: g.rule, statements: [g.rule_statement, s] })))]
   const trueAlerts = alerts.filter(c => known.some(g => g.rule === c.rule && samePair(c.pair, g.statements)))
   results.push(ratio('alert_precision', 'Alert precision (confidence ≥ 50%)', '≥ 80%', trueAlerts.length, alerts.length, (n, d) => n / d >= 0.8,
-    gold.after_merge || gold.after_change ? 'Conflicts the gold set plants for after a merge or a change count as true alerts.' : 'Conflicts created by an applied change are not in the baseline gold set.'))
+    [gold.after_merge || gold.after_change ? 'Conflicts the gold set plants for after a merge or a change count as true alerts.' : 'Conflicts created by an applied change are not in the baseline gold set.',
+      expected.length ? `An expected false alarm (${idList(expected.map(g => g.id))}) counts against precision until someone dismisses it.` : ''].filter(Boolean).join(' ')))
+  if (expected.length) {
+    const judged = expected.filter(g => conflicts.some(c => dismissed(c) && samePair(c.pair, g.statements)))
+    results.push(ratio('expected_false_alarms', `${idList(expected.map(g => g.id))} raised and dismissed as a false alarm`, allOf(expected.length), judged.length, expected.length, (n, d) => n === d,
+      expected.filter(g => !judged.includes(g)).map(g => `${g.id} ${conflicts.some(c => c.rule === g.rule && samePair(c.pair, g.statements)) ? 'not dismissed' : 'not raised'}`).join(', ') || undefined))
+  }
 
-  const falseAlarmsRejected = gold.false_alarms.filter(g => conflicts.some(c => samePair(c.pair, g.statements) && c.status === 'false_positive' && c.confidence < 0.5))
-  results.push(ratio('false_alarm', `${idList(gold.false_alarms.map(g => g.id))} flagged as approximate and rejected as false alarm`, allOf(gold.false_alarms.length), falseAlarmsRejected.length, gold.false_alarms.length, (n, d) => n === d))
+  if (gold.false_alarms?.length) {
+    const falseAlarmsRejected = gold.false_alarms.filter(g => conflicts.some(c => samePair(c.pair, g.statements) && c.status === 'false_positive' && c.confidence < 0.5))
+    results.push(ratio('false_alarm', `${idList(gold.false_alarms.map(g => g.id))} flagged as approximate and rejected as false alarm`, allOf(gold.false_alarms.length), falseAlarmsRejected.length, gold.false_alarms.length, (n, d) => n === d))
+  }
 
-  const figurative = gold.figurative.filter(s => byStatement(s)?.status === 'rejected')
-  results.push(ratio('figurative', 'Figurative relationship rejected', allOf(gold.figurative.length), figurative.length, gold.figurative.length, (n, d) => n === d))
+  if (gold.figurative?.length) {
+    const figurative = gold.figurative.filter(s => byStatement(s)?.status === 'rejected')
+    results.push(ratio('figurative', 'Figurative relationship rejected', allOf(gold.figurative.length), figurative.length, gold.figurative.length, (n, d) => n === d))
+  }
 
-  const blocked = gold.hallucinated.filter((s) => {
-    const f = byStatement(s)
-    return f && f.status !== 'canon' && f.evidence.every(e => !e.verified)
-  })
-  results.push(ratio('hallucination', 'Invented quote blocked from canon', allOf(gold.hallucinated.length), blocked.length, gold.hallucinated.length, (n, d) => n === d))
+  if (gold.hallucinated?.length) {
+    const blocked = gold.hallucinated.filter((s) => {
+      const f = byStatement(s)
+      return f && f.status !== 'canon' && f.evidence.every(e => !e.verified)
+    })
+    results.push(ratio('hallucination', 'Invented quote blocked from canon', allOf(gold.hallucinated.length), blocked.length, gold.hallucinated.length, (n, d) => n === d))
+  }
 
   const cited = canon.filter(f => f.evidence.some(e => e.verified))
   results.push(ratio('citations', 'Canon facts with a verified citation', '100%', cited.length, canon.length, (n, d) => n === d))
@@ -105,8 +124,8 @@ export async function runEval() {
   results.push(ratio('unknown', 'Unsupported questions answered "unknown"', allOf(gold.unknown_questions.length), unknown, gold.unknown_questions.length, (n, d) => n === d))
   results.push({ key: 'fabricated', label: 'Invented source IDs in answers', target: '0', measured: String(fabricated), num: fabricated, den: null, pass: fabricated === 0 })
 
-  const rule = all.find(f => f.statement.includes(gold.impact.rule_contains) && f.version === 1)
-  if (rule) {
+  const rule = gold.impact && all.find(f => f.statement.includes(gold.impact!.rule_contains) && f.version === 1)
+  if (gold.impact && rule) {
     const timings: number[] = []
     let items: ImpactItem[] = []
     for (let i = 0; i < 5; i++) {
@@ -123,7 +142,7 @@ export async function runEval() {
       (n, d) => n / d >= 0.8 && !leaked.length, leaked.length ? `wrongly listed: ${leaked.join(', ')}` : undefined))
     const p50 = timings.sort((a, b) => a - b)[2]!
     results.push({ key: 'impact_latency', label: 'Impact analysis p50 over 5 runs', target: '≤ 5 s', measured: `${p50.toFixed(1)} ms`, num: p50, den: null, pass: p50 <= 5000 })
-  } else {
+  } else if (gold.impact) {
     results.push({ key: 'impact_recall', label: `${gold.impact.id} impact recall`, target: allOf(gold.impact.expected_scenes.length), measured: 'not run', num: null, den: null, pass: null, note: 'Rule fact not imported yet.' })
   }
 

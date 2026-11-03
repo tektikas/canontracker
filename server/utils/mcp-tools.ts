@@ -408,7 +408,7 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
     title: 'Continuity check (nothing stored)',
     description: 'Dry-run continuity check: pass the facts a scene or draft would add and get the rule-based conflicts they would raise against accepted canon, and among themselves. Nothing is stored. Deterministic, no model. Rules: '
       + 'EXACT/APPROX_TIME_LOCATION_OVERLAP (same subject, predicate "located_at", object = the place, overlapping clock times), TRAVEL_TIME_TOO_SHORT (two located_at facts closer than a canon "travel_time" fact allows; travel_time: subject and object are the two places, value = minutes), '
-      + 'RELATIONSHIP_AFTER_END (kind "relationship", same predicate and object, used after a canon relationship ended at time_to). Day-only times never clash on place. World-rule checks need a model and are not run. '
+      + 'RELATIONSHIP_AFTER_END (kind "relationship", same predicate and object, used after a canon relationship ended at time_to), ATTRIBUTE_MISMATCH (same subject, the same single-valued detail as predicate "<detail>_is" such as "wound_location_is", value = the answer; two answers where neither contains the other, at overlapping times; no time = always). Day-only times never clash on place. World-rule checks need a model and are not run. '
       + `No hits is not proof of consistency. ${STORY_TIME}. Example: {"facts": [{"kind": "event", "subject": "Odo", "predicate": "located_at", "object": "Saltgate", "time_from": "D1 21:00", "time_to": "D1 22:00"}]}`,
     inputSchema: {
       facts: z.array(z.object({
@@ -429,7 +429,8 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
       if (bad) throw new ToolError('BAD_INPUT', `facts[${i}]: ${STORY_TIME}.`)
       if (from != null && to != null && to < from) throw new ToolError('BAD_INPUT', `facts[${i}]: time_to is before time_from.`)
       const precision = from != null || to != null ? (p.time_precision ?? 'exact') : null
-      return { id: `proposed[${i}]`, kind: p.kind, subject: kept(p.subject)!, predicate: p.predicate.trim(), object: kept(p.object), value: p.value?.trim() || null,
+      const d = asDetail({ predicate: p.predicate.trim(), object: p.object, value: p.value })
+      return { id: `proposed[${i}]`, kind: p.kind, subject: kept(p.subject)!, predicate: d.predicate, object: kept(d.object), value: d.value?.trim() || null,
         statement: p.statement?.trim() || `${p.subject} ${p.predicate}${p.object ? ` ${p.object}` : ''}${p.value ? ` ${p.value}` : ''}`,
         t_from: from, t_to: to, time_label: timeLabel(from, to, precision, day), precision, status: 'proposed', confidence: null, origin: 'agent:check', model_id: null,
         version: 1, supersedes_id: null, created_at: now(), decided_at: null, rationale: null, decided_by: null, project_id: pid(), created_by: null }
@@ -452,7 +453,7 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
 
   server.registerTool('sb_list_conflicts', {
     title: 'Possible conflicts',
-    description: 'Possible canon conflicts found by the rule checks (time/place overlap, travel time, relationship after end, world-rule violations). These are candidates for a human to judge, not verdicts. Default: open ones. Paginated. Example: {"status": "open"}',
+    description: 'Possible canon conflicts found by the rule checks (time/place overlap, travel time, relationship after end, same detail with two answers, world-rule violations). These are candidates for a human to judge, not verdicts. Default: open ones. Paginated. Example: {"status": "open"}',
     inputSchema: { status: z.enum(['open', 'confirmed', 'false_positive', 'uncertain', 'resolved_by_merge', 'all']).default('open').optional(), limit: z.number().int().min(1).max(100).default(50).optional(), cursor },
     annotations: read,
   }, ({ status, limit, cursor: at }) => {
@@ -567,10 +568,11 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
 
     const id = newId('fact')
     const precision = tFrom != null || tTo != null ? (p.time_precision ?? 'exact') : null
+    const d = asDetail({ predicate: p.predicate.trim(), object: p.object, value: p.value })
     tx(() => {
       db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision, status, confidence, origin, model_id,
         created_at, project_id, proposed_by_token, proposed_by_user) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', null, 'agent:mcp', null, ?, ?, ?, ?)`)
-        .run(id, p.kind, p.subject.trim(), p.predicate.trim(), p.object?.trim() || null, p.value?.trim() || null, p.statement.trim(), tFrom, tTo,
+        .run(id, p.kind, p.subject.trim(), d.predicate, d.object?.trim() || null, d.value?.trim() || null, p.statement.trim(), tFrom, tTo,
           timeLabel(tFrom, tTo, precision, day), precision, now(), pid(), token.id, a.user.id)
       db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, 1, ?)')
         .run(newId('ev'), id, doc.id, match.passage.id, match.quote, pid())

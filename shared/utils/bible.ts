@@ -26,6 +26,7 @@ export const CONFLICT_RULE_LABEL: Record<string, string> = {
   APPROX_TIME_LOCATION_OVERLAP: 'Same person, two places, overlapping approximate times',
   RELATIONSHIP_AFTER_END: 'Relationship used after it ended',
   TRAVEL_TIME_TOO_SHORT: 'Not enough time to travel between places',
+  ATTRIBUTE_MISMATCH: 'Same detail, two answers',
   WORLD_RULE_VIOLATION: 'Fact breaks a world rule',
 }
 

@@ -8,12 +8,13 @@ const currentId = computed(() => me.value?.current?.project.id)
 const creating = ref(route.query.new === '1')
 const newName = ref('')
 // A new project can start from one of the sample sets; loading one is the same admin action as Load demo set on Home.
-const SAMPLES = { empty: '', 'broken-tide': 'Broken Tide (demo)', 'lantern-row': 'Lantern Row (sample)', 'ashbell-pass': 'The Ashbell Pass (demo)' } as const
+const SAMPLES = { empty: '', 'broken-tide': 'Broken Tide (demo)', 'lantern-row': 'Lantern Row (sample)', 'ashbell-pass': 'The Ashbell Pass (demo)', 'sherlock-holmes': 'Sherlock Holmes (sample)' } as const
 const HINTS: Record<keyof typeof SAMPLES, string> = {
   'empty': 'Add your own sources from Home.',
   'broken-tide': 'An island story in 13 sources with planted contradictions.',
   'lantern-row': 'Three short sources that come with five preloaded canon facts, each quoted from its source. Sample canon: no one reviewed it and no model proposed it.',
   'ashbell-pass': 'A mountain-town game story in 28 sources, filed in folders with tags, plus wiki pages for its cast, places, items and quests.',
+  'sherlock-holmes': 'Arthur Conan Doyle, public domain: A Study in Scarlet, The Sign of the Four and five stories, one source per chapter or story. Holds famous slips, like the wound that moves from Watson’s shoulder to his leg.',
 }
 const startWith = ref<keyof typeof SAMPLES>('empty')
 watch(startWith, (v, old) => { if (!newName.value.trim() || newName.value === SAMPLES[old]) newName.value = SAMPLES[v] })
@@ -76,6 +77,7 @@ const ago = (iso: string | null) => {
             <option value="broken-tide">The Broken Tide demo</option>
             <option value="lantern-row">The Lantern Row sample (preloaded canon)</option>
             <option value="ashbell-pass">The Ashbell Pass demo (28 sources)</option>
+            <option value="sherlock-holmes">Sherlock Holmes, a real classic (31 sources)</option>
           </select>
         </UiField>
         <div class="row">

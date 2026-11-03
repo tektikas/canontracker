@@ -75,6 +75,7 @@ const detailError = computed(() => !f.subject.trim() ? 'Say who or what this is 
 const checkNote = computed(() => {
   if (pred.value === 'located_at') return f.object.trim() && f.time_from.trim() ? known.value!.hint : 'Add where and when, so this is checked for being in two places at once.'
   if (known.value) return known.value.hint
+  if (isDetailPredicate(pred.value)) return f.object.trim() ? 'One answer at a time: checked against facts that give this detail a different answer.' : 'Add the answer, so it is checked against facts that give this detail a different answer.'
   if (f.object.trim()) return `Saved as a plain statement, so ${f.time_from.trim() ? 'it' : 'a place'} is not checked for being in two places at once. If this says where they are, choose “is at”${f.time_from.trim() ? '' : ' and add when'}.`
   return ''
 })
@@ -186,9 +187,9 @@ const TITLE = { fact: 'Add a fact', entity: 'Add an entity', note: 'Add a note' 
                 <input ref="subjectInput" v-model="f.subject" type="text" list="sel-entities" maxlength="80" spellcheck="false" autocomplete="off" placeholder="e.g. Ines" @input="typed.add('subject')">
               </UiField>
               <UiField label="Does what / is what" class="tf-p">
-                <input v-model="f.relation" type="text" list="sel-relations" maxlength="60" spellcheck="false" autocomplete="off" placeholder="e.g. is at, owns" @input="typed.add('relation')">
+                <input v-model="f.relation" type="text" list="sel-relations" maxlength="60" spellcheck="false" autocomplete="off" placeholder="e.g. is at, owns, eye colour is" @input="typed.add('relation')">
               </UiField>
-              <UiField :label="pred === 'located_at' ? 'Where' : 'To whom / where'" class="tf-o">
+              <UiField :label="pred === 'located_at' ? 'Where' : isDetailPredicate(pred) ? 'Answer' : 'To whom / where'" class="tf-o">
                 <input v-model="f.object" type="text" list="sel-entities" maxlength="80" spellcheck="false" autocomplete="off" placeholder="Optional" @input="typed.add('object')">
               </UiField>
               <template v-for="role in ROLES" :key="role">

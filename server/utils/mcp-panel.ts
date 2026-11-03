@@ -96,7 +96,7 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
       status: z.enum(['pending', 'canon', 'rejected', 'superseded']).default('pending').optional().describe('list: which facts'),
       fact_id: id.optional(), rationale: z.string().max(2000).optional().describe('Why (required to reject)'),
       corrected: z.object({ statement: z.string().max(500).optional(), subject: z.string().max(80).optional(), predicate: z.string().max(60).optional(),
-        object: z.string().max(80).nullable().optional(), time_from: z.string().max(40).optional().describe(STORY_TIME), time_to: z.string().max(40).optional(),
+        object: z.string().max(80).nullable().optional(), value: z.string().max(200).optional().describe('A detail\'s answer (predicate "<detail>_is"); the object is read the same way'), time_from: z.string().max(40).optional().describe(STORY_TIME), time_to: z.string().max(40).optional(),
         precision: z.enum(['exact', 'approximate']).optional() }).optional().describe('edit_accept: the fields to change'),
       items: z.array(z.object({ id, fingerprint: z.string().max(20_000) })).min(1).max(500).optional().describe('accept_verified: ids with the fingerprint list returned (critic_fingerprint when critic is true)'),
       critic: z.boolean().optional().describe('accept_verified: accept only what the AI critic keeps'),

@@ -6,7 +6,10 @@ import type { SimulationNodeDatum } from 'd3-force'
 // towards its type's cluster (d3-force: links, repulsion, collision). One edge per entity pair: solid when a relationship
 // fact links them, thin otherwise. Select an entity to see its neighbourhood and the facts behind each link.
 // Labels are placed greedily by importance and skipped where they would overlap; zooming in makes room for more.
-type Fact = { id: string, kind: string, subject: string, predicate: string, object: string | null, statement: string }
+// A large canon (a whole novel) starts with the TOP most-named entities and the links between them; "Show all" draws the rest,
+// and Find or a selected entity adds that one (with its links to what is shown). Nothing is filtered out of the data.
+type Fact = { id: string, kind: string, subject: string, predicate: string, object: string | null, value?: string | null, statement: string }
+const TOP = 40
 const props = defineProps<{ facts: Fact[], selected?: string }>()
 
 // The one place a node gets its type's label, colour and legend order: the project's entity types (useKind), with the
@@ -22,8 +25,23 @@ function typeStyle(kind: string) {
 const lookup = useEntityLookup()
 const pageOf = (name: string) => lookup.value.byName.get(normName(name))
 
-const links = computed(() => props.facts.filter(f => f.object && f.predicate !== 'travel_time'))
+// A link is a fact with an object, or a detail whose answer names an entity page ("spouse_is Mary").
+const allLinks = computed(() => props.facts.flatMap((f) => {
+  if (f.predicate === 'travel_time') return []
+  const to = f.object ?? (isDetailPredicate(f.predicate) && f.value && pageOf(f.value) ? f.value : null)
+  return to ? [{ ...f, object: to }] : []
+}))
 const allNames = computed(() => props.facts.flatMap(f => [f.subject, f.object ?? '']))
+// Canon facts naming each linked entity; the TOP by count (ties by name) are drawn first.
+const ranked = computed(() => {
+  const n = new Map<string, number>()
+  for (const f of allLinks.value) for (const e of new Set([f.subject, f.object])) n.set(e, (n.get(e) ?? 0) + 1)
+  return [...n].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name)
+})
+const showAll = ref(false)
+const added = ref(new Set<string>(props.selected ? [props.selected] : []))
+const shown = computed(() => (showAll.value || ranked.value.length <= TOP ? null : new Set([...ranked.value.slice(0, TOP), ...added.value])))
+const links = computed(() => (shown.value ? allLinks.value.filter(f => shown.value!.has(f.subject) && shown.value!.has(f.object)) : allLinks.value))
 const nodes = computed(() => {
   const degree = new Map<string, number>()
   for (const f of links.value) for (const e of [f.subject, f.object!]) degree.set(e, (degree.get(e) ?? 0) + 1)
@@ -141,7 +159,13 @@ const screen = (p: { x: number, y: number }) => ({ x: p.x * view.k + view.x, y: 
 
 // Focus: the selected entity and its neighbours stay lit; everything else dims. Hover previews the same without selecting.
 const focus = ref<string | null>(props.selected && byName.value.has(props.selected) ? props.selected : null)
-watch(() => props.selected, (s) => { if (s && byName.value.has(s)) select(s) })
+watch(() => props.selected, (s) => { if (s) reveal(s) })
+// Draws an entity the default view leaves out, then focuses it.
+async function reveal(name: string) {
+  if (!ranked.value.includes(name)) return
+  if (!byName.value.has(name)) { added.value = new Set([...added.value, name]); await nextTick() }
+  if (byName.value.has(name)) { if (focus.value !== name) select(name) }
+}
 const hover = ref<string | null>(null)
 const lit = computed(() => {
   const c = hover.value ?? focus.value
@@ -256,11 +280,15 @@ const neighbours = computed(() => {
 })
 const hubs = computed(() => [...nodes.value].sort((a, b) => b.degree - a.degree || a.name.localeCompare(b.name)).slice(0, 8))
 const find = ref('')
-watch(find, (v) => {
-  const n = nodes.value.find(x => normName(x.name) === normName(v))
-  if (n) { focus.value = n.name; panTo(n.name); find.value = '' }
+watch(find, async (v) => {
+  const name = ranked.value.find(x => normName(x) === normName(v))
+  if (!name) return
+  find.value = ''
+  if (!byName.value.has(name)) { added.value = new Set([...added.value, name]); await nextTick() }
+  focus.value = name
+  panTo(name)
 })
-const summary = computed(() => `${counted(nodes.value.length, 'entity', 'entities')} linked by ${counted(links.value.length, 'canon fact')}`)
+const summary = computed(() => `${counted(nodes.value.length, 'entity', 'entities')}${shown.value ? ` (the most named of ${ranked.value.length})` : ''} linked by ${counted(links.value.length, 'canon fact')}`)
 </script>
 
 <template>
@@ -273,7 +301,8 @@ const summary = computed(() => `${counted(nodes.value.length, 'entity', 'entitie
       </ul>
       <div class="tools">
         <input v-model="find" type="search" list="graph-names" placeholder="Find entity…" aria-label="Find an entity in the graph">
-        <datalist id="graph-names"><option v-for="n in nodes" :key="n.name" :value="n.name" /></datalist>
+        <datalist id="graph-names"><option v-for="n in ranked" :key="n" :value="n" /></datalist>
+        <button v-if="ranked.length > TOP" type="button" class="all" :aria-pressed="showAll" @click="showAll = !showAll">{{ showAll ? `Show top ${TOP}` : `Show all ${ranked.length}` }}</button>
         <div class="zoom" role="group" aria-label="Zoom">
           <button type="button" aria-label="Zoom in" @click="zoom(1.4)">+</button>
           <button type="button" aria-label="Zoom out" @click="zoom(1 / 1.4)">−</button>
@@ -356,6 +385,8 @@ const summary = computed(() => `${counted(nodes.value.length, 'entity', 'entitie
 .l.rel { border-top: 2px solid var(--ink); opacity: .6; }
 .tools { display: flex; gap: var(--s-2); align-items: center; }
 .tools input { width: 180px; min-height: 34px; }
+.tools .all { min-height: 34px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--r-md); background: var(--raised); color: var(--ink); font: 600 var(--text-sm) var(--font-ui); cursor: pointer; white-space: nowrap; }
+.tools .all:hover { background: var(--sunken); }
 .zoom { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--r-md); overflow: hidden; }
 .zoom button { min-width: 36px; min-height: 34px; padding: 0 10px; border: 0; background: var(--raised); color: var(--ink); font: 600 var(--text-sm) var(--font-ui); cursor: pointer; }
 .zoom button + button { border-left: 1px solid var(--line-strong); }
@@ -397,8 +428,9 @@ svg:active { cursor: grabbing; }
   .side { max-height: none; }
 }
 @media (max-width: 720px) {
-  .tools { width: 100%; }
-  .tools input { flex: 1; min-width: 0; min-height: 44px; width: auto; }
+  .tools { width: 100%; flex-wrap: wrap; }
+  .tools input { flex: 1 1 100%; min-width: 0; min-height: 44px; width: auto; }
+  .tools .all { min-height: 44px; flex: 1; }
   .zoom button { min-width: 44px; min-height: 44px; }
   .to { min-height: 44px; }
 }

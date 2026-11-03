@@ -32,15 +32,17 @@ export default defineEventHandler(async (event) => {
 
   const kind = str(b.kind) || 'claim'
   if (!KINDS.includes(kind)) throw fail(400, 'BAD_KIND', `kind must be one of ${KINDS.join(', ')}.`)
-  const names = { subject: str(b.subject).slice(0, 80), object: str(b.object).slice(0, 80) || null }
   const predicate = str(b.predicate).toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '_').replace(/^_+|_+$/g, '').slice(0, 60)
+  // A detail's answer ("wound_location_is" → "shoulder") is its value, not an entity, even when typed in the object box.
+  const detail = asDetail({ predicate, object: str(b.object).slice(0, 80) || null, value: str(b.value) || null })
+  const names = { subject: str(b.subject).slice(0, 80), object: detail.object ?? null }
   const statement = str(b.statement).slice(0, 500)
   if (!names.subject) throw fail(400, 'SUBJECT_REQUIRED', 'Say who or what the fact is about.')
   if (!predicate) throw fail(400, 'PREDICATE_REQUIRED', 'Say how they relate, for example located_at.')
   if (!statement) throw fail(400, 'STATEMENT_REQUIRED', 'Write the fact as one sentence.')
   // "Arin → is" says nothing on its own: who or what they are is the object.
   if (predicate === 'is' && !names.object) throw fail(400, 'OBJECT_REQUIRED', 'Say what they are in Object, for example “keeper of the lighthouse”.')
-  const value = str(b.value) || null
+  const value = detail.value || null
   if (predicate === 'travel_time' && (!value || !Number.isFinite(Number(value)))) throw fail(400, 'VALUE_REQUIRED', 'Travel time needs the minutes as a number.')
 
   const range = parseStoryRange(str(b.time_from), str(b.time_to))

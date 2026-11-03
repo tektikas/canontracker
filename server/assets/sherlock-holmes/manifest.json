@@ -1,0 +1,298 @@
+{
+  "medium": "prose",
+  "tags": {
+    "novel": "accent",
+    "short-story": "good",
+    "crux": "warn"
+  },
+  "docs": {
+    "1887-a-study-in-scarlet-1-01-mr-sherlock-holmes.md": {
+      "title": "A Study in Scarlet, I.1: Mr. Sherlock Holmes",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel",
+        "crux"
+      ],
+      "words": 2788
+    },
+    "1887-a-study-in-scarlet-1-02-the-science-of-deduction.md": {
+      "title": "A Study in Scarlet, I.2: The Science of Deduction",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel",
+        "crux"
+      ],
+      "words": 3549
+    },
+    "1887-a-study-in-scarlet-1-03-the-lauriston-gardens-mystery.md": {
+      "title": "A Study in Scarlet, I.3: The Lauriston Gardens Mystery",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel"
+      ],
+      "words": 3832
+    },
+    "1887-a-study-in-scarlet-1-04-what-john-rance-had-to-tell.md": {
+      "title": "A Study in Scarlet, I.4: What John Rance Had to Tell",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel"
+      ],
+      "words": 2550
+    },
+    "1887-a-study-in-scarlet-1-05-our-advertisement-brings-a-visitor.md": {
+      "title": "A Study in Scarlet, I.5: Our Advertisement Brings a Visitor",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel"
+      ],
+      "words": 2531
+    },
+    "1887-a-study-in-scarlet-1-06-tobias-gregson-shows-what-he-can-do.md": {
+      "title": "A Study in Scarlet, I.6: Tobias Gregson Shows What He Can Do",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel"
+      ],
+      "words": 3208
+    },
+    "1887-a-study-in-scarlet-1-07-light-in-the-darkness.md": {
+      "title": "A Study in Scarlet, I.7: Light in the Darkness",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel"
+      ],
+      "words": 3338
+    },
+    "1887-a-study-in-scarlet-2-01-on-the-great-alkali-plain.md": {
+      "title": "A Study in Scarlet, II.1: On the Great Alkali Plain",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel"
+      ],
+      "words": 3618
+    },
+    "1887-a-study-in-scarlet-2-02-the-flower-of-utah.md": {
+      "title": "A Study in Scarlet, II.2: The Flower of Utah",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel"
+      ],
+      "words": 2587
+    },
+    "1887-a-study-in-scarlet-2-03-john-ferrier-talks-with-the-prophet.md": {
+      "title": "A Study in Scarlet, II.3: John Ferrier Talks with the Prophet",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel"
+      ],
+      "words": 1850
+    },
+    "1887-a-study-in-scarlet-2-04-a-flight-for-life.md": {
+      "title": "A Study in Scarlet, II.4: A Flight For Life",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel"
+      ],
+      "words": 3385
+    },
+    "1887-a-study-in-scarlet-2-05-the-avenging-angels.md": {
+      "title": "A Study in Scarlet, II.5: The Avenging Angels",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel"
+      ],
+      "words": 3539
+    },
+    "1887-a-study-in-scarlet-2-06-a-continuation-of-the-reminiscences-of-john-watson-m-d.md": {
+      "title": "A Study in Scarlet, II.6: A Continuation of the Reminiscences of John Watson, M.d",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel"
+      ],
+      "words": 4509
+    },
+    "1887-a-study-in-scarlet-2-07-the-conclusion.md": {
+      "title": "A Study in Scarlet, II.7: The Conclusion",
+      "kind": "scene",
+      "folder": "A Study in Scarlet",
+      "tags": [
+        "novel"
+      ],
+      "words": 2126
+    },
+    "1890-the-sign-of-the-four-01-the-science-of-deduction.md": {
+      "title": "The Sign of the Four, 1: The Science of Deduction",
+      "kind": "scene",
+      "folder": "The Sign of the Four",
+      "tags": [
+        "novel",
+        "crux"
+      ],
+      "words": 2938
+    },
+    "1890-the-sign-of-the-four-02-the-statement-of-the-case.md": {
+      "title": "The Sign of the Four, 2: The Statement of the Case",
+      "kind": "scene",
+      "folder": "The Sign of the Four",
+      "tags": [
+        "novel",
+        "crux"
+      ],
+      "words": 1834
+    },
+    "1890-the-sign-of-the-four-03-in-quest-of-a-solution.md": {
+      "title": "The Sign of the Four, 3: In Quest of a Solution",
+      "kind": "scene",
+      "folder": "The Sign of the Four",
+      "tags": [
+        "novel"
+      ],
+      "words": 1735
+    },
+    "1890-the-sign-of-the-four-04-the-story-of-the-bald-headed-man.md": {
+      "title": "The Sign of the Four, 4: The Story of the Bald-Headed Man",
+      "kind": "scene",
+      "folder": "The Sign of the Four",
+      "tags": [
+        "novel"
+      ],
+      "words": 3838
+    },
+    "1890-the-sign-of-the-four-05-the-tragedy-of-pondicherry-lodge.md": {
+      "title": "The Sign of the Four, 5: The Tragedy of Pondicherry Lodge",
+      "kind": "scene",
+      "folder": "The Sign of the Four",
+      "tags": [
+        "novel"
+      ],
+      "words": 2622
+    },
+    "1890-the-sign-of-the-four-06-sherlock-holmes-gives-a-demonstration.md": {
+      "title": "The Sign of the Four, 6: Sherlock Holmes Gives a Demonstration",
+      "kind": "scene",
+      "folder": "The Sign of the Four",
+      "tags": [
+        "novel"
+      ],
+      "words": 3121
+    },
+    "1890-the-sign-of-the-four-07-the-episode-of-the-barrel.md": {
+      "title": "The Sign of the Four, 7: The Episode of the Barrel",
+      "kind": "scene",
+      "folder": "The Sign of the Four",
+      "tags": [
+        "novel"
+      ],
+      "words": 4175
+    },
+    "1890-the-sign-of-the-four-08-the-baker-street-irregulars.md": {
+      "title": "The Sign of the Four, 8: The Baker Street Irregulars",
+      "kind": "scene",
+      "folder": "The Sign of the Four",
+      "tags": [
+        "novel",
+        "crux"
+      ],
+      "words": 3338
+    },
+    "1890-the-sign-of-the-four-09-a-break-in-the-chain.md": {
+      "title": "The Sign of the Four, 9: A Break in the Chain",
+      "kind": "scene",
+      "folder": "The Sign of the Four",
+      "tags": [
+        "novel"
+      ],
+      "words": 3625
+    },
+    "1890-the-sign-of-the-four-10-the-end-of-the-islander.md": {
+      "title": "The Sign of the Four, 10: The End of the Islander",
+      "kind": "scene",
+      "folder": "The Sign of the Four",
+      "tags": [
+        "novel"
+      ],
+      "words": 3344
+    },
+    "1890-the-sign-of-the-four-11-the-great-agra-treasure.md": {
+      "title": "The Sign of the Four, 11: The Great Agra Treasure",
+      "kind": "scene",
+      "folder": "The Sign of the Four",
+      "tags": [
+        "novel"
+      ],
+      "words": 2201
+    },
+    "1890-the-sign-of-the-four-12-the-strange-story-of-jonathan-small.md": {
+      "title": "The Sign of the Four, 12: The Strange Story of Jonathan Small",
+      "kind": "scene",
+      "folder": "The Sign of the Four",
+      "tags": [
+        "novel"
+      ],
+      "words": 10315
+    },
+    "1891-a-scandal-in-bohemia.md": {
+      "title": "A Scandal in Bohemia",
+      "kind": "scene",
+      "folder": "The Adventures of Sherlock Holmes",
+      "tags": [
+        "short-story",
+        "crux"
+      ],
+      "words": 8529
+    },
+    "1891-the-five-orange-pips.md": {
+      "title": "The Five Orange Pips",
+      "kind": "scene",
+      "folder": "The Adventures of Sherlock Holmes",
+      "tags": [
+        "short-story",
+        "crux"
+      ],
+      "words": 7319
+    },
+    "1891-the-man-with-the-twisted-lip.md": {
+      "title": "The Man with the Twisted Lip",
+      "kind": "scene",
+      "folder": "The Adventures of Sherlock Holmes",
+      "tags": [
+        "short-story",
+        "crux"
+      ],
+      "words": 9206
+    },
+    "1892-the-adventure-of-the-noble-bachelor.md": {
+      "title": "The Adventure of the Noble Bachelor",
+      "kind": "scene",
+      "folder": "The Adventures of Sherlock Holmes",
+      "tags": [
+        "short-story",
+        "crux"
+      ],
+      "words": 8109
+    },
+    "1893-the-greek-interpreter.md": {
+      "title": "The Greek Interpreter",
+      "kind": "scene",
+      "folder": "The Memoirs of Sherlock Holmes",
+      "tags": [
+        "short-story"
+      ],
+      "words": 6999
+    }
+  }
+}
