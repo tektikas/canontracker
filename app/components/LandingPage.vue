@@ -111,7 +111,7 @@ const MCP_SNIPPET = `claude mcp add --transport http story-bible ${SITE}/mcp \\\
       <section class="band agents">
         <div class="band-head">
           <h2>AI that proposes, people who decide</h2>
-          <p class="muted">Six AI helpers do the reading. None of them can change canon.</p>
+          <p class="muted">AI helpers do the reading. None of them can change canon.</p>
         </div>
         <ul class="agent-list">
           <li v-for="a in AGENTS" :key="a.name">

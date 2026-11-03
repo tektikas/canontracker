@@ -24,7 +24,7 @@ const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
     ['Story time', 'Days before day 1 and day-only times.'],
     ['Books', 'The story bible and the manuscript as print PDF and EPUB.'],
     ['Entity types', 'Each project defines its own; game projects start with NPC, item, ability and quest.'],
-    ['Editing and tags', 'Edit any document as a new version; tags on documents and Library rows.'],
+    ['Editing and tags', 'Edit written and imported text documents as a new version (recording transcripts are kept as heard); tags on documents and Library rows.'],
     ['Add a fact', 'Sentence first, with who, where and when filled in from the text.'],
     ['Propose a change', 'A guided flow, with impact grouped by hop.'],
     ['Project pages', 'A searchable project list and a page per project.'],
@@ -42,13 +42,13 @@ const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
   { date: '2026-10-30', label: '30 Oct 2026', entries: [
     ['First version', 'Import, AI candidates with quotes, human review, canon, conflict rules and change impact.'],
     ['Accounts and studios', 'Sign-up, studios, members with roles, invites and projects.'],
-    ['Meta Model API', 'Live AI on Muse Spark, with every call recorded.'],
+    ['Live AI', 'AI features call the model provider live, with every call recorded.'],
     ['Entity wiki', 'Pages, portraits, merges and mention cards.'],
     ['MCP server', 'Agent tokens, read tools and proposals that wait in Review.'],
     ['Write in the app', 'Documents, focus mode, facts and notes from selected text.'],
     ['Library', 'Uploads, folders, tags, reader search, version history and diff.'],
     ['First login', 'Getting started checklist, guided tour, the Lantern Row sample and a phone nav.'],
-    ['Image generation', 'Portraits and covers with Muse Image.'],
+    ['Image generation', 'Portraits and covers drawn by AI.'],
   ] },
 ]
 </script>

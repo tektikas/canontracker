@@ -40,7 +40,7 @@ const INCLUDED = [
       <ul>
         <li v-for="i in INCLUDED" :key="i">{{ i }}</li>
       </ul>
-      <p class="note">AI features call a model provider (Muse Spark via the Meta Model API by default). When you self-host, you bring your own API key and its usage is billed to you by the provider.</p>
+      <p class="note">AI features call an AI model provider (<NuxtLink to="/agents">which one</NuxtLink>). When you self-host, you bring your own API key and its usage is billed to you by the provider.</p>
     </section>
 
     <MarketingCta />

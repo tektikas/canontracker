@@ -99,7 +99,7 @@ export const PILLARS: Pillar[] = [
       {
         title: 'Import Markdown, text and Word',
         text: 'Drop .md, .txt or .docx files anywhere in the Library. Word files keep headings, lists, tables and footnotes; tracked changes are read as accepted, and Word comments become notes pinned to the words they were on. The original Word file is kept for download.',
-        points: ['Same filename is a new version, same text is skipped', 'Folders, tags and kinds to organise hundreds of documents', 'A version diff shows which canon facts cite changed passages'],
+        points: ['Same filename is a new version, same text is skipped', 'Folders, tags and kinds to keep a large Library in order', 'A version diff shows which canon facts cite changed passages'],
         shot: { name: 'library', alt: 'The Library of The Ashbell Pass with folders, kinds and tags.' },
       },
       {
@@ -209,7 +209,7 @@ export const USE_CASES: UseCase[] = [
     title: 'For screen and series writers',
     nav: 'Screen and series',
     art: 'screen',
-    sample: 'Broken Tide, ten short scenes with a world rule, a figurative “sister” and a scene-level change to trace.',
+    sample: 'Broken Tide, eleven short scenes with a world rule, a figurative “sister” and a scene-level change to trace.',
     lead: 'A writers’ room produces outlines, scene scripts and table reads faster than anyone can cross-check them. Story Bible keeps the facts of the show in one cited place.',
     jobs: [
       { title: 'Scene by scene, with sources', text: 'Every fact cites the scene and line it came from, so a question in the room has an answer with a quote.' },

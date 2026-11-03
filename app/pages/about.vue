@@ -14,7 +14,7 @@ useMarketingSeo({ title: 'About', description: 'Story Bible was built by Umur fo
       </section>
       <section>
         <h2>How it was made</h2>
-        <p>Story Bible was built by Umur for the Meta AI Developer Hackathon, held from 27 October to 4 November 2026. Its AI runs on Muse Spark through the Meta Model API, with Muse Voice Transcribe for recordings and Muse Image for portraits.</p>
+        <p>Story Bible was built by Umur for the Meta AI Developer Hackathon, held from 27 October to 4 November 2026. Which AI model does what is on the <NuxtLink to="/agents">AI agents</NuxtLink> page.</p>
         <p>It is a Nuxt app with a SQLite database, and it is <a :href="GITHUB">open source on GitHub</a> under <a :href="LICENSE_URL">AGPL-3.0</a>. Every change is in the <NuxtLink to="/changelog">changelog</NuxtLink>, and what comes next is on the roadmap in the repository.</p>
       </section>
       <section>
