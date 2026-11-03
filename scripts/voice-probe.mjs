@@ -174,7 +174,7 @@ check('a person can cite the transcript by selecting words', human.status, 200)
 // 5. Recorded mode only knows the sample: other audio is refused, recorded in model_calls, nothing stored.
 const before = (await a('/api/documents')).data.length
 const tone = await a('/api/recordings', { method: 'POST', form: audioForm('tone.wav', toneWav(2)) })
-check('unknown audio in recorded mode: 503, never made-up text', [tone.status, /live AI/.test(tone.data.message)], [503, true])
+check('unknown audio in recorded mode: 503, never made-up text', [tone.status, /isn’t available/.test(tone.data.message)], [503, true])
 check('nothing stored for it', (await a('/api/documents')).data.length, before)
 const calls = (await a('/api/model-calls')).data.filter(c => c.purpose === 'transcribe')
 check('every transcription is in model_calls', [calls.some(c => c.status === 'ok'), calls.some(c => c.status === 'failed')], [true, true])

@@ -5,7 +5,7 @@ export default defineEventHandler(async (event) => {
   const target = imageTarget(body.target_type, body.target_id)
   const model = imageModelInfo()
   if (!model.live)
-    throw createError({ statusCode: 409, statusMessage: 'IMAGE_MODEL_OFFLINE', message: 'Image generation needs the live Meta Model API. This workspace runs on recorded demo output, which has no image model.' })
+    throw createError({ statusCode: 409, statusMessage: 'IMAGE_MODEL_OFFLINE', message: 'Image generation isn’t available in this workspace yet.' })
   const prompt = cleanText(body.prompt ?? '', 'Prompt', 2000)
   if (!prompt) throw createError({ statusCode: 400, statusMessage: 'INVALID', message: 'Describe what to draw.' })
   const style = (body.style ?? 'none') as ImageStyle

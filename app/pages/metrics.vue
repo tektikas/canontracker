@@ -34,7 +34,7 @@ const score = (results: { pass: boolean | null }[]) => ({
   info: results.filter(r => r.pass === null).length,
 })
 const s = computed(() => latest.value ? score(latest.value.results) : null)
-const tone = (id: string) => ({ recorded: 'warn', live: 'good', mixed: 'pencil', none: 'neutral' } as const)[provenance(id).kind]
+const tone = (id: string) => ({ recorded: 'neutral', live: 'good', mixed: 'neutral', none: 'neutral' } as const)[provenance(id).kind]
 </script>
 
 <template>

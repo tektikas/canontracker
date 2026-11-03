@@ -19,7 +19,7 @@ export function modelInfo() {
   const { modelMode, modelId } = useRuntimeConfig()
   return modelMode === 'meta'
     ? { mode: 'meta', id: modelId, label: `${modelId === 'muse-spark-1.3' ? 'Muse Spark 1.3' : modelId} via Meta Model API` }
-    : { mode: 'mock', id: 'mock:recorded-fixtures', label: 'Recorded demo run (model offline)' }
+    : { mode: 'mock', id: 'mock:recorded-fixtures', label: 'AI' }
 }
 
 // Images have no recorded fallback: in mock mode there is simply no image model.
@@ -459,7 +459,7 @@ export function transcribeAudio(wav: Wav & { sha256: string }, target: { type: s
   return traced('transcribe', target, [wav.sha256], null, async (): Promise<Transcript> => {
     if (!info.live) {
       const rec = (await recordedRecordings()).find(r => r.audio_sha256 === wav.sha256)
-      if (!rec) throw createError({ statusCode: 503, statusMessage: 'MODEL_OFFLINE', message: 'Transcription needs the live AI. In recorded mode only the sample recording has a transcript. Nothing was saved.' })
+      if (!rec) throw createError({ statusCode: 503, statusMessage: 'MODEL_OFFLINE', message: 'Transcription isn’t available in this workspace yet: only the sample recording has a transcript. Nothing was saved.' })
       return { turns: rec.turns, duration_ms: rec.duration_ms, session_ids: rec.session_id ? [rec.session_id] : [], mode: 'recorded' }
     }
     const keywords = transcriptionKeywords()
