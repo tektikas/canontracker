@@ -17,7 +17,7 @@ const stepIndex = computed(() => STEPS.findIndex(s => s.key === step.value))
 const studioName = ref(`${firstName.value}’s studio`)
 const projectName = ref('')
 const error = ref('')
-const busy = ref<'' | 'studio' | 'project' | 'demo' | 'ashbell'>('')
+const busy = ref<'' | 'studio' | 'project' | 'demo' | 'ashbell' | 'sherlock'>('')
 
 async function run(kind: typeof busy.value, fn: () => Promise<void>) {
   error.value = ''
@@ -59,6 +59,12 @@ const tryDemo = () => run('demo', async () => {
 const tryAshbell = () => run('ashbell', async () => {
   await $fetch('/api/projects', { method: 'POST', body: { name: 'The Ashbell Pass (demo)', studio_id: me.value?.current?.studio.id ?? adminStudio.value?.id } })
   await $fetch('/api/demo/load', { method: 'POST', body: { set: 'ashbell-pass' } })
+  reloadNuxtApp({ path: '/', force: true })
+})
+// A real classic: Doyle's first Sherlock Holmes novels and stories (public domain), in a project of its own.
+const trySherlock = () => run('sherlock', async () => {
+  await $fetch('/api/projects', { method: 'POST', body: { name: 'Sherlock Holmes (sample)', studio_id: me.value?.current?.studio.id ?? adminStudio.value?.id } })
+  await $fetch('/api/demo/load', { method: 'POST', body: { set: 'sherlock-holmes' } })
   reloadNuxtApp({ path: '/', force: true })
 })
 </script>
@@ -126,6 +132,8 @@ const tryAshbell = () => run('ashbell', async () => {
       <p class="small muted center">
         Want a bigger story? <button type="button" class="linkish" :disabled="!!busy" @click="tryAshbell">{{ busy === 'ashbell' ? 'Loading The Ashbell Pass…' : 'Load The Ashbell Pass' }}</button>,
         a mountain-town game story with NPC schedules, quests and items, in its own project.
+        Or a real classic: <button type="button" class="linkish" :disabled="!!busy" @click="trySherlock">{{ busy === 'sherlock' ? 'Loading Sherlock Holmes…' : 'Load Sherlock Holmes' }}</button>,
+        two novels and five stories by Arthur Conan Doyle (public domain).
       </p>
       <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
       <p class="small muted center"><NuxtLink to="/">Skip for now</NuxtLink> · you can load the demo, import files or write a document any time from Home.</p>

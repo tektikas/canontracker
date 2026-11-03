@@ -47,7 +47,7 @@ const tone = (id: string) => ({ recorded: 'neutral', live: 'good', mixed: 'neutr
 
   <p class="notice info caveat">
     <UiIcon name="metrics" :size="16" />
-    <span>The gold set is small, hand-labeled and synthetic (Broken Tide or The Ashbell Pass, whichever this project loaded). It checks that the system behaves as designed; it is not evidence of real-world accuracy.</span>
+    <span>The gold set is small and hand-labeled: the synthetic Broken Tide or The Ashbell Pass, or the known slips in the Sherlock Holmes sample, whichever this project loaded. It checks that the system behaves as designed; it is not evidence of real-world accuracy.</span>
   </p>
 
   <p v-if="error" class="notice bad" role="alert" style="margin-bottom: var(--s-4)">{{ error }}</p>

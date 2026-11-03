@@ -41,7 +41,9 @@ const derivedTitle = (filename: string, content: string) => content.match(/^#\s+
 // passages keep the turns' times. The audio itself is written by the caller (storeAudio) before this runs.
 // `word`: a .docx upload. Its file is kept as it came (originalPath), and its comments become editorial notes by the uploader.
 export interface RecordingImport { turns: Turn[], audio_sha256: string, bytes: number, duration_ms: number, original_name: string, model_id: string, mode: string, session_ids: string[], script_key: string | null }
-export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }, folderId?: string | null, recording?: RecordingImport, word?: { original: Buffer, comments: WordComment[] }) {
+// `storeAfter`: extraction's model call starts at once, but its candidates are stored only after that promise settles (a batch
+// import runs several documents at a time and keeps the order in which candidates are stored, so duplicates resolve the same way).
+export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }, folderId?: string | null, recording?: RecordingImport, word?: { original: Buffer, comments: WordComment[] }, storeAfter?: Promise<unknown>) {
   const db = useDb()
   const projectId = pid()
   const sha256 = createHash('sha256').update(content).digest('hex')
@@ -139,7 +141,7 @@ export async function importDocument(filename: string, content: string, written?
   let extraction: Awaited<ReturnType<typeof extractInto>> | null = null
   let extractionError: string | null = null
   try {
-    extraction = await extractInto({ id: documentId, filename: key, title, content }, passages)
+    extraction = await extractInto({ id: documentId, filename: key, title, content }, passages, storeAfter)
   } catch (e) {
     extractionError = (e as Error).message
     audit('job.failed', 'document', documentId, { step: 'extraction', error: extractionError })
@@ -219,10 +221,11 @@ const factKey = (f: { kind: string, subject: string, predicate: string, object?:
 // already has, in any status, is skipped. Names are compared under their kept analysis identity (entity_merges), because a
 // merge rewrites the names of the facts it moves but keeps their statements: a re-imported "Lighthouse" candidate equals the
 // canon (or rejected) fact now naming "Causeway". Stored facts keep their original statements and quotes.
-export async function extractInto(doc: { id: string, filename: string, title: string, content: string }, passages: { id: string, text: string }[]) {
+export async function extractInto(doc: { id: string, filename: string, title: string, content: string }, passages: { id: string, text: string }[], storeAfter?: Promise<unknown>) {
   const db = useDb()
   const projectId = pid()
   const drafts = await extractCandidates({ id: doc.id, filename: doc.filename, title: doc.title, text: doc.content })
+  await storeAfter?.catch(() => {})
   const model = modelInfo()
   const existing = db.prepare('select statement, kind, subject, predicate, object, value, t_from, t_to, precision, status from facts where project_id = ?').all(projectId) as { statement: string, kind: string, subject: string, predicate: string, object: string | null, value: string | null, t_from: number | null, t_to: number | null, precision: string | null, status: string }[]
   const seen = new Map<string, string>()

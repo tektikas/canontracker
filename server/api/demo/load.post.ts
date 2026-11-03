@@ -6,9 +6,14 @@
 // - ashbell-pass: the long game demo (28 documents). Its manifest.json files each document in a folder with a kind and tags,
 //   and entities.json preloads the wiki pages (editorial metadata, never canon). In recorded mode its candidates replay a recorded run.
 // The audit is append-only: a reset keeps earlier events and appends project.reset, then sample.loaded.
-const SETS = ['broken-tide', 'lantern-row', 'ashbell-pass'] as const
-const NAMES = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample', 'ashbell-pass': 'the Ashbell Pass demo' }
-interface Manifest { tags: Record<string, string>, docs: Record<string, { kind: string, folder: string, tags: string[] }> }
+// - sherlock-holmes: Doyle's public-domain texts (Project Gutenberg, see its SOURCES.md), one document per chapter or story, filed
+//   by its manifest (medium prose). In recorded mode its candidates replay a recorded run.
+const SETS = ['broken-tide', 'lantern-row', 'ashbell-pass', 'sherlock-holmes'] as const
+const NAMES = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample', 'ashbell-pass': 'the Ashbell Pass demo', 'sherlock-holmes': 'the Sherlock Holmes sample' }
+// Documents imported at a time. Live extraction of a long sample is one model call per document; their candidates are still
+// stored in file order (importDocument's storeAfter), so a load gives the same review queue as a one-by-one import.
+const CONCURRENCY = 4
+interface Manifest { medium?: string, tags: Record<string, string>, docs: Record<string, { kind: string, folder: string, tags: string[] }> }
 interface SampleEntity { name: string, kind: string, summary: string, fields?: Record<string, string> }
 // ponytail: in-process lock, good for the single Nitro instance this app runs as; move it into the database if it ever scales out.
 const loading = new Set<string>()
@@ -47,14 +52,26 @@ export default defineEventHandler(async (event) => {
     const manifest = await assets.getItem<Manifest>(`${set}:manifest.json`)
     const entities = await assets.getItem<SampleEntity[]>(`${set}:entities.json`)
     const shelf = manifest ? organise(manifest, entities ?? []) : null
-    const results = []
+    const texts: [string, string][] = []
     for (const filename of files) {
       const content = await assets.getItem<string>(`${set}:docs:${filename}`)
-      if (!content) continue
-      const r = await importDocument(filename, String(content), undefined, shelf?.folderOf(filename))
-      shelf?.label(r.document_id, filename)
-      results.push(r)
+      if (content) texts.push([filename, String(content)])
     }
+    // Each import starts (hash, version, passages) in file order, with no await before it; the pool only overlaps the model calls.
+    const results: Awaited<ReturnType<typeof importDocument>>[] = []
+    const done: Promise<unknown>[] = []
+    let next = 0
+    await Promise.all(Array.from({ length: CONCURRENCY }, async () => {
+      while (next < texts.length) {
+        const i = next++
+        const [filename, content] = texts[i]!
+        const job = importDocument(filename, content, undefined, shelf?.folderOf(filename), undefined, undefined, done[i - 1])
+        done[i] = job
+        const r = await job
+        shelf?.label(r.document_id, filename)
+        results[i] = r
+      }
+    }))
     const facts = set === 'lantern-row' ? preload((await assets.getItem<Record<string, string>[]>('lantern-row:facts.json')) ?? [], results) : []
     const candidates = results.reduce((n, r) => n + (('candidates' in r && r.candidates) || 0), 0)
     audit('sample.loaded', 'project', project, { set, name: NAMES[set], documents: results.length, candidates, facts, ...(entities && { entities: entities.length }) })
@@ -64,7 +81,7 @@ export default defineEventHandler(async (event) => {
   }
 })
 
-// A sample with a manifest is a game: its folders, tags and wiki pages are written before the imports, and each imported
+// A sample with a manifest gets its medium (game unless the manifest names one): its folders, tags and wiki pages are written before the imports, and each imported
 // document then gets its folder (passed to the import), kind and tags. All editorial labels, never part of a text or its hash.
 function organise(manifest: Manifest, entities: SampleEntity[]) {
   const db = useDb()
@@ -73,8 +90,9 @@ function organise(manifest: Manifest, entities: SampleEntity[]) {
   const tags = new Map<string, string>()
   tx(() => {
     const p = db.prepare('select medium from projects where id = ?').get(pid()) as { medium: string }
-    if (p.medium !== 'game') {
-      db.prepare(`update projects set medium = 'game' where id = ?`).run(pid())
+    const medium = manifest.medium ?? 'game'
+    if (p.medium !== medium) {
+      db.prepare(`update projects set medium = ? where id = ?`).run(medium, pid())
       retypeForMedium(pid()) // the project is empty after the reset, so its untouched default types become the game ones
     }
     const folder = db.prepare('insert into folders (id, name, parent_id, created_by, created_at, project_id) values (?, ?, ?, ?, ?, ?)')
