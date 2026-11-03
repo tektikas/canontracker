@@ -1,21 +1,50 @@
 const STOP = new Set('the a an and or of to in on at is are was were be by for with from what why who where when how does do did not no it its this that than as has have had about into her his their they them she he'.split(' '))
-const terms = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu)?.filter(t => t.length > 1 && !STOP.has(t)) ?? []
+// A conservative English stemmer, so a question's word forms meet canon's (wounded/wound, married/marry, lives/live,
+// uses/use, studies/study, stopped/stop). One plural ending off (-ies → y; -es only after s, sh, ch, x, z; -s, but not -ss,
+// -us, -is), then -ied → y, or -ed/-ing when a vowel stays (a doubled consonant undone, a final e put back on a short stem:
+// liv → live). Short words, numbers, a few words that only look inflected (news, series) and the capitalised words of the
+// project's names (Holmes, James) are never stemmed. Question and canon go through the same steps.
+const INVARIANT = new Set(['news', 'series', 'species', 'always', 'perhaps'])
+export function stem(t: string, names?: Set<string>) {
+  if (t.length < 4 || /\d/.test(t) || INVARIANT.has(t) || names?.has(t)) return t
+  let s = t
+  if (s.length > 4 && s.endsWith('ies')) s = `${s.slice(0, -3)}y`
+  else if (/(?:ss|sh|ch|x|z)es$/.test(s)) s = s.slice(0, -2)
+  else if (/[^sui]s$/.test(s)) s = s.slice(0, -1)
+  if (s.length > 4 && s.endsWith('ied')) return `${s.slice(0, -3)}y`
+  const verb = s.match(/^(.+?)(?:(?<!e)ed|ing)$/)
+  if (!verb || s.length < (s.endsWith('ing') ? 5 : 4) || !/[aeiouy]/.test(verb[1]!)) return s
+  const base = verb[1]!
+  return /([^aeioulsz])\1$/.test(base) ? base.slice(0, -1) : /^[^aeiou]*[aeiouy][^aeiouwxy]$/.test(base) ? `${base}e` : base
+}
+// The words of a text, lowercased and without stop words: as written (exactTerms), or stemmed (terms; `names` are kept as they are).
+const exactTerms = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu)?.filter(t => t.length > 1 && !STOP.has(t)) ?? []
+const terms = (s: string, names?: Set<string>) => exactTerms(s).map(t => stem(t, names))
+// The capitalised words of the project's names (titles, aliases, merged names): proper nouns, never stemmed.
+const nameWords = () => new Set(listEntities().flatMap(namesOf).flatMap(n => n.match(/\p{Lu}[\p{L}\p{N}]*/gu) ?? []).map(w => w.toLowerCase()))
 // Story-time tokens ("day", "13", "00") appear everywhere: they rank results but can't qualify a match on their own.
 const isTimeToken = (t: string) => t === 'day' || /^\d+$/.test(t)
 
 // Accepted canon only. No supporting facts -> unknown. Model offline -> sources only, never an invented answer.
 // limit: how many matching facts are kept (the answer reads the top 5; the follow-up check looks wider).
 export async function askCanon(question: string, opts: { audit: boolean, retrievalOnly?: boolean, limit?: number } = { audit: true }) {
-  const qTerms = [...new Set(terms(question))]
+  const names = nameWords()
+  const qTerms = [...new Set(terms(question, names))]
   const qWords = qTerms.filter(t => !isTimeToken(t))
+  const qExact = [...new Set(exactTerms(question))].filter(t => !isTimeToken(t))
   // ponytail: keyword overlap over canon facts; swap for FTS5 when canon grows past a few thousand facts
+  // A fact qualifies only through a word of the question it contains exactly (case aside: a name or any content word); word
+  // forms (stem) then count towards the match and the ranking, never on their own ("Lens?" doesn't find "Len", nor
+  // "Evening?" "even").
   const scored = listFacts(`status = 'canon'`)
     .map((f) => {
-      const hay = new Set(terms(`${f.statement} ${f.subject} ${f.object ?? ''} ${f.evidence.map(e => e.quote).join(' ')}`))
+      const text = `${f.statement} ${f.subject} ${f.object ?? ''} ${f.evidence.map(e => e.quote).join(' ')}`
+      const hay = new Set(terms(text, names))
+      const exact = new Set(exactTerms(text))
       const words = qWords.filter(t => hay.has(t)).length
-      return { fact: f, words, score: words + qTerms.filter(t => isTimeToken(t) && hay.has(t)).length * 0.5 }
+      return { fact: f, words, anchored: qExact.some(t => exact.has(t)), score: words + qTerms.filter(t => isTimeToken(t) && hay.has(t)).length * 0.5 }
     })
-    .filter(s => s.words > 0 && s.words >= Math.min(2, qWords.length))
+    .filter(s => s.anchored && s.words >= Math.min(2, qWords.length))
     .sort((a, b) => b.score - a.score)
     .slice(0, opts.limit ?? 5)
   const model = modelInfo()
