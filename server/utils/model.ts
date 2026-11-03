@@ -18,9 +18,13 @@ export interface RuleViolation { fact_id: string, rationale: string, confidence:
 
 export const PROMPT_VERSIONS = { extract: 'extract-v5', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', research: 'research-v1', continuity: 'continuity-v1', critic: 'critic-v2', transcribe: 'transcribe-v1' } as const
 
+// A bundled sample's load replays its recording even on a live server (the request sets event.context.sampleReplay): the
+// recordings are what the samples are, loading them takes seconds instead of minutes of model calls, and the trace says
+// mock:recorded-fixtures. Everything after the load (your own documents, scans, Ask, research) runs live.
+const sampleReplay = () => { try { return !!useEvent().context.sampleReplay } catch { return false } }
 export function modelInfo() {
   const { modelMode, modelId } = useRuntimeConfig()
-  return modelMode === 'meta'
+  return modelMode === 'meta' && !sampleReplay()
     ? { mode: 'meta', id: modelId, label: `${modelId === 'muse-spark-1.3' ? 'Muse Spark 1.3' : modelId} via Meta Model API` }
     : { mode: 'mock', id: 'mock:recorded-fixtures', label: 'AI' }
 }

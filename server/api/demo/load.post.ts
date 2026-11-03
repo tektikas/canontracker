@@ -24,6 +24,7 @@ interface SampleEntity { name: string, analysis_name?: string, aliases?: string[
 const loading = new Set<string>()
 
 export default defineEventHandler(async (event) => {
+  event.context.sampleReplay = true // samples load from their recordings, also on a live server (modelInfo in model.ts)
   requireRole('admin')
   // An empty body means the default set. Anything else must be a JSON object: a malformed body never falls through to a reset.
   const raw = (await readRawBody(event))?.trim()
