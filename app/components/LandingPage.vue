@@ -28,7 +28,8 @@ const TRUST = [
   { title: 'Nothing is rewritten', text: 'Imported files stay read-only, old facts are kept when canon changes, and the audit log is append-only.' },
   { title: 'Projects stay apart', text: 'One guard checks membership and role on every request. Viewers read; editors decide; admins manage.' },
 ]
-const MCP_SNIPPET = `claude mcp add --transport http story-bible ${SITE}/mcp \\\n  --header "Authorization: Bearer sb_…"`
+// Muse Code (Meta) connects over Streamable HTTP from its settings file.
+const MCP_SNIPPET = `// ~/.config/muse/settings.json (Muse Code)\n${JSON.stringify({ schema_version: 1, mcp_servers: { 'story-bible': { transport: 'streamable_http', url: `${SITE}/mcp`, headers: { Authorization: 'Bearer sb_…' } } } }, null, 2)}`
 </script>
 
 <template>
@@ -126,10 +127,10 @@ const MCP_SNIPPET = `claude mcp add --transport http story-bible ${SITE}/mcp \\\
         <div class="mcp">
           <div>
             <h3>Bring your own agents through MCP</h3>
-            <p>Story Bible is an MCP server with 38 tools, so an agent can do almost everything you do in a project. A propose token reads, checks and proposes; nothing it does becomes canon. A full-access token acts as you, and each decision it makes is marked “via agent” with the token’s name.</p>
+            <p>Story Bible is an MCP server with 38 tools, so an agent in Muse Code, or any MCP client, can do almost everything you do in a project. A propose token reads, checks and proposes; nothing it does becomes canon. A full-access token acts as you, and each decision it makes is marked “via agent” with the token’s name.</p>
             <NuxtLink to="/agents">How agents work with Story Bible</NuxtLink>
           </div>
-          <pre class="code" aria-label="Example: connect Claude Code"><code>{{ MCP_SNIPPET }}</code></pre>
+          <pre class="code" aria-label="Example: connect Muse Code"><code>{{ MCP_SNIPPET }}</code></pre>
         </div>
       </section>
 
