@@ -8,7 +8,8 @@ const GROUPS = [
     items: [
       'The AI only creates candidates. A fact becomes canon only through an explicit decision by a person, recorded with their name.',
       'Bulk accept works on the list you can see: if a candidate changed since you loaded it, it is skipped.',
-      'Agents connected through MCP can only propose. Their proposals are marked as agent proposals in Review.',
+      'Agents connected through MCP use a token with a level fixed at creation. Propose (the default) reads, proposes and runs AI checks; nothing it does becomes canon. Full access acts as its owner within their role, and every decision it makes is shown as “via agent” with the token’s name.',
+      'An agent can never create a token, change the team or see invite links, and goes through the same checks and limits as the app.',
     ],
   },
   {
@@ -40,7 +41,7 @@ const GROUPS = [
   {
     title: 'Audit trail',
     items: [
-      'Imports, decisions, merges, changes, exports, share links and agent proposals are written to an append-only audit log with who and when.',
+      'Imports, decisions, merges, changes, exports, share links and agent proposals are written to an append-only audit log with who and when. Anything done through an agent token also records that token.',
       'Every AI call is recorded with its model, prompt version, input reference and result, and shown on Agent activity.',
       'Users are never deleted, so names on past decisions survive a member leaving.',
     ],

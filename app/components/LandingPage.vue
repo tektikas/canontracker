@@ -23,7 +23,7 @@ const STEPS = [
 ]
 const HIGHLIGHTS = [PILLARS[0]!.sections[0]!, PILLARS[1]!.sections[0]!, PILLARS[1]!.sections[1]!, PILLARS[3]!.sections[2]!]
 const TRUST = [
-  { title: 'A person decides', text: 'The AI only proposes. Nothing becomes canon until someone accepts it, and their name stays on the decision.' },
+  { title: 'A person decides', text: 'The AI only proposes. Nothing becomes canon until someone accepts it, and their name stays on the decision, with “via agent” when their own agent made it.' },
   { title: 'Word for word', text: 'Every canon fact cites a passage that contains its quote exactly. No quote, no canon; no evidence, “unknown”.' },
   { title: 'Nothing is rewritten', text: 'Imported files stay read-only, old facts are kept when canon changes, and the audit log is append-only.' },
   { title: 'Projects stay apart', text: 'One guard checks membership and role on every request. Viewers read; editors decide; admins manage.' },
@@ -126,7 +126,7 @@ const MCP_SNIPPET = `claude mcp add --transport http story-bible ${SITE}/mcp \\\
         <div class="mcp">
           <div>
             <h3>Bring your own agents through MCP</h3>
-            <p>Story Bible is an MCP server with 16 tools. Agents read canon, timelines and documents, check proposed facts against the conflict rules, and propose candidates that wait in Review.</p>
+            <p>Story Bible is an MCP server with 38 tools, so an agent can do what you do in the app. A propose token reads, checks and proposes; nothing it does becomes canon. A full-access token acts as you, and each decision it makes is marked “via agent” with the token’s name.</p>
             <NuxtLink to="/agents">How agents work with Story Bible</NuxtLink>
           </div>
           <pre class="code" aria-label="Example: connect Claude Code"><code>{{ MCP_SNIPPET }}</code></pre>

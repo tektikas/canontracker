@@ -5,6 +5,8 @@ useMarketingSeo({ title: 'Changelog', description: 'What shipped in Story Bible,
 // Taken from the merge commits on master (git log --merges); one line per shipped change, newest first.
 const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
   { date: '2026-11-03', label: '3 Nov 2026', entries: [
+    ['MCP parity', 'Agents can do through MCP what people do in the app: 38 tools. Tokens are propose-only or full access (acts as you), and decisions made by an agent show “via agent”.'],
+    ['Open source', 'Story Bible is licensed under AGPL-3.0.'],
     ['Plain AI labels', 'The product says “AI” everywhere; which model ran is on Agent activity and Metrics.'],
   ] },
   { date: '2026-11-02', label: '2 Nov 2026', entries: [
@@ -17,7 +19,7 @@ const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
     ['A writer’s palette', 'Linen, paper and walnut ink in light; warm wood in dark.'],
     ['The Ashbell Pass', 'A third sample: a 28-document game story with planted contradictions.'],
     ['For any story world', 'Story Bible now speaks to novelists, game, screen and series writers, and worldbuilders.'],
-    ['MCP and API', '16 grounded MCP tools with paging and limits; every API route answers bad input with 400.'],
+    ['MCP and API', 'MCP grows to 16 grounded read and propose tools with paging and limits; every API route answers bad input with 400.'],
     ['Canon page', 'A paged, filterable list and a readable relationship graph.'],
     ['Version re-check', 'A new version flags only the canon facts whose quote is gone or repeated.'],
     ['Quote matching', 'Quotes match across smart quotes, dashes, Markdown and line breaks; the stored quote keeps the source’s characters.'],
