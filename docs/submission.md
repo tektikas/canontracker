@@ -21,7 +21,9 @@ The app includes studio roles, projects, an entity wiki, canon timelines and gra
 - **Muse Image 1.0:** editorial entity portraits and document covers. Generated images never serve as canon evidence.
 - **Muse Code through MCP:** a direct Streamable HTTP connection exposes 38 tools with the same role checks and audit as the app. Propose tokens can read, run checks and propose; a person's full token may make decisions as that person, marked “via agent”. Muse Spark API clients use a generated function-call bridge.
 
-The UI shows AI advice; model provenance and tool steps remain inspectable in Agent activity and Metrics. A live error is shown and logged, without falling back to recorded output. The default local mode replays sample output without an API key; Sherlock's stored extraction was recorded with a non-Meta model and is documented as such. Dated live API observations and redacted contract fixtures are in [meta-api-notes.md](meta-api-notes.md). Local replay tests do not verify current live Meta availability.
+The UI shows AI advice; model provenance and tool steps remain inspectable in Agent activity and Metrics. A live error is shown and logged, without falling back to recorded output. The default local mode replays fixtures without an API key and logs `mock:recorded-fixtures` as the model ID.
+
+The recorded sample runs are not Muse output. Broken Tide's and The Ashbell Pass's extraction and rule-check fixtures were written during development by AI coding agents, shaped for the demo beats. Sherlock Holmes's extraction, the critic recordings, the continuity recordings and the live-recorded research fixture were recorded through **OmniRoute / `codex/gpt-6-luna`**, a stand-in OpenAI-compatible model, while Meta credits were pending. The research fixture also has a hand-written unsafe-links test case. The repository's real Muse responses are the redacted [Meta contract fixtures](../server/assets/meta-fixtures/) and the sample voice transcript from Muse Voice Transcribe ([recording note](../server/assets/ashbell-pass/recordings.json)). Live mode calls Muse. Dated observations are in [meta-api-notes.md](meta-api-notes.md); local replay tests do not verify current live Meta availability.
 
 ## What was technically hard
 
@@ -37,7 +39,7 @@ Branching canon conditioned on player choices, project-specific membership withi
 
 ## Team and build history
 
-**Umur — solo builder. TekTık, [tektik.ai](https://tektik.ai).** Built during 27 Oct–4 Nov 2026; repository history starts on 30 Oct. The only pre-existing piece was a reused generic CI/CD deployment pipeline. The application, samples and integrations were built for this hackathon entry. Nuxt 4, Nitro, Node 24, SQLite and the MCP SDK are dependencies, not claimed as original work. Public-domain Doyle texts and illustration credits are retained in the sample's source notices.
+**Umurcan (Umur) Görür — solo builder. TekTık, [tektik.ai](https://tektik.ai).** Built during 27 Oct–4 Nov 2026. The spec and first build from 27–30 Oct were committed as the **MVP baseline** on 30 Oct; repository history starts that day. The only pre-existing piece was a reused generic CI/CD deployment pipeline. The application, samples and integrations were built for this hackathon entry. Nuxt 4, Nitro, Node 24, SQLite and the MCP SDK are dependencies, not claimed as original work. Public-domain Doyle texts and illustration credits are retained in the sample's source notices.
 
 ## Links to fill at submission
 

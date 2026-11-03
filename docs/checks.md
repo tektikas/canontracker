@@ -18,7 +18,7 @@ The runner creates a temporary working directory for each production server, sup
 | Gate | What runs |
 | --- | --- |
 | Types and production build | `pnpm exec nuxi typecheck`, `pnpm build` |
-| Offline self-checks | Every `scripts/*-check.mjs` and `scripts/*-check.ts`: Ashbell corpus, calculators, continuity grounding, detail mismatch, Add fact predicates, quote matching, story time, upload kind |
+| Offline self-checks | Every `scripts/*-check.*` (automatically discovered) |
 | HTTP probes on production | Every `scripts/*-probe.mjs` except the special cases below: API hardening, all four samples, authorship, canon/review, version re-check, roles/isolation, conversations, research, continuity, critic, entities/types, merge, library, search, tasks, profile, save drain, Word, voice, image uploads, sharing, EPUB and help |
 | Merge fuzzing | `merge-fuzz.mjs` with seed 74 and 100 operations, database invariants after operations |
 | Migration/explicit defaults | `severity-probe.mjs migrate` and `explicit`, `image-upload-probe.mjs migrate`, `entity-types-probe.mjs migrate`, using the second port serially |

@@ -36,7 +36,7 @@ Today a studio member sees every project in the studio. Studios with several tit
 - **Quest dependencies:** "Quest C comes after A and B", plus a check that the player can know a fact at the moment a quest needs it, instead of a single fixed clock.
 - **Game script import with bulk checks:** Ink, Yarn Spinner, articy:draft, Twine, JSON and spreadsheets, with verbatim citations into dialogue lines, and an answer to "Which of these 4,000 dialogue lines contradict canon?"
 - **Story vs. design data:** compare canon rules with game tuning data (the story says the curse doubles every night; the design sheet scales it by 1.5) to catch ludonarrative contradictions.
-- **Game-shaped entities:** items, abilities, quests, NPC schedules (who is where, when) and links to voice actors and concept art, on top of project-defined entity types.
+- **Game-specific entity workflows:** NPC, item, ability and quest entity types and editorial schedule fields already exist. Planned work adds structured NPC schedules that can be checked against quest states, plus links to voice actors and concept art.
 - **Game versions and DLC:** canon by release, the impact of a DLC or patch on earlier canon, unannounced vs. marketing-safe facts, and sharing only the relevant slice with external translation or voice teams.
 
 ### Localization

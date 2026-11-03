@@ -9,6 +9,11 @@ import { join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
 
+if (Number(process.versions.node.split('.')[0]) < 24) {
+  console.error(`Story Bible checks require Node 24 or newer; found ${process.versions.node}. Run mise install or select Node 24.`)
+  process.exit(1)
+}
+
 const root = fileURLToPath(new URL('..', import.meta.url))
 const port = Number(process.env.CHECK_PORT ?? 4650)
 if (!Number.isInteger(port) || port < 1024 || port > 65534) throw new Error('CHECK_PORT must be 1024–65534 (also uses CHECK_PORT+1)')
