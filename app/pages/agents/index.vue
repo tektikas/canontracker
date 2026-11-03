@@ -233,6 +233,7 @@ async function copy() {
 .mcp-copy p { color: var(--muted); line-height: 1.6; font-size: 1rem; }
 .mcp-copy ul { margin: 0; padding-left: 1.1em; display: grid; gap: var(--s-2); line-height: 1.5; }
 .config { display: grid; gap: var(--s-3); min-width: 0; }
+.config > * { min-width: 0; max-width: 100%; } /* the snippet tabs and copy row must not widen the page on phones */
 .code { margin: 0; padding: var(--s-4); background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-md); font-family: var(--font-code); font-size: var(--text-sm); line-height: 1.6; overflow-x: auto; white-space: pre; min-height: 120px; }
 .copy-row { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); flex-wrap: wrap; }
 
