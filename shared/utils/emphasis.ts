@@ -17,7 +17,7 @@ export function emphasisPairs(source: string): { open: number, close: number, le
   const punct = (c: string | undefined) => c !== undefined && /[\p{P}\p{S}]/u.test(c)
   const open: { i: number, run: string, both: boolean }[] = []
   for (const m of raw.matchAll(/\*+|_+/g)) {
-    const prev = raw.slice(0, m.index).at(-1)
+    const prev = raw[m.index - 1]
     const next = raw[m.index + m[0].length]
     const left = !ws(next) && (!punct(next) || ws(prev) || punct(prev))
     const right = !ws(prev) && (!punct(prev) || ws(next) || punct(next))

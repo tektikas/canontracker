@@ -11,12 +11,17 @@ const FOLD: Record<string, string> = { '‘': '\'', '’': '\'', '‚': '\'', '�
 const DASH = /[-‐‑‒–—―−]/
 const DROP = /[­​﻿]/
 
-interface Folded { str: string, start: number[], end: number[], marks: Set<number>, pairs: { open: number, close: number, len: number }[] }
+// partner: each delimiter run's first offset → the other run of its pair (only read when a hit cuts a pair, see quoteHits).
+interface Folded { str: string, start: number[], end: number[], marks: Set<number>, partner: Map<number, { open: number, close: number, len: number }> }
 
 /** Folds `raw`; start[i]/end[i] are the raw offsets that folded UTF-16 unit i came from. */
 export function foldQuoteText(raw: string): Folded {
-  const pairs = emphasisPairs(raw)
-  const marks = new Set(pairs.flatMap(p => [p.open, p.close].flatMap(i => Array.from({ length: p.len }, (_, k) => i + k))))
+  const marks = new Set<number>()
+  const partner = new Map<number, { open: number, close: number, len: number }>()
+  for (const p of emphasisPairs(raw)) {
+    partner.set(p.open, p).set(p.close, p)
+    for (let k = 0; k < p.len; k++) marks.add(p.open + k).add(p.close + k)
+  }
   const units: { c: string, s: number, e: number }[] = []
   let gap = false // whitespace seen after a dash: a following dash starts a new run, not the same one
   // NFD per base char + its combining marks: decomposing never needs a neighbour (Hangul jamo, é vs e + ´ meet), so every
@@ -45,7 +50,7 @@ export function foldQuoteText(raw: string): Folded {
     }
   }
   if (units.at(-1)?.c === ' ') units.pop()
-  return { str: units.map(u => u.c).join(''), start: units.map(u => u.s), end: units.map(u => u.e), marks, pairs }
+  return { str: units.map(u => u.c).join(''), start: units.map(u => u.s), end: units.map(u => u.e), marks, partner }
 }
 
 // ponytail: bounded memo so extraction (candidates × passages) folds each passage once; cleared wholesale when full.
@@ -73,6 +78,19 @@ export function quoteMatches(text: string, quote: string, t: Folded = folded(tex
   return [...quoteHits(text, quote, t, edges)]
 }
 
+// [s, e) grown until no emphasis pair has one delimiter inside and the other outside; undefined if nothing grows or the
+// grown text no longer holds the quote.
+function widen(text: string, t: Folded, s: number, e: number, q: string): readonly [number, number] | undefined {
+  let [ws, we] = [s, e]
+  for (let i = ws; i < we; i++) {
+    const p = t.partner.get(i)
+    if (!p) continue
+    if (p.open < ws) { ws = p.open; i = ws - 1 } // grown leftwards: walk the new part too
+    if (p.close + p.len > we) we = p.close + p.len
+  }
+  return (ws < s || we > e) && foldQuoteText(text.slice(ws, we)).str.includes(q) ? [ws, we] as const : undefined
+}
+
 /** quoteMatches one hit at a time, for a caller that stops at the first it can use (repetitive text has a hit per word). */
 export function* quoteHits(text: string, quote: string, t: Folded = folded(text), edges?: { start?: boolean, end?: boolean }): Generator<string> {
   const q = foldQuoteText(quote).str
@@ -86,19 +104,9 @@ export function* quoteHits(text: string, quote: string, t: Folded = folded(text)
     while (t.marks.has(s - 1)) s--
     while (t.marks.has(e)) e++
     // A hit that cuts an emphasis pair in half (a selection from inside "_the Reminiscences of_" on to "JOHN") would leave a
-    // lone delimiter, which re-folds as text: it is widened to the whole emphasised words, so a citation never splits a pair.
-    let [ws, we] = [s, e]
-    for (let grown = true; grown;) {
-      grown = false
-      for (const p of t.pairs) {
-        const inOpen = p.open >= ws && p.open < we
-        const inClose = p.close >= ws && p.close < we
-        if (inOpen === inClose) continue
-        ;[ws, we, grown] = [Math.min(ws, p.open), Math.max(we, p.close + p.len), true]
-      }
-    }
-    const widened = (ws < s || we > e) && foldQuoteText(text.slice(ws, we)).str.includes(q) ? [ws, we] as const : undefined
-    const at = ([[s, e], [s0, e0]] as const).find(([a, b]) => foldQuoteText(text.slice(a, b)).str === q) ?? widened
+    // lone delimiter, which re-folds as text: only then is it widened to the whole emphasised words, so a citation never splits
+    // a pair. The usual hit never gets here, and widening only walks the hit's own characters.
+    const at = ([[s, e], [s0, e0]] as const).find(([a, b]) => foldQuoteText(text.slice(a, b)).str === q) ?? widen(text, t, s, e, q)
     if (!at) continue
     if (edges?.start && WORD_BEFORE.test(text.slice(Math.max(0, at[0] - 2), at[0]))) continue
     if (edges?.end && WORD_AFTER.test(text.slice(at[1], at[1] + 2))) continue

@@ -13,10 +13,23 @@ const emit = defineEmits<{ close: [], saved: [kind: 'fact' | 'note', result: Rec
 
 // The quote the server will store, asked before anyone decides (same check as the save): a selection that cuts an italic or
 // bold phrase in half is widened to the whole phrase, and the person sees that here, not after saving.
-const { data: preview } = useFetch<{ quote: string | null, widened: boolean }>(() => `/api/documents/${props.selection.doc.id}/quote`, {
-  query: { passage_id: props.selection.passage.id, quote: props.selection.quote }, immediate: props.mode !== 'entity', server: false,
-})
-const shownQuote = computed(() => preview.value?.quote ?? props.selection.quote)
+// Saving waits for the preview of the current selection; an answer for an earlier selection is dropped.
+type Preview = { key: string, quote: string | null, widened: boolean }
+const previewKey = computed(() => JSON.stringify([props.selection.doc.id, props.selection.passage.id, props.selection.quote]))
+const preview = ref<Preview | null>(null)
+watch(previewKey, async (key) => {
+  preview.value = null
+  if (props.mode === 'entity') return
+  let r: Omit<Preview, 'key'>
+  try {
+    r = await $fetch<Omit<Preview, 'key'>>(`/api/documents/${props.selection.doc.id}/quote`, { query: { passage_id: props.selection.passage.id, quote: props.selection.quote } })
+  } catch {
+    r = { quote: null, widened: false } // the save reports why
+  }
+  if (key === previewKey.value) preview.value = { key, ...r }
+}, { immediate: true })
+const previewReady = computed(() => props.mode === 'entity' || preview.value?.key === previewKey.value)
+const shownQuote = computed(() => (previewReady.value ? preview.value?.quote : null) ?? props.selection.quote)
 const widenedAs = computed(() => (preview.value?.widened ? (emphasisRuns(shownQuote.value).some(r => r.strong) ? 'bold' : 'italic') : null))
 
 const dialog = ref<HTMLDialogElement>()
@@ -97,7 +110,7 @@ const busy = ref<'' | 'canon' | 'review' | 'note' | 'entity'>('')
 const error = ref('')
 
 async function submit(to: 'canon' | 'review' | 'note' | 'entity') {
-  if (busy.value) return
+  if (busy.value || !canSave.value) return
   error.value = ''
   if ((to === 'canon' || to === 'review') && detailError.value) {
     more.value = true
@@ -138,7 +151,7 @@ async function submit(to: 'canon' | 'review' | 'note' | 'entity') {
     busy.value = ''
   }
 }
-const canSave = computed(() => (props.mode === 'note' ? !!f.body.trim() : props.mode === 'entity' ? !!f.name.trim() : !!f.statement.trim()))
+const canSave = computed(() => previewReady.value && (props.mode === 'note' ? !!f.body.trim() : props.mode === 'entity' ? !!f.name.trim() : !!f.statement.trim()))
 const TITLE = { fact: 'Add a fact', entity: 'Add an entity', note: 'Add a note' }
 </script>
 
@@ -153,7 +166,8 @@ const TITLE = { fact: 'Add a fact', entity: 'Add an entity', note: 'Add a note' 
       <figure v-if="mode !== 'entity'" class="sel-quote">
         <blockquote class="quote" :data-quote="shownQuote"><EmText :text="shownQuote" /></blockquote>
         <figcaption class="small muted"><UiIcon name="file" :size="14" />{{ selection.doc.title }}, {{ line }}</figcaption>
-        <p v-if="widenedAs" class="small muted widened">Extended to the whole {{ widenedAs }} phrase, so the citation doesn’t split it.</p>
+        <p v-if="!previewReady" class="small muted widened" role="status">Checking the quote against the source…</p>
+        <p v-else-if="widenedAs" class="small muted widened">Extended to the whole {{ widenedAs }} phrase, so the citation doesn’t split it.</p>
       </figure>
 
       <template v-if="mode === 'note'">
