@@ -1,30 +1,18 @@
 {
-  "dataset": "sherlock-holmes@1",
-  "_note": "Known contradictions in the subset, each checked in docs/ (see SOURCES.md). found_by: 'extraction' = both facts come from the recorded AI extraction once a person accepts them; 'authored' = a reader adds the facts with Add fact (the AI did not state them as a detail). The gold plan (scripts/sherlock-probe.mjs): accept every verified candidate, scan, add the authored facts, merge Dr. Watson into Watson and Watson's wife into Mary, scan again.",
+  "dataset": "sherlock-holmes@2",
+  "_note": "Known contradictions in the subset, each checked in docs/ (see SOURCES.md), against the recorded Muse extraction in candidates.json (muse-spark-1.3, 2026-11-03). found_by: 'extraction' = both facts come from the recording once a person accepts them; 'authored' = a reader adds the facts with Add fact (the recording does not state them as a detail). The gold plan (scripts/sherlock-probe.mjs): accept every verified candidate, scan (W1 only, no false alarm), add the authored facts (N1, L1), merge Watson's wife into Mary (M1), scan again.",
   "conflicts": [
     {
       "id": "W1",
       "rule": "ATTRIBUTE_MISMATCH",
       "found_by": "extraction",
-      "statements": ["Watson's wound was in his shoulder.", "Watson has a Jezail bullet wound in his leg."],
-      "values": ["shoulder", "leg"],
+      "statements": ["Watson's wound is on his shoulder.", "Watson's wound is in his leg."],
+      "values": ["shoulder", "wounded leg"],
       "quotes": [
         { "file": "1887-a-study-in-scarlet-1-01-mr-sherlock-holmes.md", "line": 7, "quote": "There I was struck on the shoulder by a Jezail bullet, which shattered the bone and grazed the subclavian artery." },
-        { "file": "1890-the-sign-of-the-four-01-the-science-of-deduction.md", "line": 35, "quote": "I had a Jezail bullet through it some time before, and, though it did not prevent me from walking, it ached wearily at every change of the weather." }
+        { "file": "1890-the-sign-of-the-four-01-the-science-of-deduction.md", "line": 35, "quote": "I made no remark, however, but sat nursing my wounded leg." }
       ],
-      "why": "The same Jezail bullet from Maiwand: in the shoulder in A Study in Scarlet, through the leg in The Sign of the Four."
-    },
-    {
-      "id": "W2",
-      "rule": "ATTRIBUTE_MISMATCH",
-      "found_by": "extraction",
-      "statements": ["Watson's wound is in his left arm.", "Watson has a Jezail bullet wound in his leg."],
-      "values": ["left arm", "leg"],
-      "quotes": [
-        { "file": "1887-a-study-in-scarlet-1-02-the-science-of-deduction.md", "line": 69, "quote": "His left arm has been injured." },
-        { "file": "1890-the-sign-of-the-four-01-the-science-of-deduction.md", "line": 35, "quote": "I had a Jezail bullet through it some time before, and, though it did not prevent me from walking, it ached wearily at every change of the weather." }
-      ],
-      "why": "Holmes's first deduction reads the wound in Watson's left arm; three years later it is his leg."
+      "why": "The same Jezail bullet from Maiwand: in the shoulder in A Study in Scarlet, in the leg in The Sign of the Four (\"I had a Jezail bullet through it some time before\")."
     },
     {
       "id": "N1",
@@ -53,20 +41,6 @@
   ],
   "after_merge": [
     {
-      "id": "W3",
-      "rule": "ATTRIBUTE_MISMATCH",
-      "merge": ["Dr. Watson", "Watson"],
-      "statements": ["Watson's wound was in his shoulder.", "Watson has a weakness in his leg."],
-      "why": "The second leg passage (The Sign of the Four, 2: \"an army surgeon with a weak leg\") was filed under \"Dr. Watson\"; once a person merges the page into Watson it meets the shoulder."
-    },
-    {
-      "id": "W4",
-      "rule": "ATTRIBUTE_MISMATCH",
-      "merge": ["Dr. Watson", "Watson"],
-      "statements": ["Watson's wound is in his left arm.", "Watson has a weakness in his leg."],
-      "why": "The same leg passage against the left arm."
-    },
-    {
       "id": "M1",
       "rule": "ATTRIBUTE_MISMATCH",
       "found_by": "authored",
@@ -77,16 +51,15 @@
         { "file": "1890-the-sign-of-the-four-02-the-statement-of-the-case.md", "line": 19, "quote": "My mother was dead, and I had no relative in England." },
         { "file": "1891-the-five-orange-pips.md", "line": 7, "quote": "My wife was on a visit to her mother’s, and for a few days I was a dweller once more in my old quarters at Baker Street." }
       ],
-      "why": "Holds only once a person decides Watson's wife in The Five Orange Pips is Mary Morstan; the merge is that decision. Sherlockians use this slip to argue for an earlier wife."
+      "why": "Holds only once a person decides Watson's wife in The Five Orange Pips is Mary Morstan; the merge is that decision. Sherlockians use this slip to argue for an earlier wife. Both facts are authored: the recording states neither Mary's mother nor Watson's wife, and \"Mary\" is the name it files Mary Morstan under."
     }
   ],
-  "expected_false_alarms": [
-    {
-      "id": "F1",
-      "rule": "ATTRIBUTE_MISMATCH",
-      "statements": ["Watson's wound was in his shoulder.", "Watson's wound is in his left arm."],
-      "why": "Not a contradiction: a bullet that shatters the shoulder leaves the arm stiff, which is what Holmes reads (\"He holds it in a stiff and unnatural manner\"). The rule compares words, not anatomy, so a person dismisses it."
-    }
+  "expected_false_alarms": [],
+  "dropped": [
+    { "id": "W2", "why": "Left arm vs leg: the recording has no fact for Holmes's \"His left arm has been injured\" (A Study in Scarlet, I.2), so canon never says left arm." },
+    { "id": "W3", "why": "Shoulder vs \"a weak leg\" after merging Dr. Watson into Watson: the recording extracts nothing from that passage (The Sign of the Four, 2) and never files a \"Dr. Watson\", so there is no page to merge." },
+    { "id": "W4", "why": "Left arm vs \"a weak leg\" after the same merge: neither side is in the recording." },
+    { "id": "F1", "why": "Shoulder vs left arm, the old expected false alarm: without a left-arm fact the first scan raises W1 and nothing else, so there is no false alarm to dismiss." }
   ],
   "authored": [
     { "statement": "Watson's first name is John.", "file": "1887-a-study-in-scarlet-1-01-mr-sherlock-holmes.md", "quote": "Being a reprint from the Reminiscences of JOHN H. WATSON, M.D.", "kind": "character", "subject": "Watson", "relation": "first name is", "answer": "John" },
@@ -96,20 +69,19 @@
     { "statement": "Mary's mother was dead.", "file": "1890-the-sign-of-the-four-02-the-statement-of-the-case.md", "quote": "My mother was dead, and I had no relative in England.", "kind": "character", "subject": "Mary", "relation": "mother status is", "answer": "dead" },
     { "statement": "Watson's wife visits her mother.", "file": "1891-the-five-orange-pips.md", "quote": "My wife was on a visit to her mother’s, and for a few days I was a dweller once more in my old quarters at Baker Street.", "kind": "character", "subject": "Watson's wife", "relation": "mother status is", "answer": "alive" }
   ],
+  "_no_conflict_pairs": "Canon after the gold plan, and the text agrees: one man filed under two names (\"Jonathan Small\" and \"Small\"; an alias never merges analysis), or two different men (Watson, Small).",
   "no_conflict_pairs": [
-    ["Watson has a Jezail bullet wound in his leg.", "Watson has a weakness in his leg."],
-    ["Watson's wound was in his shoulder.", "Watson has a jezail bullet wound in one of his limbs."],
-    ["Watson has a Jezail bullet wound in his leg.", "Watson has a jezail bullet wound in one of his limbs."]
+    ["Jonathan Small's right leg is off.", "Small's right leg is a wooden stump from the thigh downwards."],
+    ["Jonathan Small is middle-aged.", "Small is about fifty years old."],
+    ["Watson's wound is in his leg.", "Small's wound is his right leg just above the knee."]
   ],
   "unknown_questions": [
     "What is Lestrade's favourite song?",
     "Which football team does Mycroft support?"
   ],
   "passages": [
-    { "statement": "Watson's wound was in his shoulder.", "file": "1887-a-study-in-scarlet-1-01-mr-sherlock-holmes.md", "line": 7 },
-    { "statement": "Watson's wound is in his left arm.", "file": "1887-a-study-in-scarlet-1-02-the-science-of-deduction.md", "line": 69 },
-    { "statement": "Watson has a Jezail bullet wound in his leg.", "file": "1890-the-sign-of-the-four-01-the-science-of-deduction.md", "line": 35 },
-    { "statement": "Watson has a weakness in his leg.", "file": "1890-the-sign-of-the-four-02-the-statement-of-the-case.md", "line": 81 },
+    { "statement": "Watson's wound is on his shoulder.", "file": "1887-a-study-in-scarlet-1-01-mr-sherlock-holmes.md", "line": 7 },
+    { "statement": "Watson's wound is in his leg.", "file": "1890-the-sign-of-the-four-01-the-science-of-deduction.md", "line": 35 },
     { "statement": "Watson's first name is John.", "file": "1887-a-study-in-scarlet-1-01-mr-sherlock-holmes.md", "line": 3 },
     { "statement": "Watson's wife calls him James.", "file": "1891-the-man-with-the-twisted-lip.md", "line": 19 },
     { "statement": "Holmes's landlady is Mrs. Hudson.", "file": "1890-the-sign-of-the-four-08-the-baker-street-irregulars.md", "line": 127 },

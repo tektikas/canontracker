@@ -1,10 +1,10 @@
 // "Sherlock Holmes" sample: Doyle's real slips found by "Same detail, two answers" (ATTRIBUTE_MISMATCH), against a running
 // recorded-mode server:
 //   node scripts/sherlock-probe.mjs <baseUrl> [<server cwd>/.data/storybible.db]
-// Throwaway account, its own project. Follows the gold plan in server/assets/sherlock-holmes/gold.json: load (31 documents,
-// folders, kinds, tags, medium prose), accept every verified candidate, scan (exactly W1, W2 and the F1 false alarm), add the
-// authored facts with Add fact (N1, L1 appear; M1 waits for a merge), merge Dr. Watson into Watson (W3, W4) and Watson's wife
-// into Mary (M1), check every conflict's two quotes are verbatim in their documents, MCP sb_check_facts, the export, Ask
+// Throwaway account, its own project. Follows the gold plan in server/assets/sherlock-holmes/gold.json against the recorded
+// Muse extraction (candidates.json): load (31 documents, folders, kinds, tags, medium prose), accept every verified candidate,
+// scan (exactly W1, no false alarm), add the authored facts with Add fact (N1, L1 appear; M1 waits for a merge), merge Watson's
+// wife into Mary (M1), check every conflict's two quotes are verbatim in their documents, MCP sb_check_facts, the export, Ask
 // "unknown" and the gold-set evaluation. Expectations come from gold.json and manifest.json.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -64,12 +64,12 @@ const words = [...text.values()].reduce((n, s) => n + s.split(/\s+/).filter(Bool
 check('words as in the manifest', words, Object.values(manifest.docs).reduce((n, d) => n + d.words, 0))
 check('no Project Gutenberg text left', [...text.values()].filter(s => /project gutenberg|gutenberg\.org|\*\*\* (START|END)/i.test(s)).length, 0)
 // Wiki pages from entities.json: one page per person, filed under the name canon uses (its analysis name) and the other names
-// the text uses as aliases; "Dr. Watson" and "Watson's wife" stay out, so the merge beats below still have two pages to merge.
+// the text uses as aliases; "Watson's wife" stays out, so the M1 merge below still has two pages to merge.
 const pages = asset('entities.json')
 const ents0 = (await a('/api/entities')).data
 check('wiki pages preloaded', ents0.map(e => e.name).sort(), pages.map(p => p.name).sort())
-check('Sherlock Holmes: one page, canon name Holmes', ents0.find(e => e.name === 'Sherlock Holmes').names.sort(), ['Holmes', 'Sherlock Holmes'])
-check('no page carries Dr. Watson or Watson\'s wife yet', ents0.filter(e => e.names.some(n => /^(Dr\. Watson|Watson's wife)$/.test(n))).length, 0)
+check('Sherlock Holmes: one page, canon name Holmes', ents0.find(e => e.name === 'Sherlock Holmes').names.sort(), ['Holmes', 'Sherlock', 'Sherlock Holmes'])
+check('no page carries Watson\'s wife yet', ents0.filter(e => e.names.includes("Watson's wife")).length, 0)
 // The cover: a public-domain Paget illustration on A Scandal in Bohemia, which the book exports use.
 const coverUrl = (await a('/api/export/bible?book=manuscript')).data.cover
 assert.ok(coverUrl, 'the manuscript has a cover')
@@ -80,9 +80,9 @@ check('the cover sits on A Scandal in Bohemia, applied, credited', (await a(`/ap
 let pending = (await a('/api/facts?status=pending')).data
 const drafts = Object.entries(recorded).filter(([k]) => k !== '_note').reduce((n, [, l]) => n + l.length, 0)
 console.log(`--  ${drafts} recorded candidates, ${pending.length} pending (the rest repeat an earlier candidate and are skipped)`)
-assert.ok(pending.length > 1000 && pending.length <= drafts, 'about 1,100 candidates pending')
+check('the Muse recording: 418 candidates, 409 pending', [drafts, pending.length], [418, 409])
 const unverified = pending.filter(f => !f.evidence.some(e => e.verified))
-console.log(`--  ${unverified.length} candidates whose quote is not verbatim in its source (blocked from canon)`)
+check('one candidate blocked: its quote is not verbatim in its source', unverified.map(f => f.statement), ['The least grain of the South American arrow-poison alkaloid means instant death.'])
 
 // 2. Review: accept every verified candidate (500 per decision); unverified ones are skipped and stay out of canon.
 step(2)
@@ -99,8 +99,13 @@ check('canon = pending − unverified', canon.length, pending.length - unverifie
 check('every canon fact has a verified citation', canon.every(f => f.evidence.some(e => e.verified)), true)
 const fact = s => { const f = canon.find(x => x.statement === s); assert.ok(f, `canon fact: ${s}`); return f }
 
-// 3. Scan: exactly the slips the extraction states (W1, W2) and the F1 false alarm; every hit is rule-based and hard.
+// 3. Scan: exactly the slip the extraction states (W1), no false alarm; the hit is rule-based and hard.
 step(3)
+// No recorded rule has a context (no other canon fact names its subject), so a reader adds one about Holmes: the world-rule
+// check then reads all of its context (68 facts, one call; no context in this recording reaches the 120-fact batch size).
+check('authored rule: Holmes never guesses', (await a('/api/facts', { method: 'POST', body: { to: 'canon', document_id: docs.find(d => d.name === '1890-the-sign-of-the-four-01-the-science-of-deduction.md').id,
+  quote: 'I never guess.', statement: 'Holmes never guesses.', kind: 'rule', subject: 'Holmes', predicate: 'rule' } })).status, 200)
+canon = (await a('/api/facts?status=canon')).data
 t = Date.now()
 const scan = (await a('/api/conflicts/scan', { method: 'POST' })).data
 check('scan', scan.model_error, null)
@@ -115,27 +120,23 @@ const contexts = canon.filter(isRule).map((r) => {
 }).filter(Boolean)
 check('world-rule checks: every context fact read, in batches of ≤ 120', scan.rule_checks,
   { rules: contexts.length, calls: contexts.reduce((n, c) => n + Math.ceil(c / 120), 0), facts: contexts.reduce((n, c) => n + c, 0) })
-assert.ok(contexts.some(c => c > 120), 'a rule context over 120 facts is batched, not cut')
 let conflicts = (await a('/api/conflicts')).data
 const pairOf = c => sorted([c.left.statement, c.right.statement])
 const find = (statements, rule = RULE) => conflicts.filter(c => c.rule === rule && JSON.stringify(pairOf(c)) === JSON.stringify(sorted(statements)))
 const extracted = gold.conflicts.filter(g => g.found_by === 'extraction')
-for (const g of [...extracted, ...gold.expected_false_alarms])
+for (const g of extracted)
   check(`${g.id} ${g.rule}: ${g.statements.join(' / ')}`, find(g.statements).map(c => [c.severity, c.status, c.origin, c.confidence]), [['hard', 'open', 'rule', 0.85]])
 check('nothing else', conflicts.length, extracted.length + gold.expected_false_alarms.length)
 const w1 = find(extracted[0].statements)[0]
-check('W1 rationale names both answers', w1.rationale, 'Watson\'s wound location is "shoulder" in one source and "leg" in the other; it can only have one answer.')
-for (const pair of gold.no_conflict_pairs) check(`no conflict: ${pair.join(' / ')}`, conflicts.filter(c => JSON.stringify(pairOf(c)) === JSON.stringify(sorted(pair))).length, 0)
-check('the limb answer is canon (and fits any limb)', fact('Watson has a jezail bullet wound in one of his limbs.').value, 'one of my limbs')
-const f1 = find(gold.expected_false_alarms[0].statements)[0]
-// Metrics: F1 still open counts against alert precision, and its "dismissed" target is not met.
+check('W1 rationale names both answers', w1.rationale, 'Watson\'s wound location is "shoulder" in one source and "wounded leg" in the other; it can only have one answer.')
+for (const pair of gold.no_conflict_pairs) {
+  for (const s of pair) fact(s)
+  check(`no conflict: ${pair.join(' / ')}`, conflicts.filter(c => JSON.stringify(pairOf(c)) === JSON.stringify(sorted(pair))).length, 0)
+}
+// Metrics: the one alert is W1, a true one; the set expects no false alarm, so that metric is not shown.
 const metric = (run, key) => run.results.find(r => r.key === key)
-let ev = (await a('/api/eval', { method: 'POST' })).data
-check('F1 open: precision 2/3, F1 not dismissed', [metric(ev, 'alert_precision').measured, metric(ev, 'alert_precision').pass, metric(ev, 'expected_false_alarms').measured, metric(ev, 'expected_false_alarms').pass],
-  ['2/3 (67%)', false, '0/1 (0%)', false])
-check('F1 dismissed as a false alarm', (await a(`/api/conflicts/${f1.id}/decision`, { method: 'POST', body: { decision: 'false_positive', rationale: 'A shattered shoulder leaves the arm stiff: the same wound.' } })).data.status, 'false_positive')
-ev = (await a('/api/eval', { method: 'POST' })).data
-check('F1 dismissed: precision 2/2, F1 target met', [metric(ev, 'alert_precision').measured, metric(ev, 'expected_false_alarms').measured, metric(ev, 'expected_false_alarms').pass], ['2/2 (100%)', '1/1 (100%)', true])
+const ev = (await a('/api/eval', { method: 'POST' })).data
+check('precision 1/1, no false-alarm metric', [metric(ev, 'alert_precision').measured, metric(ev, 'alert_precision').pass, metric(ev, 'expected_false_alarms')], ['1/1 (100%)', true, undefined])
 check('W1 confirmed', (await a(`/api/conflicts/${w1.id}/decision`, { method: 'POST', body: { decision: 'confirmed', rationale: 'One Jezail bullet, two places.' } })).data.status, 'confirmed')
 
 // 4. Add fact: a reader records the details the AI did not state as a detail. The answer typed in the object box is stored
@@ -174,9 +175,9 @@ const m1 = gold.after_merge.find(g => g.id === 'M1')
 check('M1 not yet: two subjects until a person merges them', find(m1.statements).length, 0)
 check('the re-scan adds only N1 and L1', conflicts.length, gold.conflicts.length + gold.expected_false_alarms.length)
 
-// 5. Merges: Dr. Watson into Watson (W3, W4), Watson's wife into Mary (M1).
+// 5. Merge: Watson's wife into Mary (M1).
 step(5)
-for (const [from, into] of [['Dr. Watson', 'Watson'], ["Watson's wife", 'Mary']]) {
+for (const [from, into] of [["Watson's wife", 'Mary']]) {
   const ents = (await a('/api/entities')).data
   // The sample's pages carry full titles ("John H. Watson"); canon's name for a page is one of its names.
   const e = name => { const x = ents.find(y => y.name === name) ?? ents.find(y => y.names.includes(name)); assert.ok(x, `entity page ${name}`); return x }
@@ -212,11 +213,11 @@ const tok = (await a('/api/agent-tokens', { method: 'POST', body: { name: 'Probe
 const mcp = new Client({ name: 'sherlock-probe', version: '1.0.0' })
 await mcp.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`), { requestInit: { headers: { authorization: `Bearer ${tok.secret}` } } }))
 const checkFacts = async facts => JSON.parse((await mcp.callTool({ name: 'sb_check_facts', arguments: { facts } })).content[0].text)
-const knee = await checkFacts([{ kind: 'character', subject: 'Dr. Watson', predicate: 'wound_location_is', object: 'knee', statement: 'Watson was shot in the knee.' }])
-check('knee: clashes with shoulder, left arm and both legs (Dr. Watson read as Watson)', sorted(knee.would_raise.filter(h => h.rule === RULE).map(h => h.right.statement ?? h.left.statement)),
-  sorted(["Watson's wound was in his shoulder.", "Watson's wound is in his left arm.", 'Watson has a Jezail bullet wound in his leg.', 'Watson has a weakness in his leg.']))
+const knee = await checkFacts([{ kind: 'character', subject: 'Watson', predicate: 'wound_location_is', object: 'knee', statement: 'Watson was shot in the knee.' }])
+check('knee: clashes with the shoulder and the leg', sorted(knee.would_raise.filter(h => h.rule === RULE).map(h => h.right.statement ?? h.left.statement)),
+  sorted(["Watson's wound is on his shoulder.", "Watson's wound is in his leg."]))
 const leftShoulder = await checkFacts([{ kind: 'character', subject: 'Watson', predicate: 'wound_location_is', value: 'left shoulder' }])
-check('left shoulder: agrees with "shoulder", clashes with the arm and legs', leftShoulder.would_raise.filter(h => h.rule === RULE).length, 3)
+check('left shoulder: agrees with "shoulder", clashes with the leg', leftShoulder.would_raise.filter(h => h.rule === RULE).map(h => h.right.statement ?? h.left.statement), ["Watson's wound is in his leg."])
 await mcp.close()
 
 // 8. Export: open conflicts carry the plain label.
@@ -233,7 +234,7 @@ const { stem } = await import('../server/utils/qa.ts')
 check('stemmer: word forms meet', ['wounded', 'wounds', 'married', 'marries', 'lived', 'lives', 'uses'].map(w => stem(w)), ['wound', 'wound', 'marry', 'marry', 'live', 'live', 'use'])
 const wounded = (await a('/api/qa', { method: 'POST', body: { question: 'Where was Watson wounded?' } })).data
 const woundFacts = wounded.cited.filter(f => f.predicate === 'wound_location_is').map(f => f.value)
-check('"Where was Watson wounded?" cites the wound facts, not unknown', [wounded.status, woundFacts.includes('shoulder'), woundFacts.includes('leg')], ['source_only', true, true])
+check('"Where was Watson wounded?" cites the wound facts, not unknown', [wounded.status, woundFacts.includes('shoulder'), woundFacts.includes('wounded leg')], ['source_only', true, true])
 check('every cited fact has a verified quote', wounded.cited.every(f => f.evidence.some(e => e.verified && e.quote)), true)
 // …and nothing more: a word form only ranks a fact that a word of the question already matches exactly. In a project whose
 // canon is "The new gate opens.", "Len guards the gate." and "The floor is even.", "News?", "Lens?" and "Evening?" are

@@ -120,7 +120,7 @@ const SHOTS = [
   { name: 'projects', path: '/settings/projects' },
   { name: 'profile', path: '/settings/profile' },
   // The pitch deck shows this one card full width: the element alone, at 2× zoom, light only.
-  { name: 'watson-card', path: '/conflicts', project: sherlock, zoom: 2, themes: ['light'], widths: [1920, 960], element: "page.locator('article.conflict').filter({ hasText: 'in his shoulder' }).filter({ hasText: 'in his leg' }).first()" },
+  { name: 'watson-card', path: '/conflicts', project: sherlock, zoom: 2, themes: ['light'], widths: [1920, 960], element: "page.locator('article.conflict').filter({ hasText: 'on his shoulder' }).filter({ hasText: 'in his leg' }).first()" },
 ]
 
 const out = new URL('../../public/shots/', import.meta.url).pathname

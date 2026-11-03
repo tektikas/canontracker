@@ -2,7 +2,7 @@
 // replays for the sample's own text. Runs the app's real extraction (extractCandidates in server/utils/model.ts: the same
 // prompt, request and cleaning as a live import) against an OpenAI-compatible endpoint, several documents at a time, with
 // Nitro's globals replaced by plain stand-ins (like scripts/research-replay.mjs). Not a gate; needs a key:
-//   SB_BASE_URL=https://gateway.example/v1 SB_MODEL_ID=codex/gpt-6-luna SB_API_KEY="$(pass show …)" \
+//   SB_BASE_URL=https://api.meta.ai/v1 SB_MODEL_ID=muse-spark-1.3 SB_API_KEY="$(pass show <secret-entry> | head -1)" \
 //     node scripts/sherlock-record.mjs [--only <file,file…>] [--concurrency 4]
 // SB_EFFORT sets the extraction's reasoning effort (NUXT_EXTRACT_REASONING_EFFORT; empty = low).
 // Writes only when every document's call succeeded (a failed one is retried once). Prints calls, candidates, drops and time.
