@@ -31,6 +31,9 @@ onMounted(() => { try { hidden.value = JSON.parse(localStorage.getItem(hiddenKey
 const pairKey = (s: { from: { id: string }, into: { id: string } }) => `${s.from.id}>${s.into.id}`
 const suggestions = computed(() => sameNameSuggestions(list.value).filter(s => !hidden.value.includes(pairKey(s))).slice(0, 8))
 const merging = ref('')
+// Each type group shows 24 pages and grows by 48, so a big project's list stays workable.
+const GROUP_FIRST = 24
+const groupLimit = ref<Record<string, number>>({})
 function notSame(s: { from: { id: string }, into: { id: string } }) {
   hidden.value = [...hidden.value, pairKey(s)]
   try { localStorage.setItem(hiddenKey.value, JSON.stringify(hidden.value)) } catch {}
@@ -158,7 +161,7 @@ async function create() {
     <section v-for="g in groups" :key="g.type.key" class="group" :aria-labelledby="`k-${g.type.key}`">
       <h2 :id="`k-${g.type.key}`" :class="`kt-${g.type.color}`"><UiIcon :name="g.type.icon as IconName" :size="16" />{{ g.type.many }} <span class="faint">{{ g.items.length }}</span></h2>
       <ul class="cards">
-        <li v-for="e in g.items" :key="e.id">
+        <li v-for="e in g.items.slice(0, groupLimit[g.type.key] ?? GROUP_FIRST)" :key="e.id">
           <NuxtLink :to="`/entities/${e.id}`" class="card-link">
             <EntityAvatar :entity="e" :size="48" />
             <span class="body">
@@ -173,6 +176,7 @@ async function create() {
           </NuxtLink>
         </li>
       </ul>
+      <ShowMore :rest="g.items.length - (groupLimit[g.type.key] ?? GROUP_FIRST)" :step="48" @more="groupLimit[g.type.key] = (groupLimit[g.type.key] ?? GROUP_FIRST) + 48" />
     </section>
   </template>
 </template>

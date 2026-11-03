@@ -7,6 +7,8 @@ const route = useRoute()
 const one = computed(() => (typeof route.query.run === 'string' ? route.query.run : ''))
 const purpose = ref('')
 const { data: runs, pending, error } = await useFetch('/api/agents/runs', { query: computed(() => (one.value ? { run: one.value } : purpose.value ? { purpose: purpose.value } : {})) })
+const runPage = useShowMore(runs, 25)
+watch(purpose, () => { runPage.limit.value = runPage.step })
 
 const AGENTS = [['', 'All agents'], ['extract', 'Extractor'], ['critic', 'Critic'], ['research', 'Research'], ['continuity', 'Continuity'], ['answer', 'Ask'], ['rule_check', 'Rule check'], ['image', 'Images'], ['transcribe', 'Transcribe']] as const
 const FACT_WORDS: Record<string, string> = { canon: 'accepted', superseded: 'accepted, later superseded', rejected: 'rejected', pending: 'waiting in Review' }
@@ -56,7 +58,7 @@ watch(runs, (list) => { if (one.value && list?.[0]) loadReport(list[0]) }, { imm
   </UiEmptyState>
 
   <ol v-else class="runs">
-    <li v-for="r in runs" :key="r.id">
+    <li v-for="r in runPage.visible.value" :key="r.id">
       <details class="run" :class="{ failed: r.status === 'failed' }" :open="!!one" @toggle="($event.target as HTMLDetailsElement).open && loadReport(r)">
         <summary>
           <span class="run-main">
@@ -105,6 +107,7 @@ watch(runs, (list) => { if (one.value && list?.[0]) loadReport(list[0]) }, { imm
       </details>
     </li>
   </ol>
+  <ShowMore v-if="runs?.length" :rest="runPage.rest.value" :step="runPage.step" noun="runs" @more="runPage.more" />
 </template>
 
 <style scoped>

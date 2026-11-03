@@ -180,9 +180,14 @@ const day = (iso: string) => {
   const now = new Date().toISOString()
   return d === shortDate(now) ? 'Today' : d === shortDateBack(now, 1) ? 'Yesterday' : d
 }
+const page = useShowMore(shown, 50)
+onMounted(() => {
+  const at = shown.value.findIndex(e => `#${e.id}` === route.hash)
+  if (at >= page.limit.value) page.limit.value = at + 1
+})
 const groups = computed(() => {
   const out: { day: string, items: typeof shown.value }[] = []
-  for (const e of shown.value) {
+  for (const e of page.visible.value) {
     const k = day(e.created_at)
     if (out.at(-1)?.day === k) out.at(-1)!.items.push(e)
     else out.push({ day: k, items: [e] })
@@ -223,6 +228,7 @@ const groups = computed(() => {
         </li>
       </ol>
     </section>
+    <ShowMore :rest="page.rest.value" :step="page.step" noun="older events" @more="page.more" />
   </template>
 </template>
 

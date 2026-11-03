@@ -49,7 +49,7 @@ const FACT_GROUPS = [['character', 'Who they are'], ['rule', 'Rules'], ['claim',
 // Long pages stay workable: each group shows its first FIRST facts until "Show all"; pages with many facts get a filter.
 const FIRST = 8
 const factFilter = ref('')
-const shown = ref<Record<string, boolean>>({})
+const shown = ref<Record<string, number>>({}) // facts shown per group; grows by 20
 const storyFacts = computed(() => {
   const q = factFilter.value.trim().toLowerCase()
   return FACT_GROUPS
@@ -59,7 +59,7 @@ const storyFacts = computed(() => {
 // Appearances: the first documents and the first passages of each until asked for more.
 const APP_DOCS = 8
 const APP_PASSAGES = 4
-const allDocs = ref(false)
+const docLimit = ref(APP_DOCS)
 const openDocs = ref<Record<string, boolean>>({})
 const linkedOnly = computed(() => facts.value.filter(f => f.kind === 'relationship').length)
 
@@ -387,13 +387,11 @@ const ago = (iso: string) => {
             <section v-for="g in storyFacts" :key="g.kind">
               <h3>{{ g.label }} <span class="faint count">{{ g.facts.length }}</span></h3>
               <div class="stack">
-                <div v-for="f in (shown[g.kind] || factFilter ? g.facts : g.facts.slice(0, FIRST))" :key="f.id" class="fact-item">
+                <div v-for="f in (factFilter ? g.facts : g.facts.slice(0, shown[g.kind] ?? FIRST))" :key="f.id" class="fact-item">
                   <FactSummary :fact="f" sources />
                 </div>
               </div>
-              <button v-if="g.facts.length > FIRST && !factFilter" type="button" class="linkish more" @click="shown[g.kind] = !shown[g.kind]">
-                {{ shown[g.kind] ? 'Show fewer' : `Show all ${g.facts.length}` }}
-              </button>
+              <ShowMore v-if="!factFilter" :rest="g.facts.length - (shown[g.kind] ?? FIRST)" :step="20" @more="shown[g.kind] = (shown[g.kind] ?? FIRST) + 20" />
             </section>
             <p v-if="linkedOnly" class="small muted">
               Family, allies and other links are grouped on the <button type="button" class="linkish" @click="tab = 'relationships'">Relationships</button> tab.
@@ -450,7 +448,7 @@ const ago = (iso: string) => {
       </UiEmptyState>
       <div v-else class="stack apps">
         <p class="small muted intro">Passages in your sources that mention {{ e.name }}{{ e.names.length > 1 ? ' or its other names' : '' }}, found by name when you open this page. Open one to read it in place.</p>
-        <UiPanel v-for="d in (allDocs ? e.appearances : e.appearances.slice(0, APP_DOCS))" :key="d.id" flush>
+        <UiPanel v-for="d in e.appearances.slice(0, docLimit)" :key="d.id" flush>
           <header class="app-head">
             <UiIcon name="file" :size="16" />
             <NuxtLink :to="`/documents/${d.id}`" class="app-title">{{ d.title }}</NuxtLink>
@@ -470,9 +468,7 @@ const ago = (iso: string) => {
             {{ openDocs[d.id] ? 'Show fewer passages' : `Show ${d.passages.length - APP_PASSAGES} more passages` }}
           </button>
         </UiPanel>
-        <UiButton v-if="e.appearances.length > APP_DOCS" class="more-docs" @click="allDocs = !allDocs">
-          {{ allDocs ? 'Show fewer documents' : `Show all ${e.appearances.length} documents` }}
-        </UiButton>
+        <ShowMore :rest="e.appearances.length - docLimit" :step="APP_DOCS" noun="documents" @more="docLimit += APP_DOCS" />
       </div>
     </template>
 

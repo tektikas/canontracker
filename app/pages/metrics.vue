@@ -3,6 +3,7 @@
 const editor = computed(() => canEdit(useMe().value))
 const { data: runs, refresh } = await useFetch('/api/eval')
 const { data: calls, refresh: refreshCalls } = await useFetch('/api/model-calls')
+const callPage = useShowMore(calls, 25)
 const busy = ref(false)
 const error = ref('')
 const latest = computed(() => runs.value?.[0])
@@ -111,7 +112,7 @@ const tone = (id: string) => ({ recorded: 'neutral', live: 'good', mixed: 'neutr
       <table>
         <thead><tr><th>Time</th><th>Purpose</th><th>Model · prompt</th><th class="hide-sm">Inputs</th><th>Result</th><th class="hide-sm">Latency</th></tr></thead>
         <tbody>
-          <tr v-for="c in calls" :key="c.id">
+          <tr v-for="c in callPage.visible.value" :key="c.id">
             <td class="mono small nowrap">{{ clock(c.created_at) }}</td>
             <td><UiBadge tone="accent">{{ c.purpose.replace('_', ' ') }}</UiBadge></td>
             <td>
@@ -129,10 +130,12 @@ const tone = (id: string) => ({ recorded: 'neutral', live: 'good', mixed: 'neutr
         </tbody>
       </table>
     </div>
+    <ShowMore class="calls-more" :rest="callPage.rest.value" :step="callPage.step" noun="calls" @more="callPage.more" />
   </UiPanel>
 </template>
 
 <style scoped>
+.calls-more { margin: var(--s-3) var(--s-4) var(--s-4); }
 .caveat { margin-bottom: var(--s-5); align-items: center; }
 .gap { margin-top: var(--s-5); }
 .nowrap { white-space: nowrap; }
