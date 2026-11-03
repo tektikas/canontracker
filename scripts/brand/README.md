@@ -21,9 +21,9 @@ Transparent backgrounds work (`background: "transparent"`), but the model draws 
 
 Real screens of the app with the bundled samples, light and dark, 1280 and 720 wide (`MarketingShot.vue` picks the theme with `prefers-color-scheme` and the width with `srcset`; lazy below the fold).
 
-With a prod build on localhost with its own `.data` (default AI mode: each sample replays its own AI output), run `node scripts/brand/render-shots.mjs http://localhost:<port> [name…]`. It signs up a throwaway account (“Ada Marlow”, “Northlight Studio”) through the API, loads Lantern Row, Broken Tide and The Ashbell Pass into three projects, walks the Ashbell Pass through review (figurative candidate rejected, verified candidates accepted), a conflict scan with two decisions, the Salt Gate → Saltgate merge, a proposed change to the bell rule, the sample voice take linked to its script and one Ask question, then captures each page at 1280×800 with the installed headless `playwright-cli` (session `shots`). The session cookie carries the current project, so a project switch re-sets the browser cookie.
+With a prod build on localhost with its own `.data` (default AI mode: each sample replays its own AI output), run `node scripts/brand/render-shots.mjs http://localhost:<port> [name…]`. It signs up a throwaway account (“Ada Marlow”, “Northlight Studio”) through the API, loads Lantern Row, Broken Tide, Sherlock Holmes (verified candidates accepted, conflicts scanned) and The Ashbell Pass into four projects, walks the Ashbell Pass through review (figurative candidate rejected, verified candidates accepted), a conflict scan with two decisions, the Salt Gate → Saltgate merge, a proposed change to the bell rule, the sample voice take linked to its script and one Ask question, then captures each page at 1280×800 with the installed headless `playwright-cli` (session `shots`). The session cookie carries the current project, so a project switch re-sets the browser cookie.
 
-Shots: `review`, `tide-review`, `canon`, `graph`, `timeline`, `conflicts`, `impact`, `entity`, `library`, `reader`, `voice`, `ask`, `agent-activity`, `export`, `team`, `mcp`, `lantern`.
+Shots: `review`, `tide-review`, `canon`, `graph`, `timeline`, `conflicts`, `impact`, `entity`, `library`, `reader`, `voice`, `ask`, `agent-activity`, `export`, `team`, `mcp`, `lantern`, `watson-card` (Sherlock Holmes: the Watson's wound conflict card alone at 2× zoom, light, 1920 and 960 wide; used by the pitch deck).
 
 ## Social cards (`public/og-*.png`)
 
@@ -39,3 +39,7 @@ Shots: `review`, `tide-review`, `canon`, `graph`, `timeline`, `conflicts`, `impa
 | Icons, favicons, manifest, logo SVGs | 9 | 70,984 |
 
 A page downloads only what it shows: the home page loads the hero screenshot (22–49 KB) eagerly and everything else lazily, one theme and one width per screenshot.
+
+## Pitch deck (`docs/pitch-deck.pdf`)
+
+`/pitch` (`app/pages/pitch.vue`) is the deck: eleven 16:9 slides alternating dark and light (each pinned to one set of the palette), then an appendix (market sizing, competitor table, proof, sources). Type scales with the slide width; print is one 16×9 in page per slide (`@page slide`). Sources and the beachhead model (counts × shares × assumptions × a competitor's list price) live at the top of the page. The three hook drawings are `pitch-door`, `pitch-wand` and `pitch-wound` in `prompts.json`. With the app running (it needs the `watson-card` shot above and the `pitch-*` illustrations), `node scripts/brand/render-pitch.mjs http://localhost:<port>` prints it with the installed headless `playwright-cli` (session `pitch`, light theme) to `docs/pitch-deck.pdf`, and fails if the font or a screenshot did not load or the page count differs from the slide count.

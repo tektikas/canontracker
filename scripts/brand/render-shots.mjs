@@ -1,9 +1,9 @@
 // Product screenshots for the marketing site, taken from the real app with the bundled samples.
 //   node scripts/brand/render-shots.mjs <baseUrl> [shot...]
 // Against a prod build on localhost with its own .data and the default AI mode (the samples replay their own AI output).
-// Creates a throwaway account with three projects (Lantern Row, Broken Tide, The Ashbell Pass), walks the Ashbell Pass
-// through review, scan, merge and a proposed change, then captures each page at 1280×800 in light and dark with the
-// installed headless playwright-cli (session `shots`), and writes public/shots/<name>-<light|dark>-<1280|720>.webp.
+// Creates a throwaway account with four projects (Lantern Row, Broken Tide, Sherlock Holmes, The Ashbell Pass), accepts and
+// scans Sherlock Holmes, walks the Ashbell Pass through review, scan, merge and a proposed change, then captures each page
+// at 1280×800 in light and dark with the installed headless playwright-cli (session `shots`), and writes public/shots/<name>-<light|dark>-<1280|720>.webp.
 import { mkdtempSync, readFileSync, rmSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -29,7 +29,11 @@ async function api(path, { method = 'GET', body, form } = {}) {
 const pending = () => api('/api/facts?status=pending')
 const canon = () => api('/api/facts?status=canon')
 const by = (list, s) => { const f = list.find(x => x.statement === s); if (!f) throw new Error(`not found: ${s}`); return f }
-const acceptVerified = async () => api('/api/facts/accept-verified', { method: 'POST', body: { items: (await pending()).map(f => ({ id: f.id, fingerprint: candidateFingerprint(f) })) } })
+// The server takes at most 500 per request (Sherlock Holmes has over a thousand candidates).
+const acceptVerified = async () => {
+  const items = (await pending()).map(f => ({ id: f.id, fingerprint: candidateFingerprint(f) }))
+  for (let i = 0; i < items.length; i += 500) await api('/api/facts/accept-verified', { method: 'POST', body: { items: items.slice(i, i + 500) } })
+}
 
 // ---------- Setup (real API calls, the same ones the UI makes) ----------
 await api('/api/auth/signup', { method: 'POST', body: { name: 'Ada Marlow', email: `ada-${run}@shots.test`, password: 'correct horse battery' } })
@@ -45,6 +49,11 @@ const lantern = await api('/api/me').then(m => m.current.project.id)
 await project('Broken Tide', 'broken-tide')
 const brokenTide = await api('/api/me').then(m => m.current.project.id)
 const tideSister = (await pending()).find(f => /sister/i.test(f.statement))
+// Sherlock Holmes: accept the verified candidates and scan, so Watson's wound (shoulder vs leg) is a conflict.
+await project('Sherlock Holmes', 'sherlock-holmes')
+const sherlock = await api('/api/me').then(m => m.current.project.id)
+await acceptVerified()
+await api('/api/conflicts/scan', { method: 'POST' })
 
 await project('The Ashbell Pass', 'ashbell-pass')
 const ashbell = await api('/api/me').then(m => m.current.project.id)
@@ -97,6 +106,8 @@ const SHOTS = [
   { name: 'team', path: '/settings/team' },
   { name: 'mcp', path: '/settings/agents' },
   { name: 'lantern', path: '/canon', project: 'lantern' },
+  // The pitch deck shows this one card full width: the element alone, at 2× zoom, light only.
+  { name: 'watson-card', path: '/conflicts', project: sherlock, zoom: 2, themes: ['light'], widths: [1920, 960], element: "page.locator('article.conflict').filter({ hasText: 'in his shoulder' }).filter({ hasText: 'in his leg' }).first()" },
 ]
 
 const out = new URL('../../public/shots/', import.meta.url).pathname
@@ -122,7 +133,7 @@ try {
     const want = projectId(shot.project)
     // The session cookie carries the current project, so the browser takes the switched cookie.
     if (want !== current) { await api(`/api/projects/${want}/switch`, { method: 'POST' }); setSession(); current = want }
-    for (const theme of ['light', 'dark']) {
+    for (const theme of shot.themes ?? ['light', 'dark']) {
       const png = join(tmp, `${shot.name}-${theme}.png`)
       cli('run-code', `async page => {
         await page.emulateMedia({ colorScheme: '${theme}', reducedMotion: 'reduce' });
@@ -132,9 +143,11 @@ try {
         ${shot.prep ?? ''}
         await page.mouse.move(0, 799);
         await page.waitForTimeout(400);
-        await page.screenshot({ path: ${JSON.stringify(png)}, fullPage: ${!!shot.full} });
+        ${shot.zoom ? `await page.setViewportSize({ width: ${1280 * shot.zoom}, height: ${800 * shot.zoom} }); await page.evaluate(() => { document.documentElement.style.zoom = '${shot.zoom}' }); await page.waitForTimeout(600);` : ''}
+        ${shot.element ? `await ${shot.element}.screenshot({ path: ${JSON.stringify(png)} });` : `await page.screenshot({ path: ${JSON.stringify(png)}, fullPage: ${!!shot.full} });`}
+        ${shot.zoom ? 'await page.setViewportSize({ width: 1280, height: 800 });' : ''}
       }`)
-      for (const w of [1280, 720]) {
+      for (const w of shot.widths ?? [1280, 720]) {
         execFileSync('magick', [png, '-resize', `${w}x`, '-strip', '-quality', '78', '-define', 'webp:method=6', join(out, `${shot.name}-${theme}-${w}.webp`)])
       }
       console.log(`${shot.name} (${theme}): written`)
