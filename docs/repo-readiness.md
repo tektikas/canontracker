@@ -14,13 +14,13 @@ Sizes in bytes, from tracked files on 3 Nov. All have an application, sample or 
 | ---: | --- |
 | 2,293,576 | `docs/pitch-deck.pdf` |
 | 1,764,524 | `public/samples/harl-crier-take.wav` |
-| 374,800 | `server/assets/sherlock-holmes/candidates.json` |
 | 259,710 | `server/assets/sherlock-holmes/cover.jpg` |
 | 238,176 | `pnpm-lock.yaml` |
 | 178,454 | `public/og-landing.png` |
 | 177,567 | `public/og-security.png` |
 | 170,021 | `public/og-default.png` |
 | 156,490 | `public/og-agents.png` |
+| 147,463 | `server/assets/sherlock-holmes/candidates.json` |
 | 83,910 | `public/shots/watson-card-light-1920.webp` |
 | 82,834 | `public/art/story-world.webp` |
 | 78,366 | `public/shots/review-light-1280.webp` |

@@ -17,7 +17,7 @@ interface Gold {
   // Conflicts a set plants for after a merge or an applied change: not in the baseline recall, but true alerts, not false ones.
   after_merge?: { id: string, rule: string, statements: string[] }[]
   after_change?: { id: string, rule: string, rule_statement: string, statements: string[] }[]
-  // Hits a rule is expected to raise that a person should dismiss (Sherlock's F1: shoulder vs left arm). Open, one counts
+  // Hits a rule is expected to raise that a person should dismiss (e.g. "shoulder" vs "left arm" for one wound). Open, one counts
   // against alert precision; dismissed as a false alarm, it is a judged alert and leaves precision.
   expected_false_alarms?: { id: string, rule: string, statements: string[] }[]
 }

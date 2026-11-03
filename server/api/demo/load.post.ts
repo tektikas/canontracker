@@ -8,8 +8,8 @@
 // The audit is append-only: a reset keeps earlier events and appends project.reset, then sample.loaded.
 // - sherlock-holmes: Doyle's public-domain texts (Project Gutenberg, see its SOURCES.md), one document per chapter or story, filed
 //   by its manifest (medium prose), with wiki pages (entities.json: full titles, canon's names as analysis names, other names as
-//   aliases; "Dr. Watson" and "Watson's wife" are left to canon so the merge beats stay) and a public-domain Paget cover on
-//   A Scandal in Bohemia. In recorded mode its candidates replay a recorded run.
+//   aliases; "Watson's wife" is left to canon so the M1 merge beat stays) and a public-domain Paget cover on A Scandal in
+//   Bohemia. In recorded mode its candidates replay a recorded Muse run.
 const SETS = ['broken-tide', 'lantern-row', 'ashbell-pass', 'sherlock-holmes'] as const
 const NAMES = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample', 'ashbell-pass': 'the Ashbell Pass demo', 'sherlock-holmes': 'the Sherlock Holmes sample' }
 // Documents imported at a time. Live extraction of a long sample is one model call per document; their candidates are still

@@ -7,13 +7,13 @@
     </figcaption>
     <h2>Where was Watson wounded?</h2>
     <div class="fact">
-      <p class="statement">Watson’s wound was in his shoulder.</p>
+      <p class="statement">Watson’s wound is on his shoulder.</p>
       <blockquote class="quote">There I was struck on the shoulder by a Jezail bullet, which shattered the bone and grazed the subclavian artery.</blockquote>
       <p class="source"><span class="chip good">Verbatim match</span><cite>A Study in Scarlet</cite> · Part I, Chapter 1</p>
     </div>
     <div class="fact">
-      <p class="statement">Watson has a Jezail bullet wound in his leg.</p>
-      <blockquote class="quote">I made no remark, however, but sat nursing my wounded leg. I had a Jezail bullet through it some time before, and, though it did not prevent me from walking, it ached wearily at every change of the weather.</blockquote>
+      <p class="statement">Watson’s wound is in his leg.</p>
+      <blockquote class="quote">I made no remark, however, but sat nursing my wounded leg.</blockquote>
       <p class="source"><span class="chip good">Verbatim match</span><cite>The Sign of the Four</cite> · Chapter 1</p>
     </div>
     <p class="card-foot">One character. One old wound. Both sources, side by side.</p>
