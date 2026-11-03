@@ -266,7 +266,11 @@ export function useDb() {
     // passages.start_ms/end_ms/speaker (recording transcripts); null on every text document.
     for (const [table, column, type] of [['drafts', 'base_document_id', 'text'], ['model_calls', 'step', 'integer'], ['model_calls', 'tool', 'text'],
       ['model_calls', 'tokens', 'integer'], ['model_calls', 'effort', 'text'], ['projects', 'research_profile', `text not null default '{}'`],
-      ['critic_opinions', 'canon_seen', `text not null default ''`], ['passages', 'start_ms', 'integer'], ['passages', 'end_ms', 'integer'], ['passages', 'speaker', 'text']] as const) {
+      ['critic_opinions', 'canon_seen', `text not null default ''`], ['passages', 'start_ms', 'integer'], ['passages', 'end_ms', 'integer'], ['passages', 'speaker', 'text'],
+      // api_tokens.level: propose (reads, proposals, model runs) or full (acts as its owner); tokens from before it are propose.
+      // *_token: the API token a decision was made through (null = in the web app), shown as "via agent <name>".
+      ['api_tokens', 'level', `text not null default 'propose'`], ['facts', 'decided_token', 'text'], ['conflicts', 'decided_token', 'text'],
+      ['changes', 'decided_token', 'text'], ['changes', 'reverted_token', 'text']] as const) {
       if (!(conn.prepare(`pragma table_info(${table})`).all() as { name: string }[]).some(r => r.name === column))
         conn.exec(`alter table ${table} add column ${column} ${type}`)
     }
@@ -386,14 +390,18 @@ export function dryRun<T>(fn: () => T): T {
   }
 }
 
-// The actor is always the signed-in person making the request (set by server/middleware/access.ts).
+// The actor is always the signed-in person making the request (set by server/middleware/access.ts). A request made through an
+// MCP token stays that person's, marked via: 'mcp' with the token (a route's own `via` moves to via_also).
 export function audit(eventType: string, targetType: string, targetId: string, detail: Record<string, unknown> = {}) {
-  const { user, project } = access()
+  const { user, project, agent } = access()
   const id = newId('aud')
+  const full = agent ? { ...detail, via: 'mcp', token_id: agent.token_id, token_name: agent.token_name, ...(detail.via != null && detail.via !== 'mcp' ? { via_also: detail.via } : {}) } : detail
   useDb().prepare('insert into audit_events values (?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(id, eventType, targetType, targetId, user.id, JSON.stringify(detail), now(), project.id)
+    .run(id, eventType, targetType, targetId, user.id, JSON.stringify(full), now(), project.id)
   return id
 }
+// The API token the current request acts through, stored next to decided_by / reverted_by (null in the web app).
+export const agentToken = () => access().agent?.token_id ?? null
 
 // Empties the current project only. Other projects and studios are untouched. audit_events is append-only and stays:
 // the caller appends a project.reset event, and events before it whose target was cleared read as removed (listAudit).
@@ -500,8 +508,9 @@ export function listFacts(where = '1 = 1', ...params: (string | number)[]) {
   const d = useDb()
   const facts = d.prepare(`select f.*, (select name from users u where u.id = f.decided_by) decided_by_name,
       (select name from users u where u.id = f.created_by) created_by_name,
-      (select name from api_tokens t where t.id = f.proposed_by_token) agent_name, (select name from users u where u.id = f.proposed_by_user) proposed_by_name from facts f
-    where f.project_id = ? and (${where}) order by f.rowid`).all(pid(), ...params) as unknown as (Fact & { decided_by_name: string | null, created_by_name: string | null, agent_name: string | null, proposed_by_name: string | null })[]
+      (select name from api_tokens t where t.id = f.proposed_by_token) agent_name, (select name from users u where u.id = f.proposed_by_user) proposed_by_name,
+      (select name from api_tokens t where t.id = f.decided_token) decided_via from facts f
+    where f.project_id = ? and (${where}) order by f.rowid`).all(pid(), ...params) as unknown as (Fact & { decided_by_name: string | null, created_by_name: string | null, agent_name: string | null, proposed_by_name: string | null, decided_via: string | null })[]
   const ev = d.prepare(`
     select e.id, e.passage_id, e.quote, e.verified, e.support, e.document_id, doc.name document_filename, doc.filename document_key, doc.folder_id,
       doc.title document_title, doc.kind document_kind, doc.version document_version, p.start_line, p.end_line, p.start_ms, p.end_ms,

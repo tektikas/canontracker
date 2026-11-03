@@ -11,12 +11,23 @@ export interface Access {
   project: ProjectRow
   studio: { id: string, name: string }
   role: Role
+  // Set when the request comes through an MCP API token (server/utils/api-tokens.ts): audit marks it via 'mcp'.
+  agent?: { token_id: string, token_name: string, level: TokenLevel }
 }
+export const TOKEN_LEVELS = ['propose', 'full'] as const
+export type TokenLevel = typeof TOKEN_LEVELS[number]
 
 const fail = (statusCode: number, statusMessage: string, message: string) => createError({ statusCode, statusMessage, message })
 
 // The signed-in user, re-read from the database so a deleted account or stale cookie never passes.
 export async function requireUser(event: H3Event) {
+  // An MCP tool calling a panel route in-process (server/utils/mcp-panel.ts) acts as its token's owner, in its project.
+  const agent = event.context.mcpAccess as Access | undefined
+  if (agent) {
+    const user = useDb().prepare('select * from users where id = ?').get(agent.user.id) as unknown as UserRow | undefined
+    if (!user) throw fail(401, 'UNAUTHENTICATED', 'Log in to continue.')
+    return { user, session: { user: { id: user.id }, projectId: agent.project.id } as Awaited<ReturnType<typeof getUserSession>> }
+  }
   const session = await getUserSession(event)
   const user = session.user && useDb().prepare('select * from users where id = ?').get(session.user.id) as unknown as UserRow | undefined
   if (!user) throw fail(401, 'UNAUTHENTICATED', 'Log in to continue.')
@@ -43,6 +54,7 @@ export function projectsFor(userId: string) {
 
 // The current project comes from the session and is checked against memberships on every request.
 export async function resolveAccess(event: H3Event): Promise<Access> {
+  if (event.context.mcpAccess) return event.context.mcpAccess as Access
   const { user, session } = await requireUser(event)
   const projectId = (session as { projectId?: string }).projectId
   const project = projectId ? useDb().prepare('select * from projects where id = ?').get(projectId) as unknown as ProjectRow | undefined : undefined

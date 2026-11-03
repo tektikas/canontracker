@@ -23,8 +23,8 @@ export function acceptCandidate(fact: Fact, decision: 'accept' | 'correct_and_ac
   const identity = identityOf(after)
   for (const i of identity) after[i.role] = i.to
   useDb().prepare(`update facts set status = 'canon', statement = ?, subject = ?, predicate = ?, object = ?, t_from = ?, t_to = ?, time_label = ?, precision = ?,
-    decided_at = ?, rationale = ?, decided_by = ? where id = ?`)
-    .run(after.statement, after.subject, after.predicate, after.object, time.t_from, time.t_to, time.time_label, time.precision, now(), rationale, access().user.id, fact.id)
+    decided_at = ?, rationale = ?, decided_by = ?, decided_token = ? where id = ?`)
+    .run(after.statement, after.subject, after.predicate, after.object, time.t_from, time.t_to, time.time_label, time.precision, now(), rationale, access().user.id, agentToken(), fact.id)
   const retimed = time.time_label !== fact.time_label
   audit(decision === 'accept' ? 'candidate.accepted' : 'candidate.corrected_and_accepted', 'fact', fact.id, {
     rationale,

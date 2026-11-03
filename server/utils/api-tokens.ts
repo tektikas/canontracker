@@ -4,14 +4,16 @@ import type { H3Event } from 'h3'
 export const TOKEN_PREFIX = 'sb_'
 export const hashToken = (secret: string) => createHash('sha256').update(secret).digest('hex')
 
-export interface TokenRow { id: string, user_id: string, project_id: string, name: string, token_hash: string, prefix: string, created_at: string, last_used_at: string | null, revoked_at: string | null }
+// level: propose = reads, proposals and model runs (research, continuity, critic, extraction); full = everything its owner's live
+// role allows, canon decisions included, marked "via agent <name>". Fixed at creation.
+export interface TokenRow { id: string, user_id: string, project_id: string, name: string, token_hash: string, prefix: string, created_at: string, last_used_at: string | null, revoked_at: string | null, level: TokenLevel }
 
 // The secret is returned once; only its sha256 is stored.
-export function createApiToken(a: Access, name: string) {
+export function createApiToken(a: Access, name: string, level: TokenLevel = 'propose') {
   const secret = TOKEN_PREFIX + randomBytes(24).toString('base64url')
   const id = newId('tok')
-  useDb().prepare('insert into api_tokens (id, user_id, project_id, name, token_hash, prefix, created_at) values (?, ?, ?, ?, ?, ?, ?)')
-    .run(id, a.user.id, a.project.id, name, hashToken(secret), secret.slice(0, 7), now())
+  useDb().prepare('insert into api_tokens (id, user_id, project_id, name, token_hash, prefix, created_at, level) values (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(id, a.user.id, a.project.id, name, hashToken(secret), secret.slice(0, 7), now(), level)
   return { id, secret }
 }
 
@@ -28,5 +30,5 @@ export function accessForToken(event: H3Event): { access: Access, token: TokenRo
   if (!user || !project || !role) return null
   const studio = db.prepare('select id, name from studios where id = ?').get(project.studio_id) as Access['studio']
   db.prepare('update api_tokens set last_used_at = ? where id = ?').run(now(), token.id)
-  return { access: { user, project, studio, role }, token }
+  return { access: { user, project, studio, role, agent: { token_id: token.id, token_name: token.name, level: token.level } }, token }
 }

@@ -224,8 +224,8 @@ export function mergeEntities(src: EntityRow, dst: EntityRow, plan: ReturnType<t
 
   const why = `${src.name} was merged into ${dst.name}, so this is no longer a conflict.`
   for (const c of resolved) {
-    d.prepare(`update conflicts set status = 'resolved_by_merge', decided_at = ?, decision_rationale = ?, decided_by = ?, merge_audit_id = ? where id = ?`)
-      .run(at, why, by, auditId, c.id)
+    d.prepare(`update conflicts set status = 'resolved_by_merge', decided_at = ?, decision_rationale = ?, decided_by = ?, decided_token = ?, merge_audit_id = ? where id = ?`)
+      .run(at, why, by, agentToken(), auditId, c.id)
     audit('conflict.resolved_by_merge', 'conflict', c.id, { rule: c.rule, from: src.name, into: dst.name, merge_audit_id: auditId })
   }
   const staleNote = JSON.stringify({ audit_id: auditId, from: src.name, into: dst.name, at })
