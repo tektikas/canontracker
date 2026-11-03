@@ -22,6 +22,19 @@ const count = (k: string) => searched.value.filter(e => e.kind === k).length
 const kinds = computed(() => [...new Set([...types.value.map(t => t.key), ...list.value.map(e => e.kind)])].map(kindOf))
 // A big wiki (a whole novel's canon) opens with the most-named pages first; a small one by name. Both are one click away.
 const sort = ref<'name' | 'facts'>(list.value.length > 60 ? 'facts' : 'name')
+
+// "Possibly the same" (sameNameSuggestions): one name inside another of the same type. Only a suggestion: Merge opens the
+// usual merge preview, and "Not the same" hides the pair for this person in this project (browser storage).
+const hiddenKey = computed(() => `ct-not-same-${me.value?.current?.project.id ?? ''}`)
+const hidden = ref<string[]>([])
+onMounted(() => { try { hidden.value = JSON.parse(localStorage.getItem(hiddenKey.value) ?? '[]') } catch { hidden.value = [] } })
+const pairKey = (s: { from: { id: string }, into: { id: string } }) => `${s.from.id}>${s.into.id}`
+const suggestions = computed(() => sameNameSuggestions(list.value).filter(s => !hidden.value.includes(pairKey(s))).slice(0, 8))
+const merging = ref('')
+function notSame(s: { from: { id: string }, into: { id: string } }) {
+  hidden.value = [...hidden.value, pairKey(s)]
+  try { localStorage.setItem(hiddenKey.value, JSON.stringify(hidden.value)) } catch {}
+}
 const order = (a: EntityListItem, b: EntityListItem) => (sort.value === 'facts' ? b.facts - a.facts : 0) || a.name.localeCompare(b.name)
 const groups = computed(() => kinds.value
   .filter(t => !kind.value || t.key === kind.value)
@@ -122,6 +135,21 @@ async function create() {
       </div>
     </div>
 
+    <UiPanel v-if="editable && suggestions.length" title="Possibly the same" description="One name is part of another of the same type. Merge only if they are one and the same; you will see what changes first." class="same">
+      <ul class="same-list">
+        <li v-for="sg in suggestions" :key="pairKey(sg)">
+          <div class="same-row">
+            <span><NuxtLink :to="`/entities/${sg.from.id}`">{{ sg.from.name }}</NuxtLink> <span class="muted">({{ sg.from.facts }})</span> → <NuxtLink :to="`/entities/${sg.into.id}`">{{ sg.into.name }}</NuxtLink> <span class="muted">({{ sg.into.facts }})</span></span>
+            <span class="same-actions">
+              <UiButton size="sm" @click="merging = merging === pairKey(sg) ? '' : pairKey(sg)">Merge…</UiButton>
+              <UiButton size="sm" variant="ghost" @click="notSame(sg)">Not the same</UiButton>
+            </span>
+          </div>
+          <EntityMerge v-if="merging === pairKey(sg)" :entity="sg.from" :into="sg.into.id" @close="merging = ''" />
+        </li>
+      </ul>
+    </UiPanel>
+
     <p v-if="!groups.length" class="muted none">
       No entity matches “{{ q }}”.
       <button v-if="editable" type="button" class="linkish" @click="creating = true">Create “{{ q.trim() }}”</button>
@@ -150,6 +178,10 @@ async function create() {
 </template>
 
 <style scoped>
+.same { margin-bottom: var(--s-5); }
+.same-list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-3); }
+.same-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-2) var(--s-4); }
+.same-actions { display: flex; gap: var(--s-2); }
 .create-panel { margin-bottom: var(--s-5); }
 .create { display: grid; gap: var(--s-3); max-width: 640px; }
 .create-row { display: grid; grid-template-columns: 1fr 180px; gap: var(--s-3); }

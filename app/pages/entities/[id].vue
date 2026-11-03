@@ -46,9 +46,21 @@ const tabs = computed(() => [
 
 // Key canon facts on the Story tab: everything except links to other entities (those are on Relationships).
 const FACT_GROUPS = [['character', 'Who they are'], ['rule', 'Rules'], ['claim', 'Claims'], ['event', 'Events'], ['location', 'Places']] as const
-const storyFacts = computed(() => FACT_GROUPS
-  .map(([kind, label]) => ({ kind, label, facts: facts.value.filter(f => f.kind === kind) }))
-  .filter(g => g.facts.length))
+// Long pages stay workable: each group shows its first FIRST facts until "Show all"; pages with many facts get a filter.
+const FIRST = 8
+const factFilter = ref('')
+const shown = ref<Record<string, boolean>>({})
+const storyFacts = computed(() => {
+  const q = factFilter.value.trim().toLowerCase()
+  return FACT_GROUPS
+    .map(([kind, label]) => ({ kind, label, facts: facts.value.filter(f => f.kind === kind && (!q || f.statement.toLowerCase().includes(q))) }))
+    .filter(g => g.facts.length)
+})
+// Appearances: the first documents and the first passages of each until asked for more.
+const APP_DOCS = 8
+const APP_PASSAGES = 4
+const allDocs = ref(false)
+const openDocs = ref<Record<string, boolean>>({})
 const linkedOnly = computed(() => facts.value.filter(f => f.kind === 'relationship').length)
 
 // Fields for this project's medium and the page's kind, plus any value kept from another medium or kind.
@@ -367,13 +379,21 @@ const ago = (iso: string) => {
             Nothing in canon names {{ e.name }} yet. Accept candidates that mention it, or add an alias if canon uses another name.
           </p>
           <div v-else class="fact-groups">
+            <label v-if="facts.length > 30" class="fact-filter">
+              <UiIcon name="search" :size="16" />
+              <input v-model="factFilter" type="search" :placeholder="`Filter ${facts.length} facts…`" aria-label="Filter facts">
+            </label>
+            <p v-if="!storyFacts.length" class="muted none">No fact about {{ e.name }} matches “{{ factFilter }}”.</p>
             <section v-for="g in storyFacts" :key="g.kind">
-              <h3>{{ g.label }}</h3>
+              <h3>{{ g.label }} <span class="faint count">{{ g.facts.length }}</span></h3>
               <div class="stack">
-                <div v-for="f in g.facts" :key="f.id" class="fact-item">
+                <div v-for="f in (shown[g.kind] || factFilter ? g.facts : g.facts.slice(0, FIRST))" :key="f.id" class="fact-item">
                   <FactSummary :fact="f" sources />
                 </div>
               </div>
+              <button v-if="g.facts.length > FIRST && !factFilter" type="button" class="linkish more" @click="shown[g.kind] = !shown[g.kind]">
+                {{ shown[g.kind] ? 'Show fewer' : `Show all ${g.facts.length}` }}
+              </button>
             </section>
             <p v-if="linkedOnly" class="small muted">
               Family, allies and other links are grouped on the <button type="button" class="linkish" @click="tab = 'relationships'">Relationships</button> tab.
@@ -430,7 +450,7 @@ const ago = (iso: string) => {
       </UiEmptyState>
       <div v-else class="stack apps">
         <p class="small muted intro">Passages in your sources that mention {{ e.name }}{{ e.names.length > 1 ? ' or its other names' : '' }}, found by name when you open this page. Open one to read it in place.</p>
-        <UiPanel v-for="d in e.appearances" :key="d.id" flush>
+        <UiPanel v-for="d in (allDocs ? e.appearances : e.appearances.slice(0, APP_DOCS))" :key="d.id" flush>
           <header class="app-head">
             <UiIcon name="file" :size="16" />
             <NuxtLink :to="`/documents/${d.id}`" class="app-title">{{ d.title }}</NuxtLink>
@@ -438,7 +458,7 @@ const ago = (iso: string) => {
             <span class="small faint">{{ counted(d.passages.length, 'passage') }}</span>
           </header>
           <ol class="passages">
-            <li v-for="p in d.passages" :key="p.id">
+            <li v-for="p in (openDocs[d.id] ? d.passages : d.passages.slice(0, APP_PASSAGES))" :key="p.id">
               <NuxtLink :to="`/documents/${d.id}#${p.id}`" class="p-link">
                 <span class="ln mono">{{ p.start_line }}<template v-if="p.end_line !== p.start_line">–{{ p.end_line }}</template></span>
                 <span class="p-text"><template v-for="(s, i) in marked(p.text)" :key="i"><mark v-if="s.hit">{{ s.text }}</mark><template v-else>{{ s.text }}</template></template></span>
@@ -446,7 +466,13 @@ const ago = (iso: string) => {
               </NuxtLink>
             </li>
           </ol>
+          <button v-if="d.passages.length > APP_PASSAGES" type="button" class="linkish more in-panel" @click="openDocs[d.id] = !openDocs[d.id]">
+            {{ openDocs[d.id] ? 'Show fewer passages' : `Show ${d.passages.length - APP_PASSAGES} more passages` }}
+          </button>
         </UiPanel>
+        <UiButton v-if="e.appearances.length > APP_DOCS" class="more-docs" @click="allDocs = !allDocs">
+          {{ allDocs ? 'Show fewer documents' : `Show all ${e.appearances.length} documents` }}
+        </UiButton>
       </div>
     </template>
 
@@ -490,6 +516,12 @@ const ago = (iso: string) => {
 </template>
 
 <style scoped>
+.fact-filter { display: flex; align-items: center; gap: var(--s-2); padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); color: var(--faint); margin-bottom: var(--s-4); }
+.fact-filter input { flex: 1; min-width: 0; border: 0; background: none; font: inherit; color: var(--ink); outline: none; }
+.count { font-weight: 400; font-size: var(--text-sm); margin-left: 4px; }
+.more { margin-top: var(--s-3); font-size: var(--text-sm); }
+.more.in-panel { margin: 0 var(--s-4) var(--s-4); }
+.more-docs { justify-self: start; }
 .crumbs { display: flex; gap: var(--s-2); align-items: center; color: var(--muted); margin-bottom: var(--s-3); }
 .crumbs a { color: var(--muted); }
 .hero { display: flex; gap: var(--s-5); align-items: flex-start; flex-wrap: wrap; margin-bottom: var(--s-5); }

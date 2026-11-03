@@ -142,3 +142,22 @@ export function personRef(name: string) {
   const m = name.trim().match(/^(.+?)['’]s?\s+\p{Ll}[\p{L}-]*$/u)
   return !!m && nameLike(m[1]!)
 }
+
+// "Possibly the same": two pages of one type where every word of one page's name is in a name of the other ("Sherlock" and
+// "Holmes" in "Sherlock Holmes", "Small" in "Jonathan Small"), titles ignored. A short name that fits several pages (two Marys)
+// suggests nothing. Only a suggestion: a merge stays a person's decision. Returns the shorter page and the page to merge into.
+const TITLES = /^(mr|mrs|ms|miss|dr|doctor|captain|capt|sir|lady|lord|madame|mme|monsieur|herr|frau|professor|prof|inspector|colonel|major|the)$/
+const nameWords = (n: string) => n.toLowerCase().replace(/[.,'’]/g, '').split(/[\s-]+/).filter(w => w && !TITLES.test(w))
+export function sameNameSuggestions<T extends { id: string, name: string, kind: string, names?: string[] }>(pages: T[]) {
+  const wordsOf = (p: T) => (p.names?.length ? p.names : [p.name]).map(nameWords).filter(w => w.length)
+  const fits = (short: T, long: T) => {
+    const longest = Math.max(...wordsOf(long).map(w => w.length))
+    return wordsOf(short).some(s => wordsOf(long).some(l => s.length < l.length && s.every(w => l.includes(w)))) && Math.max(...wordsOf(short).map(w => w.length)) < longest
+  }
+  const out: { from: T, into: T }[] = []
+  for (const short of pages) {
+    const into = pages.filter(long => long.id !== short.id && long.kind === short.kind && fits(short, long))
+    if (into.length === 1) out.push({ from: short, into: into[0]! })
+  }
+  return out
+}

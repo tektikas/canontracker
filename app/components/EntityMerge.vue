@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Merge this page (the duplicate) into another. The server's preview is shown before anything is written.
-const props = defineProps<{ entity: { id: string, name: string, kind: string } }>()
+// into: a page to preselect as the target (from the entities list's "Possibly the same" suggestions).
+const props = defineProps<{ entity: { id: string, name: string, kind: string }, into?: string }>()
 const emit = defineEmits<{ close: [] }>()
 const { data: list } = useNuxtData<EntityListItem[]>('entities')
 const kindLabel = useKind()
@@ -8,7 +9,7 @@ const kindLabel = useKind()
 // Same kind first, then the rest, so the likely target is near the top.
 const options = computed(() => (list.value ?? []).filter(e => e.id !== props.entity.id)
   .sort((a, b) => Number(b.kind === props.entity.kind) - Number(a.kind === props.entity.kind) || a.name.localeCompare(b.name)))
-const into = ref('')
+const into = ref(props.into ?? '')
 const target = computed(() => options.value.find(e => e.id === into.value))
 
 type Plan = Awaited<ReturnType<typeof preview>>
@@ -44,7 +45,7 @@ watch(into, async (id) => {
   } finally {
     loading.value = false
   }
-})
+}, { immediate: true })
 
 async function merge() {
   busy.value = true
