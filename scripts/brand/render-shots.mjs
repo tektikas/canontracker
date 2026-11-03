@@ -1,9 +1,9 @@
 // Product screenshots for the marketing site, taken from the real app with the bundled samples.
 //   node scripts/brand/render-shots.mjs <baseUrl> [shot...]
 // Against a prod build on localhost with its own .data and the default AI mode (the samples replay their own AI output).
-// Creates a throwaway account with three projects (Lantern Row, Broken Tide, The Ashbell Pass), walks the Ashbell Pass
-// through review, scan, merge and a proposed change, then captures each page at 1280×800 in light and dark with the
-// installed headless playwright-cli (session `shots`), and writes public/shots/<name>-<light|dark>-<1280|720>.webp.
+// Creates a throwaway account with four projects (Lantern Row, Broken Tide, Sherlock Holmes, The Ashbell Pass), accepts and
+// scans Sherlock Holmes, walks the Ashbell Pass through review, scan, merge and a proposed change, then captures each page
+// at 1280×800 in light and dark with the installed headless playwright-cli (session `shots`), and writes public/shots/<name>-<light|dark>-<1280|720>.webp.
 import { mkdtempSync, readFileSync, rmSync, mkdirSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -29,7 +29,11 @@ async function api(path, { method = 'GET', body, form } = {}) {
 const pending = () => api('/api/facts?status=pending')
 const canon = () => api('/api/facts?status=canon')
 const by = (list, s) => { const f = list.find(x => x.statement === s); if (!f) throw new Error(`not found: ${s}`); return f }
-const acceptVerified = async () => api('/api/facts/accept-verified', { method: 'POST', body: { items: (await pending()).map(f => ({ id: f.id, fingerprint: candidateFingerprint(f) })) } })
+// The server takes at most 500 per request (Sherlock Holmes has over a thousand candidates).
+const acceptVerified = async () => {
+  const items = (await pending()).map(f => ({ id: f.id, fingerprint: candidateFingerprint(f) }))
+  for (let i = 0; i < items.length; i += 500) await api('/api/facts/accept-verified', { method: 'POST', body: { items: items.slice(i, i + 500) } })
+}
 
 // ---------- Setup (real API calls, the same ones the UI makes) ----------
 await api('/api/auth/signup', { method: 'POST', body: { name: 'Ada Marlow', email: `ada-${run}@shots.test`, password: 'correct horse battery' } })
@@ -45,6 +49,11 @@ const lantern = await api('/api/me').then(m => m.current.project.id)
 await project('Broken Tide', 'broken-tide')
 const brokenTide = await api('/api/me').then(m => m.current.project.id)
 const tideSister = (await pending()).find(f => /sister/i.test(f.statement))
+// Sherlock Holmes: accept the verified candidates and scan, so Watson's wound (shoulder vs leg) is a conflict.
+await project('Sherlock Holmes', 'sherlock-holmes')
+const sherlock = await api('/api/me').then(m => m.current.project.id)
+await acceptVerified()
+await api('/api/conflicts/scan', { method: 'POST' })
 
 await project('The Ashbell Pass', 'ashbell-pass')
 const ashbell = await api('/api/me').then(m => m.current.project.id)
@@ -97,6 +106,7 @@ const SHOTS = [
   { name: 'team', path: '/settings/team' },
   { name: 'mcp', path: '/settings/agents' },
   { name: 'lantern', path: '/canon', project: 'lantern' },
+  { name: 'watson', path: '/conflicts', project: sherlock, prep: scrollTo("page.locator('article.conflict').filter({ hasText: 'in his shoulder' }).filter({ hasText: 'in his leg' }).first()") },
 ]
 
 const out = new URL('../../public/shots/', import.meta.url).pathname

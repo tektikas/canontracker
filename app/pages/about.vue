@@ -24,6 +24,7 @@ useMarketingSeo({ title: 'About', description: 'Story Bible was built by Umur fo
       <section>
         <h2>Pricing and contact</h2>
         <p>Self-hosting is free. If you would like us to host Story Bible for your team, <a :href="CONTACT">write to info@tektik.ai</a> and we’ll give you a price. <NuxtLink to="/pricing">See pricing</NuxtLink>.</p>
+        <p>The market, business model, go-to-market and team are in the <NuxtLink to="/pitch">pitch deck</NuxtLink>.</p>
       </section>
     </div>
     <MarketingCta />
