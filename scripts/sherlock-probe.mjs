@@ -193,6 +193,14 @@ check('export lists open conflicts as "Same detail, two answers"', typeof md ===
 // 9. Ask: questions canon can't answer are "unknown".
 step(9)
 for (const q of gold.unknown_questions) check(`unknown: ${q}`, (await a('/api/qa', { method: 'POST', body: { question: q } })).data.status, 'unknown')
+// Word forms: "wounded" meets canon's "wound" (light stemmer in server/utils/qa.ts), so the question finds Doyle's wound facts,
+// each with a verified citation (recorded mode answers with the sources only).
+const { stem } = await import('../server/utils/qa.ts')
+check('stemmer: word forms meet', ['wounded', 'wounds', 'married', 'marries', 'lived', 'lives'].map(stem), ['wound', 'wound', 'marry', 'marry', 'liv', 'liv'])
+const wounded = (await a('/api/qa', { method: 'POST', body: { question: 'Where was Watson wounded?' } })).data
+const woundFacts = wounded.cited.filter(f => f.predicate === 'wound_location_is').map(f => f.value)
+check('"Where was Watson wounded?" cites the wound facts, not unknown', [wounded.status, woundFacts.includes('shoulder'), woundFacts.includes('leg')], ['source_only', true, true])
+check('every cited fact has a verified quote', wounded.cited.every(f => f.evidence.some(e => e.verified && e.quote)), true)
 
 // 10. Gold-set evaluation.
 step(10)

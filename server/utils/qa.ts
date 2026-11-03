@@ -1,5 +1,14 @@
 const STOP = new Set('the a an and or of to in on at is are was were be by for with from what why who where when how does do did not no it its this that than as has have had about into her his their they them she he'.split(' '))
-const terms = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu)?.filter(t => t.length > 1 && !STOP.has(t)) ?? []
+// A light English stemmer, so a question's word forms meet canon's (wounded/wound/wounds, married/marry, lives/lived/live):
+// a plural ending off, then -ed/-ing (when a vowel stays), then a final e and a doubled consonant. Question and canon go
+// through the same steps, so it only has to be consistent, not correct English. Numbers and short words stay as they are.
+export function stem(t: string) {
+  if (t.length < 4 || /\d/.test(t)) return t
+  const s = t.replace(/ies$/, 'y').replace(/(?<![su])es$/, '').replace(/(?<![su])s$/, '')
+    .replace(/ied$/, 'y').replace(/(?<=[aeiouy].*[^e])ed$|(?<=[aeiouy].*)ing$/, '')
+  return s.length < 3 ? t : s.replace(/(?<=..)e$/, '').replace(/([^aeiou])\1$/, '$1')
+}
+const terms = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu)?.filter(t => t.length > 1 && !STOP.has(t)).map(stem) ?? []
 // Story-time tokens ("day", "13", "00") appear everywhere: they rank results but can't qualify a match on their own.
 const isTimeToken = (t: string) => t === 'day' || /^\d+$/.test(t)
 
