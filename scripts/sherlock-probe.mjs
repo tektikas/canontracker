@@ -224,6 +224,7 @@ const proposeKnee = async (statement) => {
   return r.data.id
 }
 const editId = await proposeKnee('Watson was shot in the knee (review form).')
+check('Review form: an emptied answer is refused, nothing saved', [(await a(`/api/facts/${editId}/review`, { method: 'POST', body: { decision: 'correct_and_accept', corrected: { object: '' } } })).status, (await a('/api/facts?status=canon')).data.some(f => f.id === editId)], [400, false])
 check('Review form: edit the answer knee → leg', (await a(`/api/facts/${editId}/review`, { method: 'POST', body: { decision: 'correct_and_accept', corrected: { object: 'leg' }, rationale: 'The text says leg.' } })).status, 200)
 canon = (await a('/api/facts?status=canon')).data
 check('stored answer is the edited one', [fact('Watson was shot in the knee (review form).').object, fact('Watson was shot in the knee (review form).').value], [null, 'leg'])

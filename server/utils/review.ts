@@ -15,6 +15,9 @@ export function acceptCandidate(fact: Fact, decision: 'accept' | 'correct_and_ac
   // A detail's answer (shared/utils/detail.ts) is stored as its value. A corrected answer, sent as the object (the Review form's
   // Answer box) or as value, replaces the candidate's: conflicts then check the edited answer.
   const typed = c.object !== undefined ? c.object : c.value
+  // An emptied Answer box is a mistake, not "keep the old answer": a detail is one answer, so refuse rather than save the old one.
+  if (typed !== undefined && !typed?.trim() && isDetailPredicate(c.predicate?.trim() || fact.predicate))
+    throw createError({ statusCode: 400, statusMessage: 'ANSWER_REQUIRED', message: 'This fact records one answer for a detail. Type the answer, or reject the candidate.' })
   const { value, ...after } = asDetail({
     statement: c.statement?.trim() || fact.statement,
     subject: c.subject?.trim() || fact.subject,
