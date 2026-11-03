@@ -41,7 +41,7 @@ const GROUPS = [
   {
     title: 'Audit trail',
     items: [
-      'Imports, decisions, merges, changes, exports, share links and agent proposals are written to an append-only audit log with who and when. Anything done through an agent token also records that token.',
+      'Imports, decisions, merges, changes, exports, share links and agent proposals are written to an append-only audit log with who and when. A change made through an agent token also records that token.',
       'Every AI call is recorded with its model, prompt version, input reference and result, and shown on Agent activity.',
       'Users are never deleted, so names on past decisions survive a member leaving.',
     ],

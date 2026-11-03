@@ -140,10 +140,10 @@ async function copy() {
     <section id="mcp" class="block mcp">
       <div class="mcp-copy">
         <h2>Connect your own agents with MCP</h2>
-        <p>Story Bible is an MCP server (Streamable HTTP) with 38 tools: an agent can do through MCP what you do in the app. Create a token in Settings, under Agents &amp; API. It works in one project, as you, within your current role, and is stored as a hash, shown once and revocable.</p>
+        <p>Story Bible is an MCP server (Streamable HTTP) with 38 tools: an agent can do almost everything you do in a project (the exceptions are listed below). Create a token in Settings, under Agents &amp; API. It works in one project, as you, within your current role, and is stored as a hash, shown once and revocable.</p>
         <ul>
           <li>Every action goes through the app’s own checks, limits and audit, so an agent can never do more than its person</li>
-          <li>Every action through a token is in the audit log with <i>via MCP</i> and the token’s name</li>
+          <li>Every change made through a token is in the audit log with <i>via MCP</i> and the token’s name</li>
           <li>Prompts: <code>brief-entity</code> and <code>continuity-check-scene</code></li>
           <li>120 tool calls a minute per token; large results are paged</li>
         </ul>

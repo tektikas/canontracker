@@ -126,7 +126,7 @@ const MCP_SNIPPET = `claude mcp add --transport http story-bible ${SITE}/mcp \\\
         <div class="mcp">
           <div>
             <h3>Bring your own agents through MCP</h3>
-            <p>Story Bible is an MCP server with 38 tools, so an agent can do what you do in the app. A propose token reads, checks and proposes; nothing it does becomes canon. A full-access token acts as you, and each decision it makes is marked “via agent” with the token’s name.</p>
+            <p>Story Bible is an MCP server with 38 tools, so an agent can do almost everything you do in a project. A propose token reads, checks and proposes; nothing it does becomes canon. A full-access token acts as you, and each decision it makes is marked “via agent” with the token’s name.</p>
             <NuxtLink to="/agents">How agents work with Story Bible</NuxtLink>
           </div>
           <pre class="code" aria-label="Example: connect Claude Code"><code>{{ MCP_SNIPPET }}</code></pre>

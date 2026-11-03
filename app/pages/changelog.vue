@@ -5,7 +5,7 @@ useMarketingSeo({ title: 'Changelog', description: 'What shipped in Story Bible,
 // Taken from the merge commits on master (git log --merges); one line per shipped change, newest first.
 const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
   { date: '2026-11-03', label: '3 Nov 2026', entries: [
-    ['MCP parity', 'Agents can do through MCP what people do in the app: 38 tools. Tokens are propose-only or full access (acts as you), and decisions made by an agent show “via agent”.'],
+    ['MCP parity', 'Agents can do almost everything people do in a project through MCP (team changes, sample loads, audio uploads and downloads stay in the app): 38 tools. Tokens are propose-only or full access (acts as you), and decisions made by an agent show “via agent”.'],
     ['Open source', 'Story Bible is licensed under AGPL-3.0.'],
     ['Plain AI labels', 'The product says “AI” everywhere; which model ran is on Agent activity and Metrics.'],
   ] },
