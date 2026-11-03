@@ -229,7 +229,7 @@ const print = () => window.print()
     <section class="slide d product" aria-labelledby="t5">
       <div class="in">
         <h2 id="t5">Shoulder or leg? Both sentences, side by side.</h2>
-        <img class="screen" src="/shots/watson-card-light-1920.webp" srcset="/shots/watson-card-light-960.webp 960w, /shots/watson-card-light-1920.webp 1920w" sizes="(max-width: 900px) 100vw, 1100px" alt="CanonTracker’s conflict card: “Watson’s wound was in his shoulder” against “Watson has a Jezail bullet wound in his leg”, each with its verbatim quote and chapter." width="1920" height="873">
+        <img class="screen" src="/shots/watson-card-light-1920.webp" srcset="/shots/watson-card-light-960.webp 960w, /shots/watson-card-light-1920.webp 1920w" sizes="(max-width: 900px) 100vw, 1100px" alt="CanonTracker’s conflict card: “Watson’s wound is on his shoulder” against “Watson’s wound is in his leg”, each with its verbatim quote and chapter." width="1920" height="873">
         <p class="caption">A conflict in the Sherlock Holmes sample, found by a rule over accepted canon. A person decides what is true.<R id="repo" /></p>
       </div>
       <Foot :ids="['repo']" n="5" />
