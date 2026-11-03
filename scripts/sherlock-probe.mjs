@@ -63,6 +63,20 @@ for (const d of docs) text.set(d.name, (await a(`/api/documents/${d.id}`)).data.
 const words = [...text.values()].reduce((n, s) => n + s.split(/\s+/).filter(Boolean).length, 0)
 check('words as in the manifest', words, Object.values(manifest.docs).reduce((n, d) => n + d.words, 0))
 check('no Project Gutenberg text left', [...text.values()].filter(s => /project gutenberg|gutenberg\.org|\*\*\* (START|END)/i.test(s)).length, 0)
+// Wiki pages from entities.json: one page per person, filed under the name canon uses (its analysis name) and the other names
+// the text uses as aliases; "Dr. Watson" and "Watson's wife" stay out, so the merge beats below still have two pages to merge.
+const pages = asset('entities.json')
+const ents0 = (await a('/api/entities')).data
+check('wiki pages preloaded', ents0.map(e => e.name).sort(), pages.map(p => p.name).sort())
+check('Sherlock Holmes: one page, canon name Holmes', ents0.find(e => e.name === 'Sherlock Holmes').names.sort(), ['Holmes', 'Sherlock Holmes'])
+check('no page carries Dr. Watson or Watson\'s wife yet', ents0.filter(e => e.names.some(n => /^(Dr\. Watson|Watson's wife)$/.test(n))).length, 0)
+// The cover: a public-domain Paget illustration on A Scandal in Bohemia, which the book exports use.
+const coverUrl = (await a('/api/export/bible?book=manuscript')).data.cover
+assert.ok(coverUrl, 'the manuscript has a cover')
+check('the cover image is served', (await a(coverUrl)).status, 200)
+const scandal = (await a('/api/documents')).data.find(d => d.name === manifest.cover.doc).id
+check('the cover sits on A Scandal in Bohemia, applied, credited', (await a(`/api/images?target_type=document&target_id=${scandal}`)).data.images.map(i => [i.applied, i.caption, `/api/images/${i.id}`]),
+  [[true, manifest.cover.caption, coverUrl]])
 let pending = (await a('/api/facts?status=pending')).data
 const drafts = Object.entries(recorded).filter(([k]) => k !== '_note').reduce((n, [, l]) => n + l.length, 0)
 console.log(`--  ${drafts} recorded candidates, ${pending.length} pending (the rest repeat an earlier candidate and are skipped)`)
@@ -132,6 +146,25 @@ for (const f of gold.authored) {
   const r = await a('/api/facts', { method: 'POST', body: { to: 'canon', document_id: docId.get(f.file), quote: f.quote, statement: f.statement, kind: f.kind, subject: f.subject, predicate: f.relation, object: f.answer } })
   check(`authored: ${f.statement}`, r.status, 200)
 }
+// A selection that cuts the italic "_Being a reprint from the Reminiscences of_" in half: the dialog's preview is widened to the
+// whole phrase and is exactly what the save stores.
+{
+  const memoir = docId.get('1887-a-study-in-scarlet-1-01-mr-sherlock-holmes.md')
+  const selected = 'reprint from the Reminiscences of JOHN H. WATSON'
+  const psg = (await a(`/api/documents/${memoir}`)).data.passages
+  const at = psg.find(p => p.text.includes('Reminiscences of_')).id
+  const ask = qs => a(`/api/documents/${memoir}/quote?${qs}`)
+  check('quote preview: missing quote, quote[]=…, missing / unknown / repeated passage_id → 400',
+    [(await ask(`passage_id=${at}`)).status, (await ask(`quote[]=${encodeURIComponent(selected)}&passage_id=${at}`)).status, (await ask(`quote=${encodeURIComponent(selected)}`)).status,
+      (await ask(`quote=${encodeURIComponent(selected)}&passage_id=psg_nope`)).status, (await ask(`quote=${encodeURIComponent(selected)}&passage_id=${at}&passage_id=${at}`)).status], [400, 400, 400, 400, 400])
+  const preview = (await ask(`quote=${encodeURIComponent(selected)}&passage_id=${at}`)).data
+  check('quote preview widened to the italic phrase', [preview.quote, preview.widened], ['_Being a reprint from the Reminiscences of_ JOHN H. WATSON', true])
+  const saved = (await a('/api/facts', { method: 'POST', body: { to: 'review', document_id: memoir, passage_id: preview.passage_id, quote: selected, statement: 'The narrative is a reprint of Watson\'s reminiscences.', kind: 'claim', subject: 'Watson', predicate: 'wrote', object: 'Reminiscences' } })).data
+  check('preview === stored evidence quote', (await a('/api/facts?status=pending')).data.find(f => f.id === saved.id).evidence[0].quote, preview.quote)
+  check('rejected again so canon is unchanged', (await a(`/api/facts/${saved.id}/review`, { method: 'POST', body: { decision: 'reject', rationale: 'probe' } })).status, 200)
+  const plainAt = psg.find(p => p.text.startsWith('In the year 1878')).id
+  check('a plain selection is not widened', (await ask(`quote=${encodeURIComponent('In the year 1878 I took my degree')}&passage_id=${plainAt}`)).data.widened, false)
+}
 canon = (await a('/api/facts?status=canon')).data
 for (const f of gold.authored) check(`stored as a detail: ${f.statement}`, [fact(f.statement).predicate, fact(f.statement).object, fact(f.statement).value], [f.relation.replace(/ /g, '_'), null, f.answer])
 await a('/api/conflicts/scan', { method: 'POST' })
@@ -145,7 +178,8 @@ check('the re-scan adds only N1 and L1', conflicts.length, gold.conflicts.length
 step(5)
 for (const [from, into] of [['Dr. Watson', 'Watson'], ["Watson's wife", 'Mary']]) {
   const ents = (await a('/api/entities')).data
-  const e = name => { const x = ents.find(y => y.name === name); assert.ok(x, `entity page ${name}`); return x }
+  // The sample's pages carry full titles ("John H. Watson"); canon's name for a page is one of its names.
+  const e = name => { const x = ents.find(y => y.name === name) ?? ents.find(y => y.names.includes(name)); assert.ok(x, `entity page ${name}`); return x }
   check(`merge ${from} → ${into}`, (await a(`/api/entities/${e(from).id}/merge`, { method: 'POST', body: { into: e(into).id } })).status, 200)
 }
 await a('/api/conflicts/scan', { method: 'POST' })
@@ -241,7 +275,7 @@ check('stored as a detail with Mary as the answer', [spouse.predicate, spouse.ob
 const change = (await a('/api/changes', { method: 'POST', body: { target_fact_id: spouse.id, proposed_statement: 'Watson is engaged to Mrs. Cecil Forrester.', rationale: 'probe' } })).data
 const viaMary = change.impact.filter(i => i.target_type === 'fact' && i.via === 'Mary').map(i => i.label)
 check('impact reaches facts about Mary through the answer', viaMary.includes("Mary's mother was dead."), true)
-const mary = (await a('/api/entities')).data.find(e => e.name === 'Mary')
+const mary = (await a('/api/entities')).data.find(e => e.names.includes('Mary'))
 check('Mary\'s wiki page lists the spouse fact', (await a(`/api/entities/${mary.id}`)).data.facts.some(f => f.id === spouse.id), true)
 check('reject the probe change', (await a(`/api/changes/${change.id}/decision`, { method: 'POST', body: { decision: 'reject', rationale: 'probe' } })).status, 200)
 

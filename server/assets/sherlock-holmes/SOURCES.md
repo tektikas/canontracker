@@ -44,4 +44,18 @@ Name", the landlady "Mrs. Turner", Watson's marriage dates), and only what the t
   in Scarlet, I.2) against Holmes chatting about "the obliquity of the ecliptic" (The Greek Interpreter); Watson's belief
   that Holmes was "an orphan with no relatives living" before Mycroft (The Greek Interpreter; the text explains it itself).
 
+## Cover
+
+`cover.jpg` is the cover of "A Scandal in Bohemia" (`manifest.json` → `cover`), which the book exports use as the book cover.
+
+- Illustration: "Then he stood before the fire.", Watson seated and Holmes standing at the fireplace in Baker Street.
+- Artist: Sidney Paget (1860–1908).
+- Published: The Strand Magazine, vol. 2, July 1891, page 62, with "A Scandal in Bohemia".
+- Source: Wikimedia Commons, https://commons.wikimedia.org/wiki/File:Strand2-062-ThenHeStoodBeforeTheFire.jpg
+  (original 1104 × 1593 JPEG, downloaded 2026-11-03).
+- Licence: public domain. Paget died in 1908, so the work is public domain wherever the term is the author's life plus
+  100 years or less, and it was published before 1931, so it is public domain in the United States (Commons: "Public domain",
+  not copyrighted).
+- Changes: scaled to 900 px wide, converted to greyscale, metadata stripped, saved as progressive JPEG (about 255 KB).
+
 `candidates.json` is a recorded extraction (see its `_note`); recorded mode replays it only for these exact texts.

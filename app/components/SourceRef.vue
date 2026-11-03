@@ -4,7 +4,7 @@ defineProps<{ ev: Record<string, any> }>()
 
 <template>
   <figure class="source">
-    <blockquote class="quote" :class="{ unverified: !ev.verified, prior: ev.support === 'prior_source' }">{{ ev.quote }}</blockquote>
+    <blockquote class="quote" :class="{ unverified: !ev.verified, prior: ev.support === 'prior_source' }"><EmText :text="ev.quote" /></blockquote>
     <figcaption class="source-meta">
       <NuxtLink v-if="ev.passage_id" :to="`/documents/${ev.document_id}#${ev.passage_id}`" class="source-link">
         <UiIcon name="file" :size="14" />{{ ev.document_title }}

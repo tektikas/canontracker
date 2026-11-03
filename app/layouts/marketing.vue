@@ -24,7 +24,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
 const FOOTER = [
   { title: 'Product', links: [{ to: '/features', label: 'Features' }, ...PILLARS.map(p => ({ to: `/features/${p.slug}`, label: p.title }))] },
   { title: 'Use cases', links: USE_CASES.map(u => ({ to: `/use-cases/${u.slug}`, label: u.nav })) },
-  { title: 'Story Bible', links: [{ to: '/agents', label: 'AI agents and MCP' }, { to: '/security', label: 'Security' }, { to: '/pricing', label: 'Pricing' }, { to: '/changelog', label: 'Changelog' }, { to: '/about', label: 'About' }] },
+  { title: 'Story Bible', links: [{ to: '/agents', label: 'AI agents and MCP' }, { to: '/security', label: 'Security' }, { to: '/pricing', label: 'Pricing' }, { to: '/help', label: 'Help' }, { to: '/changelog', label: 'Changelog' }, { to: '/about', label: 'About' }] },
 ]
 </script>
 
@@ -61,6 +61,7 @@ const FOOTER = [
           <NuxtLink to="/agents" class="nl">AI agents</NuxtLink>
           <NuxtLink to="/security" class="nl">Security</NuxtLink>
           <NuxtLink to="/pricing" class="nl">Pricing</NuxtLink>
+          <NuxtLink to="/help" class="nl">Help</NuxtLink>
         </nav>
 
         <div class="mk-actions">
@@ -96,7 +97,7 @@ const FOOTER = [
         <div class="foot-brand">
           <NuxtLink to="/" class="brand"><BrandMark />Story Bible</NuxtLink>
           <p>A story builder with canon you can cite. Open source under AGPL-3.0, built for the Meta AI Developer Hackathon.</p>
-          <p class="foot-links"><a :href="GITHUB">Source on GitHub</a><a :href="LICENSE_URL">License</a><a :href="CONTACT">info@tektik.ai</a></p>
+          <p class="foot-links"><a :href="GITHUB">Source on GitHub</a><a :href="LICENSE_URL">License</a><a :href="CONTACT">info@tektik.ai</a><NuxtLink to="/pitch">Pitch deck</NuxtLink></p>
         </div>
         <nav v-for="g in FOOTER" :key="g.title" class="foot-col" :aria-label="g.title">
           <h2>{{ g.title }}</h2>

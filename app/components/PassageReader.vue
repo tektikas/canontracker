@@ -20,11 +20,11 @@ const timed = computed(() => props.doc.passages.some(p => p.start_ms != null))
 const lines = computed(() => props.doc.content.split('\n'))
 const heading = (p: Record<string, any>) => /^#{1,6}\s/.test(lines.value[p.start_line - 1] ?? '')
 
-// Verified quotes appear verbatim in their passage (the importer matched them with includes), so a plain split is exact.
-function parts(p: Record<string, any>) {
+// Verified quotes are stored as the passage's exact characters, so a plain indexOf finds the cited words.
+function marked(p: Record<string, any>): [number, number] | null {
   if (p.id !== props.active || !props.quote) return null
   const i = p.text.indexOf(props.quote)
-  return i < 0 ? null : [p.text.slice(0, i), props.quote, p.text.slice(i + props.quote.length)]
+  return i < 0 ? null : [i, i + props.quote.length]
 }
 const notesAt = (id: string) => props.notes?.filter(n => n.anchor === id) ?? []
 // One margin mark per passage, shaped by its most pressing note: open (note), ready (check), only done ones (filled check).
@@ -88,11 +88,11 @@ function startChat(mode: 'research' | 'canon') {
 function onKey(e: KeyboardEvent) {
   if (!sel.value || 'multi' in sel.value || open.value || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return
   if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable]')) return
-  if (props.research && (e.key.toLowerCase() === 'r' || e.key.toLowerCase() === 'c')) {
+  if (props.research && (pressed(e, 'reader.research') || pressed(e, 'reader.continuity'))) {
     e.preventDefault()
-    return startChat(e.key.toLowerCase() === 'r' ? 'research' : 'canon')
+    return startChat(pressed(e, 'reader.research') ? 'research' : 'canon')
   }
-  const mode = props.annotate && ({ f: 'fact', e: 'entity', n: 'note' } as const)[e.key.toLowerCase() as 'f' | 'e' | 'n']
+  const mode = props.annotate && (pressed(e, 'reader.fact') ? 'fact' : pressed(e, 'reader.entity') ? 'entity' : pressed(e, 'reader.note') ? 'note' : undefined)
   if (!mode) return
   e.preventDefault()
   start(mode)
@@ -134,8 +134,7 @@ onBeforeUnmount(() => {
         </button>
       </span>
       <span class="text">
-        <template v-if="parts(p)"><MentionText :text="parts(p)![0]" /><mark><MentionText :text="parts(p)![1]" /></mark><MentionText :text="parts(p)![2]" /></template>
-        <MentionText v-else :text="p.text" />
+        <StoryText :text="p.text" :mark="marked(p)" />
       </span>
     </div>
 
@@ -144,12 +143,12 @@ onBeforeUnmount(() => {
       <span v-if="'multi' in sel" class="sel-multi">Select words within one paragraph</span>
       <template v-else>
         <template v-if="annotate">
-          <button type="button" class="sel-btn" @click="start('fact')"><UiIcon name="canon" :size="16" />Add fact <kbd>F</kbd></button>
-          <button type="button" class="sel-btn" @click="start('entity')"><UiIcon name="entities" :size="16" />Add entity <kbd>E</kbd></button>
-          <button type="button" class="sel-btn" @click="start('note')"><UiIcon name="note" :size="16" />Add note <kbd>N</kbd></button>
+          <button type="button" class="sel-btn" @click="start('fact')"><UiIcon name="canon" :size="16" />Add fact <kbd>{{ keyLabel('reader.fact') }}</kbd></button>
+          <button type="button" class="sel-btn" @click="start('entity')"><UiIcon name="entities" :size="16" />Add entity <kbd>{{ keyLabel('reader.entity') }}</kbd></button>
+          <button type="button" class="sel-btn" @click="start('note')"><UiIcon name="note" :size="16" />Add note <kbd>{{ keyLabel('reader.note') }}</kbd></button>
         </template>
-        <button v-if="research" type="button" class="sel-btn research" @click="startChat('research')"><UiIcon name="research" :size="16" />Research this <kbd>R</kbd></button>
-        <button v-if="research" type="button" class="sel-btn" title="Check the selected words against accepted canon" @click="startChat('canon')"><UiIcon name="conflicts" :size="16" />Check continuity <kbd>C</kbd></button>
+        <button v-if="research" type="button" class="sel-btn research" @click="startChat('research')"><UiIcon name="research" :size="16" />Research this <kbd>{{ keyLabel('reader.research') }}</kbd></button>
+        <button v-if="research" type="button" class="sel-btn" title="Check the selected words against accepted canon" @click="startChat('canon')"><UiIcon name="conflicts" :size="16" />Check continuity <kbd>{{ keyLabel('reader.continuity') }}</kbd></button>
       </template>
     </div>
     <SelectionDialog v-if="open" :selection="open.selection" :mode="open.mode" @close="open = null" @saved="saved" />
@@ -165,7 +164,6 @@ onBeforeUnmount(() => {
 .passage .text { font-size: var(--text-md); }
 .passage.heading .text { font-weight: 600; font-size: var(--text-lg); line-height: 1.4; }
 .passage.heading { padding-top: var(--s-3); }
-mark { background: color-mix(in srgb, var(--accent) 22%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
 .speaker { font: 600 var(--text-xs) var(--font-ui); color: var(--muted); }
 .note-mark {
   display: inline-flex; align-items: center; gap: 2px; min-width: 26px; height: 24px; padding: 0 4px; justify-content: center;

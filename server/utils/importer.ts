@@ -27,6 +27,15 @@ export function splitPassages(content: string) {
 
 export const DOCUMENT_KINDS = ['scene', 'lore', 'character', 'location', 'quest', 'dialogue', 'recording', 'other'] as const
 
+// The kind a new upload gets when nobody chose one. Impact counts scenes, so the story's own text should be one: "S01…" in
+// any project, and in a novel or prose project also chapter-like names (chapterLike, shared/utils/upload.ts). Everything
+// else starts as lore; the Library changes a kind in one step.
+function sceneLike(filename: string, projectId: string) {
+  if (/^S\d+/i.test(filename)) return true
+  const medium = (useDb().prepare('select medium from projects where id = ?').get(projectId) as { medium: string } | undefined)?.medium
+  return medium === 'prose' && chapterLike(filename)
+}
+
 // What an import would call a file on its own: its first heading, else the filename.
 const derivedTitle = (filename: string, content: string) => content.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? filename
 
@@ -69,7 +78,7 @@ export async function importDocument(filename: string, content: string, written?
   const version = (prev?.version ?? 0) + 1
   const renamed = prev && prev.title !== derivedTitle(prev.name, prev.content)
   const title = written?.title ?? (renamed ? prev.title : derivedTitle(filename, content))
-  const kind = written?.kind ?? prev?.kind ?? (recording ? 'recording' : /^S\d+/i.test(filename) ? 'scene' : 'lore')
+  const kind = written?.kind ?? prev?.kind ?? (recording ? 'recording' : sceneLike(filename, projectId) ? 'scene' : 'lore')
   const documentId = newId('doc')
   const passages = splitPassages(content).map(p => ({ ...p, id: newId('psg') }))
   if (!passages.length) throw createError({ statusCode: 422, statusMessage: 'EMPTY_DOCUMENT', message: recording ? `No speech was found in ${filename}.` : `${filename} has no text.` })

@@ -7,14 +7,19 @@
 //   and entities.json preloads the wiki pages (editorial metadata, never canon). In recorded mode its candidates replay a recorded run.
 // The audit is append-only: a reset keeps earlier events and appends project.reset, then sample.loaded.
 // - sherlock-holmes: Doyle's public-domain texts (Project Gutenberg, see its SOURCES.md), one document per chapter or story, filed
-//   by its manifest (medium prose). In recorded mode its candidates replay a recorded run.
+//   by its manifest (medium prose), with wiki pages (entities.json: full titles, canon's names as analysis names, other names as
+//   aliases; "Dr. Watson" and "Watson's wife" are left to canon so the merge beats stay) and a public-domain Paget cover on
+//   A Scandal in Bohemia. In recorded mode its candidates replay a recorded run.
 const SETS = ['broken-tide', 'lantern-row', 'ashbell-pass', 'sherlock-holmes'] as const
 const NAMES = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample', 'ashbell-pass': 'the Ashbell Pass demo', 'sherlock-holmes': 'the Sherlock Holmes sample' }
 // Documents imported at a time. Live extraction of a long sample is one model call per document; their candidates are still
 // stored in file order (importDocument's storeAfter), so a load gives the same review queue as a one-by-one import.
 const CONCURRENCY = 4
-interface Manifest { medium?: string, tags: Record<string, string>, docs: Record<string, { kind: string, folder: string, tags: string[] }> }
-interface SampleEntity { name: string, kind: string, summary: string, fields?: Record<string, string> }
+// cover: an image in the set (see its SOURCES.md) uploaded onto one document's cover slot, which the book exports use.
+interface Manifest { medium?: string, tags: Record<string, string>, docs: Record<string, { kind: string, folder: string, tags: string[] }>, cover?: { file: string, doc: string, caption: string } }
+// analysis_name: the name canon uses for it, when the page's title is longer ("Sherlock Holmes" for canon's "Holmes"). Aliases are
+// other names the text uses: they link the page (wiki, mentions, graph) and, like any alias, never feed analysis.
+interface SampleEntity { name: string, analysis_name?: string, aliases?: string[], kind: string, summary: string, fields?: Record<string, string> }
 // ponytail: in-process lock, good for the single Nitro instance this app runs as; move it into the database if it ever scales out.
 const loading = new Set<string>()
 
@@ -72,6 +77,13 @@ export default defineEventHandler(async (event) => {
         results[i] = r
       }
     }))
+    if (manifest?.cover) {
+      const { file, doc, caption } = manifest.cover
+      const data = await assets.getItemRaw(`${set}:${file}`)
+      const id = results.find(r => r.filename === doc)?.document_id
+      if (!data || !id) throw createError({ statusCode: 500, statusMessage: 'BAD_SAMPLE', message: `The sample cover ${file} or its document ${doc} is missing.` })
+      addUploads(imageTarget('document', id), [{ name: file, data: Buffer.from(data) }], { caption, apply: true })
+    }
     const facts = set === 'lantern-row' ? preload((await assets.getItem<Record<string, string>[]>('lantern-row:facts.json')) ?? [], results) : []
     const candidates = results.reduce((n, r) => n + (('candidates' in r && r.candidates) || 0), 0)
     audit('sample.loaded', 'project', project, { set, name: NAMES[set], documents: results.length, candidates, facts, ...(entities && { entities: entities.length }) })
@@ -106,10 +118,10 @@ function organise(manifest: Manifest, entities: SampleEntity[]) {
     }
     const tag = db.prepare('insert into tags (id, name, color, created_by, created_at, project_id) values (?, ?, ?, ?, ?, ?)')
     for (const [name, color] of Object.entries(manifest.tags)) tag.run(tags.set(name, newId('tag')).get(name)!, name, color, user, now(), pid())
-    // Pages a person would otherwise file by hand; analysis knows each by its name (the name canon uses for it).
-    const page = db.prepare(`insert into entities (id, name, analysis_name, kind, summary, fields, origin, created_at, updated_at, project_id)
-      values (?, ?, ?, ?, ?, ?, 'manual', ?, ?, ?)`)
-    for (const e of entities) page.run(newId('ent'), e.name, e.name, e.kind, e.summary, JSON.stringify(e.fields ?? {}), now(), now(), pid())
+    // Pages a person would otherwise file by hand; analysis knows each by its analysis name (the name canon uses for it).
+    const page = db.prepare(`insert into entities (id, name, analysis_name, kind, summary, aliases, fields, origin, created_at, updated_at, project_id)
+      values (?, ?, ?, ?, ?, ?, ?, 'manual', ?, ?, ?)`)
+    for (const e of entities) page.run(newId('ent'), e.name, e.analysis_name ?? e.name, e.kind, e.summary, JSON.stringify(e.aliases ?? []), JSON.stringify(e.fields ?? {}), now(), now(), pid())
   })
   return {
     folderOf: (filename: string) => { const f = manifest.docs[filename]?.folder; return f ? folders.get(f) ?? null : null },
