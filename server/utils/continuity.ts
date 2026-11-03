@@ -134,7 +134,10 @@ export function groundReport(text: string, out: Record<string, unknown>, calls: 
       ? { kind: FACT_KINDS.includes(str(c.kind, 20)) ? str(c.kind, 20) : 'claim', subject: str(c.subject, 80), predicate: str(c.predicate, 60), object: str(c.object, 80) || null,
           time_from: str(c.time_from, 20) || null, time_to: str(c.time_to, 20) || null, statement: str(c.statement, 500) }
       : null
-    findings.push({ sentence, kind, severity: 'info', hard: f.severity === 'hard', explanation: str(f.explanation, 1000), fix: str(f.fix, 1000) || null, fact_ids: [...new Set(cited as string[])], checks: [], claim })
+    const fact_ids = [...new Set(cited as string[])]
+    // A model may report the same finding twice (Muse did): same sentence, kind and cited facts is one finding.
+    if (findings.some(x => x.sentence === sentence && x.kind === kind && [...x.fact_ids].sort().join() === [...fact_ids].sort().join())) continue
+    findings.push({ sentence, kind, severity: 'info', hard: f.severity === 'hard', explanation: str(f.explanation, 1000), fix: str(f.fix, 1000) || null, fact_ids, checks: [], claim })
   }
 
   // Rule hits exactly as sb_check_facts returned them (deterministic), once each, kept only when every fact of the text in the

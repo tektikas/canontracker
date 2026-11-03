@@ -61,4 +61,6 @@ assert.deepEqual([loose.checks.length, loose.findings[0]!.severity, loose.droppe
 // The summary is rebuilt from kept findings when something was dropped: the AI's own claim never survives alone.
 assert.equal(loose.summary, '1 finding: 1 soft.')
 assert.equal(groundReport(S1, { summary: 'canon places Rourke elsewhere', findings: [] }, [], canon).summary, 'canon places Rourke elsewhere')
+// The same finding reported twice (sentence, kind and cited facts) is kept once.
+assert.equal(groundReport(S1, { summary: '', findings: [finding(S1, 'contradicts', ['fact_watch']), finding(S1, 'contradicts', ['fact_watch'])] }, [], canon).findings.length, 1)
 console.log('continuity grounding: all checks passed')
