@@ -52,11 +52,14 @@ assert.equal((await api('/api/auth/signup', { name: 'Contract', email: `contract
 const studio = (await api('/api/studios', { name: 'Contract Studio' })).data
 assert.equal((await api('/api/projects', { name: 'Contract', studio_id: studio.id })).status, 200)
 
-// 1. Extraction: the Lantern Row sample imports 3 documents, one chat call each. The real envelope parses; its content is a
-// verdict object, not {"candidates":[…]}, so no candidates come out (and none are invented). The preloaded canon stays.
-await queue(['chat-json-schema', 'chat-json-schema', 'chat-json-schema'])
+// 1. Extraction. A sample loads from its recording even in meta mode (no model call); then re-extracting its 3 documents makes
+// one chat call each. The real envelope parses; its content is a verdict object, not {"candidates":[…]}, so no candidates
+// come out (and none are invented). The preloaded canon stays.
 const load = await api('/api/demo/load', { set: 'lantern-row' })
-check('demo load in meta mode', { status: load.status, facts: load.data.facts, candidates: load.data.results.map(r => r.candidates ?? 0) }, { status: 200, facts: 5, candidates: [0, 0, 0] })
+check('demo load in meta mode replays, no model call', { status: load.status, facts: load.data.facts, candidates: load.data.results.map(r => r.candidates ?? 0) }, { status: 200, facts: 5, candidates: [0, 0, 0] })
+await queue(['chat-json-schema', 'chat-json-schema', 'chat-json-schema'])
+const lanternDocs = await fetch(`${app}/api/documents`, { headers: { cookie } }).then(r => r.json())
+for (const d of lanternDocs) await api(`/api/documents/${d.id}/extract`, {})
 const extract = await sent('extract', 3, '/chat/completions')
 check('extract request: system + user messages, temperature 0', extract.map(r => [r.body.messages.map(m => m.role), r.body.temperature]), Array(3).fill([['system', 'user'], 0]))
 
