@@ -35,40 +35,70 @@ export function getEntity(id: string) {
 
 // The type a name most likely has, judged from how accepted canon uses it. A guess people can change on the page; it only
 // names built-in keys, and only those the project still has count.
-function kindVotes(f: { kind: string, predicate: string }, role: 'subject' | 'object'): string | null {
+export function kindVotes(f: { kind: string, predicate: string }, role: 'subject' | 'object'): string | null {
   if (f.predicate === 'travel_time') return 'location'
-  if (role === 'object' && /^(located_at|kept_in|lives_in|born_in)$/.test(f.predicate)) return 'location'
+  if (role === 'object' && /^(member_of|served_with|serves_with|served_in|serves_in|attached_to|works_for|worked_for)$/.test(f.predicate)) return 'faction'
+  if (role === 'object' && (f.kind === 'location' || /^(located|kept|lives?|lived|living|born|moved?|moves|sent|returned|returns|went|goes|travel\w*|arriv\w*|stay\w*|lodg\w*|visit\w*|hospitali[sz]ed|stationed|wounded|died|dies|fled|flees|escap\w*|head\w*|reach\w*)(_(at|in|to|from|for|near))?$/.test(f.predicate))) return 'location'
   if (role === 'subject' && f.predicate === 'kept_in') return 'item'
   if (role === 'object' && /(carr|handl|uses|hold|wield|bear)/.test(f.predicate)) return 'item'
   if (f.kind === 'relationship' || (role === 'subject' && (f.kind === 'character' || f.kind === 'event'))) return 'character'
   return null
 }
 
-// Files a wiki page for every name in accepted canon that no page (by name or alias) covers yet. Idempotent.
+// Whether a fact's name in this role gets a page: a subject does; an object only where the fact makes it a someone or
+// somewhere (a relationship, an event's other party, a place, an item, a group), never the answer of an "is" or a detail.
+const filesName = (f: { kind: string, predicate: string }, role: 'subject' | 'object') =>
+  role === 'subject' || (!/^is$|_is$/.test(f.predicate) && (f.kind === 'relationship' || f.kind === 'event' || kindVotes(f, role) !== null))
+
+// Files a wiki page for every name in accepted canon that no page (by name or alias) covers yet, and re-guesses the type of
+// pages it filed that nobody has touched and that still have the fallback type. Idempotent.
+// A page needs a name-shaped name (nameLike) and then, when extraction typed it (facts.subject_type/object_type), most of its
+// typings naming a type rather than "none"; it gets the most common one. Names no fact typed (Add fact, MCP, older
+// recordings) fall back to filesName and kindVotes.
 export function syncEntities() {
   const d = useDb()
-  const known = new Set(listEntities().flatMap(namesOf).map(normName))
-  const facts = d.prepare(`select kind, subject, predicate, object from facts where project_id = ? and status = 'canon' order by rowid`).all(pid()) as { kind: string, subject: string, predicate: string, object: string | null }[]
-  const found = new Map<string, { name: string, votes: Map<string, number> }>()
+  const pages = listEntities()
+  const known = new Set(pages.flatMap(namesOf).map(normName))
+  type F = { kind: string, subject: string, predicate: string, object: string | null, subject_type: string | null, object_type: string | null }
+  const facts = d.prepare(`select kind, subject, predicate, object, subject_type, object_type from facts where project_id = ? and status = 'canon' order by rowid`).all(pid()) as F[]
+  const found = new Map<string, { name: string, ai: Map<string, number>, votes: Map<string, number>, files: boolean }>()
+  const add = (m: Map<string, number>, k: string) => m.set(k, (m.get(k) ?? 0) + 1)
   for (const f of facts) {
     for (const role of ['subject', 'object'] as const) {
       const name = f[role]?.trim()
-      if (!name || known.has(normName(name))) continue
-      const g = found.get(normName(name)) ?? found.set(normName(name), { name, votes: new Map() }).get(normName(name))!
+      if (!name) continue
+      const g = found.get(normName(name)) ?? found.set(normName(name), { name, ai: new Map(), votes: new Map(), files: false }).get(normName(name))!
+      // The answer of an "is" says what the subject is (a role, a kind of thing), not who or where: never a page of its own.
+      const typed = role === 'subject' ? f.subject_type : /^is$|_is$/.test(f.predicate) ? null : f.object_type
+      if (typed) add(g.ai, typed)
+      if (filesName(f, role)) g.files = true
       const k = kindVotes(f, role)
-      if (k) g.votes.set(k, (g.votes.get(k) ?? 0) + 1)
+      if (k) add(g.votes, k)
     }
   }
-  if (!found.size) return
+  const named = (g: { ai: Map<string, number> }) => [...g.ai].filter(([k]) => k !== 'none').reduce((n, [, c]) => n + c, 0)
+  const top = (m: Map<string, number>) => [...m].filter(([k]) => k !== 'none').sort((a, b) => b[1] - a[1])[0]?.[0]
+  const wanted = (g: { name: string, ai: Map<string, number>, votes: Map<string, number>, files: boolean }) =>
+    (nameLike(g.name) || (personRef(g.name) && (top(g.ai) ?? top(g.votes)) === 'character')) && (g.ai.size ? named(g) > (g.ai.get('none') ?? 0) : g.files)
+  const types = entityTypes()
+  const fallback = types.some(t => t.key === 'other') ? 'other' : types[0]!.key
+  const reguess = pages.filter((e) => {
+    const g = found.get(normName(analysisName(e)))
+    return e.origin === 'canon' && !e.updated_by && e.kind === fallback && g && (named(g) || g.votes.size)
+  })
+  const fresh = [...found.entries()].filter(([n, g]) => !known.has(n) && wanted(g)).map(([, g]) => g)
+  if (!fresh.length && !reguess.length) return
   const insert = d.prepare(`insert into entities (id, name, analysis_name, kind, origin, created_at, updated_at, project_id) values (?, ?, ?, ?, 'canon', ?, ?, ?)`)
+  const setKind = d.prepare(`update entities set kind = ? where id = ? and updated_by is null`)
   tx(() => {
     // The project's types are read under the write lock, so a guess never names a type another process just removed.
-    const types = entityTypes()
-    const keys = new Set(types.map(t => t.key))
-    const fallback = keys.has('other') ? 'other' : types[0]!.key
-    for (const { name, votes } of found.values()) {
-      const kind = [...votes].filter(([k]) => keys.has(k)).sort((a, b) => b[1] - a[1])[0]?.[0] ?? fallback
-      insert.run(newId('ent'), name, name, kind, now(), now(), pid())
+    const keys = new Set(entityTypes().map(t => t.key))
+    const top = (votes: Map<string, number>) => [...votes].filter(([k]) => keys.has(k)).sort((a, b) => b[1] - a[1])[0]?.[0]
+    const pick = (g: { ai: Map<string, number>, votes: Map<string, number> }) => top(g.ai) ?? top(g.votes)
+    for (const g of fresh) insert.run(newId('ent'), g.name, g.name, pick(g) ?? fallback, now(), now(), pid())
+    for (const e of reguess) {
+      const kind = pick(found.get(normName(analysisName(e)))!)
+      if (kind && kind !== e.kind) setKind.run(kind, e.id)
     }
   })
 }

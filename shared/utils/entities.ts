@@ -125,3 +125,20 @@ export function transcriptionHints(pages: { title: string, names: string[], fact
   }
   return [...out.values()]
 }
+
+// A name worth a page: every word starts with a capital (or is a short joining word, or comes from a script without case),
+// and the first one is not a joining word, except a leading article. "Sherlock Holmes", "Bell Gate", "the Cinder Key", "Saint-Lô"
+// qualify; "poisons", "his finger", "Sherlock Holmes’ test", "rooms with Watson" don't. ponytail: a casing heuristic for
+// languages that capitalise names; a typed name list from extraction would replace it.
+const JOIN = /^(of|the|de|del|della|da|di|du|des|la|le|les|van|von|der|den|al|el|bin|ibn|y|in|on|at|upon)$/i
+export function nameLike(name: string) {
+  const words = name.trim().replace(/^(the|a|an)\s+/i, '').split(/\s+/).filter(Boolean)
+  if (!words.length || words.length > 6 || JOIN.test(words[0]!)) return false
+  return words.every(w => JOIN.test(w) || !/^\p{Ll}/u.test(w))
+}
+// How stories refer to someone not named yet: a name-shaped owner and one word, "Watson's wife", "Madame Charpentier's son".
+// Counts as a name only for a character (a thing would be "Sherlock Holmes’ test").
+export function personRef(name: string) {
+  const m = name.trim().match(/^(.+?)['’]s?\s+\p{Ll}[\p{L}-]*$/u)
+  return !!m && nameLike(m[1]!)
+}

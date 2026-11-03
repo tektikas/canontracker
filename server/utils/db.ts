@@ -270,7 +270,9 @@ export function useDb() {
       // api_tokens.level: propose (reads, proposals, model runs) or full (acts as its owner); tokens from before it are propose.
       // *_token: the API token a decision was made through (null = in the web app), shown as "via agent <name>".
       ['api_tokens', 'level', `text not null default 'propose'`], ['facts', 'decided_token', 'text'], ['conflicts', 'decided_token', 'text'],
-      ['changes', 'decided_token', 'text'], ['changes', 'reverted_token', 'text']] as const) {
+      ['changes', 'decided_token', 'text'], ['changes', 'reverted_token', 'text'],
+      // facts.subject_type/object_type: what extraction said each name is (NAME_TYPES in model.ts); null = not said (Add fact, MCP, older runs).
+      ['facts', 'subject_type', 'text'], ['facts', 'object_type', 'text']] as const) {
       if (!(conn.prepare(`pragma table_info(${table})`).all() as { name: string }[]).some(r => r.name === column))
         conn.exec(`alter table ${table} add column ${column} ${type}`)
     }

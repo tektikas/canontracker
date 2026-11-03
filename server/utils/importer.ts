@@ -226,6 +226,21 @@ const norm = (s: string | null | undefined) => (s ?? '').toLowerCase().replace(/
 const factKey = (f: { kind: string, subject: string, predicate: string, object?: string | null, value?: unknown, t_from?: number | null, t_to?: number | null, precision?: string | null }) =>
   [f.kind, norm(f.subject), norm(f.predicate), norm(f.object), norm(f.value == null ? '' : String(f.value)), f.t_from ?? '', f.t_to ?? '', f.precision ?? ''].join('|')
 
+// The names extraction should reuse: every wiki page ("Title = alias, …"), then the names earlier candidates and canon typed as
+// something (not "none"), most used first. Keeps chapters extracted one by one from naming one person two ways.
+function knownNames(max = 150) {
+  syncEntities()
+  const pages = listEntities()
+  const covered = new Set(pages.flatMap(namesOf).map(normName))
+  const lines = pages.map(e => [e.name, ...namesOf(e).filter(n => n !== e.name)].join(' = '))
+  const rows = useDb().prepare(`select name, count(*) n from (
+      select subject name, subject_type t from facts where project_id = ? and status != 'rejected'
+      union all select object, object_type from facts where project_id = ? and status != 'rejected' and object is not null)
+    where t is not null and t != 'none' group by lower(name) order by n desc`).all(pid(), pid()) as { name: string }[]
+  for (const r of rows) if (!covered.has(normName(r.name)) && nameLike(r.name)) lines.push(r.name)
+  return lines.slice(0, max)
+}
+
 // Runs extraction on one document version and stores the candidates as pending. Never touches canon. A candidate the project
 // already has, in any status, is skipped. Names are compared under their kept analysis identity (entity_merges), because a
 // merge rewrites the names of the facts it moves but keeps their statements: a re-imported "Lighthouse" candidate equals the
@@ -236,7 +251,7 @@ const factKey = (f: { kind: string, subject: string, predicate: string, object?:
 export async function extractInto(doc: { id: string, filename: string, title: string, content: string }, passages: { id: string, text: string }[], storeAfter?: Promise<unknown>) {
   const db = useDb()
   const projectId = pid()
-  const drafts = await extractCandidates({ id: doc.id, filename: doc.filename, title: doc.title, text: doc.content })
+  const drafts = await extractCandidates({ id: doc.id, filename: doc.filename, title: doc.title, text: doc.content, names: knownNames() })
   await storeAfter?.catch(() => {})
   const model = modelInfo()
   const existing = db.prepare('select id, statement, kind, subject, predicate, object, value, t_from, t_to, precision, status from facts where project_id = ?').all(projectId) as { id: string, statement: string, kind: string, subject: string, predicate: string, object: string | null, value: string | null, t_from: number | null, t_to: number | null, precision: string | null, status: string }[]
@@ -271,9 +286,10 @@ export async function extractInto(doc: { id: string, filename: string, title: st
       const passage = match?.passage
       const precision = c.time ? (c.time.precision ?? 'exact') : null
       db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision,
-        status, confidence, origin, model_id, created_at, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`)
+        status, confidence, origin, model_id, created_at, project_id, subject_type, object_type) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?, ?, ?)`)
         .run(factId, c.kind, c.subject, c.predicate, c.object ?? null, c.value == null ? null : String(c.value), c.statement, tFrom, tTo,
-          timeLabel(tFrom, tTo, precision, day), precision, c.confidence ?? null, `model:${PROMPT_VERSIONS.extract}`, model.id, now(), projectId)
+          timeLabel(tFrom, tTo, precision, day), precision, c.confidence ?? null, `model:${PROMPT_VERSIONS.extract}`, model.id, now(), projectId,
+          c.subject_type ?? null, c.object ? (c.object_type ?? null) : null)
       db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, ?, ?)')
         .run(newId('ev'), factId, doc.id, passage?.id ?? null, match?.quote ?? c.quote ?? '', passage ? 1 : 0, projectId)
       audit('candidate.created', 'fact', factId, { document_id: doc.id, quote_verified: !!passage, model_id: model.id })

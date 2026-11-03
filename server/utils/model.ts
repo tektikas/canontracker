@@ -10,11 +10,13 @@ export interface CandidateDraft {
   kind: string, subject: string, predicate: string, object?: string | null, value?: string | null, statement: string, quote: string
   time?: { from?: string, to?: string, precision?: 'exact' | 'approximate' }
   confidence?: number
+  /** What the AI says each name is (NAME_TYPES); "none" = not a name with its own identity. Feeds the wiki only. */
+  subject_type?: string | null, object_type?: string | null
 }
 
 export interface RuleViolation { fact_id: string, rationale: string, confidence: number }
 
-export const PROMPT_VERSIONS = { extract: 'extract-v3', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', research: 'research-v1', continuity: 'continuity-v1', critic: 'critic-v2', transcribe: 'transcribe-v1' } as const
+export const PROMPT_VERSIONS = { extract: 'extract-v4', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', research: 'research-v1', continuity: 'continuity-v1', critic: 'critic-v2', transcribe: 'transcribe-v1' } as const
 
 export function modelInfo() {
   const { modelMode, modelId } = useRuntimeConfig()
@@ -154,6 +156,8 @@ export async function hasRecordedExtraction(text: string) {
 // (where someone is *when*), so keeping it timeless would change its meaning, and a half-read fact never reaches review.
 // The quote itself is judged later, verbatim, by extractInto.
 const KINDS = ['character', 'location', 'relationship', 'event', 'rule', 'claim']
+export const NAME_TYPES = ['character', 'location', 'item', 'faction', 'event', 'other', 'none'] as const
+const nameType = (v: unknown) => (NAME_TYPES as readonly unknown[]).includes(v) ? v as string : null
 const field = (v: unknown) => (typeof v === 'string' ? v.trim() : typeof v === 'number' ? String(v) : '')
 export function cleanCandidates(raw: unknown) {
   const list = Array.isArray(raw) ? raw : []
@@ -170,7 +174,8 @@ export function cleanCandidates(raw: unknown) {
     }
     if (t?.to && t.to === t.from) delete t.to // a point in time, not a range
     const confidence = typeof c.confidence === 'number' && c.confidence >= 0 && c.confidence <= 1 ? c.confidence : undefined
-    return [{ kind, subject, ...asDetail({ predicate, object: field(c.object) || null, value: field(c.value) || null }), statement, quote, confidence,
+    const detail = asDetail({ predicate, object: field(c.object) || null, value: field(c.value) || null })
+    return [{ kind, subject, ...detail, statement, quote, confidence, subject_type: nameType(c.subject_type), object_type: detail.object ? nameType(c.object_type) : null,
       ...(t && (t.from || t.to) && { time: { ...t, precision: c.time.precision === 'approximate' ? 'approximate' : 'exact' } }) }]
   })
   return { kept, malformed: list.length - kept.length - badTimes.length, badTimes }
@@ -180,17 +185,18 @@ const dropNote = (d: { malformed: number, badTimes: string[] }) => [
   d.badTimes.length && `${d.badTimes.length} with unreadable time ${d.badTimes.slice(0, 3).join(', ')}${d.badTimes.length > 3 ? ', …' : ''}`,
 ].filter(Boolean).join('; ')
 
-export function extractCandidates(doc: { id: string, filename: string, title: string, text: string }) {
+export function extractCandidates(doc: { id: string, filename: string, title: string, text: string, names?: string[] }) {
   let dropped = ''
   return traced('extract', { type: 'document', id: doc.id }, [doc.id], null, async (): Promise<CandidateDraft[]> => {
     if (modelInfo().mode === 'mock') return (await recordedCandidates(doc.text)) ?? []
     const out = await chatJson(
       `You extract narrative canon candidates from game lore documents for a story bible that tracks continuity. Return only JSON {"candidates":[...]}.
-Each candidate: {"kind":"character|location|relationship|event|rule|claim","subject":"short entity name","predicate":"snake_case verb","object":"entity name or null","value":"number for measurable rules (e.g. travel minutes), the answer of a single-valued detail, or null","statement":"one plain sentence","quote":"EXACT verbatim substring of the document that supports it","time":{"from":"D<day> HH:MM","to":"D<day> HH:MM","precision":"exact|approximate"} or omitted,"confidence":0-1}.
+Each candidate: {"kind":"character|location|relationship|event|rule|claim","subject":"short entity name","subject_type":"character|location|item|faction|event|other|none","predicate":"snake_case verb","object":"entity name or null","object_type":"character|location|item|faction|event|other|none, or null when object is null","value":"number for measurable rules (e.g. travel minutes), the answer of a single-valued detail, or null","statement":"one plain sentence","quote":"EXACT verbatim substring of the document that supports it","time":{"from":"D<day> HH:MM","to":"D<day> HH:MM","precision":"exact|approximate"} or omitted,"confidence":0-1}.
 kind is exactly one of those six words (a "located_at" fact is kind "event").
 What to extract: facts a writer must keep consistent — who someone is, where someone is and when, what they do in the plot, relationships, world rules, travel times, what items and places do. In scenes, include each plot action a character takes (what they do, say or refuse, and when), because actions are what world rules are checked against. Skip mood, looks, scenery and trivia. One candidate per fact; do not restate the same fact twice.
 Quotes: copy one contiguous span character-for-character, keeping the document's capitalisation and punctuation. A quote never spans two paragraphs, never skips words and never joins separate sentences; when speech is broken by "she says" or similar, quote one side of it only. Prefer the single sentence that supports the fact.
-Names: a character is named the way the story names them for short, the same way in every fact: usually the first name without rank or surname ("Captain Mara Vell" → "Mara"), but keep a title that is part of the name everyone uses ("Old Tobin", "Mother Hale"). A place is named as the text names it, without "the", and as the named place rather than a part of it ("Harbour Gate", not "the stairs of the Harbour Gate"). The object is a bare entity name.
+Names: subject and object are names or short nouns, never a clause or a sentence ("Drebber", not "the man was not old"). A character is named the way the story itself names them most often, the same way in every fact: often the first name without rank ("Captain Mara Vell" → "Mara"), or the surname when that is what the story uses ("Holmes"); keep a title that is part of the name everyone uses ("Old Tobin", "Mother Hale"). When a list of names this project already uses is given, reuse those exact names. A place is named as the text names it, without "the", and as the named place rather than a part of it ("Harbour Gate", not "the stairs of the Harbour Gate"). The object is a bare entity name.
+Name types: subject_type and object_type say what the name is, for the story's wiki. character = a person or creature with a name (or a named role the story treats as one, "the Lamplighter"); location = a named place; item = a named or unique object; faction = a group, regiment, family, order or company; event = a named event ("the Battle of Maiwand"); other = something else with its own identity. none = not a name at all: a description, a role, a substance, a body part, an activity or a common thing ("first-class chemist", "poisons", "his finger", "rooms with Watson", "violin-playing"). Give the same name the same type every time.
 Predicates:
 - "located_at": a character is at a place on a story day (object = the place). Use it whenever the text puts someone somewhere on a given day, even if the sentence is about what they do there.
 - "travel_time": how long a journey takes; subject = start place only, object = destination only, value = minutes as a number, kind "rule" (e.g. {"kind":"rule","subject":"Harbour Gate","predicate":"travel_time","object":"Lighthouse","value":30}).
@@ -200,7 +206,7 @@ Predicates:
 - Single-valued details: whenever the text states, even in passing, a detail that can have only one answer at a time — where someone's wound or scar is, eye or hair colour, age, first or full name, year or place of birth, who someone's spouse, landlord or employer is, whether someone is alive or dead, what a place or ship is called — make it its own candidate with predicate "<detail>_is" (snake_case, the plain general name of the detail: "wound_location_is", "first_name_is", "eye_colour_is", "spouse_is"), value = the answer in a few of the text's own words, object null, never "has" or "is". Examples: "the sabre cut on her left arm still ached" → {"kind":"character","subject":"Mara","predicate":"wound_location_is","value":"left arm","statement":"Mara's wound is in her left arm."}; "her husband, Tom Vell" → {"subject":"Mara","predicate":"spouse_is","value":"Tom Vell"}. Name the same detail the same way every time it comes up, so answers from different documents can be compared. A detail that changes during the story gets the time it holds. Never use "_is" for something that can have several answers at once (skills, friends, possessions).
 Time: only for facts that happen on a stated story day ("on Day 3", "D-3650"). Identities, traits, rules, background and daily routines ("every evening", "at eight each day") get no time. "D<day> HH:MM" when the text gives a clock time (precision "exact"). When it names only a part of the day ("at dusk", "around evening") use precision "approximate" with a range covering that part of the day. Otherwise use day-only "D<day>" (never 00:00-23:59, never a guessed range). Days before D1 are D0, D-1, D-3650 ….
 Do not invent facts. Figurative language ("my sister in all but blood") is NOT a literal relationship; skip it or give it low confidence.`,
-      `Document: ${doc.title}\n\n${doc.text}`,
+      `${doc.names?.length ? `Names this project already uses (write a name exactly like this when the document means the same one; other names it goes by follow "="):\n${doc.names.join('\n')}\n\n` : ''}Document: ${doc.title}\n\n${doc.text}`,
     )
     const { kept, ...bad } = cleanCandidates(out.candidates)
     dropped = dropNote(bad)
