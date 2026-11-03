@@ -104,6 +104,7 @@ export function dryRunRules(proposed: Fact[]) {
 
 // Facts per world-rule call. A rule with more context than this is checked in several calls, so every fact is read once.
 export const RULE_BATCH = 120
+export const RULE_PARALLEL = 4 // world-rule calls in flight at once during a scan
 // Narrow conflict checks over accepted canon. Every hit is a candidate for a human, never a verdict.
 // Deterministic rules run in code; the world-rule check is model-suggested and labeled as such.
 export async function scanConflicts() {
@@ -135,6 +136,7 @@ export async function scanConflicts() {
   // one hero) takes several bounded calls, never a truncated one. Up to RULE_BATCH facts it is one call, as before.
   let modelError: string | null = null
   const ruleChecks = { rules: 0, calls: 0, facts: 0 }
+  const jobs: { rule: Fact, batch: Fact[] }[] = []
   for (const rule of facts.filter(isRule)) {
     const entity = normEntity(rule.subject)
     const direct = facts.filter(f => f.id !== rule.id && [f.subject, f.object].some(e => normEntity(e) === entity))
@@ -146,16 +148,26 @@ export async function scanConflicts() {
       const batch = context.slice(i, i + RULE_BATCH)
       ruleChecks.calls++
       ruleChecks.facts += batch.length
-      try {
-        const violations = await checkRule(rule, batch)
-        tx(() => {
-          for (const v of violations) add(rule, batch.find(f => f.id === v.fact_id)!, 'WORLD_RULE_VIOLATION', v.rationale, v.confidence, modelInfo().id)
-        })
-      } catch (e) {
-        modelError = (e as Error).message
-      }
+      jobs.push({ rule, batch })
     }
   }
+  // RULE_PARALLEL calls at a time (a big project's 34 rules took 17 minutes one by one on Muse); results are stored in job
+  // order once all have answered, so conflicts come out in the same order as a sequential scan.
+  const results: (RuleViolation[] | Error)[] = Array.from({ length: jobs.length })
+  let next = 0
+  await Promise.all(Array.from({ length: Math.min(RULE_PARALLEL, jobs.length) }, async () => {
+    while (next < jobs.length) {
+      const k = next++
+      results[k] = await checkRule(jobs[k]!.rule, jobs[k]!.batch).catch((e: Error) => e)
+    }
+  }))
+  tx(() => {
+    for (const [k, r] of results.entries()) {
+      if (r instanceof Error) { modelError = r.message; continue }
+      const { rule, batch } = jobs[k]!
+      for (const v of r) add(rule, batch.find(f => f.id === v.fact_id)!, 'WORLD_RULE_VIOLATION', v.rationale, v.confidence, modelInfo().id)
+    }
+  })
   // A scan that finds nothing is still a result: Conflicts says when canon was last checked and how much of it.
   audit('conflict.scan', 'project', pid(), { facts: facts.length, created, model_error: modelError, rule_checks: ruleChecks })
   return { created, model_error: modelError, rule_checks: ruleChecks }
