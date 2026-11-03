@@ -3,7 +3,7 @@
 
 import type { IconName } from '~/components/ui/Icon.vue'
 
-export const SITE = 'https://storybible.trythis.work'
+export const SITE = 'https://canontracker.trythis.work'
 export const GITHUB = 'https://github.com/tektikas/canontracker'
 export const LICENSE_URL = 'https://github.com/tektikas/canontracker/blob/master/LICENSE'
 export const CONTACT = 'mailto:info@tektik.ai'

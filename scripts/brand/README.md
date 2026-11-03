@@ -28,7 +28,7 @@ Shots: `review`, `tide-review`, `canon`, `graph`, `timeline`, `conflicts`, `impa
 
 ## Social cards (`public/og-*.png`)
 
-`node scripts/brand/render-og.mjs http://localhost:<port>` renders [og.html](./og.html) at 1200×630 for each variant (`landing`, `default`, `agents`, `security`) with the installed `playwright-cli` (session `og`); the running app serves the illustration. It waits for Instrument Sans and the art and fails if either is missing (Google Fonts must be reachable). Copy and composition live in `og.html`. Pages set their card through `useMarketingSeo()` (`app/utils/marketing.ts`); absolute URLs use `https://storybible.trythis.work`.
+`node scripts/brand/render-og.mjs http://localhost:<port>` renders [og.html](./og.html) at 1200×630 for each variant (`landing`, `default`, `agents`, `security`) with the installed `playwright-cli` (session `og`); the running app serves the illustration. It waits for Instrument Sans and the art and fails if either is missing (Google Fonts must be reachable). Copy and composition live in `og.html`. Pages set their card through `useMarketingSeo()` (`app/utils/marketing.ts`); absolute URLs use `https://canontracker.trythis.work`.
 
 ## Sizes
 
