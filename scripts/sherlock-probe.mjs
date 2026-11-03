@@ -196,11 +196,33 @@ for (const q of gold.unknown_questions) check(`unknown: ${q}`, (await a('/api/qa
 // Word forms: "wounded" meets canon's "wound" (light stemmer in server/utils/qa.ts), so the question finds Doyle's wound facts,
 // each with a verified citation (recorded mode answers with the sources only).
 const { stem } = await import('../server/utils/qa.ts')
-check('stemmer: word forms meet', ['wounded', 'wounds', 'married', 'marries', 'lived', 'lives'].map(stem), ['wound', 'wound', 'marry', 'marry', 'liv', 'liv'])
+check('stemmer: word forms meet', ['wounded', 'wounds', 'married', 'marries', 'lived', 'lives', 'uses'].map(w => stem(w)), ['wound', 'wound', 'marry', 'marry', 'live', 'live', 'use'])
 const wounded = (await a('/api/qa', { method: 'POST', body: { question: 'Where was Watson wounded?' } })).data
 const woundFacts = wounded.cited.filter(f => f.predicate === 'wound_location_is').map(f => f.value)
 check('"Where was Watson wounded?" cites the wound facts, not unknown', [wounded.status, woundFacts.includes('shoulder'), woundFacts.includes('leg')], ['source_only', true, true])
 check('every cited fact has a verified quote', wounded.cited.every(f => f.evidence.some(e => e.verified && e.quote)), true)
+// …and nothing more: in a project whose only canon is "The new gate opens.", "News?" is unknown (news is not new), while
+// "Who uses the lamp?" meets "uses" and "used" in canon.
+{
+  let ck = ''
+  const n = async (path, { method = 'GET', body, form } = {}) => {
+    const res = await fetch(base + path, { method, headers: { ...(form ? {} : { 'content-type': 'application/json' }), cookie: ck }, body: form ?? (body && JSON.stringify(body)) })
+    const set = res.headers.getSetCookie().map(c => c.split(';')[0]).filter(c => c.includes('='))
+    if (set.length) ck = set.join('; ')
+    return res.json()
+  }
+  await n('/api/auth/signup', { method: 'POST', body: { name: 'Nell', email: `nell-${run}@probe.test`, password: 'correct horse' } })
+  const ns = await n('/api/studios', { method: 'POST', body: { name: 'Gate Studio' } })
+  await n('/api/projects', { method: 'POST', body: { name: 'Gate', studio_id: ns.id } })
+  const f = new FormData()
+  f.append('files', new Blob(['The new gate opens.\n\nThe keeper used the lamp at dusk.\n'], { type: 'text/markdown' }), 'gate.md')
+  const gate = (await n('/api/documents', { method: 'POST', form: f })).results[0]
+  await n('/api/facts', { method: 'POST', body: { to: 'canon', document_id: gate.document_id, quote: 'The new gate opens.', kind: 'claim', subject: 'The gate', predicate: 'opens', statement: 'The new gate opens.' } })
+  await n('/api/facts', { method: 'POST', body: { to: 'canon', document_id: gate.document_id, quote: 'The keeper used the lamp at dusk.', kind: 'claim', subject: 'The keeper', predicate: 'used', object: 'lamp', statement: 'The keeper used the lamp at dusk.' } })
+  check('"News?" is unknown when canon only says "new"', (await n('/api/qa', { method: 'POST', body: { question: 'News?' } })).status, 'unknown')
+  const lamp = await n('/api/qa', { method: 'POST', body: { question: 'Who uses the lamp?' } })
+  check('"Who uses the lamp?" finds "used the lamp"', [lamp.status, lamp.cited.map(x => x.statement)], ['source_only', ['The keeper used the lamp at dusk.']])
+}
 
 // 10. Gold-set evaluation.
 step(10)

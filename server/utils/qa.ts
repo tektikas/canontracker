@@ -1,26 +1,39 @@
 const STOP = new Set('the a an and or of to in on at is are was were be by for with from what why who where when how does do did not no it its this that than as has have had about into her his their they them she he'.split(' '))
-// A light English stemmer, so a question's word forms meet canon's (wounded/wound/wounds, married/marry, lives/lived/live):
-// a plural ending off, then -ed/-ing (when a vowel stays), then a final e and a doubled consonant. Question and canon go
-// through the same steps, so it only has to be consistent, not correct English. Numbers and short words stay as they are.
-export function stem(t: string) {
-  if (t.length < 4 || /\d/.test(t)) return t
-  const s = t.replace(/ies$/, 'y').replace(/(?<![su])es$/, '').replace(/(?<![su])s$/, '')
-    .replace(/ied$/, 'y').replace(/(?<=[aeiouy].*[^e])ed$|(?<=[aeiouy].*)ing$/, '')
-  return s.length < 3 ? t : s.replace(/(?<=..)e$/, '').replace(/([^aeiou])\1$/, '$1')
+// A conservative English stemmer, so a question's word forms meet canon's (wounded/wound, married/marry, lives/live,
+// uses/use, studies/study, stopped/stop). One plural ending off (-ies → y; -es only after s, sh, ch, x, z; -s, but not -ss,
+// -us, -is), then -ied → y, or -ed/-ing when a vowel stays (a doubled consonant undone, a final e put back on a short stem:
+// liv → live). Short words, numbers, a few words that only look inflected (news, series) and the capitalised words of the
+// project's names (Holmes, James) are never stemmed. Question and canon go through the same steps.
+const INVARIANT = new Set(['news', 'series', 'species', 'always', 'perhaps'])
+export function stem(t: string, names?: Set<string>) {
+  if (t.length < 4 || /\d/.test(t) || INVARIANT.has(t) || names?.has(t)) return t
+  let s = t
+  if (s.length > 4 && s.endsWith('ies')) s = `${s.slice(0, -3)}y`
+  else if (/(?:ss|sh|ch|x|z)es$/.test(s)) s = s.slice(0, -2)
+  else if (/[^sui]s$/.test(s)) s = s.slice(0, -1)
+  if (s.length > 4 && s.endsWith('ied')) return `${s.slice(0, -3)}y`
+  const verb = s.match(/^(.+?)(?:(?<!e)ed|ing)$/)
+  if (!verb || s.length < (s.endsWith('ing') ? 5 : 4) || !/[aeiouy]/.test(verb[1]!)) return s
+  const base = verb[1]!
+  return /([^aeioulsz])\1$/.test(base) ? base.slice(0, -1) : /^[^aeiou]*[aeiouy][^aeiouwxy]$/.test(base) ? `${base}e` : base
 }
-const terms = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu)?.filter(t => t.length > 1 && !STOP.has(t)).map(stem) ?? []
+// The words of a text, lowercased, without stop words, stemmed; `names` (lowercased) are kept as they are.
+const terms = (s: string, names?: Set<string>) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu)?.filter(t => t.length > 1 && !STOP.has(t)).map(t => stem(t, names)) ?? []
+// The capitalised words of the project's names (titles, aliases, merged names): proper nouns, never stemmed.
+const nameWords = () => new Set(listEntities().flatMap(namesOf).flatMap(n => n.match(/\p{Lu}[\p{L}\p{N}]*/gu) ?? []).map(w => w.toLowerCase()))
 // Story-time tokens ("day", "13", "00") appear everywhere: they rank results but can't qualify a match on their own.
 const isTimeToken = (t: string) => t === 'day' || /^\d+$/.test(t)
 
 // Accepted canon only. No supporting facts -> unknown. Model offline -> sources only, never an invented answer.
 // limit: how many matching facts are kept (the answer reads the top 5; the follow-up check looks wider).
 export async function askCanon(question: string, opts: { audit: boolean, retrievalOnly?: boolean, limit?: number } = { audit: true }) {
-  const qTerms = [...new Set(terms(question))]
+  const names = nameWords()
+  const qTerms = [...new Set(terms(question, names))]
   const qWords = qTerms.filter(t => !isTimeToken(t))
   // ponytail: keyword overlap over canon facts; swap for FTS5 when canon grows past a few thousand facts
   const scored = listFacts(`status = 'canon'`)
     .map((f) => {
-      const hay = new Set(terms(`${f.statement} ${f.subject} ${f.object ?? ''} ${f.evidence.map(e => e.quote).join(' ')}`))
+      const hay = new Set(terms(`${f.statement} ${f.subject} ${f.object ?? ''} ${f.evidence.map(e => e.quote).join(' ')}`, names))
       const words = qWords.filter(t => hay.has(t)).length
       return { fact: f, words, score: words + qTerms.filter(t => isTimeToken(t) && hay.has(t)).length * 0.5 }
     })
