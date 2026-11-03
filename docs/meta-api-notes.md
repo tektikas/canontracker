@@ -49,6 +49,28 @@ Each item: what we expected, what happened, what we did, and a suggestion.
 
 16. **Voice `keywords` are limited to 30 characters.** The speech-to-text page (dev.meta.ai/docs/speech-to-text, checked 3 Nov 2026) gives no limit on the number or length of `keywords`; it only says they bias recognition. Live, a request whose 5th keyword was 36 characters (a wiki page titled "a husband and father of two children") was refused with 400 "ASR keyword 5 exceeds the maximum length of 30 characters", so one long page name stopped a whole project from transcribing. Not kept as a fixture (it came from a recording session, not the contract run). *We did:* send only names of at most 30 characters (a page with a long title still contributes its short aliases), deduped, at most 100; the count limit is unknown (about 30 keywords were tested live). *Suggestion:* document both limits, and ignore or truncate an over-long keyword instead of failing the request.
 
+## Live test on Muse, 3 Nov 2026
+
+Once the credits were applied we ran the whole product live on `muse-spark-1.3` and its contributor variant (`muse-spark-1.3-contributor`, used for public-domain and synthetic test data only): 592 server-side model calls plus 20 Muse Code calls between 19:07 and 20:35 UTC, **0 API failures, no 429s**. Extraction runs at `reasoning_effort: low` (see item 2; at the default, high, whole chapters ran past our 60 s timeout).
+
+| Test | Result |
+|---|---|
+| Quotes | 1,319 extracted candidates, **0 invented quotes**; verified-quote rate 98.8–100% (the rest are real text with an added quotation mark, which verification blocks) |
+| The Ashbell Pass (28 docs, planted contradictions) | 233 candidates, all quotes verified; 4 of 6 planted conflicts found (C1–C4), the approximate-time false alarm and the post-merge conflict raised as designed; 2/2 unknowns |
+| Sherlock Holmes (31 docs, ~127k words) | 418 candidates in 4.5 min (4 documents at a time); Watson's wound found as shoulder vs leg, the slip readers have argued about for 130 years |
+| Public-domain stress test: Oz (3 books) and Alice (2 books) | 93 chapters, ~175k words, 1,086 candidates, verified-quote rate 99.3% / 98.8% |
+| Ask | 5/5 answerable questions right with real citations; 5/5 unanswerable ones `unknown` |
+| Continuity (agent with our MCP tools) | contradiction, dependency and new-material drafts reported correctly (one new finding dropped by our own grounding) |
+| Research (web search + calculators) | 8/8 genre questions answered on Muse, including a follow-up question and an honest `unknown` |
+| AI critic | quality gate passed on both synthetic samples (every planted fact kept, figurative "sister" rejected) |
+| Muse Code over MCP | 3/3 canon questions answered correctly; all 14 cited fact ids real and supporting |
+
+What Muse missed, and what we changed:
+- It missed some world rules stated in passing (the Ashbell bell rule) and treated changing states ("Ves's voice is gone", a broken knee) as single-valued details, which raised false "same detail, two answers" alerts. Prompt `extract-v5` now records a state something goes into as an event with its time.
+- Name identity: "Oz" and "the Wizard" filed as two people, three different Queens as one. CanonTracker now suggests "Possibly the same" pages for a person to merge; it never merges on its own.
+- A big project's world-rule scan (34 rules) took 17 minutes one call at a time; rule checks now run four at a time.
+- A model sometimes reports the same finding twice; the continuity report now keeps it once.
+
 ## Summary of suggestions
 
 1. Show credit and billing state clearly; name the missing step in a 402.
