@@ -189,12 +189,19 @@ export async function runAgent(o: {
       }
       const t1 = Date.now()
       const tool = o.tools.find(t => t.name === c.name)
+      // A tool we never offered (a gateway's own, say omniroute_web_search, or a function named like a built-in) didn't run:
+      // it is in the trace as such and the model is told, but it is no tool call of this run (not a failed calculation).
+      if (!tool) {
+        const error = `Unknown tool: ${c.name} was not offered, so it did not run.`
+        recordStep({ ...base, step, tool: c.name!, input: short(c.arguments ?? '', 2000), status: 'failed', latency: 0, tokens: null, summary: null, error })
+        items.push({ type: 'function_call_output', call_id: c.call_id, output: JSON.stringify({ error: `${error} Use only the tools listed.` }) })
+        continue
+      }
       let args: Record<string, unknown> = {}
       let call: AgentToolCall
       try {
         const parsed = JSON.parse(c.arguments || '{}')
         args = parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {}
-        if (!tool) throw new Error(`no tool named ${c.name}`)
         const r = await tool.run(args)
         call = { name: c.name!, args, result: r.result, assumptions: r.assumptions, error: null }
       } catch (e) {
