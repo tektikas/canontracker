@@ -4,9 +4,11 @@
 import type { IconName } from '~/components/ui/Icon.vue'
 
 export const SITE = 'https://storybible.trythis.work'
-export const GITHUB = 'https://github.com/ugorur/canontracker'
-export const LICENSE_URL = 'https://github.com/ugorur/canontracker/blob/master/LICENSE'
+export const GITHUB = 'https://github.com/tektikas/canontracker'
+export const LICENSE_URL = 'https://github.com/tektikas/canontracker/blob/master/LICENSE'
 export const CONTACT = 'mailto:info@tektik.ai'
+/** YouTube id of the three-minute demo video. Empty hides the landing's video section (and no player loads until a click). */
+export const VIDEO_ID = ''
 
 /** A product screenshot in public/shots (light and dark, 720 and 1280 wide). */
 export interface Shot { name: string, alt: string }

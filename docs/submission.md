@@ -45,7 +45,7 @@ Branching canon conditioned on player choices, project-specific membership withi
 
 - Demo video: `VIDEO_URL`
 - Public live app: `LIVE_URL` (current staging is LAN/VPN-only)
-- Source: https://github.com/ugorur/canontracker (mirror to be made public by the owner at submission)
+- Source: https://github.com/tektikas/canontracker (mirror to be made public by the owner at submission)
 - Pitch deck: [pitch-deck.pdf](pitch-deck.pdf), also `/pitch` on a running app
 - Local quick start and checks: [README.md](../README.md)
 - License: [AGPL-3.0-or-later](../LICENSE)

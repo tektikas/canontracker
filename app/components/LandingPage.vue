@@ -56,6 +56,14 @@ const MCP_SNIPPET = `// ~/.config/muse/settings.json (Muse Code)\n${JSON.stringi
         </div>
       </section>
 
+      <section v-if="VIDEO_ID" class="band demo" aria-labelledby="demo-title">
+        <div class="band-head">
+          <h2 id="demo-title">See it in three minutes</h2>
+          <p class="muted">Sherlock Holmes goes in, canon comes out with a source for every fact, and Watson’s wound turns up in both books. Then an agent builds a game from the canon.</p>
+        </div>
+        <MarketingDemoVideo :id="VIDEO_ID" title="CanonTracker in three minutes" />
+      </section>
+
       <section class="problem band">
         <div class="problem-art">
           <LandingArt name="story-world" alt="An open ledger whose page rises into a small world: a lighthouse, a mountain pass with a bell tower, a winding road." :size="480" />
@@ -171,6 +179,7 @@ const MCP_SNIPPET = `// ~/.config/muse/settings.json (Muse Code)\n${JSON.stringi
 <style scoped>
 .home > section, .home > .band { max-width: var(--mk-max); margin: 0 auto; padding-inline: var(--mk-pad); }
 .band { padding-block: 72px; border-top: 1px solid var(--line); }
+.demo { max-width: 1040px; margin-inline: auto; }
 .band-head { margin-bottom: var(--s-6); }
 .band-head h2, .problem-copy h2 { font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem); letter-spacing: -0.025em; margin-bottom: var(--s-2); }
 .band-head p { margin: 0; max-width: 64ch; font-size: 1rem; }

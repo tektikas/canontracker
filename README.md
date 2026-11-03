@@ -22,7 +22,7 @@ CanonTracker's own AI cannot accept canon. A person must approve facts in Review
 Use **Node 24** and **pnpm 12.16.1** (`mise install` reads `mise.toml`, or install these versions yourself). Install **ffmpeg and ffprobe** for audio conversion, including the voice sample.
 
 ```sh
-git clone https://github.com/ugorur/canontracker storybible
+git clone https://github.com/tektikas/canontracker storybible
 cd storybible
 pnpm install
 # Create .env from the example, filling the session password without printing it.
