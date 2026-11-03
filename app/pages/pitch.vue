@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Pitch deck: eleven 16:9 slides (one idea each, alternating dark and light like the video) and an appendix with the
-// detail: market sizing, competitor table, proof and every source. Reads on screen (scroll or arrow keys) and prints one
+// detail: TAM/SAM (A1), SOM and ramp (A2), competitor table, proof and every source. Reads on screen (scroll or arrow keys) and prints one
 // slide per page; docs/pitch-deck.pdf is rendered from this page by scripts/brand/render-pitch.mjs. Every number has a
 // numbered source (SOURCES, pages opened 3 Nov 2026); our own assumptions are marked. Linked from /about and the footer only.
 import { h, type FunctionalComponent } from 'vue'
@@ -31,7 +31,8 @@ const SOURCES: Source[] = [
   { id: 'fx', title: 'Deadline via Yahoo, 9 Feb 2024: “516 scripted titles on air in 2023”, source FX/Disney', url: 'https://ca.news.yahoo.com/peak-tv-over-number-original-222100123.html' },
   { id: 'wgaw', title: 'Wikipedia, Writers Guild of America West: “around 14,000 total members as of 2026”, citing the US DOL OLMS filing (secondary)', url: 'https://en.wikipedia.org/wiki/Writers_Guild_of_America_West' },
   { id: 'goldman', title: 'Investing.com, 6 Apr 2023, on Goldman Sachs: creator economy “$250 billion TAM”, “approximately $480B by 2027” (secondary)', url: 'https://uk.investing.com/news/stock-market-news/goldman-sachs-estimates-creator-economy-tam-of-250-billion-432SI-2977867' },
-  { id: 'egdf', title: 'EGDF press release, 21 Aug 2026: “6600 studios that employ over 95 000 people” (2024 data, 28 European countries)', url: 'https://www.egdf.eu/press-release-egdf-publishes-2024-european-games-industry-insights-data/' },
+  { id: 'webtoon', title: 'WEBTOON Entertainment, Form 10-K for 2025: “connected 27 million creators”; “the vast majority of the 27 million creators on our platform are amateur creators”', url: 'https://www.sec.gov/Archives/edgar/data/1997859/000199785926000028/wbtn-20251231.htm' },
+  { id: 'slashdata', title: 'SlashData: “In Q1 2024, there are 11.1 million game developers”, including serious hobbyists and students', url: 'https://www.slashdata.co/post/there-are-11-1-million-game-developers-in-the-world' },
   { id: 'gdc26', title: 'GDC, 2026 State of the Game Industry (copy hosted by InvestGame): top roles “game design and narrative (22%)”', url: 'https://investgame.net/news/pdf/2026-01-29-dec052f4_d88e_48ce_9f83_a18ce2f2a6e5_541400_gdc26_pdf_soti_report/' },
   { id: 'nchome', title: 'Novelcrafter home page: “Join a community of 252k+ authors” (vendor claim)', url: 'https://www.novelcrafter.com/' },
   { id: 'ncprice', title: 'Novelcrafter pricing: $4, $8, $14, $20 a month', url: 'https://www.novelcrafter.com/pricing' },
@@ -49,7 +50,7 @@ const num = (id: string) => SOURCES.findIndex(s => s.id === id) + 1
 const R: FunctionalComponent<{ id: string }> = p => h('sup', { class: 'ref' }, h('a', { href: `#src-${p.id}` }, String(num(p.id))))
 /** Footer: the slide's source numbers (tiny) and its number. */
 const Foot: FunctionalComponent<{ ids?: string[], n: string }> = p => h('footer', { class: 'sfoot' }, [
-  h('span', p.ids?.length ? `Sources ${p.ids.map(num).join(', ')}, appendix A4` : ''),
+  h('span', p.ids?.length ? `Sources ${p.ids.map(num).join(', ')}, appendix A5` : ''),
   h('span', p.n),
 ])
 const MAIN = 11
@@ -64,40 +65,46 @@ const WORLDS = [
   { who: 'Screen and series', big: '516', what: 'scripted US series on air in 2023', src: 'fx', more: 'WGA West: about 14,000 members (per Wikipedia)', moreSrc: 'wgaw' },
 ]
 
-// ---------- Beachhead SOM, bottom-up (appendix A1). Prices are competitors' list prices, not ours. ----------
-interface Step { show: string, text: string, value?: number, factor?: number, src?: string, assumption?: boolean }
-interface Segment { name: string, steps: Step[], price: number, priceText: string, priceSrc: string, som: number }
-const SEGMENTS: Segment[] = [
-  {
-    name: 'Narrative teams, Europe', price: 25 * 12, priceText: '$25 a seat a month (Arcweave Team, yearly)', priceSrc: 'arcweave', som: 0.03,
-    steps: [
-      { show: '95,000', text: 'people employed in European games (2024, 28 countries)', value: 95_000, src: 'egdf' },
-      { show: '× 22%', text: 'in game design and narrative (GDC 2026 respondents)', factor: 0.22, src: 'gdc26' },
-      { show: '× 1 in 4', text: 'who write story and lore', factor: 0.25, assumption: true },
-    ],
-  },
-  {
-    name: 'Serial and series writers', price: 8 * 12, priceText: '$8 a month (Novelcrafter Hobbyist)', priceSrc: 'ncprice', som: 0.02,
-    steps: [
-      { show: '252,000', text: 'authors in Novelcrafter’s community (vendor claim)', value: 252_000, src: 'nchome' },
-      { show: '× 1 in 4', text: 'who write a series long enough to need checks (75% of indie sales are series books)', factor: 0.25, assumption: true, src: 'd2d' },
-    ],
-  },
-  {
-    name: 'Game masters and worldbuilders', price: 7.5 * 12, priceText: '$7.50 a month (LegendKeeper Pro, annual)', priceSrc: 'legendkeeper', som: 0.01,
-    steps: [
-      { show: '200,000', text: 'creators already using a lore wiki, LegendKeeper (vendor claim)', value: 200_000, src: 'legendkeeper' },
-    ],
-  },
+// ---------- Market size (appendix A1, A2): sourced bases × labelled assumptions × our ASSUMED tier prices ----------
+// The tier prices are assumptions for sizing only; the site says cloud pricing is on request. AI usage is not counted.
+const PRICE = { solo: 12, team: 29, studio: 49 } as const
+type Tier = keyof typeof PRICE
+const TIER_NAME: Record<Tier, string> = { solo: 'Solo', team: 'Team', studio: 'Studio' }
+interface Step { show: string, text: string, factor: number, src?: string, assumption?: boolean }
+interface Group { name: string, base: number, baseText: string, src: string, baseSteps?: Step[], tier: Tier, sam: Step[] }
+const GROUPS: Group[] = [
+  { name: 'Web and serial fiction writers, China', base: 32_690_000, baseText: 'online-literature writers, 2025', src: 'cass', tier: 'solo',
+    sam: [{ show: '× 0', text: 'China’s domestic market left out of SAM: hard to reach', factor: 0, assumption: true }] },
+  { name: 'Webcomic and web-novel creators', base: 27_000_000, baseText: 'creators on WEBTOON’s platforms, 2025 (mostly amateur)', src: 'webtoon', tier: 'solo',
+    sam: [{ show: '× 1 in 20', text: 'serious: pro or semi-pro', factor: 0.05, assumption: true }] },
+  { name: 'Game developers', base: 11_100_000, baseText: 'game developers worldwide incl. hobbyists and students, Q1 2024', src: 'slashdata', tier: 'team',
+    sam: [{ show: '× 22%', text: 'in game design and narrative', factor: 0.22, src: 'gdc26' }, { show: '× 1 in 4', text: 'who write story and lore', factor: 0.25, assumption: true }] },
+  { name: 'Game masters', base: 10_000_000, baseText: 'Roll20 accounts, 2022', src: 'roll20', tier: 'solo',
+    baseSteps: [{ show: '× 1 in 5', text: 'who run games', factor: 0.2, assumption: true }],
+    sam: [{ show: '× 1 in 4', text: 'who keep written campaign lore', factor: 0.25, assumption: true }] },
+  { name: 'Novelists and series authors', base: 252_000, baseText: 'authors in Novelcrafter’s community (vendor claim; a floor, no sourced global count)', src: 'nchome', tier: 'solo', sam: [] },
+  { name: 'Screenwriters', base: 14_000, baseText: 'WGA West members (per Wikipedia)', src: 'wgaw', tier: 'studio', sam: [] },
 ]
-const MARKET = SEGMENTS.map((s) => {
-  const seats = Math.round(s.steps.reduce((n, st) => st.value ?? n * (st.factor ?? 1), 0))
-  const somSeats = Math.round(seats * s.som)
-  return { ...s, seats, sam: seats * s.price, somSeats, somValue: somSeats * s.price }
+const SOM_SHARE: Record<Tier, number> = { solo: 0.03, team: 0.04, studio: 0.05 } // year 5, assumptions
+const RAMP = [0.02, 0.1, 0.25, 0.55, 1] // share of the year-5 SOM reached in years 1–5, assumptions
+const yearly = (t: Tier) => PRICE[t] * 12
+const product = (n: number, steps: Step[] = []) => Math.round(steps.reduce((v, st) => v * st.factor, n))
+const SIZED = GROUPS.map((g) => {
+  const tamSeats = product(g.base, g.baseSteps)
+  const samSeats = product(tamSeats, g.sam)
+  return { ...g, tamSeats, tamValue: tamSeats * yearly(g.tier), samSeats, samValue: samSeats * yearly(g.tier) }
 })
-const SOM_SEATS = MARKET.reduce((n, m) => n + m.somSeats, 0)
-const SOM_VALUE = MARKET.reduce((n, m) => n + m.somValue, 0)
-const money = (v: number) => v >= 1e6 ? `$${(v / 1e6).toFixed(v >= 1e7 ? 0 : 1)}M` : `$${Math.round(v / 1e3)}k`
+const TAM = SIZED.reduce((n, g) => n + g.tamValue, 0)
+const SAM = SIZED.reduce((n, g) => n + g.samValue, 0)
+const SOM_TIERS = (Object.keys(PRICE) as Tier[]).map((t) => {
+  const samSeats = SIZED.filter(g => g.tier === t).reduce((n, g) => n + g.samSeats, 0)
+  const seats = Math.round(samSeats * SOM_SHARE[t])
+  return { tier: t, samSeats, share: SOM_SHARE[t], seats, arr: seats * yearly(t) }
+})
+const SOM = SOM_TIERS.reduce((n, t) => n + t.arr, 0)
+const SOM_SEATS = SOM_TIERS.reduce((n, t) => n + t.seats, 0)
+const money = (v: number) => v >= 1e9 ? `$${(v / 1e9).toFixed(1)}B` : v >= 1e6 ? `$${(v / 1e6).toFixed(v >= 1e8 ? 0 : 1)}M` : `$${Math.round(v / 1e3)}k`
+const pct = (v: number) => `${Math.round(v * 100)}%`
 const count = (v: number) => v.toLocaleString('en-US')
 
 // ---------- Competition (slide 9): placed only by what each vendor's own page says ----------
@@ -255,9 +262,9 @@ const print = () => window.print()
             <span class="more">{{ w.more }}<R :id="w.moreSrc" /></span>
           </li>
         </ul>
-        <p class="start">We start with narrative teams, serial writers and game masters: {{ count(SOM_SEATS) }} paying seats, about {{ money(SOM_VALUE) }} a year, by year three (bottom-up, A1). The creator economy around them: $250B in 2023, about $480B by 2027.<R id="goldman" /></p>
+        <p class="sizes"><span><b>{{ money(TAM) }}</b> TAM</span><span><b>{{ money(SAM) }}</b> SAM</span><span><b>{{ money(SOM) }}</b> SOM by year 5</span><small>Assumptions in A1 and A2</small></p>
       </div>
-      <Foot :ids="WORLDS.flatMap(w => [w.src, w.moreSrc]).concat('goldman')" n="7" />
+      <Foot :ids="WORLDS.flatMap(w => [w.src, w.moreSrc])" n="7" />
     </section>
 
     <!-- 8. Model and go-to-market -->
@@ -291,7 +298,7 @@ const print = () => window.print()
             </span>
           </div>
         </div>
-        <p class="caption">Placed only by what each vendor’s own page says (3 Nov 2026); places inside a quarter are only for legibility. Arcweave also has MCP; Sudowrite and Novelcrafter write prose. Table in A2.</p>
+        <p class="caption">Placed only by what each vendor’s own page says (3 Nov 2026); places inside a quarter are only for legibility. Arcweave also has MCP; Sudowrite and Novelcrafter write prose. Table in A3.</p>
       </div>
       <Foot :ids="MAP.filter(c => c.src).map(c => c.src!)" n="9" />
     </section>
@@ -336,39 +343,75 @@ const print = () => window.print()
       <Foot n="11" />
     </section>
 
-    <!-- A1. Market sizing -->
+    <!-- A1. TAM and SAM -->
     <section class="slide l appx" aria-labelledby="ta1">
       <div class="in">
         <p class="tag">Appendix A1</p>
-        <h2 id="ta1">Beachhead, sized bottom-up</h2>
+        <h2 id="ta1">TAM {{ money(TAM) }}, SAM {{ money(SAM) }}: from sourced counts</h2>
         <table class="sizing">
-          <thead><tr><th>Segment</th><th>Count × share × assumption</th><th>Seats</th><th>At a competitor’s price</th><th>Year-3 share</th><th>Year 3</th></tr></thead>
+          <thead><tr><th>Group</th><th>Sourced base</th><th>Tier</th><th class="n">TAM a year</th><th>Filter to SAM</th><th class="n">SAM seats</th><th class="n">SAM a year</th></tr></thead>
           <tbody>
-            <tr v-for="m in MARKET" :key="m.name">
-              <th scope="row">{{ m.name }}</th>
-              <td><span v-for="(st, i) in m.steps" :key="i" class="step" :class="{ as: st.assumption }"><b>{{ st.show }}</b> {{ st.text }}<R v-if="st.src" :id="st.src" /> </span></td>
-              <td class="n">{{ count(m.seats) }}</td>
-              <td>{{ m.priceText }}<R :id="m.priceSrc" /><br><span class="faint">{{ money(m.sam) }} a year at full reach</span></td>
-              <td class="n">{{ Math.round(m.som * 100) }}%</td>
-              <td class="n"><b>{{ count(m.somSeats) }} seats</b><br>{{ money(m.somValue) }}</td>
+            <tr v-for="g in SIZED" :key="g.name">
+              <th scope="row">{{ g.name }}</th>
+              <td><b>{{ count(g.base) }}</b> {{ g.baseText }}<R :id="g.src" /><template v-for="(st, i) in g.baseSteps" :key="i"> <span class="as"><b>{{ st.show }}</b> {{ st.text }}</span></template><template v-if="g.baseSteps"> = <b>{{ count(g.tamSeats) }}</b></template></td>
+              <td>{{ TIER_NAME[g.tier] }} ${{ PRICE[g.tier] }}</td>
+              <td class="n">{{ money(g.tamValue) }}</td>
+              <td><template v-if="g.sam.length"><template v-for="(st, i) in g.sam" :key="i"><span :class="{ as: st.assumption }"><b>{{ st.show }}</b> {{ st.text }}<R v-if="st.src" :id="st.src" /></span>{{ ' ' }}</template></template><span v-else class="faint">all of them</span></td>
+              <td class="n">{{ g.samSeats ? count(g.samSeats) : '—' }}</td>
+              <td class="n">{{ g.samValue ? money(g.samValue) : '—' }}</td>
             </tr>
           </tbody>
-          <tfoot><tr><th scope="row" colspan="5">Year 3, all three</th><td class="n"><b>{{ count(SOM_SEATS) }} seats</b><br>{{ money(SOM_VALUE) }} a year</td></tr></tfoot>
+          <tfoot><tr><th scope="row" colspan="3">Total</th><td class="n"><b>{{ money(TAM) }}</b></td><td /><td class="n">{{ count(SIZED.reduce((n, g) => n + g.samSeats, 0)) }}</td><td class="n"><b>{{ money(SAM) }}</b></td></tr></tfoot>
         </table>
         <ul class="notes">
-          <li><span class="as">Dashed</span> = our assumption. Year-3 shares are assumptions too. Prices are competitors’ list prices, not ours: our cloud price is quoted per team.</li>
-          <li>Not counted: games outside Europe, serial fiction outside one tool’s community, Roll20’s 10M accounts<R id="roll20" />, video creators, screen, comics. The breadth on slide 7 is people, not buyers; units are never added up.</li>
-          <li>The creator economy figure ($250B in 2023, about $480B by 2027) is Goldman Sachs via Investing.com: the broader market, not ours.<R id="goldman" /> Europe uses EGDF’s 2024 figure (95,000 people, 6,600 studios) throughout.<R id="egdf" /></li>
+          <li><span class="as">Dashed</span> = our assumption. <b>Assumed prices for sizing</b>: Solo $12, Team $29, Studio $49 a seat a month, AI usage not counted; cloud pricing is on request. $ a year = seats × price × 12.</li>
+          <li>Groups may overlap (a game developer can be a game master); overlaps are not removed. Not counted, no sourced count: YouTube and TikTok creators, other guilds, authors beyond one tool.</li>
+          <li>SAM keeps English-language reach and people serious enough to pay. They already sign up for such tools: LegendKeeper 200k+ creators<R id="legendkeeper" />, Kanka 225,000 accounts.<R id="kanka" /></li>
         </ul>
       </div>
       <Foot n="A1" />
     </section>
 
-    <!-- A2. Competitor table -->
+    <!-- A2. SOM and ramp -->
     <section class="slide l appx" aria-labelledby="ta2">
       <div class="in">
         <p class="tag">Appendix A2</p>
-        <h2 id="ta2">What each vendor’s page says</h2>
+        <h2 id="ta2">SOM {{ money(SOM) }} a year by year 5</h2>
+        <div class="som">
+          <table class="sizing">
+            <thead><tr><th>Tier (assumed price)</th><th class="n">SAM seats</th><th class="n">Year-5 share</th><th class="n">Seats</th><th class="n">ARR</th></tr></thead>
+            <tbody>
+              <tr v-for="t in SOM_TIERS" :key="t.tier">
+                <th scope="row">{{ TIER_NAME[t.tier] }}, ${{ PRICE[t.tier] }} a seat a month</th>
+                <td class="n">{{ count(t.samSeats) }}</td>
+                <td class="n"><span class="as">{{ pct(t.share) }}</span></td>
+                <td class="n">{{ count(t.seats) }}</td>
+                <td class="n">{{ money(t.arr) }}</td>
+              </tr>
+            </tbody>
+            <tfoot><tr><th scope="row" colspan="3">Year 5</th><td class="n"><b>{{ count(SOM_SEATS) }}</b></td><td class="n"><b>{{ money(SOM) }}</b></td></tr></tfoot>
+          </table>
+          <div class="ramp" role="img" :aria-label="`ARR ramp: ${RAMP.map((r, i) => `year ${i + 1} ${money(SOM * r)}`).join(', ')}`">
+            <div v-for="(r, i) in RAMP" :key="i" class="bar">
+              <span class="v">{{ money(SOM * r) }}</span>
+              <i :style="{ height: `calc(${r} * var(--bar-h))` }" />
+              <span class="y">Year {{ i + 1 }}</span>
+            </div>
+          </div>
+        </div>
+        <ul class="notes">
+          <li>Solo: webcomic and web-novel creators, game masters, novelists. Team: game developers. Studio: screenwriters. Year-5 shares (<span class="as">3%, 4%, 5%</span>) and the ramp (<span class="as">2%, 10%, 25%, 55%, 100% of year 5</span>) are our assumptions.</li>
+          <li>For scale, the creator economy these people work in: $250B in 2023, about $480B by 2027 (Goldman Sachs via Investing.com). A broader market, not ours.<R id="goldman" /></li>
+        </ul>
+      </div>
+      <Foot n="A2" />
+    </section>
+
+    <!-- A3. Competitor table -->
+    <section class="slide l appx" aria-labelledby="ta3">
+      <div class="in">
+        <p class="tag">Appendix A3</p>
+        <h2 id="ta3">What each vendor’s page says</h2>
         <table class="cmp">
           <thead><tr><th>Product</th><th>Cited facts</th><th>Rule-based checks</th><th>Human gate on AI</th><th>API / MCP</th><th>Price</th></tr></thead>
           <tbody>
@@ -383,14 +426,14 @@ const print = () => window.print()
           <li>Where they are stronger: Arcweave already ships an MCP server; Sudowrite and Novelcrafter write prose and we don’t; World Anvil, Notion and Kanka have communities we don’t have yet.</li>
         </ul>
       </div>
-      <Foot n="A2" />
+      <Foot n="A3" />
     </section>
 
-    <!-- A3. Proof -->
-    <section class="slide l appx" aria-labelledby="ta3">
+    <!-- A4. Proof -->
+    <section class="slide l appx" aria-labelledby="ta4">
       <div class="in">
-        <p class="tag">Appendix A3</p>
-        <h2 id="ta3">What exists today, from the repository</h2>
+        <p class="tag">Appendix A4</p>
+        <h2 id="ta4">What exists today, from the repository</h2>
         <ul class="kpis">
           <li><b>9</b><span>days, 27 Oct–4 Nov 2026, solo, 260+ commits</span></li>
           <li><b>4</b><span>sample worlds, up to 31 documents and 126,658 words</span></li>
@@ -403,19 +446,19 @@ const print = () => window.print()
           <li>Every AI run is traced on Agent activity. Open source under AGPL-3.0. No users or revenue yet: this is day zero.</li>
         </ul>
       </div>
-      <Foot n="A3" />
+      <Foot n="A4" />
     </section>
 
-    <!-- A4. Sources -->
-    <section class="slide l appx sources" aria-labelledby="ta4">
+    <!-- A5. Sources -->
+    <section class="slide l appx sources" aria-labelledby="ta5">
       <div class="in">
-        <p class="tag">Appendix A4</p>
-        <h2 id="ta4">Sources, opened 3 Nov 2026</h2>
+        <p class="tag">Appendix A5</p>
+        <h2 id="ta5">Sources, opened 3 Nov 2026</h2>
         <ol class="src">
           <li v-for="s in SOURCES" :id="`src-${s.id}`" :key="s.id">{{ s.title }}<template v-if="s.url">. <a :href="s.url">{{ s.url.replace('https://', '') }}</a></template></li>
         </ol>
       </div>
-      <Foot n="A4" />
+      <Foot n="A5" />
     </section>
   </div>
 </template>
@@ -497,7 +540,10 @@ const print = () => window.print()
 .tiles b { font-size: 4.6cqw; line-height: 1; letter-spacing: -0.04em; font-weight: 600; }
 .what { font-size: 1.3cqw; color: var(--fg); }
 .more { font-size: 1.05cqw; color: var(--faint); }
-.start { font-size: 1.3cqw; color: var(--mut); max-width: 100ch; border-left: 0.3cqw solid var(--acc); padding-left: 1.2cqw; }
+.sizes { display: flex; flex-wrap: wrap; align-items: baseline; gap: 1cqw 3.6cqw; margin: 0; padding-top: 1.4cqw; border-top: 0.15cqw solid var(--acc); }
+.sizes span { font-size: 1.5cqw; color: var(--mut); }
+.sizes b { font-size: 3.6cqw; line-height: 1; letter-spacing: -0.03em; font-weight: 600; color: var(--acc); margin-right: 0.5cqw; }
+.sizes small { margin-left: auto; font-size: 1.1cqw; color: var(--faint); }
 
 /* 8 */
 .split { display: grid; grid-template-columns: 1fr 1fr; gap: 2.4cqw; }
@@ -564,6 +610,12 @@ const print = () => window.print()
 .kpis li { display: grid; gap: 0.4cqw; border-top: 0.3cqw solid var(--acc); padding-top: 1cqw; }
 .kpis b { font-size: 5cqw; line-height: 1; letter-spacing: -0.04em; color: var(--acc); }
 .kpis span { color: var(--mut); font-size: 1.3cqw; }
+.som { display: grid; grid-template-columns: 1.15fr 1fr; gap: 3cqw; align-items: end; }
+.ramp { --bar-h: 17cqw; display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.2cqw; align-items: end; }
+.bar { display: flex; flex-direction: column; justify-content: flex-end; gap: 0.4cqw; text-align: center; }
+.bar i { display: block; min-height: 0.3cqw; background: var(--acc); border-radius: 0.3cqw 0.3cqw 0 0; }
+.bar .v { font-size: 1.15cqw; font-weight: 600; color: var(--fg); }
+.bar .y { font-size: 1cqw; color: var(--faint); border-top: 0.1cqw solid var(--line-strong); padding-top: 0.3cqw; }
 .src { margin: 0; padding-left: 2cqw; columns: 2; column-gap: 3cqw; font-size: 0.82cqw; line-height: 1.35; color: var(--mut); }
 .src li { break-inside: avoid; margin-bottom: 0.35cqw; }
 .src a { word-break: break-all; }
@@ -577,7 +629,7 @@ const print = () => window.print()
   .breaks h1 { font-size: 46px; }
   .close h2 { font-size: 36px; }
   .lead, .lead.sub, .bignum p { font-size: 18px; }
-  .caption, .start, .channels, .people ul, .models span, .split span, .what, .kpis span { font-size: 15px; }
+  .caption, .sizes span, .channels, .people ul, .models span, .split span, .what, .kpis span { font-size: 15px; }
   .more, .who, .axis, .dot, .tag, .appx .in { font-size: 13px; }
   .three, .flow, .models, .tiles, .split, .channels, .people, .kpis { grid-template-columns: minmax(0, 1fr); }
   .three img { width: 60%; }
@@ -590,6 +642,10 @@ const print = () => window.print()
   .flow b, .models b { font-size: 18px; }
   .flow span { font-size: 14px; }
   .tiles b, .split b, .kpis b { font-size: 40px; }
+  .sizes b { font-size: 30px; }
+  .sizes small, .bar .v, .bar .y { font-size: 12px; }
+  .som { grid-template-columns: minmax(0, 1fr); }
+  .ramp { --bar-h: 120px; }
   .name { font-size: 24px; }
   .people p { font-size: 16px; }
   .close .mark { width: 44px; }
