@@ -66,13 +66,26 @@ Rows marked "in progress" are not in the app yet.
 
 ## Connect an agent over MCP
 
-1. Sign in, open **Settings > Agents & API** and create a token (shown once, bound to one project).
-2. Point an MCP client at `http://localhost:3000/mcp` (Streamable HTTP).
-3. Send `Authorization: Bearer sb_...` with every request.
-4. Read tools (search facts, context pack, conflicts, impact, ...) only see accepted canon; empty means `unknown` or "no impact found".
-5. The one write, `sb_propose_candidate`, needs an editor token and a verbatim quote; it creates a pending candidate for human review.
+1. Sign in, open **Settings > Agents & API** and create a token (shown once, bound to one project). Pick its level: **propose** (reads, checks and proposes; nothing it does becomes canon) or **full** (acts as you within your role; its decisions show as "via agent").
+2. Point an MCP client at `http://localhost:3000/mcp` (Streamable HTTP) and send `Authorization: Bearer sb_...` with every request.
+3. 38 tools: 16 canon and document tools (search facts, context pack, entities, timeline, `sb_ask`, `sb_check_facts`, conflicts, impact, ...) and 22 area tools that cover what a person does in the app (review, entities, changes, conflicts, documents, notes, library, research, continuity, export, ...). Team changes, tokens, sample loads and audio uploads stay in the app. Empty results mean `unknown` or "no impact found".
 
-The settings page also generates ready-made snippets for Muse Spark, Claude Code and Cursor.
+**Muse Code** connects directly; add this to `~/.config/muse/settings.json` and run `/mcp`:
+
+```json
+{
+  "schema_version": 1,
+  "mcp_servers": {
+    "story-bible": {
+      "transport": "streamable_http",
+      "url": "http://localhost:3000/mcp",
+      "headers": { "Authorization": "Bearer ${STORYBIBLE_TOKEN}" }
+    }
+  }
+}
+```
+
+The settings page generates ready-made snippets with your token for Muse Code, the Muse Spark API (a small bridge script), Claude Code and Cursor.
 
 ## Architecture
 

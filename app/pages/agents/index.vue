@@ -71,8 +71,9 @@ const EXCLUDED = [
   'Binary downloads: portraits, images, audio, original Word files, EPUB and zip',
   'Sign-in with OAuth: not built yet; agents use a bearer token',
 ]
-const client = ref<'claude' | 'cursor' | 'other'>('claude')
+const client = ref<'musecode' | 'claude' | 'cursor' | 'other'>('musecode')
 const SNIPPETS = {
+  musecode: JSON.stringify({ schema_version: 1, mcp_servers: { 'story-bible': { transport: 'streamable_http', url: `${SITE}/mcp`, headers: { Authorization: 'Bearer sb_…' } } } }, null, 2),
   claude: `claude mcp add --transport http story-bible ${SITE}/mcp \\\n  --header "Authorization: Bearer sb_…"`,
   cursor: JSON.stringify({ mcpServers: { 'story-bible': { url: `${SITE}/mcp`, headers: { Authorization: 'Bearer sb_…' } } } }, null, 2),
   other: `URL:        ${SITE}/mcp\nHeader:     Authorization: Bearer sb_…\nTransport:  Streamable HTTP (stateless)`,
@@ -149,7 +150,7 @@ async function copy() {
         </ul>
       </div>
       <div class="config">
-        <UiTabs v-model="client" :items="[{ value: 'claude', label: 'Claude Code' }, { value: 'cursor', label: 'Cursor' }, { value: 'other', label: 'Other client' }]" />
+        <UiTabs v-model="client" :items="[{ value: 'musecode', label: 'Muse Code' }, { value: 'claude', label: 'Claude Code' }, { value: 'cursor', label: 'Cursor' }, { value: 'other', label: 'Other client' }]" />
         <pre class="code"><code>{{ SNIPPETS[client] }}</code></pre>
         <div class="copy-row">
           <span class="small faint">Replace <code>sb_…</code> with your token.</span>
@@ -200,7 +201,7 @@ async function copy() {
     </section>
 
     <section class="block">
-      <MarketingFeature :section="{ title: 'Set up in the app', text: 'Settings, Agents & API: name the token, choose propose or full access, and copy a ready-made config for Muse Spark, Claude Code, Cursor or any other client with the token filled in.', points: ['Each token shows its level and when it was last used', 'Revoke a token at any time'], shot: { name: 'mcp', alt: 'Settings, Agents & API: create a token and copy a client config.' } }" flip />
+      <MarketingFeature :section="{ title: 'Set up in the app', text: 'Settings, Agents & API: name the token, choose propose or full access, and copy a ready-made config for Muse Code, Muse Spark, Claude Code, Cursor or any other client with the token filled in.', points: ['Each token shows its level and when it was last used', 'Revoke a token at any time'], shot: { name: 'mcp', alt: 'Settings, Agents & API: create a token and copy a client config.' } }" flip />
     </section>
 
     <MarketingCta />
