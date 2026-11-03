@@ -57,7 +57,7 @@ Common targeted regressions (HTTP probes take `<url>`):
 
 ## Package scripts
 
-`dev` starts Nuxt development; `build` creates the Node/Nitro application; `preview` starts that built application locally. `postinstall` prepares Nuxt types. `generate` produces a static prerender for inspecting public pages; it cannot host the authenticated application or API. Use the production server command in the README to run Story Bible. `check` is the isolated gate above.
+`dev` starts Nuxt development; `build` creates the Node/Nitro application; `preview` starts that built application locally. `postinstall` prepares Nuxt types. `generate` produces a static prerender for inspecting public pages; it cannot host the authenticated application or API. Use the production server command in the README to run CanonTracker. `check` is the isolated gate above.
 
 ## Other scripts (intentional manual tools)
 

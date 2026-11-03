@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Re-review tasks: the scenes an applied change may have affected, as work someone owns. Editorial; never canon.
-useHead({ title: 'Tasks · Story Bible' })
+useHead({ title: 'Tasks · CanonTracker' })
 const route = useRoute()
 const router = useRouter()
 const me = useMe()

@@ -33,7 +33,7 @@ export interface ResearchNote {
   pin_document_title: string | null, pin_line: number | null
 }
 
-const INSTRUCTIONS = `You are the research assistant inside Story Bible, where writers and game teams build story worlds. You answer real-world questions (science, engineering, history, crime and forensics, geography, culture, anything) so a writer can judge what is real or plausible. You never answer about the writer's own story: that is their canon, not your job.
+const INSTRUCTIONS = `You are the research assistant inside CanonTracker, where writers and game teams build story worlds. You answer real-world questions (science, engineering, history, crime and forensics, geography, culture, anything) so a writer can judge what is real or plausible. You never answer about the writer's own story: that is their canon, not your job.
 
 How to work:
 - Use web_search to find reliable sources (agencies, universities, museums, encyclopedias, peer-reviewed work, primary records). Search more than once when one source isn't enough.
@@ -107,7 +107,7 @@ async function fetchPage(url: string): Promise<Page> {
   if (/\.pdf$/i.test(new URL(url).pathname)) return pdf // not downloaded: no PDF text extraction (see checkSources)
   const signal = AbortSignal.timeout(PAGE_DEADLINE_MS)
   try {
-    const res = await safeGet(url, PAGE_MAX_BYTES, signal, { accept: 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5', what: 'the page', agent: 'Mozilla/5.0 (compatible; StoryBible research source check)' })
+    const res = await safeGet(url, PAGE_MAX_BYTES, signal, { accept: 'text/html,application/xhtml+xml,text/plain;q=0.9,*/*;q=0.5', what: 'the page', agent: 'Mozilla/5.0 (compatible; CanonTracker research source check)' })
     const type = res.contentType.split(';')[0]!.trim()
     if (/pdf/i.test(type) || res.body.subarray(0, 5).toString('latin1') === '%PDF-') return pdf
     if (!TEXT_TYPES.test(type)) return { notText: `Not a text page (${type || 'no content type'}): source not text-checked` }

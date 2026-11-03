@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Every note in the project, pinned to the text it is about. Notes are for the team; they never become canon.
-useHead({ title: 'Notes · Story Bible' })
+useHead({ title: 'Notes · CanonTracker' })
 const route = useRoute()
 const router = useRouter()
 const { data: notes, refresh } = await useFetch('/api/notes', { default: () => [] })

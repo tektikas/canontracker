@@ -1,40 +1,40 @@
-/* Story Bible design system: "pencil and ink". See app/DESIGN.md. */
+/* CanonTracker design system: graphite and signal orange. See app/DESIGN.md. */
 
 /* ---------- Tokens ---------- */
 :root {
-  /* Surfaces: a linen desk with paper on it */
-  --canvas: #f4f0e8;   /* the desk (page) */
-  --surface: #ece6dc;  /* the desk, a shade deeper: sidebar, table heads, sunk panels */
-  --raised: #fdfbf7;   /* paper: panels, inputs, dialogs */
-  --sunken: #e4dccf;
-  --quote-bg: #f6f1e8;
-  /* Text: warm ink */
-  --ink: #2a241d;
-  --muted: #524b42;
-  --faint: #675d50; /* >= 4.5:1 on every surface, incl. --sunken */
+  /* Surfaces: neutral graphite with white panels */
+  --canvas: #f2f3f5;   /* the desk (page) */
+  --surface: #e8e9ec;  /* the desk, a shade deeper: sidebar, table heads, sunk panels */
+  --raised: #ffffff;   /* paper: panels, inputs, dialogs */
+  --sunken: #dfe1e5;
+  --quote-bg: #f6f7f8;
+  /* Text: graphite ink */
+  --ink: #16171a;
+  --muted: #4a4d55;
+  --faint: #5d6068; /* >= 4.5:1 on every surface, incl. --sunken */
   /* Lines */
-  --line: #ddd4c6;
-  --line-strong: #c0b4a2;
-  /* Ink: canon and primary actions. Walnut / iron-gall brown, not blue. */
-  --accent: #733816;
-  --accent-strong: #542b13;
-  --accent-ink: #fdfbf7;
-  --accent-soft: #f0e2d2;
-  /* Pencil: proposed, not yet canon. Graphite, a touch cool against the warm paper. */
-  --pencil: #555b63;
-  --pencil-soft: #e5e2dc;
+  --line: #d9dbe0;
+  --line-strong: #b9bcc4;
+  /* Orange: canon and primary actions; signal orange is reserved for the brand mark. */
+  --accent: #c2410c;
+  --accent-strong: #9a3412;
+  --accent-ink: #ffffff;
+  --accent-soft: #fde9df;
+  /* Pencil: proposed, not yet canon. Neutral graphite. */
+  --pencil: #5a5f6b;
+  --pencil-soft: #e4e6ea;
   /* Status */
-  --good: #2e5e4e;  /* moss: the green of a leather desk pad */
-  --good-soft: #dde9df;
-  --warn: #835c00;  /* ochre / brass */
-  --warn-soft: #f4e6c4;
-  --bad: #b0321e;   /* vermilion */
-  --bad-soft: #f7ddd5;
+  --good: #1f7a55;  /* verified evidence */
+  --good-soft: #dcefe5;
+  --warn: #8a5a00;  /* caution */
+  --warn-soft: #f6e7c6;
+  --bad: #b0173f;   /* crimson: conflicts */
+  --bad-soft: #fbe1e8;
   /* Research: outside sources, never canon (Ask's research answers) */
   --research: #75366f;
   --research-soft: #f2e2ef;
   /* Behind modal sheets and the mobile drawer */
-  --scrim: rgb(30 22 14 / 0.45);
+  --scrim: rgb(17 18 20 / 0.45);
 
   /* Type */
   --font-ui: "Instrument Sans", "Helvetica Neue", Arial, sans-serif;
@@ -63,7 +63,7 @@
   --r-lg: 10px; /* panels */
 
   /* Elevation: panels are flat and bordered; only overlays float */
-  --elev-overlay: 0 12px 32px rgb(40 28 16 / 0.18), 0 2px 6px rgb(40 28 16 / 0.08);
+  --elev-overlay: 0 12px 32px rgb(17 18 20 / 0.18), 0 2px 6px rgb(17 18 20 / 0.08);
 
   /* Motion */
   --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
@@ -84,28 +84,28 @@
 /* Dark follows the system unless the person picked a theme (data-theme, set by the palette's "Toggle theme"). Screens only: print and PDF always use the light set. */
 @media screen and (prefers-color-scheme: dark) {
   :root:not([data-theme=light]) {
-    --canvas: #1b1815;
-    --surface: #161311;
-    --raised: #231f1b;
-    --sunken: #110f0d;
-    --quote-bg: #1f1b17;
-    --ink: #ebe3d6;
-    --muted: #bab1a4;
-    --faint: #9d9283;
-    --line: #352f29;
-    --line-strong: #4c443b;
-    --accent: #dba077;
-    --accent-strong: #e6c09f;
-    --accent-ink: #1b1815;
-    --accent-soft: #3a2a1d;
-    --pencil: #a4a9b1;
-    --pencil-soft: #2b2a28;
-    --good: #8fc3a6;
-    --good-soft: #1b2b23;
+    --canvas: #111214;
+    --surface: #16171a;
+    --raised: #1c1e22;
+    --sunken: #0c0d0f;
+    --quote-bg: #191b1e;
+    --ink: #ebecef;
+    --muted: #b4b7bf;
+    --faint: #9a9ea8;
+    --line: #2c2f35;
+    --line-strong: #3e424a;
+    --accent: #ff7a45;
+    --accent-strong: #ffa27a;
+    --accent-ink: #16171a;
+    --accent-soft: #33221a;
+    --pencil: #a6abb5;
+    --pencil-soft: #26282c;
+    --good: #5fd19c;
+    --good-soft: #173026;
     --warn: #e2bd5a;
     --warn-soft: #382e19;
-    --bad: #f17e70;
-    --bad-soft: #3b1e18;
+    --bad: #f2557a;
+    --bad-soft: #3a1823;
     --research: #d7a6d1;
     --research-soft: #2f1f2d;
     --elev-overlay: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
@@ -114,28 +114,28 @@
 }
 @media screen {
   :root[data-theme=dark] {
-    --canvas: #1b1815;
-    --surface: #161311;
-    --raised: #231f1b;
-    --sunken: #110f0d;
-    --quote-bg: #1f1b17;
-    --ink: #ebe3d6;
-    --muted: #bab1a4;
-    --faint: #9d9283;
-    --line: #352f29;
-    --line-strong: #4c443b;
-    --accent: #dba077;
-    --accent-strong: #e6c09f;
-    --accent-ink: #1b1815;
-    --accent-soft: #3a2a1d;
-    --pencil: #a4a9b1;
-    --pencil-soft: #2b2a28;
-    --good: #8fc3a6;
-    --good-soft: #1b2b23;
+    --canvas: #111214;
+    --surface: #16171a;
+    --raised: #1c1e22;
+    --sunken: #0c0d0f;
+    --quote-bg: #191b1e;
+    --ink: #ebecef;
+    --muted: #b4b7bf;
+    --faint: #9a9ea8;
+    --line: #2c2f35;
+    --line-strong: #3e424a;
+    --accent: #ff7a45;
+    --accent-strong: #ffa27a;
+    --accent-ink: #16171a;
+    --accent-soft: #33221a;
+    --pencil: #a6abb5;
+    --pencil-soft: #26282c;
+    --good: #5fd19c;
+    --good-soft: #173026;
     --warn: #e2bd5a;
     --warn-soft: #382e19;
-    --bad: #f17e70;
-    --bad-soft: #3b1e18;
+    --bad: #f2557a;
+    --bad-soft: #3a1823;
     --research: #d7a6d1;
     --research-soft: #2f1f2d;
     --elev-overlay: 0 12px 32px rgb(0 0 0 / 0.5), 0 2px 6px rgb(0 0 0 / 0.3);
@@ -153,7 +153,7 @@ body {
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
 }
-a { color: var(--accent); text-underline-offset: 2px; text-decoration-thickness: 1px; }
+a { color: var(--accent-strong); text-underline-offset: 2px; text-decoration-thickness: 1px; }
 a:hover { color: var(--accent-strong); }
 h1, h2, h3 { font-family: var(--font-ui); font-weight: 600; line-height: 1.2; letter-spacing: -0.012em; margin: 0 0 var(--s-2); }
 h1 { font-size: var(--text-2xl); letter-spacing: -0.02em; }
@@ -180,7 +180,7 @@ code, .mono { font-family: var(--font-code); font-size: 0.85em; }
   background: var(--surface);
 }
 .sidebar-head { display: flex; align-items: center; justify-content: space-between; }
-.brand { display: inline-flex; align-items: center; gap: 10px; padding: 4px 6px; color: var(--ink); text-decoration: none; font-weight: 650; font-size: 0.975rem; letter-spacing: -0.01em; white-space: nowrap; }
+.brand { display: inline-flex; align-items: center; gap: 10px; padding: 4px 6px; color: var(--ink); text-decoration: none; font-weight: 600; font-size: 0.975rem; letter-spacing: -0.01em; white-space: nowrap; }
 .brand:hover { color: var(--ink); }
 .brand-mark { width: 26px; height: 26px; flex: none; }
 
@@ -345,7 +345,7 @@ input[type=text], input[type=number], input[type=search], input[type=email], inp
 input::placeholder, textarea::placeholder { color: var(--faint); }
 select {
   appearance: none; padding-right: 32px; cursor: pointer;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%23857a6b' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none' stroke='%235d6068' stroke-width='1.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5'/%3E%3C/svg%3E");
   background-repeat: no-repeat; background-position: right 10px center;
 }
 input:hover, textarea:hover, select:hover { border-color: var(--muted); }
@@ -364,17 +364,17 @@ label { display: grid; gap: 6px; font-size: var(--text-sm); font-weight: 500; co
   background: var(--sunken); color: var(--muted);
   white-space: nowrap;
 }
-.chip.accent { background: var(--accent-soft); color: var(--accent); }
+.chip.accent { background: var(--accent-soft); color: var(--accent-strong); }
 .chip.pencil { background: transparent; color: var(--pencil); outline: 1px dashed var(--pencil); outline-offset: -1px; }
 .chip.warn { background: var(--warn-soft); color: var(--warn); }
 .chip.bad { background: var(--bad-soft); color: var(--bad); }
-.chip.good { background: var(--good-soft); color: var(--good); }
+.chip.good { background: var(--good-soft); color: color-mix(in srgb, var(--good) 94%, var(--ink)); }
 .chip.dot::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
 
 /* Entity type colours (Settings → Projects → Entity types): --tone is the ink, --tone-soft its quiet tile. */
 .kt-neutral { --tone: var(--muted); --tone-soft: var(--sunken); }
-.kt-accent { --tone: var(--accent); --tone-soft: var(--accent-soft); }
-.kt-good { --tone: var(--good); --tone-soft: var(--good-soft); }
+.kt-accent { --tone: var(--accent-strong); --tone-soft: var(--accent-soft); }
+.kt-good { --tone: color-mix(in srgb, var(--good) 94%, var(--ink)); --tone-soft: var(--good-soft); }
 .kt-warn { --tone: var(--warn); --tone-soft: var(--warn-soft); }
 .kt-bad { --tone: var(--bad); --tone-soft: var(--bad-soft); }
 .kt-pencil { --tone: var(--pencil); --tone-soft: var(--pencil-soft); }
@@ -384,7 +384,7 @@ label { display: grid; gap: 6px; font-size: var(--text-sm); font-weight: 500; co
 .notice { display: flex; gap: 10px; align-items: flex-start; margin: 0; border-radius: var(--r-md); padding: 10px 14px; font-size: var(--text-sm); border: 1px solid transparent; }
 .notice.warn { background: var(--warn-soft); color: var(--warn); border-color: color-mix(in srgb, var(--warn) 25%, transparent); }
 .notice.bad { background: var(--bad-soft); color: var(--bad); border-color: color-mix(in srgb, var(--bad) 25%, transparent); }
-.notice.info { background: var(--accent-soft); color: var(--accent); border-color: color-mix(in srgb, var(--accent) 20%, transparent); }
+.notice.info { background: var(--accent-soft); color: var(--accent-strong); border-color: color-mix(in srgb, var(--accent) 20%, transparent); }
 
 /* ---------- Story text: the only place the serif appears ---------- */
 .statement { font-family: var(--font-story); font-size: var(--text-md); line-height: 1.6; color: var(--ink); }

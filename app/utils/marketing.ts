@@ -4,8 +4,8 @@
 import type { IconName } from '~/components/ui/Icon.vue'
 
 export const SITE = 'https://storybible.trythis.work'
-export const GITHUB = 'https://github.com/ugorur/storybible'
-export const LICENSE_URL = 'https://github.com/ugorur/storybible/blob/master/LICENSE'
+export const GITHUB = 'https://github.com/ugorur/canontracker'
+export const LICENSE_URL = 'https://github.com/ugorur/canontracker/blob/master/LICENSE'
 export const CONTACT = 'mailto:info@tektik.ai'
 
 /** A product screenshot in public/shots (light and dark, 720 and 1280 wide). */
@@ -47,7 +47,7 @@ export const PILLARS: Pillar[] = [
     title: 'Conflicts and impact',
     short: 'Catch contradictions in canon and see what a change touches before you make it.',
     art: 'conflicts',
-    lead: 'Story Bible checks accepted canon for contradictions you would otherwise find in playtest or in a reader’s email. Before you change a fact, it shows which other facts and scenes depend on it.',
+    lead: 'CanonTracker checks accepted canon for contradictions you would otherwise find in playtest or in a reader’s email. Before you change a fact, it shows which other facts and scenes depend on it.',
     sections: [
       {
         title: 'Conflicts with the rule that found them',
@@ -57,7 +57,7 @@ export const PILLARS: Pillar[] = [
       },
       {
         title: 'Impact before you change canon',
-        text: 'Propose a change to a canon fact and Story Bible lists the facts and scenes it may touch, up to two steps away within accepted canon. Each item shows the path, the evidence and why it is listed. If nothing turns up, it says “no impact found”, not “no impact”.',
+        text: 'Propose a change to a canon fact and CanonTracker lists the facts and scenes it may touch, up to two steps away within accepted canon. Each item shows the path, the evidence and why it is listed. If nothing turns up, it says “no impact found”, not “no impact”.',
         points: ['Accept and apply, or reject; an applied change can be reverted', 'Impacted scenes become re-review tasks', 'Export the impact list as JSON, CSV or Markdown'],
         shot: { name: 'impact', alt: 'A proposed change to the Ashbell rule with its possible review impact: four scenes and six related facts.' },
       },
@@ -110,7 +110,7 @@ export const PILLARS: Pillar[] = [
       },
       {
         title: 'Recordings as sources',
-        text: 'Upload a voice-actor take, a table read or an interview. The transcript becomes a document with timed lines, and its citations play the moment they quote. Link the script, and Story Bible compares what was said with what was written and flags lines that contradict canon.',
+        text: 'Upload a voice-actor take, a table read or an interview. The transcript becomes a document with timed lines, and its citations play the moment they quote. Link the script, and CanonTracker compares what was said with what was written and flags lines that contradict canon.',
         points: ['MP3, WAV, M4A, OGG, WebM and FLAC, up to 30 minutes', 'Dictate into the editor and the Ask box', 'Your project’s names help the speech recognition'],
         shot: { name: 'voice', alt: 'Script vs recording: changed and missing lines of a town crier’s take, one line contradicting canon.' },
       },
@@ -192,7 +192,7 @@ export const USE_CASES: UseCase[] = [
     nav: 'Game writers',
     art: 'games',
     sample: 'The Ashbell Pass, a 28-document game story with locations, NPCs, dialogue, a recorded take and planted contradictions.',
-    lead: 'Narrative teams write lore, quest scripts and barks across many documents and many hands. Story Bible keeps one canon that every writer, and every tool, can check.',
+    lead: 'Narrative teams write lore, quest scripts and barks across many documents and many hands. CanonTracker keeps one canon that every writer, and every tool, can check.',
     jobs: [
       { title: 'One canon for the whole team', text: 'Lore docs, quest scripts and dialogue in one Library. Entity types for NPCs, items, abilities and quests.' },
       { title: 'Check the recording against the script', text: 'Upload a voice take, link its script, and see changed lines and lines that contradict canon.' },
@@ -210,7 +210,7 @@ export const USE_CASES: UseCase[] = [
     nav: 'Screen and series',
     art: 'screen',
     sample: 'Broken Tide, eleven short scenes with a world rule, a figurative “sister” and a scene-level change to trace.',
-    lead: 'A writers’ room produces outlines, scene scripts and table reads faster than anyone can cross-check them. Story Bible keeps the facts of the show in one cited place.',
+    lead: 'A writers’ room produces outlines, scene scripts and table reads faster than anyone can cross-check them. CanonTracker keeps the facts of the show in one cited place.',
     jobs: [
       { title: 'Scene by scene, with sources', text: 'Every fact cites the scene and line it came from, so a question in the room has an answer with a quote.' },
       { title: 'Table reads as sources', text: 'Upload the recording; the transcript is timed, and citations play the line.' },
@@ -228,7 +228,7 @@ export const USE_CASES: UseCase[] = [
     nav: 'Worldbuilders',
     art: 'worldbuilding',
     sample: 'Broken Tide and The Ashbell Pass, both built around world rules that later change.',
-    lead: 'Rules of magic, travel times between places, histories that start long before day one. Story Bible keeps them as cited facts and checks the story against them.',
+    lead: 'Rules of magic, travel times between places, histories that start long before day one. CanonTracker keeps them as cited facts and checks the story against them.',
     jobs: [
       { title: 'Rules as canon', text: 'A world rule is a fact with a source. The AI suggests where a scene may break it, labelled as a suggestion.' },
       { title: 'Distances and timing', text: 'Travel times are facts too: a trip that is faster than the road allows is flagged.' },
@@ -255,10 +255,10 @@ export const isMarketingPath = (path: string) => {
 /** Title, description and social card for a marketing page. `image` is an og-*.png in public/. */
 export function useMarketingSeo(o: { title: string, description: string, image?: string, path: string }) {
   const image = `${SITE}/${o.image ?? 'og-default'}.png`
-  const title = o.title.includes('Story Bible') ? o.title : `${o.title} · Story Bible`
+  const title = o.title.includes('CanonTracker') ? o.title : `${o.title} · CanonTracker`
   useSeoMeta({
     title, description: o.description,
-    ogTitle: title, ogDescription: o.description, ogImage: image, ogUrl: SITE + o.path, ogImageAlt: 'Story Bible',
+    ogTitle: title, ogDescription: o.description, ogImage: image, ogUrl: SITE + o.path, ogImageAlt: 'CanonTracker',
     twitterCard: 'summary_large_image', twitterTitle: title, twitterDescription: o.description, twitterImage: image,
   })
   useHead({ link: [{ rel: 'canonical', href: SITE + o.path }] })
@@ -270,7 +270,7 @@ export interface Agent { name: string, icon: IconName, does: string, never: stri
 export const AGENTS: Agent[] = [
   { name: 'Extractor', icon: 'file', model: 'Muse Spark', does: 'Reads each imported document and proposes characters, places, relationships, events and rules, each with the quote it came from.', never: 'Never makes anything canon. A candidate whose quote isn’t in the source is blocked.' },
   { name: 'Critic', icon: 'review', model: 'Muse Spark', does: 'Gives a second opinion on every verified candidate: keep, reject or needs edit, with a reason like figurative or duplicate.', never: 'Advice only. It never accepts, rejects or edits a fact.' },
-  { name: 'Continuity', icon: 'conflicts', model: 'Muse Spark', does: 'Checks a draft or a passage against accepted canon with Story Bible’s own read tools, and reports contradictions, dependencies and new facts.', never: 'A finding must quote your text and cite real canon, or it is dropped. Fixes are suggestions; nothing is applied.' },
+  { name: 'Continuity', icon: 'conflicts', model: 'Muse Spark', does: 'Checks a draft or a passage against accepted canon with CanonTracker’s own read tools, and reports contradictions, dependencies and new facts.', never: 'A finding must quote your text and cite real canon, or it is dropped. Fixes are suggestions; nothing is applied.' },
   { name: 'Research', icon: 'research', model: 'Muse Spark with web search', does: 'Answers real-world questions with web sources and calculators for physics, calendars, the sky and period travel.', never: 'Research notes are never canon. You can promote one, and it then waits in Review like any candidate.' },
   { name: 'Voice', icon: 'mic', model: 'Muse Voice Transcribe', does: 'Turns recordings into timed transcripts, and dictation into text in the editor and in Ask.', never: 'The transcript is kept as heard and never edited. A failed transcription is shown, never filled in.' },
   { name: 'Ask', icon: 'ask', model: 'Muse Spark', does: 'Answers questions from accepted canon only, with the facts and quotes it used.', never: 'With no evidence the answer is “unknown”. It never invents a source or a quote.' },

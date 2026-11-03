@@ -2,7 +2,7 @@
 // Agent activity ("receipts"): every AI run in the project with its model, prompt version and effort, each step it took (tool,
 // arguments, result, time, tokens), and what people did with it afterwards. ?run=<id> opens one run with its full step inputs;
 // "How was this made?" links land here. Like Metrics, this is the developer view: it names the model.
-useHead({ title: 'Agent activity · Story Bible' })
+useHead({ title: 'Agent activity · CanonTracker' })
 const route = useRoute()
 const one = computed(() => (typeof route.query.run === 'string' ? route.query.run : ''))
 const purpose = ref('')

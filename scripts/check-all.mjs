@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url'
 import { setTimeout as delay } from 'node:timers/promises'
 
 if (Number(process.versions.node.split('.')[0]) < 24) {
-  console.error(`Story Bible checks require Node 24 or newer; found ${process.versions.node}. Run mise install or select Node 24.`)
+  console.error(`CanonTracker checks require Node 24 or newer; found ${process.versions.node}. Run mise install or select Node 24.`)
   process.exit(1)
 }
 

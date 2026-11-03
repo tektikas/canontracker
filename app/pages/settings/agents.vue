@@ -1,5 +1,5 @@
 <script setup lang="ts">
-useHead({ title: 'Agents & API · Story Bible' })
+useHead({ title: 'Agents & API · CanonTracker' })
 const origin = useRequestURL().origin
 const endpoint = `${origin}/mcp`
 const { data, refresh } = await useFetch('/api/agent-tokens')
@@ -59,8 +59,8 @@ async function copy(text: string, key: string) {
 
 const client = ref<'musecode' | 'muse' | 'claude' | 'cursor' | 'other'>('musecode')
 const secret = computed(() => created.value?.secret ?? '<your-token>')
-const museScript = (token: string) => `// Muse Spark + Story Bible tools. Node 20+, no dependencies.
-// Muse Spark calls function tools on the Meta Model API; this script relays each call to Story Bible's /mcp endpoint.
+const museScript = (token: string) => `// Muse Spark + CanonTracker tools. Node 20+, no dependencies.
+// Muse Spark calls function tools on the Meta Model API; this script relays each call to CanonTracker's /mcp endpoint.
 const MCP = '${endpoint}'
 const TOKEN = '${token}'
 const META_KEY = process.env.META_API_KEY // your Meta Model API key, never pasted into the file
@@ -81,7 +81,7 @@ async function chat(messages, tools) {
 const listed = (await rpc('tools/list', {})).tools
 const tools = listed.map(t => ({ type: 'function', function: { name: t.name, description: t.description, parameters: t.inputSchema } }))
 const messages = [
-  { role: 'system', content: 'Answer only from Story Bible canon. If a tool says unknown, say you do not know. Never invent facts, ids or quotes.' },
+  { role: 'system', content: 'Answer only from CanonTracker canon. If a tool says unknown, say you do not know. Never invent facts, ids or quotes.' },
   { role: 'user', content: QUESTION },
 ]
 for (let turn = 0; turn < 6; turn++) {
@@ -96,12 +96,12 @@ for (let turn = 0; turn < 6; turn++) {
 console.error('Stopped after 6 tool rounds without an answer.')
 process.exit(1)`
 // Muse Code: Streamable HTTP MCP server in the user settings file (https://dev.meta.ai/docs/muse-code/extending#mcp).
-const museCodeConfig = (token: string) => JSON.stringify({ schema_version: 1, mcp_servers: { 'story-bible': { transport: 'streamable_http', url: endpoint, headers: { Authorization: `Bearer ${token}` } } } }, null, 2)
+const museCodeConfig = (token: string) => JSON.stringify({ schema_version: 1, mcp_servers: { 'canontracker': { transport: 'streamable_http', url: endpoint, headers: { Authorization: `Bearer ${token}` } } } }, null, 2)
 const snippets = computed(() => ({
   musecode: { file: 'Add to ~/.config/muse/settings.json (merge into mcp_servers if the file exists), then run /mcp in Muse Code', text: museCodeConfig(secret.value) },
-  muse: { file: 'Save as muse-story-bible.mjs, then run: META_API_KEY=… node muse-story-bible.mjs "your question"', text: museScript(secret.value) },
-  claude: { file: 'Run in your terminal', text: `claude mcp add --transport http story-bible ${endpoint} \\\n  --header "Authorization: Bearer ${secret.value}"` },
-  cursor: { file: 'Add to .cursor/mcp.json', text: JSON.stringify({ mcpServers: { 'story-bible': { url: endpoint, headers: { Authorization: `Bearer ${secret.value}` } } } }, null, 2) },
+  muse: { file: 'Save as muse-canontracker.mjs, then run: META_API_KEY=… node muse-canontracker.mjs "your question"', text: museScript(secret.value) },
+  claude: { file: 'Run in your terminal', text: `claude mcp add --transport http canontracker ${endpoint} \\\n  --header "Authorization: Bearer ${secret.value}"` },
+  cursor: { file: 'Add to .cursor/mcp.json', text: JSON.stringify({ mcpServers: { 'canontracker': { url: endpoint, headers: { Authorization: `Bearer ${secret.value}` } } } }, null, 2) },
   other: { file: 'Any MCP client with Streamable HTTP', text: `URL:     ${endpoint}\nHeader:  Authorization: Bearer ${secret.value}\nTransport: Streamable HTTP (stateless, JSON responses)` },
 }))
 
@@ -229,7 +229,7 @@ const ASKS = [
       <UiTabs v-model="client" :items="[{ value: 'musecode', label: 'Muse Code (Meta)' }, { value: 'muse', label: 'Muse Spark API (Meta)' }, { value: 'claude', label: 'Claude Code' }, { value: 'cursor', label: 'Cursor' }, { value: 'other', label: 'Other client' }]" />
       <p v-if="client === 'muse'" class="small muse-note">
         <b>For your own code on the Meta Model API:</b> Muse Spark takes function tools, not a remote MCP server, so this script bridges the two (Muse Code connects directly; see its tab):
-        Muse Spark decides which Story Bible tool to call, the script runs it against this project’s <code>/mcp</code> endpoint with your token, and passes the answer back. Same project and role checks as any MCP client; anything it proposes waits for a person in Review.
+        Muse Spark decides which CanonTracker tool to call, the script runs it against this project’s <code>/mcp</code> endpoint with your token, and passes the answer back. Same project and role checks as any MCP client; anything it proposes waits for a person in Review.
         Docs: <a href="https://dev.meta.ai/docs/cookbook/tool-function-calling" target="_blank" rel="noopener">tool calling</a>. The script has not been run against a live Meta key yet (billing is off).
       </p>
       <div class="snippet">

@@ -8,7 +8,7 @@ const base = (process.argv[2] ?? '').replace(/\/$/, '')
 if (!base) throw new Error('Usage: node scripts/brand/render-pitch.mjs <baseUrl>')
 const out = new URL('../../docs/pitch-deck.pdf', import.meta.url).pathname
 const cli = (...args) => {
-  const output = execFileSync('playwright-cli', ['-s=pitch', ...args], { encoding: 'utf8' })
+  const output = execFileSync('playwright-cli', [`-s=${process.env.BRAND_SESSION ?? 'pitch'}`, ...args], { encoding: 'utf8' })
   if (output.includes('### Error')) throw new Error(output.slice(0, 600))
   console.log(`playwright-cli ${args[0]}: passed`)
 }

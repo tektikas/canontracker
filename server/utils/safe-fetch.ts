@@ -102,5 +102,5 @@ export async function safeGet(url: string, maxBytes: number, signal: AbortSignal
 }
 
 export async function downloadImage(url: string, maxBytes: number, signal: AbortSignal): Promise<Buffer> {
-  return (await safeGet(url, maxBytes, signal, { accept: 'image/*', what: 'the image', agent: 'StoryBible image download' })).body
+  return (await safeGet(url, maxBytes, signal, { accept: 'image/*', what: 'the image', agent: 'CanonTracker image download' })).body
 }

@@ -1,7 +1,7 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 
-// Story Bible over MCP. The tools below read accepted canon (plus sources and editorial pages, labelled as such) and propose
+// CanonTracker over MCP. The tools below read accepted canon (plus sources and editorial pages, labelled as such) and propose
 // PENDING candidates; the panel tools (server/utils/mcp-panel.ts) do everything else the web app does, by calling its own routes.
 // A token's level decides which: propose (reads, proposals, model runs) or full (acts as its owner, canon decisions included).
 // Every handler runs inside the token's access()/pid() context (server/routes/mcp.ts).
@@ -112,8 +112,8 @@ const openConflicts = () => useDb().prepare(`select id, rule, severity, origin, 
   .all(pid()) as { id: string, rule: string, severity: string, origin: string, left_fact_id: string, right_fact_id: string, rationale: string }[]
 
 export function buildMcpServer(token: { id: string, name: string, level?: TokenLevel }) {
-  const server = new McpServer({ name: 'story-bible', version: '1.1.0' }, {
-    instructions: 'Story Bible holds a game studio\'s approved narrative canon with verbatim source quotes. Before writing lore, read canon: sb_get_entity / sb_get_context_pack for a character or place, '
+  const server = new McpServer({ name: 'canontracker', version: '1.1.0' }, {
+    instructions: 'CanonTracker holds a game studio\'s approved narrative canon with verbatim source quotes. Before writing lore, read canon: sb_get_entity / sb_get_context_pack for a character or place, '
       + 'sb_get_timeline for when things happen, sb_read_document for the source text. Before proposing new lore, run sb_check_facts to see the rule-based conflicts it would raise. '
       + 'If canon has nothing, say so ("unknown"); never invent facts, ids or quotes. Entity summaries, fields and notes are editorial, not canon. '
       + 'sb_list_projects says your token level. A "propose" token reads, proposes (pending candidates, change proposals) and runs checks; '
@@ -132,7 +132,7 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
       if (e instanceof ToolError) return refuse(e.code, e.message, e.extra)
       const status = (e as { statusCode?: number }).statusCode ?? 500
       if (status >= 500) console.error(`[mcp] ${name}`, e)
-      return refuse(H3_CODES[status] ?? 'INTERNAL', status < 500 ? (e as Error).message : 'Story Bible failed on this call. Try again; if it keeps failing, tell the studio.')
+      return refuse(H3_CODES[status] ?? 'INTERNAL', status < 500 ? (e as Error).message : 'CanonTracker failed on this call. Try again; if it keeps failing, tell the studio.')
     }
   }) as never)) as typeof server.registerTool
   // Arguments that fail the input schema (wrong type, too long, unknown enum) and unknown tools: the same JSON error shape.
@@ -590,7 +590,7 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
     description: 'A canon briefing on one character, place, item or faction, with every claim cited.',
     argsSchema: { entity: z.string().min(1).max(200).describe('Entity name or id') },
   }, ({ entity }) => ({ messages: [{ role: 'user', content: { type: 'text', text:
-    `Brief me on "${entity}" from Story Bible. Call sb_get_entity (and sb_get_timeline with that entity if it has timed facts). `
+    `Brief me on "${entity}" from CanonTracker. Call sb_get_entity (and sb_get_timeline with that entity if it has timed facts). `
     + 'Write: who/what it is, key canon facts, relationships, timeline, open conflicts. Cite every canon claim as (file, lines) from the evidence. '
     + 'Keep the editorial wiki text (summary, fields, notes) in a separate section labelled "Team notes (not canon)". If canon has nothing, say "unknown"; never fill gaps yourself.' } }] }))
 
@@ -599,7 +599,7 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
     description: 'Read a scene or draft and check what it states against accepted canon, without storing anything.',
     argsSchema: { document: z.string().min(1).max(200).describe('Document id or file name') },
   }, ({ document }) => ({ messages: [{ role: 'user', content: { type: 'text', text:
-    `Continuity-check "${document}" against Story Bible canon. Read it with sb_read_document (page through next_cursor). `
+    `Continuity-check "${document}" against CanonTracker canon. Read it with sb_read_document (page through next_cursor). `
     + 'List the checkable claims it makes: who is where and when (predicate "located_at", object = the place, story times like "D2 14:30"), relationships with their times, travel. '
     + 'Run them through sb_check_facts in one call and use sb_get_entity / sb_get_context_pack for anything else. '
     + 'Report each possible conflict with the passage lines and the canon fact it clashes with (quote + file + lines), and say which claims canon cannot confirm ("unknown"). '

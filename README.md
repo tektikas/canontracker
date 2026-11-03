@@ -1,6 +1,6 @@
-# Story Bible
+# CanonTracker
 
-Story Bible helps writers and narrative teams keep a story world consistent. Import lore, chapters, scripts or recordings; review AI-proposed facts with their source quotes; then check accepted canon for contradictions and inspect the 1–2 hop impact of a proposed change. People decide what becomes canon. It works for novels, games, screen stories and worldbuilding, solo or in a studio.
+CanonTracker helps writers and narrative teams keep a story world consistent. Import lore, chapters, scripts or recordings; review AI-proposed facts with their source quotes; then check accepted canon for contradictions and inspect the 1–2 hop impact of a proposed change. People decide what becomes canon. It works for novels, games, screen stories and worldbuilding, solo or in a studio.
 
 Meta AI Developer Hackathon · Startup track. **Demo video:** `VIDEO_URL` · **Live app:** `LIVE_URL` (filled at submission). Staging is LAN/VPN-only; use the local quick start to try it now.
 
@@ -8,21 +8,21 @@ Meta AI Developer Hackathon · Startup track. **Demo video:** `VIDEO_URL` · **L
 
 Built by **Umurcan (Umur) Görür**, solo, at [TekTık](https://tektik.ai). The spec and first build from 27–30 Oct were committed as the **MVP baseline** on 30 Oct; repository history starts that day. The only pre-existing component is the generic CI/CD deployment pipeline reused for staging. The application, sample workflows and Meta integrations were built for this entry. See the [submission draft](docs/submission.md).
 
-## How Story Bible uses Meta
+## How CanonTracker uses Meta
 
 - **Muse Spark 1.3** extracts candidates, gives critic opinions, answers from canon and suggests world-rule violations. Bounded Responses agents combine web search with deterministic calculators for Research and call the app's own MCP read/check tools for Continuity.
 - **Muse Voice Transcribe 1.0** turns recordings into timestamped transcripts and fills dictation in Write and Ask. Entity names are recognition hints; script comparison uses deterministic rules to check changed lines against canon.
 - **Muse Image 1.0** creates editorial portraits and document covers; images never become canon evidence.
-- **Muse Code** connects directly over MCP. Story Bible's 38 MCP tools share the web app's permissions, validation and audit. Muse Spark API clients use the bridge script generated in Settings → Agents & API.
+- **Muse Code** connects directly over MCP. CanonTracker's 38 MCP tools share the web app's permissions, validation and audit. Muse Spark API clients use the bridge script generated in Settings → Agents & API.
 
-Story Bible's own AI cannot accept canon. A person must approve facts in Review or authorize decisions through their own `full` MCP token, labelled “via agent”. Quotes are checked against stored passages; no evidence means `unknown`. Calls and tool steps are inspectable in Agent activity and Metrics. [Meta API notes](docs/meta-api-notes.md) document dated live observations, redacted responses, API constraints and reproducible contract tests.
+CanonTracker's own AI cannot accept canon. A person must approve facts in Review or authorize decisions through their own `full` MCP token, labelled “via agent”. Quotes are checked against stored passages; no evidence means `unknown`. Calls and tool steps are inspectable in Agent activity and Metrics. [Meta API notes](docs/meta-api-notes.md) document dated live observations, redacted responses, API constraints and reproducible contract tests.
 
 ## Run it (about 5 minutes, no API key)
 
 Use **Node 24** and **pnpm 12.16.1** (`mise install` reads `mise.toml`, or install these versions yourself). Install **ffmpeg and ffprobe** for audio conversion, including the voice sample.
 
 ```sh
-git clone https://github.com/ugorur/storybible
+git clone https://github.com/ugorur/canontracker storybible
 cd storybible
 pnpm install
 # Create .env from the example, filling the session password without printing it.
@@ -54,21 +54,21 @@ Set `NUXT_MODEL_MODE=meta` and `NUXT_META_API_KEY` in your local `.env` or serve
 
 Optional: `NUXT_MODEL_ID` (default `muse-spark-1.3`), `NUXT_CRITIC_MODEL_ID` (empty uses the main model), `NUXT_IMAGE_MODEL_ID` (default `muse-image-1.0`), `NUXT_META_BASE_URL` (default `https://api.meta.ai/v1`), `NUXT_TRANSCRIBE_MODEL_ID` (default `muse-voice-transcribe-1.0`; `NUXT_TRANSCRIBE_BASE_URL` / `NUXT_TRANSCRIBE_API_KEY` default to the Meta ones). Audio conversion uses ffmpeg (the production image installs it). The key is read on the server only and never reaches the browser. Dated live results are in the Meta API notes; local recorded/contract checks do not establish current service availability or billing status.
 
-## Meta AI in Story Bible
+## Meta AI in CanonTracker
 
-The model adapter is `server/utils/model.ts`; multi-step Responses calls run in `server/utils/agent.ts`. The Meta Model API (`https://api.meta.ai/v1`, OpenAI-compatible) is called from the Story Bible server. The optional MCP bridge runs on the user's machine with their own credentials.
+The model adapter is `server/utils/model.ts`; multi-step Responses calls run in `server/utils/agent.ts`. The Meta Model API (`https://api.meta.ai/v1`, OpenAI-compatible) is called from the CanonTracker server. The optional MCP bridge runs on the user's machine with their own credentials.
 
 | Agent | What it does | Meta model | Meta API | Runs |
 | --- | --- | --- | --- | --- |
-| Extractor | Reads an imported document and proposes fact candidates, each with a quote. Nothing becomes canon until a person accepts it. | Muse Spark 1.3 | Chat completions (`/chat/completions`, JSON output) | Story Bible server |
-| Rule checker | Tests a world rule against accepted canon and suggests `WORLD_RULE_VIOLATION` conflicts (labelled as model-suggested). | Muse Spark 1.3 | Chat completions | Story Bible server |
-| Ask / Canon | Answers a question from accepted canon only, with citations; no evidence means `unknown`. | Muse Spark 1.3 | Chat completions | Story Bible server |
-| Transcriber | Turns audio into text: recordings (voice-actor takes, table reads, interviews, voice notes) become read-only transcripts with a time on every passage (citations play "at 02:14"), and dictation fills the writer and Ask. Sends the project's entity names as recognition keywords. Script vs recording then flags changed or ad-libbed lines that contradict canon (deterministic rules, no model). | Muse Voice Transcribe 1.0 | Speech to text (`/asr/transcribe`, multipart WAV, ENDPOINTING turns, `keywords`) | Story Bible server (audio converted with ffmpeg) |
-| Illustrator | Generates entity portraits and document covers (editorial, never canon). | Muse Image 1.0 | Images (`/images/generations`) | Story Bible server |
+| Extractor | Reads an imported document and proposes fact candidates, each with a quote. Nothing becomes canon until a person accepts it. | Muse Spark 1.3 | Chat completions (`/chat/completions`, JSON output) | CanonTracker server |
+| Rule checker | Tests a world rule against accepted canon and suggests `WORLD_RULE_VIOLATION` conflicts (labelled as model-suggested). | Muse Spark 1.3 | Chat completions | CanonTracker server |
+| Ask / Canon | Answers a question from accepted canon only, with citations; no evidence means `unknown`. | Muse Spark 1.3 | Chat completions | CanonTracker server |
+| Transcriber | Turns audio into text: recordings (voice-actor takes, table reads, interviews, voice notes) become read-only transcripts with a time on every passage (citations play "at 02:14"), and dictation fills the writer and Ask. Sends the project's entity names as recognition keywords. Script vs recording then flags changed or ad-libbed lines that contradict canon (deterministic rules, no model). | Muse Voice Transcribe 1.0 | Speech to text (`/asr/transcribe`, multipart WAV, ENDPOINTING turns, `keywords`) | CanonTracker server (audio converted with ffmpeg) |
+| Illustrator | Generates entity portraits and document covers (editorial, never canon). | Muse Image 1.0 | Images (`/images/generations`) | CanonTracker server |
 | MCP bridge | Relays Muse Spark function calls to the app's 38 MCP tools. Token level and the person's live role determine allowed actions; decisions with a full token are attributed to that person and marked via agent. Settings → Agents & API generates the bridge script. | Muse Spark 1.3 | Chat completions with function calling | User's machine (script); `/mcp` on the server |
-| Research | Answers real-world questions with a verdict, quotes checked on fetched pages and deterministic calculators (physics, sky, calendars, period travel, time since death). A bounded agent; results are research notes, promoted to canon only through review. | Muse Spark 1.3 | Responses API (`/responses`), built-in `web_search` and function calling | Story Bible server |
-| Critic | Gives a second opinion on each verified candidate in Review: keep / reject / needs edit, a reason (figurative, not stated in the passage, ambiguous time or place, duplicate of a canon fact, wrong subject) and one line why, plus a corrected fact for "needs edit". It reads the candidate, its source passage and nearby canon; it never sees a blocked candidate, never writes a quote and never changes a fact. Review filters and sorts by it and offers "Accept N the AI critic keeps" (still one human confirmation). | Muse Spark 1.3 | Chat completions (JSON output) | Story Bible server, in batches after extraction and on demand |
-| Continuity | Checks a draft, selected passage or Ask text against canon using the app's own MCP read/check tools. Reports sentences, cited facts, rule-engine hits and suggested fixes that are never applied. The server grounds every finding; Agent activity shows each step. | Muse Spark 1.3 | Responses API (`/responses`) with function calling | Story Bible server |
+| Research | Answers real-world questions with a verdict, quotes checked on fetched pages and deterministic calculators (physics, sky, calendars, period travel, time since death). A bounded agent; results are research notes, promoted to canon only through review. | Muse Spark 1.3 | Responses API (`/responses`), built-in `web_search` and function calling | CanonTracker server |
+| Critic | Gives a second opinion on each verified candidate in Review: keep / reject / needs edit, a reason (figurative, not stated in the passage, ambiguous time or place, duplicate of a canon fact, wrong subject) and one line why, plus a corrected fact for "needs edit". It reads the candidate, its source passage and nearby canon; it never sees a blocked candidate, never writes a quote and never changes a fact. Review filters and sorts by it and offers "Accept N the AI critic keeps" (still one human confirmation). | Muse Spark 1.3 | Chat completions (JSON output) | CanonTracker server, in batches after extraction and on demand |
+| Continuity | Checks a draft, selected passage or Ask text against canon using the app's own MCP read/check tools. Reports sentences, cited facts, rule-engine hits and suggested fixes that are never applied. The server grounds every finding; Agent activity shows each step. | Muse Spark 1.3 | Responses API (`/responses`) with function calling | CanonTracker server |
 
 ## Screenshots
 
@@ -109,7 +109,7 @@ Authenticated `POST /api/demo/load` takes `{ "set": "broken-tide" }`, `lantern-r
 {
   "schema_version": 1,
   "mcp_servers": {
-    "story-bible": {
+    "canontracker": {
       "transport": "streamable_http",
       "url": "http://localhost:3000/mcp",
       "headers": { "Authorization": "Bearer ${STORYBIBLE_TOKEN}" }
@@ -142,4 +142,4 @@ Browser QA is separate, using `playwright-cli` at desktop and mobile sizes. Reco
 
 ## License
 
-Story Bible is open source under the [GNU Affero General Public License v3.0 or later](LICENSE). You may self-host, change and share it; if you run a modified version as a network service, you must offer its users the source of that version.
+CanonTracker is open source under the [GNU Affero General Public License v3.0 or later](LICENSE). You may self-host, change and share it; if you run a modified version as a network service, you must offer its users the source of that version.

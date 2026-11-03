@@ -24,7 +24,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
 const FOOTER = [
   { title: 'Product', links: [{ to: '/features', label: 'Features' }, ...PILLARS.map(p => ({ to: `/features/${p.slug}`, label: p.title }))] },
   { title: 'Use cases', links: USE_CASES.map(u => ({ to: `/use-cases/${u.slug}`, label: u.nav })) },
-  { title: 'Story Bible', links: [{ to: '/agents', label: 'AI agents and MCP' }, { to: '/security', label: 'Security' }, { to: '/pricing', label: 'Pricing' }, { to: '/help', label: 'Help' }, { to: '/changelog', label: 'Changelog' }, { to: '/about', label: 'About' }] },
+  { title: 'CanonTracker', links: [{ to: '/agents', label: 'AI agents and MCP' }, { to: '/security', label: 'Security' }, { to: '/pricing', label: 'Pricing' }, { to: '/help', label: 'Help' }, { to: '/changelog', label: 'Changelog' }, { to: '/about', label: 'About' }] },
 ]
 </script>
 
@@ -33,7 +33,7 @@ const FOOTER = [
     <a href="#main" class="skip">Skip to content</a>
     <header ref="nav" class="mk-top">
       <div class="mk-bar">
-        <NuxtLink to="/" class="brand"><BrandMark />Story Bible</NuxtLink>
+        <NuxtLink to="/" class="brand"><BrandMark />CanonTracker</NuxtLink>
 
         <nav class="mk-nav" aria-label="Site">
           <details name="mk-nav" class="dd">
@@ -95,7 +95,7 @@ const FOOTER = [
     <footer class="mk-foot">
       <div class="foot-inner">
         <div class="foot-brand">
-          <NuxtLink to="/" class="brand"><BrandMark />Story Bible</NuxtLink>
+          <NuxtLink to="/" class="brand"><BrandMark />CanonTracker</NuxtLink>
           <p>A story builder with canon you can cite. Open source under AGPL-3.0, built for the Meta AI Developer Hackathon.</p>
           <p class="foot-links"><a :href="GITHUB">Source on GitHub</a><a :href="LICENSE_URL">License</a><a :href="CONTACT">info@tektik.ai</a><NuxtLink to="/pitch">Pitch deck</NuxtLink></p>
         </div>
@@ -104,7 +104,7 @@ const FOOTER = [
           <NuxtLink v-for="l in g.links" :key="l.to" :to="l.to">{{ l.label }}</NuxtLink>
         </nav>
       </div>
-      <p class="foot-note">The samples Broken Tide, Lantern Row and The Ashbell Pass are original, synthetic stories written for Story Bible.</p>
+      <p class="foot-note">The samples Broken Tide, Lantern Row and The Ashbell Pass are original, synthetic stories written for CanonTracker.</p>
     </footer>
   </div>
 </template>
@@ -146,7 +146,7 @@ const FOOTER = [
 .foot-inner { max-width: var(--mk-max); margin: 0 auto; padding: var(--s-7) var(--mk-pad) var(--s-6); display: grid; grid-template-columns: 1.4fr repeat(3, 1fr); gap: var(--s-6); }
 .foot-brand p { color: var(--muted); max-width: 36ch; margin: var(--s-3) 0 0; }
 .foot-links { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); }
-.foot-links a { color: var(--accent); }
+.foot-links a { color: var(--accent-strong); }
 .foot-col { display: grid; align-content: start; gap: 2px; }
 .foot-col h2 { font-size: var(--text-base); margin: 0 0 var(--s-2); }
 .foot-col a { color: var(--muted); text-decoration: none; padding: 4px 0; }

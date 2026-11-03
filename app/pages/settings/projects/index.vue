@@ -1,5 +1,5 @@
 <script setup lang="ts">
-useHead({ title: 'Projects · Story Bible' })
+useHead({ title: 'Projects · CanonTracker' })
 const route = useRoute()
 const me = useMe()
 const { data } = await useFetch('/api/projects')

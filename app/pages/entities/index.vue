@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import type { IconName } from '~/components/ui/Icon.vue'
 
-useHead({ title: 'Entities · Story Bible' })
+useHead({ title: 'Entities · CanonTracker' })
 const me = useMe()
 const route = useRoute()
 const { data: list, refresh } = await useEntityList()

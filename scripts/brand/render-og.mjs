@@ -9,7 +9,7 @@ if (!base) throw new Error('Usage: node scripts/brand/render-og.mjs <baseUrl>')
 const html = readFileSync(new URL('./og.html', import.meta.url), 'utf8')
 const out = new URL('../../public/', import.meta.url).pathname
 const cli = (...args) => {
-  const output = execFileSync('playwright-cli', ['-s=og', ...args], { encoding: 'utf8' })
+  const output = execFileSync('playwright-cli', [`-s=${process.env.BRAND_SESSION ?? 'og'}`, ...args], { encoding: 'utf8' })
   if (output.includes('### Error')) throw new Error(output)
   console.log(`playwright-cli ${args[0]}: passed`)
 }

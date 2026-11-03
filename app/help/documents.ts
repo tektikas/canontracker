@@ -260,7 +260,7 @@ export default [
     where: 'Reader → **History**, or Library → a row’s menu → **History**',
     shot: { name: 'history', alt: 'The history of a document: the version list on the left and a comparison of two versions with changed passages and the canon citing them.' },
     see: [
-      { label: 'Versions', text: 'Each version with how it arrived (uploaded, written in Story Bible, saved from a research note), who, when, its passage count and sha256. Badges mark the **Latest** version and the **Older side** and **Newer side** of the comparison.' },
+      { label: 'Versions', text: 'Each version with how it arrived (uploaded, written in CanonTracker, saved from a research note), who, when, its passage count and sha256. Badges mark the **Latest** version and the **Older side** and **Newer side** of the comparison.' },
       { label: 'Version pickers and layout', text: 'Pick the older and newer version, and read the comparison **Inline** or **Side by side**.' },
       { label: 'Summary', text: 'How many passages changed, were added or removed, and how many are unchanged, plus how many canon citations to re-check.' },
       { label: 'Passages', text: 'Each passage marked **Changed**, **Added** or **Removed**, with the words that changed. Runs of unchanged passages fold into one row; click it to read them.' },

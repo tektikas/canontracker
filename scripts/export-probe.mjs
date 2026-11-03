@@ -53,6 +53,7 @@ for (const [label, q] of [['manuscript', 'book=manuscript&format=epub'], ['bible
   assert.equal(r.status, 200, label)
   const p = join(dir, `${label}.epub`)
   writeFileSync(p, r.buf)
+  assert.match(execFileSync('unzip', ['-p', p, 'OEBPS/front.xhtml']).toString(), /Made with CanonTracker/, `${label} has the current product attribution`)
   const names = execFileSync('unzip', ['-Z1', p]).toString().trim().split('\n').filter(n => /\.(xhtml|opf|xml)$/.test(n))
   for (const n of names) execFileSync('xmllint', ['--noout', '-'], { input: execFileSync('unzip', ['-p', p, n]), stdio: ['pipe', 'pipe', 'pipe'] })
   ok(`${label} EPUB: ${names.length} XML files are well-formed`)

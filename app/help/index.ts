@@ -15,7 +15,7 @@ const shortcuts: HelpPage = {
   slug: 'shortcuts',
   group: 'concepts',
   title: 'Keyboard shortcuts',
-  summary: 'Every keyboard shortcut in Story Bible, from the same list the app uses.',
+  summary: 'Every keyboard shortcut in CanonTracker, from the same list the app uses.',
   where: 'Press `?` on any page in the app for its help; this page lists every key.',
   sections: [{ title: 'Ctrl or ⌘', text: 'Ctrl on Windows and Linux is ⌘ on a Mac. Single-letter keys never fire while you are typing in a field, and Review’s keys are off on touch screens.' }],
   related: ['review', 'reader', 'write', 'ask'],

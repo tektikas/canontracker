@@ -2,7 +2,7 @@
 // Three steps, each saved as soon as it is done, so leaving halfway resumes at the next step:
 // studio name → first project → demo or own files. The last step can be skipped.
 definePageMeta({ layout: 'auth' })
-useHead({ title: 'Set up your studio · Story Bible' })
+useHead({ title: 'Set up your studio · CanonTracker' })
 const me = useMe()
 const left = useLeftNotice()
 const firstName = computed(() => me.value?.user?.name.split(' ')[0] ?? 'My')

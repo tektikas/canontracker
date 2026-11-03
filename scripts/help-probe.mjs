@@ -77,7 +77,7 @@ for (const slug of HELP_SLUGS) {
   const html = await res.text()
   const doc = html.slice(html.indexOf('<article'), html.indexOf('</article>'))
   check(`/help/${slug} is 200 signed out`, res.status === 200, String(res.status))
-  check(`/help/${slug} has its own title and description`, /<title>[^<]+· Help · Story Bible<\/title>/.test(html) && /<meta name="description" content="[^"]{20,}"/.test(html))
+  check(`/help/${slug} has its own title and description`, /<title>[^<]+· Help · CanonTracker<\/title>/.test(html) && /<meta name="description" content="[^"]{20,}"/.test(html))
   check(`/help/${slug} is indexable`, !/name="robots" content="[^"]*noindex/.test(html) && !/noindex/.test(res.headers.get('x-robots-tag') ?? ''))
   for (const [, href] of html.matchAll(/href="(\/[^"#?]*)/g)) if (!href.startsWith('/_nuxt/') && !/\.(png|ico|svg|webmanifest|webp)$/.test(href)) links.add(href)
   for (const [, src] of doc.matchAll(/(\/shots\/[^" ,]+\.webp)/g)) shots.add(src)

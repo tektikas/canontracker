@@ -1,5 +1,5 @@
 <script setup lang="ts">
-useHead({ title: 'Studio settings · Story Bible' })
+useHead({ title: 'Studio settings · CanonTracker' })
 const me = useMe()
 const CONTACT = 'info@tektik.ai' // ponytail: hard-coded contact until there is a support address setting
 const admin = computed(() => canManage(me.value))

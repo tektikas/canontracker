@@ -5,7 +5,7 @@ definePageMeta({ layout: false })
 const token = useRoute().params.token as string
 const { data: bible, error } = await useFetch<Bible & { expires_at: string | null }>(`/api/public/share/${encodeURIComponent(token)}`)
 useHead(() => ({
-  title: bible.value ? `${bible.value.title} · Story bible` : 'Link not available · Story Bible',
+  title: bible.value ? `${bible.value.title} · Story bible` : 'Link not available · CanonTracker',
   meta: [{ name: 'robots', content: 'noindex, nofollow' }, { name: 'referrer', content: 'no-referrer' }],
 }))
 const expired = computed(() => error.value?.statusCode === 410)
@@ -31,7 +31,7 @@ const print = () => window.print()
         </UiEmptyState>
       </div>
     </main>
-    <footer class="foot small faint no-print"><BrandMark />Story Bible · human-approved, source-cited canon</footer>
+    <footer class="foot small faint no-print"><BrandMark />CanonTracker · human-approved, source-cited canon</footer>
   </div>
 </template>
 

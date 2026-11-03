@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Research: real-world questions answered from outside sources and calculators, kept as notes. Never canon; a note becomes
 // a candidate only when someone promotes it, and then it waits in Review like any other.
-useHead({ title: 'Research · Story Bible' })
+useHead({ title: 'Research · CanonTracker' })
 const route = useRoute()
 const router = useRouter()
 const me = useMe()

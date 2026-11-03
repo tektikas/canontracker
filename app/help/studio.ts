@@ -105,7 +105,7 @@ export default [
         steps: [
           'Choose a **Role** and a **Link expires** time.',
           'Click **Create invite link**.',
-          'Click **Copy link** and send it yourself, in chat or email; Story Bible doesn’t send email yet.',
+          'Click **Copy link** and send it yourself, in chat or email; CanonTracker doesn’t send email yet.',
           'Your teammate opens the link, creates an account or logs in, and joins with the role you chose.',
         ],
       },

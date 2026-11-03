@@ -1,6 +1,6 @@
 # Roadmap (planned)
 
-Story Bible today: stored source versions stay unchanged, the model only proposes, people decide what becomes canon, every canon fact carries a verbatim citation, and a proposed change shows its 1–2 hop impact before it ships.
+CanonTracker today: stored source versions stay unchanged, the model only proposes, people decide what becomes canon, every canon fact carries a verbatim citation, and a proposed change shows its 1–2 hop impact before it ships.
 
 Everything below is **not built yet**. These are proposed directions for studio workflows; they are not implemented features or delivery commitments. Each item builds on what already exists: facts with subject, time and citations, rule-based conflict checks, impact analysis and the MCP server.
 

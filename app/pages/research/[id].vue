@@ -7,7 +7,7 @@ const id = computed(() => String(route.params.id))
 const { data: note, error: loadError, refresh } = await useFetch(() => `/api/research/${id.value}`)
 if (loadError.value) throw createError({ statusCode: loadError.value.statusCode === 404 ? 404 : 500, statusMessage: loadError.value.statusCode === 404 ? 'Research note not found' : 'Could not load the research note', fatal: true })
 const n = computed(() => note.value!)
-useHead(() => ({ title: `${n.value.question.slice(0, 60)} · Research · Story Bible` }))
+useHead(() => ({ title: `${n.value.question.slice(0, 60)} · Research · CanonTracker` }))
 const canEdit = computed(() => me.value?.current?.role !== 'viewer')
 
 const STATUS = {

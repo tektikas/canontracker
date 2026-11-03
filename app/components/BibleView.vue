@@ -142,6 +142,7 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
         </ul>
       </article>
     </section>
+    <footer class="small faint">Made with CanonTracker</footer>
   </div>
 </template>
 

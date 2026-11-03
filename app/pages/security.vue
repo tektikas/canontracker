@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
-useMarketingSeo({ title: 'Security and trust', description: 'How Story Bible keeps canon human-approved and source-cited, keeps projects apart, records every decision, stores your files and uses the Meta Model API.', image: 'og-security', path: '/security' })
+useMarketingSeo({ title: 'Security and trust', description: 'How CanonTracker keeps canon human-approved and source-cited, keeps projects apart, records every decision, stores your files and uses the Meta Model API.', image: 'og-security', path: '/security' })
 
 const GROUPS = [
   {
@@ -17,7 +17,7 @@ const GROUPS = [
     items: [
       'Every canon fact has at least one citation whose quote appears word for word in its passage. The check runs again at accept time.',
       'Quotes are matched across typography (smart quotes, dashes, line breaks) but stored as the source’s exact characters.',
-      'With no evidence, an answer is “unknown”. Story Bible never invents a source id or a quote.',
+      'With no evidence, an answer is “unknown”. CanonTracker never invents a source id or a quote.',
       'When a document gets a new version, citations whose quote is gone are flagged for re-check instead of silently moving.',
     ],
   },
@@ -58,7 +58,7 @@ const GROUPS = [
   {
     title: 'Where data lives',
     items: [
-      'Story Bible stores your data in one SQLite database on the server that runs it. Uploaded originals, recordings and portraits are files next to it, served only through routes that check your access.',
+      'CanonTracker stores your data in one SQLite database on the server that runs it. Uploaded originals, recordings and portraits are files next to it, served only through routes that check your access.',
       'Self-host it and your server sends data only to the AI model provider you configure and, for Research, to the public pages it opens.',
       'Research only opens public https pages, with size and time limits; links with embedded passwords are dropped.',
     ],
@@ -76,7 +76,7 @@ const GROUPS = [
 
 <template>
   <div>
-    <MarketingHero title="Security and trust" lead="Story Bible is built so a model can’t write your canon and a person can always see where a fact came from. These are the rules the code enforces today, and what isn’t built yet." art="security" art-alt="A leather ledger fastened with a brass lock and a wax seal, its key beside it." />
+    <MarketingHero title="Security and trust" lead="CanonTracker is built so a model can’t write your canon and a person can always see where a fact came from. These are the rules the code enforces today, and what isn’t built yet." art="security" art-alt="A leather ledger fastened with a brass lock and a wax seal, its key beside it." />
     <div class="body">
       <nav class="toc" aria-label="On this page">
         <a v-for="(g, i) in GROUPS" :key="g.title" :href="`#s${i}`">{{ g.title }}</a>

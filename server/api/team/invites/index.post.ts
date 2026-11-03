@@ -2,7 +2,7 @@ import { randomBytes } from 'node:crypto'
 
 const DAYS = [1, 7, 30]
 
-// Invites are links: Story Bible does not send email yet, the person who creates the link shares it.
+// Invites are links: CanonTracker does not send email yet, the person who creates the link shares it.
 export default defineEventHandler(async (event) => {
   const { user, studio, role: myRole } = requireRole('admin')
   const body = await readObject<{ role?: string, days?: number }>(event)

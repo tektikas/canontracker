@@ -2,7 +2,7 @@
 import { HELP_GROUPS, START_PATH, HELP_PAGES, pagesIn, helpText } from '~/help'
 
 definePageMeta({ layout: 'marketing' })
-useMarketingSeo({ title: 'Help', description: 'How to use every screen in Story Bible: step by step, with the exact labels, who can do what, and the ideas behind canon, evidence, conflicts and impact.', path: '/help' })
+useMarketingSeo({ title: 'Help', description: 'How to use every screen in CanonTracker: step by step, with the exact labels, who can do what, and the ideas behind canon, evidence, conflicts and impact.', path: '/help' })
 
 const q = ref('')
 const all = Object.values(HELP_PAGES).map(p => ({ p, text: helpText(p) }))

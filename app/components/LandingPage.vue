@@ -1,8 +1,8 @@
 <script setup lang="ts">
 // Public home page (signed out). Every example is real content from the bundled samples, and every screenshot is the app.
 useMarketingSeo({
-  title: 'Story Bible · A story builder with canon you can cite',
-  description: 'Story Bible turns your lore, scripts and chapters into human-approved canon with a source for every fact, finds contradictions, and shows what a change touches before you make it.',
+  title: 'CanonTracker · Catch story contradictions with sources',
+  description: 'CanonTracker turns your lore, scripts and chapters into human-approved canon with a source for every fact, finds contradictions, and shows what a change touches before you make it.',
   image: 'og-landing',
   path: '/',
 })
@@ -29,7 +29,7 @@ const TRUST = [
   { title: 'Projects stay apart', text: 'One guard checks membership and role on every request. Viewers read; editors decide; admins manage.' },
 ]
 // Muse Code (Meta) connects over Streamable HTTP from its settings file.
-const MCP_SNIPPET = `// ~/.config/muse/settings.json (Muse Code)\n${JSON.stringify({ schema_version: 1, mcp_servers: { 'story-bible': { transport: 'streamable_http', url: `${SITE}/mcp`, headers: { Authorization: 'Bearer sb_…' } } } }, null, 2)}`
+const MCP_SNIPPET = `// ~/.config/muse/settings.json (Muse Code)\n${JSON.stringify({ schema_version: 1, mcp_servers: { 'canontracker': { transport: 'streamable_http', url: `${SITE}/mcp`, headers: { Authorization: 'Bearer sb_…' } } } }, null, 2)}`
 </script>
 
 <template>
@@ -38,21 +38,21 @@ const MCP_SNIPPET = `// ~/.config/muse/settings.json (Muse Code)\n${JSON.stringi
       <section class="hero">
         <div class="hero-copy">
           <p class="for">For novelists, game writers, screen and series writers, and worldbuilders</p>
-          <h1>Know what’s canon. See what a change touches before you make it.</h1>
+          <h1>Catch contradictions. See the sources.</h1>
           <p class="lead">
-            Story Bible reads your lore, scripts and chapters, proposes facts with the exact sentence they came from, and lets a person decide what becomes canon.
-            Then it finds contradictions and shows which scenes a change will reach.
+            A shoulder in one book. A leg in the next. CanonTracker catches the contradiction and puts both quotes in front of you.
+            Build human-approved canon from your lore, scripts and chapters, then see what a change touches before you make it.
           </p>
           <div class="cta">
             <UiButton v-if="me?.user" to="/" variant="primary" size="lg">Open the app</UiButton>
             <UiButton v-else to="/signup" variant="primary" size="lg">Start free</UiButton>
             <UiButton to="/features" size="lg">See every feature</UiButton>
           </div>
-          <p class="fine">Open source under AGPL-3.0. Comes with three sample stories to try before you import your own.</p>
+          <p class="fine">Open source under AGPL-3.0. Try Sherlock Holmes or three original sample stories before you import your own.</p>
         </div>
         <div class="hero-shot">
-          <MarketingShot name="tide-review" alt="The review queue: the AI proposes “Mara and Leya are sisters” with its source line, and the AI critic flags it as figurative. A person decides." eager sizes="(max-width: 900px) 100vw, 680px" />
-          <p class="caption">Review in the Broken Tide sample. The quote is checked against the source; the critic’s flag is advice.</p>
+          <MarketingWatsonConflict />
+          <p class="caption">A real continuity slip in Arthur Conan Doyle’s Sherlock Holmes. Load the sample and check it yourself.</p>
         </div>
       </section>
 
@@ -127,8 +127,8 @@ const MCP_SNIPPET = `// ~/.config/muse/settings.json (Muse Code)\n${JSON.stringi
         <div class="mcp">
           <div>
             <h3>Bring your own agents through MCP</h3>
-            <p>Story Bible is an MCP server with 38 tools, so an agent in Muse Code, or any MCP client, can do almost everything you do in a project. A propose token reads, checks and proposes; nothing it does becomes canon. A full-access token acts as you, and each decision it makes is marked “via agent” with the token’s name.</p>
-            <NuxtLink to="/agents">How agents work with Story Bible</NuxtLink>
+            <p>CanonTracker is an MCP server with 38 tools, so an agent in Muse Code, or any MCP client, can do almost everything you do in a project. A propose token reads, checks and proposes; nothing it does becomes canon. A full-access token acts as you, and each decision it makes is marked “via agent” with the token’s name.</p>
+            <NuxtLink to="/agents">How agents work with CanonTracker</NuxtLink>
           </div>
           <pre class="code" aria-label="Example: connect Muse Code"><code>{{ MCP_SNIPPET }}</code></pre>
         </div>

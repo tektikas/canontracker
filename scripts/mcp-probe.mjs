@@ -683,7 +683,7 @@ for (const t of ['candidate.accepted', 'candidate.rejected', 'candidate.correcte
   assert.ok(types.has(t), `audited via mcp: ${t}`)
 assert.ok(viaAgent.events.filter(e => e.event_type === 'candidate.accepted').every(e => e.detail.token_name === 'Agent full (Ada)'))
 const exportedAudit = await yes(P, 'sb_audit', { action: 'export', format: 'md' })
-assert.ok(exportedAudit.text.startsWith('# Story Bible audit log'))
+assert.ok(exportedAudit.text.startsWith('# CanonTracker audit log'))
 await no(P, 'sb_audit', { action: 'list', limit: 1000 }, 'BAD_INPUT', 'limit over the cap')
 const stats = await yes(V, 'sb_metrics', { action: 'stats' })
 assert.ok(stats.canon > 0)
