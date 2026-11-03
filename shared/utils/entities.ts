@@ -112,11 +112,13 @@ export const normName = (s: string | null | undefined) => s?.trim().replace(/\s+
 // Muse Voice Transcribe answers 400 "ASR keyword N exceeds the maximum length of 30 characters" for any longer keyword (seen
 // live on 3 Nov 2026; its docs give no limit). The count limit is unknown; 100 is what we send.
 export const KEYWORD_MAX_CHARS = 30
-/** Recognition hints from the project's names (titles, aliases, analysis and merged names): only those that fit Muse's
- * keyword limit, so a page with a long title still helps through a short alias; deduped ignoring case, at most `max`. */
-export function transcriptionHints(names: Iterable<string>, max = 100) {
+/** Recognition hints from the project's pages (title, aliases, analysis and merged names each): the most-cited pages first
+ * (canon facts naming them, ties by title), only names that fit Muse's keyword limit, so a page with a long title still
+ * helps through a short alias; deduped ignoring case, at most `max`. */
+export function transcriptionHints(pages: { title: string, names: string[], facts: number }[], max = 100) {
   const out = new Map<string, string>()
-  for (const raw of names) {
+  const ranked = [...pages].sort((a, b) => b.facts - a.facts || a.title.localeCompare(b.title, 'en', { sensitivity: 'base' }))
+  for (const raw of ranked.flatMap(p => p.names)) {
     const n = raw.trim().replace(/\s+/g, ' ')
     if (out.size >= max) break
     if (n && n.length <= KEYWORD_MAX_CHARS && !out.has(normName(n))) out.set(normName(n), n)

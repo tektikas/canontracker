@@ -2,16 +2,7 @@
 // Also files pages for new names in accepted canon.
 export default defineEventHandler(() => {
   syncEntities()
-  const facts = useDb().prepare(`select subject, predicate, object, value, statement from facts where project_id = ? and status = 'canon' order by rowid`).all(pid()) as { subject: string, predicate: string, object: string | null, value: string | null, statement: string }[]
-  const counts = new Map<string, number>()
-  const first = new Map<string, string>()
-  for (const f of facts) {
-    for (const n of new Set(factNames(f).map(normName))) {
-      if (!n) continue
-      counts.set(n, (counts.get(n) ?? 0) + 1)
-      if (!first.has(n)) first.set(n, f.statement)
-    }
-  }
+  const { counts, first } = canonNameCounts()
   return listEntities().map((e) => {
     const all = namesOf(e)
     const names = new Set(all.map(normName))

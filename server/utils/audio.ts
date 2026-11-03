@@ -151,7 +151,13 @@ export const removeAudioIfUnused = (sha256: string) => {
 
 /** Names the project already knows (wiki pages and their aliases), sent as recognition hints so invented names come out
  * spelled the way the story spells them. A hint, not a guarantee. Muse refuses keywords over 30 characters: see transcriptionHints. */
-export const transcriptionKeywords = () => transcriptionHints(listEntities().flatMap(namesOf))
+export function transcriptionKeywords() {
+  const { counts } = canonNameCounts()
+  return transcriptionHints(listEntities().map((e) => {
+    const names = namesOf(e)
+    return { title: e.name, names, facts: [...new Set(names.map(normName))].reduce((n, k) => n + (counts.get(k) ?? 0), 0) }
+  }))
+}
 
 export interface RecordingRow {
   document_id: string, audio_sha256: string, bytes: number, duration_ms: number, original_name: string, model_id: string, mode: string
