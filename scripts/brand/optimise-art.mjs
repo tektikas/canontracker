@@ -22,11 +22,11 @@ if (src === '--graphite') {
   const name = file.replace(/\.png$/, '')
   const size = name === 'story-world' ? 960 : name.startsWith('pitch-') ? 800 : 400
   const [w, h, channels] = execFileSync('magick', ['identify', '-format', '%w %h %[channels]', join(src, file)], { encoding: 'utf8' }).split(' ')
-  const ground = channels.includes('a') ? [] : ['-alpha', 'off', '-fuzz', '3%', '-fill', '#f4f0e8',
+  const ground = channels.includes('a') ? [] : ['-alpha', 'off', '-fuzz', '3%', '-fill', '#f2f3f5',
     ...['0,0', `${+w - 1},0`, `0,${+h - 1}`, `${+w - 1},${+h - 1}`].flatMap(p => ['-draw', `color ${p} floodfill`])]
   execFileSync('magick', [
     join(src, file), ...ground,
-    '-resize', `${size}x${size}`, '-colorspace', 'Gray', '-colorspace', 'sRGB', '-strip', '-quality', '82', '-define', 'webp:alpha-quality=90', '-define', 'webp:method=6', `public/art/${name}.webp`,
+    '-resize', `${size}x${size}`, '-strip', '-quality', '82', '-define', 'webp:alpha-quality=90', '-define', 'webp:method=6', `public/art/${name}.webp`,
   ])
   console.log(`${name}: ${size}px`)
 }

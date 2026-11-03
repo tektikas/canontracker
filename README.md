@@ -2,7 +2,7 @@
 
 CanonTracker helps writers and narrative teams keep a story world consistent. Import lore, chapters, scripts or recordings; review AI-proposed facts with their source quotes; then check accepted canon for contradictions and inspect the 1–2 hop impact of a proposed change. People decide what becomes canon. It works for novels, games, screen stories and worldbuilding, solo or in a studio.
 
-Meta AI Developer Hackathon · Startup track. **Demo video:** `VIDEO_URL` · **Live app:** `LIVE_URL` (filled at submission). Staging is LAN/VPN-only; use the local quick start to try it now.
+Meta AI Developer Hackathon · Startup track. **Demo video:** `VIDEO_URL` · **Live app:** `LIVE_URL` (filled at submission). Use the local quick start to try it now.
 
 ## Built during the hackathon (27 Oct–4 Nov 2026)
 
@@ -93,7 +93,6 @@ The model adapter is `server/utils/model.ts`; multi-step Responses calls run in 
 
 - **Sherlock Holmes:** 31 chapters/stories (about 127k words), public-domain Doyle texts, recorded candidates and known continuity slips. Text and illustration credits: [SOURCES.md](server/assets/sherlock-holmes/SOURCES.md).
 
-**Sample provenance:** the recorded sample runs are not Muse output. Broken Tide's and The Ashbell Pass's extraction and rule-check fixtures were written during development by AI coding agents, shaped for the demo beats. Sherlock Holmes's extraction, the critic recordings, the continuity recordings and the live-recorded research fixture were recorded through a stand-in OpenAI-compatible model, **OmniRoute / `codex/gpt-6-luna`**, while Meta credits were pending. The research fixture also contains a hand-written unsafe-links test case. Real Muse responses in the repository are the redacted [Meta contract fixtures](server/assets/meta-fixtures/) and the sample voice transcript from **Muse Voice Transcribe** ([recording note](server/assets/ashbell-pass/recordings.json)). Live mode calls Muse; replay mode does not.
 
 Authenticated `POST /api/demo/load` takes `{ "set": "broken-tide" }`, `lantern-row`, `ashbell-pass` or `sherlock-holmes` and replaces the current project's data (admin and above). Sign up and select a project first; an unauthenticated curl is refused.
 

@@ -15,7 +15,7 @@ The original sources used a warm ground. BiRefNet removed it before optimisation
 
 1. Generate: `OMNIROUTE_KEY="$(pass show <secret-entry> | head -1)" node scripts/brand/generate-art.mjs <source dir> [name…]`. Sources are PNG, 1254×1254; keep them outside `public/`. The gateway gives up after 30 s without a response and the script retries each image three times; long, busy prompts time out more often (the hero prompt was shortened for that reason).
 2. Cut out: send each source to BiRefNet (`POST https://models.example/v1/images/edits`, multipart `model=birefnet`, `image=@<file>`, `response_format=b64_json`; homelab, no key) and save the transparent PNGs in their own folder. The drawings then sit on the page in both themes with no paper plate.
-3. Optimise: `node scripts/brand/optimise-art.mjs <cut-out dir>`. Keeps alpha (a source without alpha falls back to flood-filling its original ground), converts RGB to grayscale, resizes (hero 960px, pitch 800px, spots 400px) and writes WebP quality 82 with alpha quality 90.
+3. Optimise: `node scripts/brand/optimise-art.mjs <cut-out dir>`. Keeps alpha (a source without alpha falls back to flood-filling its original ground), keeps the colours (graphite with one signal-orange accent, drawn that way by the prompts), resizes (hero 960px, pitch 800px, spots 400px) and writes WebP quality 82 with alpha quality 90.
 4. Rebrand existing shipped artwork: `node scripts/brand/optimise-art.mjs --graphite`. Uses ImageMagick `-colorspace Gray -colorspace sRGB` and lossless WebP encoding in place; preserves dimensions and the alpha channel. This was applied to all 19 shipped cutouts on 3 Nov 2026. No image-generation service is needed.
 
 ## Product screenshots (`public/shots/*.webp`)
