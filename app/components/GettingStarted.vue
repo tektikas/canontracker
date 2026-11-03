@@ -23,7 +23,7 @@ const items = computed(() => {
       hint: s.documents ? `${counted(s.documents, 'source')} in this project` : 'Import files, write one here, or try the demo story' },
     // Nothing proposed is not a review done: the step reads as not applicable and leaves the count.
     { key: 'review', label: nothingToReview ? 'Nothing to review in this project' : 'Review a candidate', to: '/review', done: reviewed > 0, na: nothingToReview,
-      hint: nothingToReview ? 'No candidates were proposed from these sources' : reviewed ? `${counted(reviewed, 'candidate')} decided` : s.pending ? `${counted(s.pending, 'candidate')} waiting` : 'The model proposes facts with a quote; you decide' },
+      hint: nothingToReview ? 'No candidates were proposed from these sources' : reviewed ? `${counted(reviewed, 'candidate')} decided` : s.pending ? `${counted(s.pending, 'candidate')} waiting` : 'The AI proposes facts with a quote; you decide' },
     { key: 'canon', label: 'See your canon', to: '/canon', done: s.canon > 0,
       hint: s.canon ? `${counted(s.canon, 'fact')}, each tied to its passage` : 'Accepted facts land here' },
     { key: 'scan', label: 'Run a conflict scan', to: '/conflicts', done: !!s.last_scan,

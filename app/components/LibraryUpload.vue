@@ -143,7 +143,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
       <div>
         <h2>Uploads</h2>
         <p class="small muted" role="status">{{ busy ? `Uploading ${Math.min(done + 1, items.length)} of ${items.length}…` : [summary, candidates && `${counted(candidates, 'candidate')} sent to Review`].filter(Boolean).join(' · ') }}</p>
-        <p class="small faint">Files are stored read-only, as they are. The model proposes candidates; nothing becomes canon until a person accepts it in Review.</p>
+        <p class="small faint">Files are stored read-only, as they are. The AI proposes candidates; nothing becomes canon until a person accepts it in Review.</p>
       </div>
       <div class="row">
         <UiButton v-if="candidates && !busy" size="sm" to="/review">Review {{ counted(candidates, 'candidate') }}</UiButton>

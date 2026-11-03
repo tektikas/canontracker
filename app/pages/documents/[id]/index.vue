@@ -166,7 +166,7 @@ async function reextract() {
     else if (r.created)
       reextracted.value = { tone: 'info', text: `${counted(r.created, 'new candidate')} sent to review from v${r.version}${r.unverified ? `, ${r.unverified} with a quote not found in the text` : ''}.${skipLine}`, review: true }
     else
-      reextracted.value = { tone: 'info', text: `Nothing new in v${r.version}.${skipLine || ' The model proposed nothing.'}` }
+      reextracted.value = { tone: 'info', text: `Nothing new in v${r.version}.${skipLine || ' The AI proposed nothing.'}` }
     await Promise.all([refresh(), refreshNuxtData('stats')])
   } catch (e) {
     reextracted.value = { tone: 'bad', text: errorMessage(e) }

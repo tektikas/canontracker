@@ -155,7 +155,7 @@ const waiting = (m: Message) => Date.now() - new Date(m.created_at).getTime() < 
 
 const STATUS = {
   supported: { tone: 'good', label: 'Supported by canon', text: 'Answered from accepted canon. Check the sources below.' },
-  source_only: { tone: 'warn', label: 'Related canon only', text: 'The model is offline, so no answer was written. These accepted facts look related; read them yourself.' },
+  source_only: { tone: 'warn', label: 'Related canon only', text: 'The AI is offline, so no answer was written. These accepted facts look related; read them yourself.' },
   unknown: { tone: 'neutral', label: 'Unknown', text: 'No accepted canon fact answers this. Nothing was guessed.' },
 } as const
 const statusOf = (p: Record<string, any>) => STATUS[p.status as keyof typeof STATUS]
@@ -200,7 +200,7 @@ const chipIcon = (c: ChatChip) => (c.type === 'entity' ? 'entities' : c.type ===
               </div>
               <p v-if="p.asked_as" class="small muted asked">Asked as “{{ p.asked_as }}”</p>
               <p v-if="p.answer" class="answer-text">{{ p.answer }}</p>
-              <p v-if="p.model_error" class="notice bad" role="alert">{{ p.model_error }} The related facts below were found by keyword match, not by the model.</p>
+              <p v-if="p.model_error" class="notice bad" role="alert">{{ p.model_error }} The related facts below were found by keyword match, not by the AI.</p>
               <p v-else-if="!p.answer" class="verdict-text">{{ statusOf(p).text }}</p>
               <details v-if="p.cited.length" class="cited" :open="!contained && m.id === lastAnswer">
                 <summary class="small">{{ p.status === 'supported' ? 'Sources' : 'Related accepted facts' }} <span class="faint">{{ p.cited.length }}</span></summary>

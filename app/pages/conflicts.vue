@@ -63,7 +63,7 @@ async function scan() {
     const rc = r.rule_checks
     scanMsg.value = (r.created ? `${r.created} new conflict candidate${r.created > 1 ? 's' : ''}.` : 'Scan ran: no new conflict candidates.')
       + (rc.rules ? ` World rules: ${counted(rc.rules, 'rule')} checked against ${counted(rc.facts, 'fact')} in ${counted(rc.calls, 'call')}.` : '')
-    scanError.value = r.model_error ? `Rule-based checks ran, but the model-assisted world-rule check failed: ${r.model_error}` : ''
+    scanError.value = r.model_error ? `Rule-based checks ran, but the AI-assisted world-rule check failed: ${r.model_error}` : ''
     await Promise.all([refresh(), refreshNuxtData('stats')])
   } finally {
     scanning.value = false
@@ -89,7 +89,7 @@ async function decide(id: string, decision: string) {
 </script>
 
 <template>
-  <UiPageHeader title="Conflict candidates" description="Hard conflicts break canon; soft ones are worth a look. Narrow checks over accepted canon: timing, travel, relationships and details with two answers in code, world rules with the model's help. A hit is a possible conflict for you to judge. Deciding never edits canon.">
+  <UiPageHeader title="Conflict candidates" description="Hard conflicts break canon; soft ones are worth a look. Narrow checks over accepted canon: timing, travel, relationships and details with two answers in code, world rules with the AI’s help. A hit is a possible conflict for you to judge. Deciding never edits canon.">
     <template v-if="editor && conflicts?.length" #actions><UiButton variant="primary" data-tour="scan" :loading="scanning" @click="scan">{{ scanning ? 'Scanning…' : 'Scan canon' }}</UiButton></template>
   </UiPageHeader>
 

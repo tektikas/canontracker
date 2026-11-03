@@ -52,7 +52,7 @@ const timeError = (v: string) => (v.trim() && !storyTime(v) ? 'Use a day, like D
 const error = ref('')
 const busy = ref(false)
 const evIndex = ref(0)
-const BLOCKED = 'Accept is blocked: this quote is not in the source word for word. Reject it, or leave it pending.'
+const BLOCKED = 'Accept is blocked: this quote isn’t in the source word for word.'
 // An Enter that confirms an IME composition (Japanese, Chinese, Korean…) is not a decision.
 const composing = (e: KeyboardEvent) => e.isComposing || e.keyCode === 229
 // Same breakpoint as the CSS that hides the key hints: touch or narrow screens get buttons only.
@@ -295,7 +295,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 
 <template>
   <UiPageHeader title="Review queue">
-    The model proposes; you decide. Nothing becomes canon until you accept it, and a quote that isn't in the source word for word can't be accepted.
+    The AI proposes; you decide. Nothing becomes canon until you accept it, and a quote that isn't in the source word for word can't be accepted.
     <template v-if="total" #actions>
       <div class="progress" role="status">
         <div class="progress-label">
@@ -319,7 +319,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
       <template v-if="decidedNow.length">You decided {{ decidedNow.length }} {{ decidedNow.length === 1 ? 'candidate' : 'candidates' }} on this visit: {{ decidedNow.filter(d => d === 'accepted').length }} accepted, {{ decidedNow.filter(d => d === 'rejected').length }} rejected.</template>
       <template v-else-if="reviewed">All {{ reviewed }} candidates have a decision.</template>
       <template v-else-if="stats?.documents">No candidates were proposed from this project’s sources. Select words in a source to add a fact, or send one here for someone to review.</template>
-      <template v-else>Add sources on Home and the model’s candidates show up here. You can also select text in a source and send a fact here for someone to review.</template>
+      <template v-else>Add sources on Home and the AI’s candidates show up here. You can also select text in a source and send a fact here for someone to review.</template>
       <template v-if="reviewed || decidedNow.length || stats?.canon" #actions>
         <UiButton variant="primary" to="/canon" icon="canon">Browse canon</UiButton>
         <UiButton to="/conflicts" icon="conflicts">Check conflicts</UiButton>
@@ -391,7 +391,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 
       <p v-if="!verified(current)" class="notice bad" data-tour="blocked" :class="{ refused: error === BLOCKED }">
         <UiIcon name="conflicts" :size="16" />
-        <span><b v-if="error === BLOCKED" role="alert">Accept refused. </b>The model's quote doesn't appear in the source, so this can't become canon. Reject it, or leave it pending until the source says it.</span>
+        <span><b v-if="error === BLOCKED" role="alert">Accept refused. </b>The AI quoted a sentence that isn’t in the source, so this can’t become canon. Reject it. If the fact is true, select the real sentence in the source and use Add fact.</span>
       </p>
 
       <form v-if="mode === 'edit'" class="stack decision" data-tour="decide" @submit.prevent="decide('correct_and_accept')" @keydown="formKey">

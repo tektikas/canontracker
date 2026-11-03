@@ -42,7 +42,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'candidate.created':
       if (d.research_note_id) return [`${who} promoted a research note to a candidate: ${q(d.statement)}`, 'Cites the note, saved read-only · waiting for a human decision']
       if (d.via === 'mcp') return [`Agent “${d.token_name}” proposed a candidate for ${e.actor_name}`, 'Quote found in source · waiting for a human decision']
-      return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
+      return [`The AI proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
     case 'candidate.accepted': return [`${who} accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d), d.bulk ? 'Part of one “accept all verified” decision' : ''].filter(Boolean).join(' · ')]
     case 'candidate.bulk_accepted': return [`${who} accepted ${counted(d.accepted?.length ?? 0, 'verified candidate')} in one decision`,
       `Confirmed from the listed candidates · each one is logged with its statement${d.skipped?.length ? ` · ${d.skipped.length} skipped (already decided or quote not found)` : ''}`]

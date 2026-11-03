@@ -85,8 +85,8 @@ const next = computed(() => {
       ? { title: 'Add your lore and scenes', text: admin.value ? 'Load the demo set, import Markdown, text or Word files, or write a document here. Sources are stored read-only.' : 'Import Markdown, text or Word files, or write a document here. Sources are stored read-only.' }
       : { title: 'No sources yet', text: 'An editor on your team imports lore and scenes. You will see them here as soon as they do.' }
     case 'review': return editor.value
-      ? { title: `Review ${s?.pending} ${plural(s?.pending ?? 0, 'candidate')}`, text: 'The model proposed these facts with a quote. Nothing becomes canon until you accept it.', to: '/review', action: 'Start review' }
-      : { title: `${s?.pending} ${plural(s?.pending ?? 0, 'candidate')} waiting for review`, text: 'The model proposed these facts with a quote. An editor on your team decides which become canon.', to: '/review', action: 'See candidates' }
+      ? { title: `Review ${s?.pending} ${plural(s?.pending ?? 0, 'candidate')}`, text: 'The AI proposed these facts with a quote. Nothing becomes canon until you accept it.', to: '/review', action: 'Start review' }
+      : { title: `${s?.pending} ${plural(s?.pending ?? 0, 'candidate')} waiting for review`, text: 'The AI proposed these facts with a quote. An editor on your team decides which become canon.', to: '/review', action: 'See candidates' }
     case 'canon': return s?.rejected
       ? { title: 'Nothing is canon yet', text: 'Every candidate was rejected. Check the rejected list, or add a fact from a selection in a source.', to: '/review', action: 'Open review' }
       : !editor.value
@@ -241,7 +241,7 @@ const next = computed(() => {
         </div>
         <div class="source-option">
           <h3>Your files</h3>
-          <p>Markdown, plain text or Word (.docx), up to 1 MB each. Files are stored as they are and never edited. The model then proposes candidate facts into Review; nothing becomes canon until a person accepts it. An unchanged file is skipped; a changed one becomes a new version.</p>
+          <p>Markdown, plain text or Word (.docx), up to 1 MB each. Files are stored as they are and never edited. The AI then proposes candidate facts into Review; nothing becomes canon until a person accepts it. An unchanged file is skipped; a changed one becomes a new version.</p>
           <UiButton icon="upload" :disabled="!!busy" @click="uploader?.pick()">Import files</UiButton>
           <p class="small faint">Or drop files anywhere on this page.</p>
         </div>

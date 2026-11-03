@@ -36,7 +36,7 @@ const STEPS = computed<Step[]>(() => [
     intro: `A short tour of the demo story, about two minutes. You make every decision yourself; the tour points and moves on when you act.`,
   },
   {
-    title: 'The model proposes. You decide.',
+    title: 'The AI proposes. You decide.',
     page: '/review',
     to: ids.value.sister && `/review?fact=${ids.value.sister}`,
     targets: ids.value.sister ? [{ sel: cand(ids.value.sister), phone: `${cand(ids.value.sister)} [data-tour="decide"]`, body: '“Mara and Leya are sisters” rests on one line: “You’re my sister in all but blood.” That’s a figure of speech, not family. Press Reject…, give the reason and confirm; the tour moves on when you do.' }] : [],
@@ -47,7 +47,7 @@ const STEPS = computed<Step[]>(() => [
     title: 'A made-up quote can’t get in',
     page: '/review',
     to: ids.value.made && `/review?fact=${ids.value.made}`,
-    targets: ids.value.made ? [{ sel: cand(ids.value.made), phone: `${cand(ids.value.made)} [data-tour="blocked"]`, body: 'Here the model quotes a line the scene never says. It isn’t in the source word for word, so Accept is switched off. Reject it with the reason “Quote not found in the source”, or press Next to leave it pending.' }] : [],
+    targets: ids.value.made ? [{ sel: cand(ids.value.made), phone: `${cand(ids.value.made)} [data-tour="blocked"]`, body: 'Here the AI quotes a line the scene never says. It isn’t in the source word for word, so Accept is switched off. Reject it with the reason “Quote not found in the source”, or press Next to leave it for now.' }] : [],
     lost: 'Open the candidate marked Blocked in the queue to continue.',
     missing: 'Every candidate with a made-up quote already has a decision. None of them could have been accepted.',
   },
