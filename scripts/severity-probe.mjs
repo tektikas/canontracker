@@ -80,7 +80,8 @@ try {
   check('fixed: next request upgrades without restart; health reports 15', [h.status, (await h.json()).schema, version()], [200, 15, 15])
   check('evidence gains checked_version (v15)', peek(d => d.prepare('pragma table_info(evidence)').all().some(c => c.name === 'checked_version')), true)
   const after = peek(d => d.prepare('select * from conflicts order by id').all())
-  check('no conflict lost, no other column changed', after.map(({ severity, ...r }) => ({ ...r })), before)
+  // decided_token is added in place (c68), always null here; everything else must be unchanged.
+  check('no conflict lost, no other column changed', after.map(({ severity, decided_token, ...r }) => ({ ...r })), before)
   check('every conflict has the severity of its rule (travel near the limit is soft)', after.map(r => [r.id, r.severity]), rows.map(r => [r[0], r[5]]))
   check('project has severity_defaults, empty', peek(d => d.prepare('select severity_defaults from projects').all().map(r => ({ ...r }))), [{ severity_defaults: '{}' }])
   check('user and project rows kept', peek(d => [d.prepare('select count(*) n from users').get().n, d.prepare('select count(*) n from projects').get().n]), [1, 1])

@@ -8,6 +8,8 @@ const PUBLIC = '/api/public/'
 export default defineEventHandler(async (event) => {
   const path = event.path.split('?')[0]!
   if (!path.startsWith('/api/') || path === '/api/me' || path === '/api/health' || path.startsWith(PUBLIC) || ACCOUNT.some(p => path.startsWith(p))) return
+  // resolveAccess: the session's project, or the token's Access when an MCP tool calls this route in-process
+  // (event.context.mcpAccess is only ever set by such an in-process call, never by an HTTP request).
   const a = await resolveAccess(event)
   event.context.access = a
   // Anyone may leave a studio; memberChange still requires admin to touch anyone else.

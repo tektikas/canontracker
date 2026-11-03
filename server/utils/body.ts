@@ -14,12 +14,21 @@ export async function readLimitedBody(event: H3Event, max: number, message = 'Th
   if (Number(getRequestHeader(event, 'content-length') ?? 0) > max) throw tooLarge()
   const chunks: Buffer[] = []
   let total = 0
-  for await (const chunk of event.node.req.iterator({ destroyOnReturn: false }) as AsyncIterable<Buffer>) {
+  for await (const chunk of bodyChunks(event)) {
     total += chunk.length
     if (total > max) throw tooLarge()
     chunks.push(chunk)
   }
   event._requestBody = Buffer.concat(chunks)
+}
+
+/** The request body as it arrives. An MCP tool calling a route in-process (server/utils/mcp-panel.ts) hands the whole body
+ * over as one Buffer on the mock request (or none), which has no stream to read; it is counted against the same caps. */
+export function bodyChunks(event: H3Event): AsyncIterable<Buffer> | Buffer[] {
+  const req = event.node.req as { body?: unknown, __unenv__?: unknown }
+  if (Buffer.isBuffer(req.body)) return [req.body]
+  if (req.__unenv__ !== undefined) return [] // in-process, no body
+  return event.node.req.iterator({ destroyOnReturn: false }) as AsyncIterable<Buffer>
 }
 
 /** A JSON request body as an object: an empty body reads as {}, and anything that is not a JSON object (null, an array, a

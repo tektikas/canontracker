@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
   if (!c) throw createError({ statusCode: 404, statusMessage: 'NOT_FOUND', message: 'Conflict not found.' })
   if (c.status !== 'open') throw createError({ statusCode: 409, statusMessage: 'INVALID_STATE_TRANSITION', message: `Already ${c.status}.` })
   tx(() => {
-    db.prepare('update conflicts set status = ?, decided_at = ?, decision_rationale = ?, decided_by = ? where id = ?').run(decision, now(), rationale, access().user.id, id)
+    db.prepare('update conflicts set status = ?, decided_at = ?, decision_rationale = ?, decided_by = ?, decided_token = ? where id = ?').run(decision, now(), rationale, access().user.id, agentToken(), id)
     audit(`conflict.${decision}`, 'conflict', id, { rationale: rationale })
   })
   return { id, status: decision }

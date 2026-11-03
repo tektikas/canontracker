@@ -1,8 +1,10 @@
 import { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { z } from 'zod'
 
-// Story Bible over MCP. Reads are accepted canon (plus sources and editorial pages, labelled as such); the single write creates
-// a PENDING candidate for a human to review. Every handler runs inside the token's access()/pid() context (server/routes/mcp.ts).
+// Story Bible over MCP. The tools below read accepted canon (plus sources and editorial pages, labelled as such) and propose
+// PENDING candidates; the panel tools (server/utils/mcp-panel.ts) do everything else the web app does, by calling its own routes.
+// A token's level decides which: propose (reads, proposals, model runs) or full (acts as its owner, canon decisions included).
+// Every handler runs inside the token's access()/pid() context (server/routes/mcp.ts).
 //
 // Error results are always JSON {"error": {"code", "message"}} with isError. Codes: BAD_INPUT, NOT_FOUND, AMBIGUOUS, FORBIDDEN,
 // NOT_CANON, QUOTE_NOT_VERBATIM, DUPLICATE, TOO_LARGE, RATE_LIMITED, INTERNAL.
@@ -17,9 +19,11 @@ const reply = (data: unknown): Result => {
 }
 class ToolError extends Error {
   code: string
-  constructor(code: string, message: string) {
+  extra: Record<string, unknown>
+  constructor(code: string, message: string, extra: Record<string, unknown> = {}) {
     super(message)
     this.code = code
+    this.extra = extra
   }
 }
 const UNKNOWN = 'Unknown: accepted canon has nothing on this. Do not assume an answer; ask a human or propose a candidate with a source quote.'
@@ -107,12 +111,14 @@ const storyTime = (label: string | undefined, edge: 'from' | 'to', what: string)
 const openConflicts = () => useDb().prepare(`select id, rule, severity, origin, left_fact_id, right_fact_id, rationale from conflicts where project_id = ? and status = 'open' order by rowid`)
   .all(pid()) as { id: string, rule: string, severity: string, origin: string, left_fact_id: string, right_fact_id: string, rationale: string }[]
 
-export function buildMcpServer(token: { id: string, name: string }) {
+export function buildMcpServer(token: { id: string, name: string, level?: TokenLevel }) {
   const server = new McpServer({ name: 'story-bible', version: '1.1.0' }, {
     instructions: 'Story Bible holds a game studio\'s approved narrative canon with verbatim source quotes. Before writing lore, read canon: sb_get_entity / sb_get_context_pack for a character or place, '
       + 'sb_get_timeline for when things happen, sb_read_document for the source text. Before proposing new lore, run sb_check_facts to see the rule-based conflicts it would raise. '
       + 'If canon has nothing, say so ("unknown"); never invent facts, ids or quotes. Entity summaries, fields and notes are editorial, not canon. '
-      + 'You cannot change canon: sb_propose_candidate adds a pending candidate that a person reviews in the web app.',
+      + 'sb_list_projects says your token level. A "propose" token reads, proposes (pending candidates, change proposals) and runs checks; '
+      + 'canon decisions and edits (sb_review accept, sb_change decide, notes, entity pages…) need a "full" token, which acts as its owner and is marked "via agent" in the app. '
+      + 'Even with a full token, only accept what a person asked you to decide.',
   })
   // Every handler: the per-token rate limit, and thrown errors as JSON error results with a code (never a stack trace).
   // Wrapping registerTool keeps each call's own typed arguments.
@@ -123,7 +129,7 @@ export function buildMcpServer(token: { id: string, name: string }) {
     try {
       return await cb(...args)
     } catch (e) {
-      if (e instanceof ToolError) return refuse(e.code, e.message)
+      if (e instanceof ToolError) return refuse(e.code, e.message, e.extra)
       const status = (e as { statusCode?: number }).statusCode ?? 500
       if (status >= 500) console.error(`[mcp] ${name}`, e)
       return refuse(H3_CODES[status] ?? 'INTERNAL', status < 500 ? (e as Error).message : 'Story Bible failed on this call. Try again; if it keeps failing, tell the studio.')
@@ -136,7 +142,7 @@ export function buildMcpServer(token: { id: string, name: string }) {
 
   server.registerTool('sb_list_projects', {
     title: 'Project and role',
-    description: 'The project this token is scoped to (one token = one project), your role in it, and counts of documents, entity pages, canon facts, pending candidates, open conflicts and open tasks. Call first to confirm what you are connected to. Example: {}',
+    description: 'The project this token is scoped to (one token = one project), your role in it, the token level (propose or full; can_decide = full and editor+), and counts of documents, entity pages, canon facts, pending candidates, open conflicts and open tasks. Call first to confirm what you are connected to. Example: {}',
     annotations: read,
   }, () => {
     const { project, studio, role, user } = access()
@@ -150,6 +156,8 @@ export function buildMcpServer(token: { id: string, name: string }) {
         open_conflicts: n(`select count(*) n from conflicts where project_id = ? and status = 'open'`),
         open_tasks: n(`select count(*) n from tasks where project_id = ? and status in ('open', 'in_progress')`) }],
       can_propose: atLeast(role, 'editor'),
+      token: { name: token.name, level: token.level ?? 'propose' },
+      can_decide: (token.level ?? 'propose') === 'full' && atLeast(role, 'editor'),
     })
   })
 
@@ -572,6 +580,8 @@ export function buildMcpServer(token: { id: string, name: string }) {
       message: 'Candidate created and waiting in the review queue. It is not canon until a person accepts it.' })
   })
 
+  registerPanelTools(server, token)
+
   // Prompts: ready-made tasks a client can offer its user. They only steer the agent; the tools above do the work.
   server.registerPrompt('brief-entity', {
     title: 'Brief me on an entity',
@@ -595,3 +605,12 @@ export function buildMcpServer(token: { id: string, name: string }) {
 
   return server
 }
+
+// For the panel tools (server/utils/mcp-panel.ts): the same error, result, paging and lookup rules as the tools above.
+export const McpToolError = ToolError
+export const mcpReply = reply
+export const mcpPage = paginate
+export const mcpCursor = cursor
+export const mcpDocument = findDocument
+export const mcpEntity = findEntity
+export const MCP_H3_CODES = H3_CODES

@@ -14,7 +14,7 @@ export default defineEventHandler(async (event) => {
 
   if (decision === 'reject') {
     tx(() => {
-      db.prepare(`update changes set status = 'rejected', decided_at = ?, decision_rationale = ?, decided_by = ? where id = ?`).run(now(), rationale, by, id)
+      db.prepare(`update changes set status = 'rejected', decided_at = ?, decision_rationale = ?, decided_by = ?, decided_token = ? where id = ?`).run(now(), rationale, by, agentToken(), id)
       audit('change.rejected', 'change', id, { rationale: rationale })
     })
     return { id, status: 'rejected' }
@@ -27,14 +27,14 @@ export default defineEventHandler(async (event) => {
   const newFactId = newId('fact')
   tx(() => {
     db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision, status, confidence,
-      origin, model_id, version, supersedes_id, created_at, decided_at, rationale, decided_by, project_id)
-      select ?, kind, subject, predicate, object, value, ?, t_from, t_to, time_label, precision, 'canon', null, ?, null, version + 1, id, ?, ?, ?, ?, project_id from facts where id = ?`)
-      .run(newFactId, change.proposed_statement, `change:${id}`, now(), now(), rationale, by, old.id)
+      origin, model_id, version, supersedes_id, created_at, decided_at, rationale, decided_by, decided_token, project_id)
+      select ?, kind, subject, predicate, object, value, ?, t_from, t_to, time_label, precision, 'canon', null, ?, null, version + 1, id, ?, ?, ?, ?, ?, project_id from facts where id = ?`)
+      .run(newFactId, change.proposed_statement, `change:${id}`, now(), now(), rationale, by, agentToken(), old.id)
     // The prior source stays attached so the lineage is visible; it no longer states the new wording.
     db.prepare(`insert into evidence (id, fact_id, document_id, passage_id, quote, verified, support, project_id)
       select 'ev_' || lower(hex(randomblob(8))), ?, document_id, passage_id, quote, verified, 'prior_source', project_id from evidence where fact_id = ?`).run(newFactId, old.id)
     db.prepare(`update facts set status = 'superseded' where id = ?`).run(old.id)
-    db.prepare(`update changes set status = 'applied', new_fact_id = ?, decided_at = ?, decision_rationale = ?, decided_by = ? where id = ?`).run(newFactId, now(), rationale, by, id)
+    db.prepare(`update changes set status = 'applied', new_fact_id = ?, decided_at = ?, decision_rationale = ?, decided_by = ?, decided_token = ? where id = ?`).run(newFactId, now(), rationale, by, agentToken(), id)
     audit('change.accepted', 'change', id, { rationale: rationale })
     createTasks(id, change.impact)
     audit('change.applied', 'fact', newFactId, { change_id: id, superseded_fact_id: old.id, before: old.statement, after: change.proposed_statement })

@@ -31,7 +31,7 @@ export async function readLimitedForm(event: H3Event, lim: FormLimits) {
   const marker = Buffer.from(`--${boundary}`)
   const chunks: Buffer[] = []
   let total = 0, markers = 0, inPart = 0, tail = Buffer.alloc(0)
-  for await (const chunk of event.node.req.iterator({ destroyOnReturn: false }) as AsyncIterable<Buffer>) {
+  for await (const chunk of bodyChunks(event)) {
     // Count part markers in this chunk plus the end of the previous one (a marker can straddle two chunks).
     const seen = Buffer.concat([tail, chunk])
     let last = -1
