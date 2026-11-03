@@ -16,7 +16,7 @@ useHelpKey()
     <main class="auth-main">
       <slot />
     </main>
-    <footer class="auth-foot small faint">CanonTracker · a story builder with human-approved, source-cited canon</footer>
+    <footer class="auth-foot small faint">CanonTracker · the canon tracker for story worlds</footer>
   </div>
 </template>
 
