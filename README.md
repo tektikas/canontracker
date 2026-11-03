@@ -96,3 +96,7 @@ Others (`ashbell-probe`, `authoring-probe`, `docx-probe`, `library-probe`, `shar
 ## More
 
 [ROADMAP.md](ROADMAP.md) lists what is not built yet. [AGENTS.md](AGENTS.md) describes the data model and invariants in detail.
+
+## License
+
+Story Bible is open source under the [GNU Affero General Public License v3.0 or later](LICENSE). You may self-host, change and share it; if you run a modified version as a network service, you must offer its users the source of that version.
