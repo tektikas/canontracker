@@ -39,11 +39,34 @@ check('/help is 200 signed out', home.status === 200, String(home.status))
 const homeHtml = await home.text()
 check('/help lists every help page', HELP_SLUGS.every(s => homeHtml.includes(`href="/help/${s}"`)), HELP_SLUGS.filter(s => !homeHtml.includes(`href="/help/${s}"`)).join(', '))
 check('/help has a search box', /type="search"/.test(homeHtml))
-check('unknown help page is 404', (await get('/help/no-such-page')).status === 404)
+for (const bad of ['no-such-page', 'toString', 'constructor', '__proto__', 'hasOwnProperty']) check(`/help/${bad} is 404`, (await get(`/help/${bad}`)).status === 404)
 
 const SKIP = ['app/help/', 'app/utils/marketing.ts', 'app/components/LandingPage.vue', 'app/pages/features', 'app/pages/use-cases', 'app/pages/about.vue', 'app/pages/pricing.vue', 'app/pages/security.vue', 'app/pages/changelog.vue', 'app/pages/pitch.vue', 'app/pages/agents/index.vue', 'app/pages/help/']
 const ui = files(join(root, 'app')).filter(f => /\.(vue|ts)$/.test(f) && !SKIP.some(s => relative(root, f).startsWith(s))).map(f => readFileSync(f, 'utf8')).join('\n')
 const inUi = l => ui.includes(l) || ui.includes(l.replace(/&/g, '&amp;'))
+
+// Per screen: a label must be on that screen (its page file and every component it renders, followed through the tree),
+// in the shell (layouts, composables, utils) or on a screen the help page links to. "Exists somewhere" is not enough.
+const comps = new Map(files(join(root, 'app/components')).filter(f => f.endsWith('.vue')).map((f) => {
+  const parts = relative(join(root, 'app/components'), f).replace(/\.vue$/, '').split('/')
+  return [parts.map(p => p[0].toUpperCase() + p.slice(1)).join(''), f]
+}))
+function tree(entry, seen = new Set()) {
+  if (seen.has(entry)) return seen
+  seen.add(entry)
+  for (const [, tag] of readFileSync(entry, 'utf8').matchAll(/<(?:Lazy)?([A-Z][A-Za-z0-9]+)/g)) if (comps.has(tag)) tree(comps.get(tag), seen)
+  return seen
+}
+const src = set => [...set].map(f => readFileSync(f, 'utf8')).join('\n')
+const shellFiles = new Set([...tree(join(root, 'app/layouts/default.vue')), ...tree(join(root, 'app/layouts/auth.vue')),
+  ...files(join(root, 'app/composables')), ...files(join(root, 'app/utils')).filter(f => !f.endsWith('marketing.ts'))])
+const filesOf = name => pageFiles.filter(f => routeName(f) === name || (name === 'settings' && f.endsWith('pages/settings.vue')))
+const screen = new Map(HELP_SLUGS.map(slug => [slug, new Set(Object.entries(HELP_ROUTES).filter(([, s]) => s === slug).flatMap(([n]) => filesOf(n)).flatMap(f => [...tree(f)]))]))
+// Sign-up, log-in and invite are part of getting started, the invite page of Team; the settings tabs sit above every settings page.
+for (const f of ['signup.vue', 'login.vue', 'invite/[token].vue']) tree(join(root, 'app/pages', f), screen.get('getting-started'))
+tree(join(root, 'app/pages/invite/[token].vue'), screen.get('team'))
+for (const slug of ['profile', 'team', 'projects', 'agents-api']) tree(join(root, 'app/pages/settings.vue'), screen.get(slug))
+const inScreen = (l, slugs) => { const s = src(new Set([...shellFiles, ...slugs.flatMap(x => [...screen.get(x)])])); return s.includes(l) || s.includes(l.replace(/&/g, '&amp;')) }
 const FORBIDDEN = /\b(recorded|mock|demo mode|fixtures?|replay(ed|s)?)\b/i
 
 const links = new Set()
@@ -60,6 +83,9 @@ for (const slug of HELP_SLUGS) {
   for (const [, src] of doc.matchAll(/(\/shots\/[^" ,]+\.webp)/g)) shots.add(src)
   const missing = [...doc.matchAll(/<b class="ui"[^>]*>(.*?)<\/b>/g)].map(m => decode(m[1])).filter((l) => { labels++; return !inUi(l) })
   check(`/help/${slug}: every label is in the app`, !missing.length, missing.join(' | '))
+  const linked = [slug, ...[...doc.matchAll(/href="\/help\/([a-z-]+)"/g)].map(m => m[1]).filter(x => screen.has(x))]
+  const elsewhere = [...doc.matchAll(/<b class="ui"[^>]*>(.*?)<\/b>/g)].map(m => decode(m[1])).filter(l => inUi(l) && !inScreen(l, linked))
+  check(`/help/${slug}: every label is on this screen or one it links to`, !elsewhere.length, elsewhere.join(' | '))
   const text = decode(doc.replace(/<[^>]+>/g, ' '))
   check(`/help/${slug}: no internal words`, !FORBIDDEN.test(text), text.match(FORBIDDEN)?.[0])
 }

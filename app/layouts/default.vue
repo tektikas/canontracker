@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { IconName } from '~/components/ui/Icon.vue'
-import { helpSlugFor } from '~/help/routes'
 
 const me = useMe()
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
@@ -97,17 +96,10 @@ function chatKey(e: KeyboardEvent) {
   e.preventDefault()
   toggleChat()
 }
-// ? opens this page's help in a new tab, like the ? button; never while typing or with a dialog open.
-function helpKey(e: KeyboardEvent) {
-  const slug = helpSlugFor(route.name)
-  if (!slug || e.repeat || e.isComposing || !pressed(e, 'app.help')) return
-  if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], dialog')) return
-  e.preventDefault()
-  window.open(`/help/${slug}`, '_blank', 'noopener')
-}
+useHelpKey()
 watch(onAsk, (on) => { if (on) chat.value.open = false })
-onMounted(() => { window.addEventListener('keydown', chatKey); window.addEventListener('keydown', helpKey) })
-onBeforeUnmount(() => { window.removeEventListener('keydown', chatKey); window.removeEventListener('keydown', helpKey) })
+onMounted(() => window.addEventListener('keydown', chatKey))
+onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
 </script>
 
 <template>

@@ -237,7 +237,7 @@ export default [
     shot: { name: 'mcp', alt: 'The Agents & API tab with the token name field and the Propose only and Full access choices.' },
     see: [
       { label: 'API tokens', text: 'Create a token, see your active tokens (name, prefix, access, created, last used) and revoke them.' },
-      { label: 'What it may do', text: '**Propose only** reads, runs checks and proposes. **Full access: acts as you** can also decide. Fixed when the token is made.' },
+      { label: 'What it may do', text: '**Propose only** reads, proposes and runs AI checks; nothing it does becomes canon. **Full access: acts as you** can also decide and edit. Fixed when the token is made.' },
       { label: 'Connect your agent', text: 'Ready-made setup for **Muse Code (Meta)**, **Claude Code**, **Cursor** and **Other client**, plus a small script for your own code on the Meta Model API. Your new token is filled in.' },
       { label: 'What your agent can do', text: 'Every tool, grouped: read canon, read sources, check, read the rest of the project, propose and run checks, decide and edit.' },
       { label: 'Try asking', text: 'Example requests to paste into your agent.' },
@@ -272,9 +272,10 @@ export default [
       {
         title: 'Propose only vs full access',
         points: [
-          'Propose only: reads canon and sources, runs continuity and conflict checks, proposes candidates and changes. People decide in the app.',
+          'Both levels read everything in the project: canon, sources and their history, entities, conflicts, changes, tasks, notes, research notes, conversations, the audit trail and metrics.',
+          'Propose only adds proposals and AI runs, and nothing it does becomes canon: add a candidate to Review, propose a change and re-run its impact, promote a research note to a candidate, start and post in Ask conversations, ask the AI critic, re-extract a document, scan for conflicts, run a continuity check or research, and measure the gold set.',
           'A proposed candidate must quote an imported document word for word; it waits in Review marked "Agent proposal".',
-          'Full access: anything your role allows, canon decisions included, made as you and shown "via agent" in Review, Canon, Conflicts, Changes and the audit trail.',
+          'Full access adds everything else your role allows, made as you and shown "via agent" in Review, Canon, Conflicts, Changes and the audit trail: accept, edit or reject candidates, add a fact straight to canon, decide and revert changes, judge conflicts and set severity, confirm re-checks, edit and merge entities, import and write documents, drafts, notes, tasks, library folders and tags, images, project settings and entity types, share links, and renaming conversations.',
           'If canon has nothing, the agent is told "unknown"; it never gets invented sources.',
         ],
       },
@@ -282,7 +283,7 @@ export default [
         title: 'Limits',
         points: [
           'A token belongs to you, works for one project (the one open when you made it) and always has your current role.',
-          'A viewer’s token can read but can’t propose or decide, whatever its access.',
+          'Your role still applies: a viewer’s token reads and posts in Ask conversations (as viewers can in the app), but can’t propose or decide, whatever its level.',
           'Each token can make 120 tool calls a minute; AI tools also count toward your own hourly limits.',
           'Clients that support MCP prompts get two ready-made tasks: **Brief me on an entity** and **Continuity-check a scene**.',
           'Agent runs show in [Agent activity](/help/agent-activity) with the model id, like any AI run.',
@@ -295,8 +296,8 @@ export default [
     ],
     roles: [
       { role: 'Everyone', can: 'Create and revoke their own tokens. A token can do what its owner’s role allows, within its access level.' },
-      { role: 'Viewer', can: 'Tokens read canon and sources only.' },
-      { role: 'Editor and up', can: 'Propose only tokens propose candidates and changes; full-access tokens also decide.' },
+      { role: 'Viewer', can: 'Tokens read the project and post in Ask conversations, like a viewer in the app.' },
+      { role: 'Editor and up', can: 'Propose only tokens read, propose and run AI checks; full-access tokens also decide and edit, as you.' },
     ],
     related: ['agent-activity', 'review', 'candidates-and-canon', 'roles'],
     keywords: ['mcp', 'api', 'token', 'agent', 'integration', 'claude code', 'cursor', 'muse code', 'bearer', 'propose', 'full access', 'via agent'],

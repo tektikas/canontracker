@@ -44,7 +44,7 @@ export default [
         text: 'An agent token is either **Propose only** or **Full access**. A propose-only token can read, check and propose; nothing it does becomes canon. A full-access token acts as the person who made it, within their role, so it can accept and reject. Each such decision is shown as that person\'s, marked "via agent" with the token\'s name, in Review, Canon, Conflicts, Changes and the audit log.',
       },
     ],
-    related: ['review', 'canon', 'evidence', 'agents-api', 'glossary'],
+    related: ['review', 'canon', 'reader', 'evidence', 'agents-api', 'glossary'],
     keywords: ['pending', 'accept', 'reject', 'human gate', 'proposal', 'pencil', 'ink', 'origin', 'via agent', 'sample', 'superseded'],
   },
   {
@@ -150,7 +150,7 @@ export default [
         ],
       },
     ],
-    related: ['conflicts', 'change-impact', 'merges', 'glossary'],
+    related: ['conflicts', 'review', 'projects', 'change-impact', 'merges', 'glossary'],
     keywords: ['conflict', 'contradiction', 'continuity', 'overlap', 'travel', 'relationship', 'detail', 'world rule', 'severity', 'hard', 'soft', 'false positive', 'day-only'],
   },
   {
@@ -265,7 +265,7 @@ export default [
         text: 'Story Bible warns when the two pages are of different types, or when both have their own canon. Those are often two different things that share a name. The merge is still allowed, but read the warning first.',
       },
     ],
-    related: ['entity-page', 'entities', 'conflict-rules', 'change-impact', 'glossary'],
+    related: ['entity-page', 'entities', 'conflicts', 'changes', 'conflict-rules', 'change-impact', 'glossary'],
     keywords: ['merge', 'duplicate', 'alias', 'identity', 'same person', 'rename', 'resolved by merge', 'stale'],
   },
   {
@@ -317,7 +317,7 @@ export default [
         ],
       },
     ],
-    related: ['candidates-and-canon', 'evidence', 'conflict-rules', 'change-impact', 'versions-and-recheck', 'merges'],
+    related: ['candidates-and-canon', 'evidence', 'conflict-rules', 'change-impact', 'versions-and-recheck', 'merges', 'review', 'agents-api'],
     keywords: ['glossary', 'terms', 'definitions', 'vocabulary', 'what is'],
   },
 ] satisfies HelpPage[]

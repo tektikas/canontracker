@@ -87,7 +87,7 @@ export default [
           'Press **Import files** and pick Markdown, text or Word (.docx) files, or drop them anywhere on Home.',
           'Watch each file under **Uploads**: it is stored read-only and the AI proposes candidate facts.',
           'Press the review button in **Uploads** to decide on the candidates in Review.',
-          'Or press **Write a document** to write or paste a scene in the app.',
+          'Or press **Write a document** to write or paste a scene in the app. Once the project has sources, the same button is **New document** under **Add sources**.',
         ],
       },
       {
@@ -413,7 +413,7 @@ export default [
       {
         title: 'Good to know',
         points: [
-          'Drafts are private and listed under **Your drafts** on Home. **Discard draft** throws one away for good.',
+          'Drafts are private and listed under **Your drafts** on [Home](/help/home). **Discard draft** throws one away for good.',
           'A continuity check of a draft is private to you, like the draft.',
           '**Research this** opens Ask in Research mode with your selected words in the question; the draft isn’t a source yet, so they go in as a quote, not a citation.',
           'Recording transcripts can’t be edited; transcribe the audio again instead.',

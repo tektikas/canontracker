@@ -1,11 +1,11 @@
 <script setup lang="ts">
-import { HELP_PAGES, helpInline, type HelpSlug } from '~/help'
+import { HELP_PAGES, helpInline, helpPage } from '~/help'
 
 definePageMeta({ layout: 'marketing', key: route => route.path })
 const route = useRoute()
-const page = computed(() => HELP_PAGES[route.params.slug as HelpSlug])
+const page = computed(() => helpPage(route.params.slug))
 if (!page.value) throw createError({ statusCode: 404, statusMessage: 'No such help page', fatal: true })
-const p = page.value
+const p = page.value!
 useMarketingSeo({ title: `${p.title} · Help`, description: p.summary, path: `/help/${p.slug}` })
 
 const mac = ref(false)

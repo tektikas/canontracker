@@ -24,6 +24,8 @@ const shortcuts: HelpPage = {
 
 const ALL: HelpPage[] = [...documents, ...canon, ...tools, ...studio, ...concepts, shortcuts]
 export const HELP_PAGES = Object.fromEntries(ALL.map(p => [p.slug, p])) as Record<HelpSlug, HelpPage>
+/** The page for a slug from a URL; own keys only, so /help/toString or /help/constructor is a 404, not an inherited property. */
+export const helpPage = (slug: unknown): HelpPage | undefined => typeof slug === 'string' && Object.hasOwn(HELP_PAGES, slug) ? HELP_PAGES[slug as HelpSlug] : undefined
 // A slug without a page (or a page twice) is a programming error: fail loudly at start-up, not with a 404 later.
 const missing = HELP_SLUGS.filter(s => !HELP_PAGES[s])
 if (missing.length || ALL.length !== HELP_SLUGS.length) throw new Error(`Help pages out of sync with HELP_SLUGS: missing ${missing.join(', ') || 'none'}, ${ALL.length} pages for ${HELP_SLUGS.length} slugs`)

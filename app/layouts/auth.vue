@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Log-in, sign-up, onboarding and invite pages: one narrow column, the brand and nothing else to click away to.
 const me = useMe()
+useHelpKey()
 </script>
 
 <template>
