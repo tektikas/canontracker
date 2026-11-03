@@ -161,6 +161,11 @@ const FOOTER = [
   .foot-brand { grid-column: 1 / -1; }
 }
 @media (max-width: 720px) { .mk { --mk-pad: 16px; } }
+@media (max-width: 400px) {
+  .mk-bar { gap: var(--s-2); }
+  .mk-actions { gap: 2px; }
+  .mk-actions :deep(.btn) { padding-inline: 12px; }
+}
 @media (max-width: 520px) {
   .foot-inner { grid-template-columns: 1fr; gap: var(--s-5); }
 }

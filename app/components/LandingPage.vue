@@ -250,8 +250,11 @@ const MCP_SNIPPET = JSON.stringify({ schema_version: 1, mcp_servers: { canontrac
 
 /* 1. Hero */
 .hero { display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: 56px; align-items: start; padding-block: 72px 88px; }
-.hero h1 { font-size: clamp(2.1rem, 1rem + 2.5vw, 3.1rem); line-height: 1.02; letter-spacing: -0.04em; margin: 0 0 var(--s-5); }
-.hero h1 span { display: block; }
+.hero-copy { container-type: inline-size; min-width: 0; }
+/* Sized to the column: the longest line ("Every contradiction caught.") fits on one line at every width. */
+.hero h1 { font-size: clamp(1.9rem, 7.4cqi, 3.1rem); line-height: 1.02; letter-spacing: -0.04em; margin: 0 0 var(--s-5); }
+.hero h1 span { display: block; white-space: nowrap; }
+@media (max-width: 380px) { .hero h1 span { white-space: normal; } }
 .hero h1 span:nth-child(2) { color: var(--muted); }
 .lead { font-size: 1.125rem; line-height: 1.6; color: var(--muted); margin: 0 0 var(--s-6); max-width: 56ch; }
 .cta { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-6); }
