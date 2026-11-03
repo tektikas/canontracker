@@ -24,12 +24,17 @@ function typeStyle(kind: string) {
 }
 const lookup = useEntityLookup()
 const pageOf = (name: string) => lookup.value.byName.get(normName(name))
+// One node per wiki page: every name that links to a page (title, aliases, merged names) is drawn as that page's title.
+const nodeName = (name: string) => pageOf(name)?.name ?? name
 
-// A link is a fact with an object, or a detail whose answer names an entity page ("spouse_is Mary").
+// A link is a fact with an object, or a detail whose answer names an entity page ("spouse_is Mary"). A fact linking two
+// names of the same page ("Sherlock Holmes" and "Holmes") is not a link.
 const allLinks = computed(() => props.facts.flatMap((f) => {
   if (f.predicate === 'travel_time') return []
   const to = f.object ?? (isDetailPredicate(f.predicate) && f.value && pageOf(f.value) ? f.value : null)
-  return to ? [{ ...f, object: to }] : []
+  if (!to) return []
+  const [subject, object] = [nodeName(f.subject), nodeName(to)]
+  return subject === object ? [] : [{ ...f, subject, object }]
 }))
 const allNames = computed(() => props.facts.flatMap(f => [f.subject, f.object ?? '']))
 // Canon facts naming each linked entity; the TOP by count (ties by name) are drawn first.
@@ -39,7 +44,7 @@ const ranked = computed(() => {
   return [...n].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0])).map(([name]) => name)
 })
 const showAll = ref(false)
-const added = ref(new Set<string>(props.selected ? [props.selected] : []))
+const added = ref(new Set<string>(props.selected ? [nodeName(props.selected)] : []))
 const shown = computed(() => (showAll.value || ranked.value.length <= TOP ? null : new Set([...ranked.value.slice(0, TOP), ...added.value])))
 const links = computed(() => (shown.value ? allLinks.value.filter(f => shown.value!.has(f.subject) && shown.value!.has(f.object)) : allLinks.value))
 const nodes = computed(() => {
@@ -106,7 +111,10 @@ const shrink = computed(() => Math.min(1, view.k / Math.max(1e-3, kMin.value)))
 const box = ref<HTMLElement | null>(null)
 const W = ref(760)
 const H = ref(540)
-const labelW = (name: string) => name.length * 6.6 + 8
+// Long names ("Upon the Distinction between the Ashes of the Various Tobaccoes") are cut on the canvas; the tooltip, the
+// accessible name and the side panel keep them whole.
+const short = (name: string) => (name.length > 24 ? `${name.slice(0, 22).trimEnd()}…` : name)
+const labelW = (name: string) => short(name).length * 6.6 + 8
 const view = reactive({ k: 1, x: 380, y: 270 })
 function fit() {
   const pts = [...world.value.values()]
@@ -158,8 +166,8 @@ function panTo(name: string) {
 const screen = (p: { x: number, y: number }) => ({ x: p.x * view.k + view.x, y: p.y * view.k + view.y })
 
 // Focus: the selected entity and its neighbours stay lit; everything else dims. Hover previews the same without selecting.
-const focus = ref<string | null>(props.selected && byName.value.has(props.selected) ? props.selected : null)
-watch(() => props.selected, (s) => { if (s) reveal(s) })
+const focus = ref<string | null>(props.selected && byName.value.has(nodeName(props.selected)) ? nodeName(props.selected) : null)
+watch(() => props.selected, (s) => { if (s) reveal(nodeName(s)) })
 // Draws an entity the default view leaves out, then focuses it.
 async function reveal(name: string) {
   if (!ranked.value.includes(name)) return
@@ -192,22 +200,44 @@ const placed = computed(() => {
   const hits = (b: [number, number, number, number], skip = -1) => boxes.filter((o, i) => i !== skip && b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1]).length
   const free = (b: [number, number, number, number], skip = -1) => inside(b) && !hits(b, skip)
   const order = ns.map((n, i) => i).sort((i, j) => Number(ns[i]!.dim) - Number(ns[j]!.dim) || Number(ns[j]!.name === centre) - Number(ns[i]!.name === centre) || ns[j]!.degree - ns[i]!.degree)
-  // A name goes right of its node, else left, below or above it, else nowhere (its node still has a tooltip and the side list).
+  // A name goes right of its node, else left, below, above or at a corner of it. Nodes still unnamed then take a spot that
+  // only covers other circles (the text's halo keeps it readable), never another name; a node left without one in a dense
+  // cluster still names itself on hover and focus, in its tooltip and in the side list.
   type Label = { box: [number, number, number, number], x: number, y: number, anchor: 'start' | 'end' | 'middle' }
   const labels = new Map<string, Label>()
-  for (const i of order) {
-    const n = ns[i]!
-    if (n.dim) continue
+  const spotsOf = (n: typeof ns[number]): Label[] => {
     const w = labelW(n.name)
-    const spots: Label[] = [
+    const d = n.r * 0.7
+    return [
       { box: [n.x + n.r + 3, n.y - 8, n.x + n.r + 3 + w, n.y + 8], x: n.x + n.r + 4, y: n.y, anchor: 'start' },
       { box: [n.x - n.r - 3 - w, n.y - 8, n.x - n.r - 3, n.y + 8], x: n.x - n.r - 4, y: n.y, anchor: 'end' },
       { box: [n.x - w / 2, n.y + n.r + 2, n.x + w / 2, n.y + n.r + 18], x: n.x, y: n.y + n.r + 10, anchor: 'middle' },
       { box: [n.x - w / 2, n.y - n.r - 18, n.x + w / 2, n.y - n.r - 2], x: n.x, y: n.y - n.r - 10, anchor: 'middle' },
+      { box: [n.x + d + 2, n.y - d - 18, n.x + d + 2 + w, n.y - d - 2], x: n.x + d + 3, y: n.y - d - 10, anchor: 'start' },
+      { box: [n.x + d + 2, n.y + d + 2, n.x + d + 2 + w, n.y + d + 18], x: n.x + d + 3, y: n.y + d + 10, anchor: 'start' },
+      { box: [n.x - d - 2 - w, n.y - d - 18, n.x - d - 2, n.y - d - 2], x: n.x - d - 3, y: n.y - d - 10, anchor: 'end' },
+      { box: [n.x - d - 2 - w, n.y + d + 2, n.x - d - 2, n.y + d + 18], x: n.x - d - 3, y: n.y + d + 10, anchor: 'end' },
+      // Below or above, shifted to one side, for a crowded column.
+      ...[-1, 1].flatMap(side => [n.r + 10, -n.r - 10].map((dy): Label => {
+        const x0 = side > 0 ? n.x - 4 : n.x + 4 - w
+        return { box: [x0, n.y + dy - 8, x0 + w, n.y + dy + 8], x: side > 0 ? n.x - 3 : n.x + 3, y: n.y + dy, anchor: side > 0 ? 'start' : 'end' }
+      })),
     ]
+  }
+  for (const i of order) {
+    const n = ns[i]!
+    if (n.dim) continue
+    const spots = spotsOf(n)
     // Around the focus a name always shows: in the canvas if it can, where it covers the fewest others.
     const forced = () => [...spots].sort((a, b) => Number(inside(b.box)) - Number(inside(a.box)) || hits(a.box, i) - hits(b.box, i))[0]
     const spot = spots.find(s => free(s.box, i)) ?? (lit.value?.has(n.name) ? forced() : undefined)
+    if (spot) { boxes.push(spot.box); labels.set(n.name, spot) }
+  }
+  const overLabel = (b: [number, number, number, number]) => boxes.slice(ns.length).some(o => b[0] < o[2] && b[2] > o[0] && b[1] < o[3] && b[3] > o[1])
+  for (const i of order) {
+    const n = ns[i]!
+    if (n.dim || labels.has(n.name)) continue
+    const spot = spotsOf(n).find(s => inside(s.box) && !overLabel(s.box))
     if (spot) { boxes.push(spot.box); labels.set(n.name, spot) }
   }
   // A relationship label tries the middle of its line, then a third of the way from either end.
@@ -281,7 +311,7 @@ const neighbours = computed(() => {
 const hubs = computed(() => [...nodes.value].sort((a, b) => b.degree - a.degree || a.name.localeCompare(b.name)).slice(0, 8))
 const find = ref('')
 watch(find, async (v) => {
-  const name = ranked.value.find(x => normName(x) === normName(v))
+  const name = ranked.value.find(x => normName(x) === normName(nodeName(v)))
   if (!name) return
   find.value = ''
   if (!byName.value.has(name)) { added.value = new Set([...added.value, name]); await nextTick() }
@@ -328,9 +358,12 @@ const summary = computed(() => `${counted(nodes.value.length, 'entity', 'entitie
             @mouseenter="hover = n.name" @mouseleave="hover = null" @focus="hover = n.name" @blur="hover = null"
           >
             <circle :cx="n.x" :cy="n.y" :r="n.r" />
-            <text v-if="placed.labels.has(n.name)" :x="placed.labels.get(n.name)!.x" :y="placed.labels.get(n.name)!.y" :text-anchor="placed.labels.get(n.name)!.anchor" dominant-baseline="central">{{ n.name }}</text>
             <title>{{ n.name }}</title>
           </g>
+          <!-- Names are drawn above every circle, so a name placed over a neighbour's circle is never painted over. -->
+          <template v-for="n in placed.nodes" :key="`n${n.name}`">
+            <text v-if="placed.labels.has(n.name)" class="label" :x="placed.labels.get(n.name)!.x" :y="placed.labels.get(n.name)!.y" :text-anchor="placed.labels.get(n.name)!.anchor" dominant-baseline="central" aria-hidden="true">{{ short(n.name) }}</text>
+          </template>
           <text v-for="l in placed.edgeLabels" :key="`l${l.key}`" :x="l.x" :y="l.y" class="edge-label" text-anchor="middle" dominant-baseline="central">{{ l.label }}</text>
         </svg>
       </div>
@@ -405,7 +438,7 @@ svg:active { cursor: grabbing; }
 .node circle { fill: var(--tone); stroke: var(--surface); stroke-width: 1.5; }
 .node.sel circle, .node:focus-visible circle { stroke: var(--ink); stroke-width: 3; }
 .node.dim { opacity: .18; }
-.node text, .edge-label { font: 600 12px var(--font-ui); fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
+.label, .edge-label { font: 600 12px var(--font-ui); fill: var(--ink); paint-order: stroke; stroke: var(--surface); stroke-width: 4px; stroke-linejoin: round; pointer-events: none; }
 .edge-label { font-weight: 500; font-size: 11px; fill: var(--muted); }
 
 .side { display: grid; gap: var(--s-3); align-content: start; min-width: 0; max-height: 540px; overflow-y: auto; }

@@ -120,7 +120,7 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'entity.deleted': return [`${who} deleted ${d.name}’s page`, 'Canon unaffected; the page text is kept in this event']
     case 'entity.portrait_set': return [`${who} ${d.replaced ? 'replaced' : 'added'} ${d.name}’s portrait`, '']
     case 'entity.portrait_removed': return [`${who} removed ${d.name}’s portrait`, '']
-    case 'image.generated': return [`${who} generated ${d.images?.length ?? 0} image${d.images?.length === 1 ? '' : 's'} for ${d.name} with Muse Image`, `Editorial, not canon · prompt: ${q(d.prompt)}`]
+    case 'image.generated': return [`${who} generated ${d.images?.length ?? 0} image${d.images?.length === 1 ? '' : 's'} for ${d.name} with AI`, `Editorial, not canon · prompt: ${q(d.prompt)}`]
     case 'image.uploaded': return [`${who} uploaded ${d.images?.length === 1 ? 'an image' : `${d.images?.length ?? 0} images`} to ${d.name}`, `Editorial, not canon · ${(d.files ?? []).join(', ')}`]
     case 'image.applied': return d.restored ? [`${who} undid removing the ${d.as ?? 'image'} of ${d.name}`, 'The image is back in use'] : [`${who} set ${d.source === 'upload' ? 'an uploaded' : d.source === 'generated' ? 'a generated' : 'an'} image as ${d.name}’s ${d.as ?? 'image'}`, d.replaced ? 'Replaced the previous one, which stays in the image history' : '']
     case 'image.discarded': return [`${who} deleted ${d.source === 'upload' ? 'an uploaded' : 'a generated'} image${d.name ? ` of ${d.name}` : ''}`, d.source === 'upload' ? `File was ${q(d.filename ?? 'unnamed')}` : `Prompt was ${q(d.prompt)}`]

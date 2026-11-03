@@ -20,11 +20,11 @@ const timed = computed(() => props.doc.passages.some(p => p.start_ms != null))
 const lines = computed(() => props.doc.content.split('\n'))
 const heading = (p: Record<string, any>) => /^#{1,6}\s/.test(lines.value[p.start_line - 1] ?? '')
 
-// Verified quotes appear verbatim in their passage (the importer matched them with includes), so a plain split is exact.
-function parts(p: Record<string, any>) {
+// Verified quotes are stored as the passage's exact characters, so a plain indexOf finds the cited words.
+function marked(p: Record<string, any>): [number, number] | null {
   if (p.id !== props.active || !props.quote) return null
   const i = p.text.indexOf(props.quote)
-  return i < 0 ? null : [p.text.slice(0, i), props.quote, p.text.slice(i + props.quote.length)]
+  return i < 0 ? null : [i, i + props.quote.length]
 }
 const notesAt = (id: string) => props.notes?.filter(n => n.anchor === id) ?? []
 // One margin mark per passage, shaped by its most pressing note: open (note), ready (check), only done ones (filled check).
@@ -134,8 +134,7 @@ onBeforeUnmount(() => {
         </button>
       </span>
       <span class="text">
-        <template v-if="parts(p)"><MentionText :text="parts(p)![0]" /><mark><MentionText :text="parts(p)![1]" /></mark><MentionText :text="parts(p)![2]" /></template>
-        <MentionText v-else :text="p.text" />
+        <StoryText :text="p.text" :mark="marked(p)" />
       </span>
     </div>
 
@@ -165,7 +164,6 @@ onBeforeUnmount(() => {
 .passage .text { font-size: var(--text-md); }
 .passage.heading .text { font-weight: 600; font-size: var(--text-lg); line-height: 1.4; }
 .passage.heading { padding-top: var(--s-3); }
-mark { background: color-mix(in srgb, var(--accent) 22%, transparent); color: inherit; border-radius: 2px; padding: 0 1px; }
 .speaker { font: 600 var(--text-xs) var(--font-ui); color: var(--muted); }
 .note-mark {
   display: inline-flex; align-items: center; gap: 2px; min-width: 26px; height: 24px; padding: 0 4px; justify-content: center;

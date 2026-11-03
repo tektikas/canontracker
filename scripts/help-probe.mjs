@@ -41,7 +41,7 @@ check('/help lists every help page', HELP_SLUGS.every(s => homeHtml.includes(`hr
 check('/help has a search box', /type="search"/.test(homeHtml))
 check('unknown help page is 404', (await get('/help/no-such-page')).status === 404)
 
-const SKIP = ['app/help/', 'app/utils/marketing.ts', 'app/components/LandingPage.vue', 'app/pages/features', 'app/pages/use-cases', 'app/pages/about.vue', 'app/pages/pricing.vue', 'app/pages/security.vue', 'app/pages/changelog.vue', 'app/pages/agents/index.vue', 'app/pages/help/']
+const SKIP = ['app/help/', 'app/utils/marketing.ts', 'app/components/LandingPage.vue', 'app/pages/features', 'app/pages/use-cases', 'app/pages/about.vue', 'app/pages/pricing.vue', 'app/pages/security.vue', 'app/pages/changelog.vue', 'app/pages/pitch.vue', 'app/pages/agents/index.vue', 'app/pages/help/']
 const ui = files(join(root, 'app')).filter(f => /\.(vue|ts)$/.test(f) && !SKIP.some(s => relative(root, f).startsWith(s))).map(f => readFileSync(f, 'utf8')).join('\n')
 const inUi = l => ui.includes(l) || ui.includes(l.replace(/&/g, '&amp;'))
 const FORBIDDEN = /\b(recorded|mock|demo mode|fixtures?|replay(ed|s)?)\b/i

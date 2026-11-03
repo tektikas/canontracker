@@ -55,7 +55,8 @@ function search() {
       const nodes: Text[] = []
       const starts: number[] = []
       let text = ''
-      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT)
+      // Hidden Markdown emphasis delimiters (.md, see StoryText) are not part of the words a reader sees or searches for.
+      const walker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT, { acceptNode: n => (n.parentElement?.closest('.md') ? NodeFilter.FILTER_REJECT : NodeFilter.FILTER_ACCEPT) })
       while (walker.nextNode()) {
         const n = walker.currentNode as Text
         starts.push(text.length)

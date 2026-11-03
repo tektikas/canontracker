@@ -2,6 +2,7 @@
 // Every hit must be the source's exact raw substring; absent quotes must find nothing.
 import assert from 'node:assert/strict'
 import { foldQuoteText, quoteHits, quoteMatches } from '../server/utils/quote.ts'
+import { emphasisRuns } from '../shared/utils/emphasis.ts'
 
 const one = (text: string, quote: string, want: string) => {
   const hits = quoteMatches(text, quote)
@@ -121,4 +122,18 @@ assert.equal(findQuotePassage(harbor, 'The harbor and let go.'), undefined, 'a d
 assert.equal(findQuotePassage(harbor, 'Compass near the edge.')?.quote, 'compass near the edge')
 assert.equal(findQuotePassage([{ text: 'He said nobody would let go, and left.' }], 'Nobody would let go.')?.quote, 'nobody would let go')
 assert.equal(findQuotePassage([{ text: 'He said *nobody* would let go.' }], 'Nobody would let go.')?.quote, '*nobody* would let go.')
+// A quote that cuts an emphasis pair (selected from inside the italics on past them) cites the whole emphasised words, so the
+// stored quote never holds a lone delimiter and re-folds to the source on every later check.
+const memoir = '_Being a reprint from the Reminiscences of_ JOHN H. WATSON, M.D.'
+assert.deepEqual(quoteMatches(memoir, 'reprint from the Reminiscences of JOHN H. WATSON'), ['_Being a reprint from the Reminiscences of_ JOHN H. WATSON'])
+assert.deepEqual(quoteMatches(memoir, quoteMatches(memoir, 'Reminiscences of JOHN')[0]!), ['_Being a reprint from the Reminiscences of_ JOHN'])
+assert.deepEqual(quoteMatches('say **bold words** here', 'words here'), ['**bold words** here'])
+assert.deepEqual(quoteMatches(memoir, 'reprint from the'), ['reprint from the'], 'inside the italics: no widening')
+// Display runs (reader, book): the same pairs, styled; the runs join back to the text, so offsets stay exact.
+const runs = (t: string) => emphasisRuns(t).map(r => `${r.mark ? 'M' : r.strong && r.em ? 'BI' : r.strong ? 'B' : r.em ? 'I' : '-'}:${r.text}`)
+assert.deepEqual(runs('_Being a reprint from the Reminiscences of_ JOHN H. WATSON'), ['M:_', 'I:Being a reprint from the Reminiscences of', 'M:_', '-: JOHN H. WATSON'])
+assert.deepEqual(runs('a **b** and ***c*** d'), ['-:a ', 'M:**', 'B:b', 'M:**', '-: and ', 'M:***', 'BI:c', 'M:***', '-: d'])
+assert.deepEqual(runs('snake_case 2*3 and `*x*`'), ['-:snake_case 2*3 and `*x*`'])
+for (const t of ['_a_ *b* **c**', 'x *y', '']) assert.equal(emphasisRuns(t).map(r => r.text).join(''), t)
+console.log('ok  emphasis runs: italics, bold, both, literal snake_case / code, runs join back to the text')
 console.log('ok  quote folding: quotes, dashes, ellipsis, Markdown (emphasis only; code spans and escapes literal), line breaks, NFD, Hangul, emoji offsets, absent')

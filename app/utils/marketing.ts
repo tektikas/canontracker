@@ -244,7 +244,7 @@ export const USE_CASES: UseCase[] = [
 
 export const MARKETING_PAGES = [
   '/features', ...PILLARS.map(p => `/features/${p.slug}`), ...USE_CASES.map(u => `/use-cases/${u.slug}`),
-  '/agents', '/security', '/pricing', '/changelog', '/about',
+  '/agents', '/security', '/pricing', '/changelog', '/about', '/pitch',
 ]
 /** Public pages that render the same for everyone (the middleware lets them through without a project). Help too. */
 export const isMarketingPath = (path: string) => {
