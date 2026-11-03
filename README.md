@@ -108,7 +108,7 @@ Others (`ashbell-probe`, `authoring-probe`, `docx-probe`, `library-probe`, `shar
 
 ## More
 
-[ROADMAP.md](ROADMAP.md) lists what is not built yet. [AGENTS.md](AGENTS.md) describes the data model and invariants in detail.
+[ROADMAP.md](ROADMAP.md) lists what is not built yet. [docs/meta-api-notes.md](docs/meta-api-notes.md) is what we ran into building on the Meta Model API, with the recorded responses that show it and our suggestions. [AGENTS.md](AGENTS.md) describes the data model and invariants in detail.
 
 ## License
 

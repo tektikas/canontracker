@@ -64,6 +64,7 @@ const FOOTER = [
         </nav>
 
         <div class="mk-actions">
+          <ThemeToggle />
           <template v-if="me?.user">
             <UiButton to="/" variant="primary">Open the app</UiButton>
           </template>

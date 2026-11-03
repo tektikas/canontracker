@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// Pencil-and-ink illustrations on linen paper (public/art, scripts/brand/README.md). They are printed on the paper
-// colour, so in both themes they sit on a linen plate that matches it.
+// Pencil-and-ink illustrations, cut out of their paper ground (public/art, scripts/brand/README.md).
 defineProps<{ name: string, alt: string, size?: number, eager?: boolean }>()
 </script>
 
@@ -12,8 +11,6 @@ defineProps<{ name: string, alt: string, size?: number, eager?: boolean }>()
 </template>
 
 <style scoped>
-/* #f4f0e8 is the paper the art was drawn on, not a theme token: it stays linen in dark mode too. */
-.landing-art { display: block; width: 100%; height: auto; aspect-ratio: 1; background: #f4f0e8; border-radius: var(--r-lg); }
-@media screen and (prefers-color-scheme: dark) { :root:not([data-theme=light]) .landing-art { filter: brightness(0.92); } }
-:root[data-theme=dark] .landing-art { filter: brightness(0.92); }
+/* Transparent cut-outs (scripts/brand/README.md): the drawing sits straight on the page in both themes. */
+.landing-art { display: block; width: 100%; height: auto; aspect-ratio: 1; }
 </style>
