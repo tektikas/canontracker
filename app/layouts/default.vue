@@ -164,7 +164,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
       </nav>
 
       <div class="sidebar-foot">
-        <UiMenu v-if="me?.user" label="Account">
+        <div class="foot-row">
+        <UiMenu v-if="me?.user" label="Account" class="account">
           <template #trigger>
             <span class="avatar" aria-hidden="true">{{ initials(me.user.name) }}</span>
             <span class="switch-text">
@@ -179,6 +180,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
           <hr class="menu-sep">
           <button type="button" class="menu-item" @click="logOut"><UiIcon name="logout" :size="16" />Log out</button>
         </UiMenu>
+        <ThemeToggle />
+        </div>
       </div>
     </aside>
 
@@ -228,6 +231,8 @@ onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
 .menu-item[aria-current] { font-weight: 600; }
 .menu-check { color: var(--accent) !important; }
 .sidebar-foot { margin-top: auto; display: grid; gap: var(--s-2); }
+.foot-row { display: flex; align-items: center; gap: var(--s-2); min-width: 0; }
+.foot-row .account { flex: 1; min-width: 0; }
 .avatar { display: grid; place-items: center; flex: none; width: 30px; height: 30px; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-size: var(--text-xs); font-weight: 700; }
 .search-btn { display: flex; align-items: center; gap: var(--s-2); width: 100%; min-height: 34px; padding: 6px 10px; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--raised); color: var(--muted); font: inherit; cursor: pointer; }
 .search-btn:hover { border-color: var(--line-strong); color: var(--ink); }

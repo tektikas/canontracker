@@ -1,15 +1,20 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
-useMarketingSeo({ title: 'Changelog', description: 'What shipped in Story Bible, day by day, from the git history.', path: '/changelog' })
+useMarketingSeo({ title: 'Changelog', description: 'What shipped in Story Bible, day by day, from day one of the hackathon.', path: '/changelog' })
 
-// Taken from the merge commits on master (git log --merges); one line per shipped change, newest first.
+// From day one (27 Oct). From 30 Oct: the merge commits on master (git log --merges); before that, the project notes (no repo yet).
+// One line per shipped change, newest first. 1 Nov had no commits.
 const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
-  { date: '2026-11-03', label: '3 Nov 2026', entries: [
+  { date: '2026-11-03', label: 'Day 8 · 3 Nov 2026', entries: [
+    ['Same detail, two answers', 'A new conflict rule: one character, two different answers for a detail that can only have one (Watson’s wound: shoulder or leg). Deterministic, with both quotes.'],
+    ['Sherlock Holmes sample', 'Seven public-domain works, 31 documents and 127,000 words, with the famous continuity slips as a gold set.'],
+    ['Muse Code', 'Connects to Story Bible over MCP from its settings file; the first example in Settings and on this site.'],
+    ['This website', 'Feature, use-case, agents, security, pricing and changelog pages; art and icons in the writer palette; a light and dark switch.'],
     ['MCP parity', 'Agents can do almost everything people do in a project through MCP (team changes, sample loads, audio uploads and downloads stay in the app): 38 tools. Tokens are propose-only or full access (acts as you), and decisions made by an agent show “via agent”.'],
     ['Open source', 'Story Bible is licensed under AGPL-3.0.'],
     ['Plain AI labels', 'The product says “AI” everywhere; which model ran is on Agent activity and Metrics.'],
   ] },
-  { date: '2026-11-02', label: '2 Nov 2026', entries: [
+  { date: '2026-11-02', label: 'Day 7 · 2 Nov 2026', entries: [
     ['Continuity check', 'Check a draft or a passage against canon; every finding quotes your text and cites real canon. New Agent activity page lists every AI run.'],
     ['AI critic', 'A confirmed second opinion on each candidate in Review: keep, reject or needs edit, with a reason.'],
     ['Word import', '.docx files with tracked changes, footnotes and tables; Word comments become notes.'],
@@ -31,7 +36,7 @@ const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
     ['Propose a change', 'A guided flow, with impact grouped by hop.'],
     ['Project pages', 'A searchable project list and a page per project.'],
   ] },
-  { date: '2026-10-31', label: '31 Oct 2026', entries: [
+  { date: '2026-10-31', label: 'Day 5 · 31 Oct 2026', entries: [
     ['Conflict severity', 'Hard and soft conflicts.'],
     ['Export and share', 'Story bible export as Markdown, zip and PDF; read-only share links.'],
     ['Re-review tasks', 'Scenes an applied change touches become tasks.'],
@@ -41,7 +46,7 @@ const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
     ['Brand', 'Logo, app icons, illustrations and social images.'],
     ['Duplicate candidates', 'Duplicates are caught by identity and precision across every status.'],
   ] },
-  { date: '2026-10-30', label: '30 Oct 2026', entries: [
+  { date: '2026-10-30', label: 'Day 4 · 30 Oct 2026', entries: [
     ['First version', 'Import, AI candidates with quotes, human review, canon, conflict rules and change impact.'],
     ['Accounts and studios', 'Sign-up, studios, members with roles, invites and projects.'],
     ['Live AI', 'AI features call the model provider live, with every call recorded.'],
@@ -52,12 +57,20 @@ const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
     ['First login', 'Getting started checklist, guided tour, the Lantern Row sample and a phone nav.'],
     ['Image generation', 'Portraits and covers drawn by AI.'],
   ] },
+  { date: '2026-10-29', label: 'Day 3 · 29 Oct 2026', entries: [
+    ['Spec review', 'The spec is reviewed and trimmed to what can ship by 4 Nov.'],
+    ['Build starts', 'The first version takes shape: import with hashes and versions, AI candidates with verbatim quotes, review, canon (committed the next morning).'],
+  ] },
+  { date: '2026-10-27', label: 'Days 1–2 · 27–28 Oct 2026', entries: [
+    ['The idea', 'One place where a story team’s canon lives: every fact cited to its source, a person deciding what becomes canon, and a change shown with what it touches before it ships.'],
+    ['The spec', 'The product spec: human gate, verbatim citations, narrow conflict rules and change impact within two hops.'],
+  ] },
 ]
 </script>
 
 <template>
   <div>
-    <MarketingHero title="Changelog" lead="What shipped, day by day, taken from the project’s git history. Story Bible was built in the open for the Meta AI Developer Hackathon." />
+    <MarketingHero title="Changelog" lead="What shipped, day by day, from day one. Story Bible was built during the Meta AI Developer Hackathon, 27 Oct–4 Nov 2026; the git history starts on day 4." />
     <div class="log">
       <section v-for="d in DAYS" :key="d.date" class="day" :aria-labelledby="`d-${d.date}`">
         <h2 :id="`d-${d.date}`"><time :datetime="d.date">{{ d.label }}</time></h2>

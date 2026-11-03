@@ -1,6 +1,5 @@
 <script setup lang="ts">
-// Pencil-and-ink illustrations on linen paper (public/art, scripts/brand/README.md). They are printed on the paper
-// colour, so in both themes they sit on a linen plate that matches it.
+// Pencil-and-ink illustrations on linen paper (public/art, scripts/brand/README.md); the linen ground is blended away (see style).
 defineProps<{ name: string, alt: string, size?: number, eager?: boolean }>()
 </script>
 
@@ -12,8 +11,10 @@ defineProps<{ name: string, alt: string, size?: number, eager?: boolean }>()
 </template>
 
 <style scoped>
-/* #f4f0e8 is the paper the art was drawn on, not a theme token: it stays linen in dark mode too. */
-.landing-art { display: block; width: 100%; height: auto; aspect-ratio: 1; background: #f4f0e8; border-radius: var(--r-lg); }
-@media screen and (prefers-color-scheme: dark) { :root:not([data-theme=light]) .landing-art { filter: brightness(0.92); } }
-:root[data-theme=dark] .landing-art { filter: brightness(0.92); }
+/* The art is ink on a linen ground. Instead of a paper plate, the ground is blended away: lifted to white and multiplied
+   in light mode; in dark mode lifted, inverted with its hue kept (so walnut ink becomes warm chalk) and screened, so the
+   ground turns black and vanishes into the page. Only the drawing remains, in both themes. */
+.landing-art { display: block; width: 100%; height: auto; aspect-ratio: 1; filter: brightness(1.16); mix-blend-mode: multiply; }
+@media screen and (prefers-color-scheme: dark) { :root:not([data-theme=light]) .landing-art { filter: brightness(1.16) invert(1) hue-rotate(180deg); mix-blend-mode: screen; } }
+:root[data-theme=dark] .landing-art { filter: brightness(1.16) invert(1) hue-rotate(180deg); mix-blend-mode: screen; }
 </style>
