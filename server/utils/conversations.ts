@@ -133,6 +133,7 @@ export async function postToConversation(conv: ConversationRow, post: { text: st
   const followup = last && last.mode === post.mode && !earlier.some(m => m.reply_to === last.id)
     ? parse(last).find((p): p is Extract<Part, { type: 'followup' }> => p.type === 'followup') : undefined
   const asked = insertMessage(conv, { role: 'user', author_id: user.id, mode: post.mode, text: post.text, parts: [{ type: 'text', text: post.text }], context: post.context, reply_to: followup ? last!.id : null })
+  agentAudit('message.posted', 'conversation', conv.id, { conversation_id: conv.id, message_id: asked.id, mode: post.mode })
 
   let parts: Part[]
   try {

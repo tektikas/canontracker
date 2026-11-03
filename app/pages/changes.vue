@@ -358,8 +358,8 @@ async function reanalyze(id: string) {
           <h3>History</h3>
           <ol class="history small">
             <li><span class="faint">{{ dateTime(c.created_at) }}</span> Proposed: {{ c.rationale }}</li>
-            <li v-if="c.decided_at"><span class="faint">{{ dateTime(c.decided_at) }}</span> {{ c.status === 'rejected' ? 'Rejected' : 'Accepted and applied' }}<template v-if="c.decided_by_name"> by {{ c.decided_by_name }}</template>: {{ c.decision_rationale }}<template v-if="c.status !== 'rejected'"> · new canon version created; the old fact is kept as superseded.</template></li>
-            <li v-if="c.reverted_at"><span class="faint">{{ dateTime(c.reverted_at) }}</span> Reverted<template v-if="c.reverted_by_name"> by {{ c.reverted_by_name }}</template>: {{ c.revert_rationale }} · the original wording is canon again as a new version.</li>
+            <li v-if="c.decided_at"><span class="faint">{{ dateTime(c.decided_at) }}</span> {{ c.status === 'rejected' ? 'Rejected' : 'Accepted and applied' }}<template v-if="c.decided_by_name"> by {{ c.decided_by_name }}<template v-if="c.decided_via"> via agent “{{ c.decided_via }}”</template></template>: {{ c.decision_rationale }}<template v-if="c.status !== 'rejected'"> · new canon version created; the old fact is kept as superseded.</template></li>
+            <li v-if="c.reverted_at"><span class="faint">{{ dateTime(c.reverted_at) }}</span> Reverted<template v-if="c.reverted_by_name"> by {{ c.reverted_by_name }}<template v-if="c.reverted_via"> via agent “{{ c.reverted_via }}”</template></template>: {{ c.revert_rationale }} · the original wording is canon again as a new version.</li>
           </ol>
           <template v-if="c.status === 'applied' && editor">
             <div v-if="!reverting[c.id]"><UiButton size="sm" icon="history" @click="reverting[c.id] = true">Revert this change…</UiButton></div>

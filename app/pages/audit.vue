@@ -23,7 +23,8 @@ const because = (d: Record<string, any>) => (d.rationale ? `Reason: ${clip(d.rat
 // One plain sentence per event type; unknown types fall back to the raw event name.
 function sentence(e: { event_type: string, actor_name: string, target_id: string, detail: Record<string, any> }) {
   const d = e.detail
-  const who = e.actor_name
+  // Done through an MCP token: still that person's action, marked with the agent's token name.
+  const who = d.via === 'mcp' && d.token_name ? `${e.actor_name} via agent “${d.token_name}”` : e.actor_name
   switch (e.event_type) {
     case 'document.imported': return [`${who} imported ${d.filename}${inFolder(d)}`, `${d.passages} passages, read-only`]
     case 'document.version_added': return [`${who} imported version ${d.version} of ${d.filename}${inFolder(d)}`, `${d.passages} passages`]
@@ -39,8 +40,8 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'citation.kept': return [`${who} kept a citation of a canon fact as it is after its quote ${d.citations?.[0]?.quote_count ? 'appeared more than once in' : 'left'} ${d.citations?.[0]?.filename} v${d.citations?.[0]?.checked_against?.version}`,
       `Still cites v${d.citations?.[0]?.from?.version}: ${q(d.citations?.[0]?.quote)}`]
     case 'candidate.created':
-      if (d.via === 'mcp') return [`Agent “${d.token_name}” proposed a candidate for ${who}`, 'Quote found in source · waiting for a human decision']
       if (d.research_note_id) return [`${who} promoted a research note to a candidate: ${q(d.statement)}`, 'Cites the note, saved read-only · waiting for a human decision']
+      if (d.via === 'mcp') return [`Agent “${d.token_name}” proposed a candidate for ${e.actor_name}`, 'Quote found in source · waiting for a human decision']
       return [`The model proposed a candidate`, d.quote_verified ? 'Quote found in source' : 'Cannot be accepted: quote not found in source']
     case 'candidate.accepted': return [`${who} accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d), d.bulk ? 'Part of one “accept all verified” decision' : ''].filter(Boolean).join(' · ')]
     case 'candidate.bulk_accepted': return [`${who} accepted ${counted(d.accepted?.length ?? 0, 'verified candidate')} in one decision`,
@@ -90,11 +91,17 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'share.created': return [`${who} created the read-only link “${d.name}”`, `${d.scope} · ${counted(d.facts ?? 0, 'canon fact')} · ${d.expires_at ? `expires ${shortDate(d.expires_at)}` : 'never expires'} · stored hashed`]
     case 'share.revoked': return [`${who} turned off the read-only link “${d.name}”`, 'Opening it now says the link isn’t available']
     case 'share.opened': return [`The read-only link “${d.name}” was opened for the first time`, 'Later opens are counted on the link, not logged here']
-    case 'agent.proposal_refused': return [`Agent “${d.token_name}” proposed a candidate and was refused for ${who}`, `${String(d.code).replaceAll('_', ' ').toLowerCase()}, nothing stored: ${q(d.statement)}`]
+    case 'agent.proposal_refused': return [`Agent “${d.token_name}” proposed a candidate and was refused for ${e.actor_name}`, `${String(d.code).replaceAll('_', ' ').toLowerCase()}, nothing stored: ${q(d.statement)}`]
     case 'account.profile_updated': return [`${who} updated their profile`, [d.name ? `Name: ${d.name.from} to ${d.name.to}` : '', d.email ? `Email: ${d.email.from} to ${d.email.to}` : ''].filter(Boolean).join(' · ')]
     case 'account.password_changed': return [`${who} changed their password`, 'The password itself is never logged']
     case 'token.created': return [`${who} created the API token “${d.name}”`, 'Shown once, stored hashed']
     case 'token.revoked': return [`${who} revoked an API token`, '']
+    // Logged only when an agent does them (drafts are private, messages live in Ask): ids and titles, never a draft's text.
+    case 'draft.created': return [`${who} started a private draft${d.title ? ` “${clip(d.title, 60)}”` : ''}`, 'Private to its author until saved']
+    case 'draft.updated': return [`${who} edited a private draft${d.title ? ` “${clip(d.title, 60)}”` : ''}`, 'Private to its author until saved']
+    case 'draft.deleted': return [`${who} discarded a private draft${d.title ? ` “${clip(d.title, 60)}”` : ''}`, '']
+    case 'draft.saved': return [`${who} saved a draft to the story${d.title ? `: “${clip(d.title, 60)}”` : ''}`, d.unchanged ? 'The text was unchanged' : 'Now a read-only document version']
+    case 'message.posted': return [`${who} posted in an Ask conversation`, d.mode === 'research' ? 'Research mode' : 'Canon mode']
     case 'entity.created': return [`${who} created a page for ${d.name}`, `${kindLabel(d.kind).one}`]
     case 'entity_type.created': return [`${who} added the entity type “${d.one}”`, 'Wiki structure · canon unaffected']
     case 'entity_type.updated': return [d.before?.one && d.before.one !== d.after?.one ? `${who} renamed the entity type “${d.before.one}” to “${d.after.one}”` : `${who} changed the entity type “${kindLabel(d.key).one}”`,

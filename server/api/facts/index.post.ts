@@ -69,9 +69,9 @@ export default defineEventHandler(async (event) => {
   const id = newId('fact')
   tx(() => {
     db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision, status, confidence,
-      origin, model_id, created_at, decided_at, decided_by, created_by, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?, null, ?, ?, ?, ?, ?)`)
+      origin, model_id, created_at, decided_at, decided_by, decided_token, created_by, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?, null, ?, ?, ?, ?, ?, ?)`)
       .run(id, kind, names.subject, predicate, names.object, value, statement, tFrom, tTo, timeLabel(tFrom, tTo, precision, day), precision,
-        to === 'canon' ? 'canon' : 'pending', continuity ? `continuity:${continuity}` : 'human', now(), to === 'canon' ? now() : null, to === 'canon' ? user : null, user, pid())
+        to === 'canon' ? 'canon' : 'pending', continuity ? `continuity:${continuity}` : 'human', now(), to === 'canon' ? now() : null, to === 'canon' ? user : null, to === 'canon' ? agentToken() : null, user, pid())
     db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, 1, ?)')
       .run(newId('ev'), id, doc.id, passage.id, match.quote, pid())
     audit('fact.authored', 'fact', id, {
