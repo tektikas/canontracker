@@ -65,7 +65,8 @@ check('one run for the check', trace.length, 1)
 const t = trace[0]
 check('agent, effort, status', [t.agent, t.effort, t.status, t.prompt_version], ['Continuity', 'high', 'ok', 'continuity-v1'])
 check('tools called, in order', t.steps.filter(s => s.tool).map(s => s.tool), recorded.find(r => r.text === DRAFT).steps.flat().map(s => s.tool))
-check('3 AI steps, 5 tool calls', [t.model_steps, t.tool_calls], [3, 5])
+const rec = recorded.find(r => r.text === DRAFT).steps
+check('the recorded tool steps plus the final answer, and the recorded tool calls', [t.model_steps, t.tool_calls], [rec.length + 1, rec.flat().filter(x => x.tool).length])
 check('step inputs are the tool arguments', JSON.parse(t.steps.find(s => s.tool === 'sb_check_facts').input).facts[0].predicate, 'located_at')
 check('nothing sent to review yet', t.outcome, { facts: {} })
 const all = (await a('/api/agents/runs')).data

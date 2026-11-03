@@ -92,8 +92,8 @@ const how = (v: { origin: string, created_by_name: string | null }) => `${v.orig
             <div class="v-top">
               <b>v{{ v.version }}</b>
               <UiBadge v-if="v.id === doc.latest.id" tone="accent">Latest</UiBadge>
-              <UiBadge v-if="v.id === toId" tone="neutral">Newer side</UiBadge>
-              <UiBadge v-else-if="v.id === fromId" tone="pencil">Older side</UiBadge>
+              <UiBadge v-if="versions.length > 1 && v.id === toId" tone="neutral">Newer side</UiBadge>
+              <UiBadge v-else-if="versions.length > 1 && v.id === fromId" tone="pencil">Older side</UiBadge>
             </div>
             <span class="small muted">{{ how(v) }}</span>
             <span class="small faint">{{ dateTime(v.imported_at) }} · {{ counted(v.passages, 'passage') }} · <span class="mono" :title="`sha256 ${v.sha256}`">{{ v.sha256.slice(0, 8) }}</span></span>

@@ -174,7 +174,7 @@ const selected = computed(() => timed.value.find(f => f.id === selectedId.value)
 .inner { position: relative; }
 .lane { display: flex; border-top: 1px solid var(--line); }
 .lane.head { border-top: 0; background: var(--surface); }
-.label { position: sticky; left: 0; z-index: 3; flex: none; width: var(--label-w); padding: 10px var(--s-2); background: var(--surface); border-right: 1px solid var(--line-strong); font-size: var(--text-sm); font-weight: 600; overflow-wrap: anywhere; }
+.label { position: sticky; left: 0; z-index: 3; flex: none; width: var(--label-w); padding: 10px var(--s-2); background: var(--surface); border-right: 1px solid var(--line-strong); font-size: var(--text-sm); font-weight: 600; overflow-wrap: break-word; hyphens: auto; }
 .track { position: relative; flex: none; background-image: linear-gradient(to right, var(--line-strong) 1px, transparent 1px), linear-gradient(to right, var(--line) 1px, transparent 1px); background-size: calc(24 * v-bind(pxH) * 1px) 100%, calc(6 * v-bind(pxH) * 1px) 100%; }
 .head .track { height: 40px; background-image: none; }
 .day { position: absolute; top: 0; bottom: 0; border-left: 1px solid var(--line-strong); padding: 4px 6px; font-size: var(--text-xs); }

@@ -16,5 +16,7 @@ const TABS = [{ to: '/settings', label: 'Studio' }, { to: '/settings/profile', l
 .link-tab { position: relative; padding: 10px 12px; font-weight: 500; color: var(--muted); text-decoration: none; white-space: nowrap; }
 .link-tab:hover { color: var(--ink); }
 .link-tab.active { color: var(--ink); }
+/* On phones the last tab runs past the edge: fade it so the row reads as scrollable. */
+@media (max-width: 720px) { .link-tabs { mask-image: linear-gradient(to right, #000 82%, transparent); padding-right: 24px; } }
 .link-tab.active::after { content: ""; position: absolute; left: 8px; right: 8px; bottom: -1px; height: 2px; border-radius: 2px 2px 0 0; background: var(--accent); }
 </style>
