@@ -33,8 +33,8 @@ Shots: `review`, `tide-review`, `canon`, `graph`, `timeline`, `conflicts`, `impa
 
 | Group | Files | Bytes |
 | --- | ---: | ---: |
-| Illustrations `public/art/*.webp` (hero 69,002) | 16 | 257,354 |
-| Screenshots `public/shots/*.webp` (17 screens × light/dark × 720/1280) | 68 | 2,371,052 |
+| Illustrations `public/art/*.webp` | 19 | 518,806 |
+| Screenshots `public/shots/*.webp` (including help and pitch crops) | 118 | 3,671,290 |
 | Social cards `public/og-*.png` | 4 | 682,532 |
 | Icons, favicons, manifest, logo SVGs | 9 | 70,984 |
 
