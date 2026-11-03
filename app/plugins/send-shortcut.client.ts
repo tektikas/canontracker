@@ -2,7 +2,7 @@
 // One listener for the whole app. A form whose submit button is missing or disabled does nothing, and the command palette is left alone.
 export default defineNuxtPlugin(() => {
   window.addEventListener('keydown', (e: KeyboardEvent) => {
-    if (e.key !== 'Enter' || !(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey || e.isComposing || e.keyCode === 229 || e.defaultPrevented) return
+    if (!pressed(e, 'form.send') || e.isComposing || e.keyCode === 229 || e.defaultPrevented) return
     const target = e.target
     if (!(target instanceof HTMLElement) || target.closest('.palette')) return
     // .form honours form="" (a button owned by another form); closest() covers anything else inside a form.

@@ -24,7 +24,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
 const FOOTER = [
   { title: 'Product', links: [{ to: '/features', label: 'Features' }, ...PILLARS.map(p => ({ to: `/features/${p.slug}`, label: p.title }))] },
   { title: 'Use cases', links: USE_CASES.map(u => ({ to: `/use-cases/${u.slug}`, label: u.nav })) },
-  { title: 'Story Bible', links: [{ to: '/agents', label: 'AI agents and MCP' }, { to: '/security', label: 'Security' }, { to: '/pricing', label: 'Pricing' }, { to: '/changelog', label: 'Changelog' }, { to: '/about', label: 'About' }] },
+  { title: 'Story Bible', links: [{ to: '/agents', label: 'AI agents and MCP' }, { to: '/security', label: 'Security' }, { to: '/pricing', label: 'Pricing' }, { to: '/help', label: 'Help' }, { to: '/changelog', label: 'Changelog' }, { to: '/about', label: 'About' }] },
 ]
 </script>
 
@@ -61,6 +61,7 @@ const FOOTER = [
           <NuxtLink to="/agents" class="nl">AI agents</NuxtLink>
           <NuxtLink to="/security" class="nl">Security</NuxtLink>
           <NuxtLink to="/pricing" class="nl">Pricing</NuxtLink>
+          <NuxtLink to="/help" class="nl">Help</NuxtLink>
         </nav>
 
         <div class="mk-actions">

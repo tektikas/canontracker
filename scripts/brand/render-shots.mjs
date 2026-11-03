@@ -106,6 +106,19 @@ const SHOTS = [
   { name: 'team', path: '/settings/team' },
   { name: 'mcp', path: '/settings/agents' },
   { name: 'lantern', path: '/canon', project: 'lantern' },
+  // Help pages (/help/<slug>): one shot per screen that the marketing pages don't already show.
+  { name: 'home', path: '/' },
+  { name: 'history', path: `/documents/${doc('S05-the-watch-at-the-bell-gate.md')?.id ?? docs[4].id}/history` },
+  { name: 'write', path: '/write' },
+  { name: 'entities', path: '/entities' },
+  { name: 'tasks', path: '/tasks' },
+  { name: 'notes', path: '/notes' },
+  { name: 'research', path: '/research' },
+  { name: 'metrics', path: '/metrics' },
+  { name: 'audit', path: '/audit' },
+  { name: 'settings', path: '/settings' },
+  { name: 'projects', path: '/settings/projects' },
+  { name: 'profile', path: '/settings/profile' },
   // The pitch deck shows this one card full width: the element alone, at 2× zoom, light only.
   { name: 'watson-card', path: '/conflicts', project: sherlock, zoom: 2, themes: ['light'], widths: [1920, 960], element: "page.locator('article.conflict').filter({ hasText: 'in his shoulder' }).filter({ hasText: 'in his leg' }).first()" },
 ]

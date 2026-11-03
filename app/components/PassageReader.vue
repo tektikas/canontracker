@@ -88,11 +88,11 @@ function startChat(mode: 'research' | 'canon') {
 function onKey(e: KeyboardEvent) {
   if (!sel.value || 'multi' in sel.value || open.value || e.ctrlKey || e.metaKey || e.altKey || e.repeat) return
   if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable]')) return
-  if (props.research && (e.key.toLowerCase() === 'r' || e.key.toLowerCase() === 'c')) {
+  if (props.research && (pressed(e, 'reader.research') || pressed(e, 'reader.continuity'))) {
     e.preventDefault()
-    return startChat(e.key.toLowerCase() === 'r' ? 'research' : 'canon')
+    return startChat(pressed(e, 'reader.research') ? 'research' : 'canon')
   }
-  const mode = props.annotate && ({ f: 'fact', e: 'entity', n: 'note' } as const)[e.key.toLowerCase() as 'f' | 'e' | 'n']
+  const mode = props.annotate && (pressed(e, 'reader.fact') ? 'fact' : pressed(e, 'reader.entity') ? 'entity' : pressed(e, 'reader.note') ? 'note' : undefined)
   if (!mode) return
   e.preventDefault()
   start(mode)
@@ -143,12 +143,12 @@ onBeforeUnmount(() => {
       <span v-if="'multi' in sel" class="sel-multi">Select words within one paragraph</span>
       <template v-else>
         <template v-if="annotate">
-          <button type="button" class="sel-btn" @click="start('fact')"><UiIcon name="canon" :size="16" />Add fact <kbd>F</kbd></button>
-          <button type="button" class="sel-btn" @click="start('entity')"><UiIcon name="entities" :size="16" />Add entity <kbd>E</kbd></button>
-          <button type="button" class="sel-btn" @click="start('note')"><UiIcon name="note" :size="16" />Add note <kbd>N</kbd></button>
+          <button type="button" class="sel-btn" @click="start('fact')"><UiIcon name="canon" :size="16" />Add fact <kbd>{{ keyLabel('reader.fact') }}</kbd></button>
+          <button type="button" class="sel-btn" @click="start('entity')"><UiIcon name="entities" :size="16" />Add entity <kbd>{{ keyLabel('reader.entity') }}</kbd></button>
+          <button type="button" class="sel-btn" @click="start('note')"><UiIcon name="note" :size="16" />Add note <kbd>{{ keyLabel('reader.note') }}</kbd></button>
         </template>
-        <button v-if="research" type="button" class="sel-btn research" @click="startChat('research')"><UiIcon name="research" :size="16" />Research this <kbd>R</kbd></button>
-        <button v-if="research" type="button" class="sel-btn" title="Check the selected words against accepted canon" @click="startChat('canon')"><UiIcon name="conflicts" :size="16" />Check continuity <kbd>C</kbd></button>
+        <button v-if="research" type="button" class="sel-btn research" @click="startChat('research')"><UiIcon name="research" :size="16" />Research this <kbd>{{ keyLabel('reader.research') }}</kbd></button>
+        <button v-if="research" type="button" class="sel-btn" title="Check the selected words against accepted canon" @click="startChat('canon')"><UiIcon name="conflicts" :size="16" />Check continuity <kbd>{{ keyLabel('reader.continuity') }}</kbd></button>
       </template>
     </div>
     <SelectionDialog v-if="open" :selection="open.selection" :mode="open.mode" @close="open = null" @saved="saved" />

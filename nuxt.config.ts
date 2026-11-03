@@ -1,4 +1,6 @@
 // https://nuxt.com/docs/api/configuration/nuxt-config
+import { HELP_ROUTES } from './app/help/routes'
+
 export default defineNuxtConfig({
   compatibilityDate: '2025-07-15',
   devtools: { enabled: true },
@@ -6,6 +8,17 @@ export default defineNuxtConfig({
   // Lets server utils (audit, scoped queries) read the request's user and project without threading the event through.
   nitro: { experimental: { asyncContext: true } },
   css: ['~/assets/main.css'],
+  hooks: {
+    // Every page needs an entry in the help table (app/help/routes.ts) and every entry a page: the ? button can't miss one.
+    'pages:extend'(pages) {
+      const names: string[] = []
+      const walk = (list: typeof pages) => list.forEach((p) => { if (p.name) names.push(p.name); walk(p.children ?? []) })
+      walk(pages)
+      const unmapped = names.filter(n => !(n in HELP_ROUTES))
+      const stale = Object.keys(HELP_ROUTES).filter(n => !names.includes(n))
+      if (unmapped.length || stale.length) throw new Error(`app/help/routes.ts is out of date. Pages without a help entry: ${unmapped.join(', ') || 'none'}. Entries without a page: ${stale.join(', ') || 'none'}.`)
+    },
+  },
   app: {
     head: {
       title: 'Story Bible',
