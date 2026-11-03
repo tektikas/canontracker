@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { IconName } from '~/components/ui/Icon.vue'
+import { helpSlugFor } from '~/help/routes'
 
 const me = useMe()
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
@@ -92,13 +93,21 @@ function toggleChat() {
   chat.value.open = false
 }
 function chatKey(e: KeyboardEvent) {
-  if (!(e.metaKey || e.ctrlKey) || e.altKey || e.shiftKey || e.key.toLowerCase() !== 'j') return
+  if (!pressed(e, 'app.ask')) return
   e.preventDefault()
   toggleChat()
 }
+// ? opens this page's help in a new tab, like the ? button; never while typing or with a dialog open.
+function helpKey(e: KeyboardEvent) {
+  const slug = helpSlugFor(route.name)
+  if (!slug || e.repeat || e.isComposing || !pressed(e, 'app.help')) return
+  if (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], dialog')) return
+  e.preventDefault()
+  window.open(`/help/${slug}`, '_blank', 'noopener')
+}
 watch(onAsk, (on) => { if (on) chat.value.open = false })
-onMounted(() => window.addEventListener('keydown', chatKey))
-onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
+onMounted(() => { window.addEventListener('keydown', chatKey); window.addEventListener('keydown', helpKey) })
+onBeforeUnmount(() => { window.removeEventListener('keydown', chatKey); window.removeEventListener('keydown', helpKey) })
 </script>
 
 <template>
@@ -110,6 +119,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
       <NuxtLink to="/" class="brand topbar-project">
         <BrandMark /><span class="topbar-name">{{ current?.project.name ?? 'Story Bible' }}</span>
       </NuxtLink>
+      <HelpButton />
       <button class="icon-btn" type="button" aria-label="Search" aria-haspopup="dialog" @click="paletteOpen = true"><UiIcon name="search" :size="20" /></button>
     </header>
 
@@ -148,7 +158,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
       </UiMenu>
 
       <button type="button" class="search-btn" aria-haspopup="dialog" @click="paletteOpen = true">
-        <UiIcon name="search" :size="16" /><span class="search-label">Search</span><kbd>{{ mac ? '⌘K' : 'Ctrl K' }}</kbd>
+        <UiIcon name="search" :size="16" /><span class="search-label">Search</span><kbd>{{ keyLabel('app.search', mac) }}</kbd>
       </button>
 
       <nav class="nav" aria-label="Main">
@@ -177,6 +187,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
           <div class="menu-label">{{ me.user.email }}</div>
           <NuxtLink to="/settings" class="menu-item"><UiIcon name="settings" :size="16" />Studio settings</NuxtLink>
           <NuxtLink to="/settings/team" class="menu-item"><UiIcon name="team" :size="16" />{{ canManage(me) ? 'Invite teammates' : 'Team' }}</NuxtLink>
+          <a href="/help" target="_blank" rel="noopener" class="menu-item"><UiIcon name="help" :size="16" />Help</a>
           <hr class="menu-sep">
           <button type="button" class="menu-item" @click="logOut"><UiIcon name="logout" :size="16" />Log out</button>
         </UiMenu>
@@ -186,6 +197,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
     </aside>
 
     <main class="shell" :inert="navOpen">
+      <HelpButton class="shell-help" />
       <p v-if="current?.role === 'viewer'" class="notice info viewer-note">
         <UiIcon name="lock" :size="16" />
         <span><b>View only.</b> You can read everything in {{ current.project.name }} and ask canon questions. Ask a studio owner or admin if you need to review or change canon.</span>
@@ -209,7 +221,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
         <span v-if="stats?.open_conflicts" class="sr-only">({{ counted(stats.open_conflicts, 'open conflict') }})</span>
       </button>
     </nav>
-    <button v-if="!chat.open && !chat.dock" type="button" class="chat-fab" :title="`Ask (${mac ? '⌘J' : 'Ctrl+J'})`" @click="toggleChat">
+    <button v-if="!chat.open && !chat.dock" type="button" class="chat-fab" :title="`Ask (${keyLabel('app.ask', mac)})`" @click="toggleChat">
       <UiIcon name="ask" :size="20" /><span>Ask</span>
     </button>
     <ChatDrawer />
@@ -248,5 +260,9 @@ onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
 }
 .chat-fab:hover { background: var(--accent-strong); }
 @media (max-width: 720px) { .chat-fab { display: none; } }
+.shell { position: relative; }
+/* Desktop: the ? sits in the page's top-right corner; below 900px it moves into the top bar. */
+.shell-help { position: absolute; top: var(--s-1); right: var(--s-2); }
+@media (max-width: 900px) { .shell-help { display: none; } }
 .nav-sub { margin: -2px 0 4px calc(var(--s-3) + 28px); font-size: var(--text-xs); color: var(--faint); }
 </style>

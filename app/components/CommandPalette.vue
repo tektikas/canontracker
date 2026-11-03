@@ -137,10 +137,10 @@ async function choose(it: Item) {
 
 function key(e: KeyboardEvent) {
   const n = items.value.length
-  if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+  if (pressed(e, 'palette.down') || pressed(e, 'palette.up')) {
     e.preventDefault()
-    if (n) active.value = (active.value + (e.key === 'ArrowDown' ? 1 : -1) + n) % n
-  } else if (e.key === 'Enter') {
+    if (n) active.value = (active.value + (pressed(e, 'palette.down') ? 1 : -1) + n) % n
+  } else if (pressed(e, 'palette.open')) {
     e.preventDefault()
     const it = items.value[active.value]
     // While a search is in flight the list still shows the previous query's results: only commands are safe to run.
@@ -168,7 +168,7 @@ const backdrop = (e: MouseEvent) => { if (e.target === dlg.value) close() }
 // Any navigation (links elsewhere, back button) closes it.
 router.afterEach(() => { open.value = false })
 function global(e: KeyboardEvent) {
-  if ((e.metaKey || e.ctrlKey) && !e.altKey && !e.shiftKey && e.key.toLowerCase() === 'k') {
+  if (pressed(e, 'app.search')) {
     e.preventDefault()
     open.value = !open.value
   }
@@ -215,7 +215,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', global))
       <footer class="palette-foot">
         <span v-if="error" class="palette-error" role="alert">{{ error }}</span>
         <span v-else class="palette-status" role="status" aria-live="polite">{{ status }}</span>
-        <span class="palette-keys"><kbd>↑</kbd><kbd>↓</kbd> move <kbd>Enter</kbd> open <kbd>Esc</kbd> close</span>
+        <span class="palette-keys"><kbd>{{ keyLabel('palette.up') }}</kbd><kbd>{{ keyLabel('palette.down') }}</kbd> move <kbd>{{ keyLabel('palette.open') }}</kbd> open <kbd>Esc</kbd> close</span>
       </footer>
     </div>
   </dialog>

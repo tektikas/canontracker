@@ -97,6 +97,19 @@ const SHOTS = [
   { name: 'team', path: '/settings/team' },
   { name: 'mcp', path: '/settings/agents' },
   { name: 'lantern', path: '/canon', project: 'lantern' },
+  // Help pages (/help/<slug>): one shot per screen that the marketing pages don't already show.
+  { name: 'home', path: '/' },
+  { name: 'history', path: `/documents/${doc('S05-the-watch-at-the-bell-gate.md')?.id ?? docs[4].id}/history` },
+  { name: 'write', path: '/write' },
+  { name: 'entities', path: '/entities' },
+  { name: 'tasks', path: '/tasks' },
+  { name: 'notes', path: '/notes' },
+  { name: 'research', path: '/research' },
+  { name: 'metrics', path: '/metrics' },
+  { name: 'audit', path: '/audit' },
+  { name: 'settings', path: '/settings' },
+  { name: 'projects', path: '/settings/projects' },
+  { name: 'profile', path: '/settings/profile' },
 ]
 
 const out = new URL('../../public/shots/', import.meta.url).pathname

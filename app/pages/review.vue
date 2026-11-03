@@ -97,8 +97,8 @@ function cancel() {
 // Esc cancels; Enter in the statement box saves instead of adding a line break. Keys that belong to an IME composition do neither.
 function formKey(e: KeyboardEvent) {
   if (composing(e)) return
-  if (e.key === 'Escape') cancel()
-  else if (e.key === 'Enter' && e.target instanceof HTMLTextAreaElement && !(e.shiftKey || e.ctrlKey || e.metaKey || e.altKey)) e.target.form?.requestSubmit()
+  if (pressed(e, 'review.cancel')) cancel()
+  else if (pressed(e, 'review.submit') && e.target instanceof HTMLTextAreaElement) e.target.form?.requestSubmit()
   else return
   e.preventDefault()
 }
@@ -251,13 +251,12 @@ async function askCritic(ids: string[]) {
 function onKey(e: KeyboardEvent) {
   if (!editor.value || e.ctrlKey || e.metaKey || e.altKey || composing(e) || mode.value !== 'idle' || matchMedia(NO_KEYS).matches) return
   if (bulkOpen.value || (e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable], .sidebar, .topbar, dialog'))) return
-  const key = e.key.toLowerCase()
-  if (key === 'j') move(1)
-  else if (key === 'k') move(-1)
+  if (pressed(e, 'review.next')) move(1)
+  else if (pressed(e, 'review.prev')) move(-1)
   else if (e.repeat) return
-  else if (key === 'a') decide('accept')
-  else if (key === 'e') open('edit')
-  else if (key === 'r') open('reject')
+  else if (pressed(e, 'review.accept')) decide('accept')
+  else if (pressed(e, 'review.edit')) open('edit')
+  else if (pressed(e, 'review.reject')) open('reject')
   else return
   e.preventDefault()
 }
@@ -412,8 +411,8 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
           <input v-model="form.rationale" type="text" placeholder="e.g. Fixed the time to match the scene">
         </UiField>
         <div class="row">
-          <UiButton type="submit" variant="primary" icon="check" :loading="busy">Save &amp; accept <kbd>↵</kbd></UiButton>
-          <UiButton @click="cancel">Cancel <kbd>Esc</kbd></UiButton>
+          <UiButton type="submit" variant="primary" icon="check" :loading="busy">Save &amp; accept <kbd>{{ keyLabel('review.submit') }}</kbd></UiButton>
+          <UiButton @click="cancel">Cancel <kbd>{{ keyLabel('review.cancel') }}</kbd></UiButton>
         </div>
       </form>
 
@@ -428,22 +427,22 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
           <option value="Duplicate of an existing fact" />
         </datalist>
         <div class="row">
-          <UiButton type="submit" variant="danger" :loading="busy" :disabled="!form.rationale.trim()">Confirm reject <kbd>↵</kbd></UiButton>
-          <UiButton @click="cancel">Cancel <kbd>Esc</kbd></UiButton>
+          <UiButton type="submit" variant="danger" :loading="busy" :disabled="!form.rationale.trim()">Confirm reject <kbd>{{ keyLabel('review.submit') }}</kbd></UiButton>
+          <UiButton @click="cancel">Cancel <kbd>{{ keyLabel('review.cancel') }}</kbd></UiButton>
         </div>
       </form>
 
       <p v-else-if="!editor" class="small muted decision"><UiIcon name="lock" :size="14" /> View only. An editor, admin or owner decides on candidates.</p>
       <div v-else class="row decision" data-tour="decide">
-        <UiButton variant="primary" icon="check" :loading="busy" :disabled="!verified(current)" @click="decide('accept')">Accept <kbd>A</kbd></UiButton>
-        <UiButton :disabled="busy || !verified(current)" @click="open('edit')">Edit &amp; accept <kbd>E</kbd></UiButton>
-        <UiButton variant="danger" :disabled="busy" @click="open('reject')">Reject… <kbd>R</kbd></UiButton>
+        <UiButton variant="primary" icon="check" :loading="busy" :disabled="!verified(current)" @click="decide('accept')">Accept <kbd>{{ keyLabel('review.accept') }}</kbd></UiButton>
+        <UiButton :disabled="busy || !verified(current)" @click="open('edit')">Edit &amp; accept <kbd>{{ keyLabel('review.edit') }}</kbd></UiButton>
+        <UiButton variant="danger" :disabled="busy" @click="open('reject')">Reject… <kbd>{{ keyLabel('review.reject') }}</kbd></UiButton>
       </div>
 
       <p v-if="error && error !== BLOCKED" class="notice bad" role="alert">{{ error }}</p>
 
       <p v-if="editor" class="keys small faint">
-        <kbd>J</kbd> <kbd>K</kbd> next / previous · <kbd>A</kbd> accept · <kbd>E</kbd> edit · <kbd>R</kbd> reject · <kbd>Esc</kbd> cancel
+        <kbd>{{ keyLabel('review.next') }}</kbd> <kbd>{{ keyLabel('review.prev') }}</kbd> next / previous · <kbd>{{ keyLabel('review.accept') }}</kbd> accept · <kbd>{{ keyLabel('review.edit') }}</kbd> edit · <kbd>{{ keyLabel('review.reject') }}</kbd> reject · <kbd>{{ keyLabel('review.cancel') }}</kbd> cancel
       </p>
     </section>
 

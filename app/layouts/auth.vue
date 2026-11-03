@@ -7,7 +7,10 @@ const me = useMe()
   <div class="auth">
     <header class="auth-top">
       <NuxtLink to="/" class="brand"><BrandMark />Story Bible</NuxtLink>
-      <button v-if="me?.user" type="button" class="btn ghost sm" @click="logOut">Log out</button>
+      <span class="auth-actions">
+        <HelpButton />
+        <button v-if="me?.user" type="button" class="btn ghost sm" @click="logOut">Log out</button>
+      </span>
     </header>
     <main class="auth-main">
       <slot />
@@ -19,6 +22,7 @@ const me = useMe()
 <style scoped>
 .auth { min-height: 100vh; min-height: 100dvh; display: grid; grid-template-rows: auto 1fr auto; }
 .auth-top { display: flex; align-items: center; justify-content: space-between; padding: var(--s-4) var(--s-5); }
+.auth-actions { display: flex; align-items: center; gap: var(--s-2); }
 .auth-main { display: grid; justify-items: center; align-content: start; padding: var(--s-6) var(--s-4) var(--s-7); }
 .auth-main > :deep(*) { width: 100%; max-width: 440px; }
 .auth-foot { text-align: center; padding: var(--s-4); }

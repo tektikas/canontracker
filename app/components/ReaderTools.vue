@@ -114,16 +114,16 @@ function closeFind() {
 }
 function onKey(e: KeyboardEvent) {
   const typing = e.target instanceof Element && e.target.closest('input, textarea, select, [contenteditable]')
-  if (((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 'f') || (e.key === '/' && !typing && !e.ctrlKey && !e.metaKey)) {
+  if (pressed(e, 'reader.findMod') || (pressed(e, 'reader.find') && !typing)) {
     e.preventDefault()
     openFind()
   }
 }
 function onFindKey(e: KeyboardEvent) {
-  if (e.key === 'Enter') {
+  if (pressed(e, 'reader.findNext') || pressed(e, 'reader.findPrev')) {
     e.preventDefault()
-    step(e.shiftKey ? -1 : 1)
-  } else if (e.key === 'Escape') {
+    step(pressed(e, 'reader.findPrev') ? -1 : 1)
+  } else if (pressed(e, 'reader.findClose')) {
     e.preventDefault()
     closeFind()
   }
@@ -148,7 +148,7 @@ onBeforeUnmount(() => {
       <button type="button" class="icon-btn sm" aria-label="Close find" title="Close (Esc)" @click="closeFind"><UiIcon name="close" :size="16" /></button>
     </div>
     <div v-else class="bar">
-      <UiButton size="sm" variant="ghost" icon="search" @click="openFind">Find<kbd>/</kbd></UiButton>
+      <UiButton size="sm" variant="ghost" icon="search" @click="openFind">Find<kbd>{{ keyLabel('reader.find') }}</kbd></UiButton>
       <UiMenu v-if="outline.length > 1" label="Outline" class="outline">
         <template #trigger><UiIcon name="outline" :size="16" />Outline</template>
         <template #default="{ close }">

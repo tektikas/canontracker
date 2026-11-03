@@ -180,7 +180,7 @@ async function discard() {
   await navigateTo(editing.value ? `/documents/${editing.value.id}` : '/library', { replace: true })
 }
 function keys(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 's') {
+  if (pressed(e, 'write.save')) {
     e.preventDefault()
     dirty = true
     persistQuietly()
@@ -222,12 +222,12 @@ function exitFocus() {
 // Esc in browser fullscreen is taken by the browser; follow it out.
 function onFullscreen() { if (!document.fullscreenElement) exitFocus() }
 function focusKeys(e: KeyboardEvent) {
-  if ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'f' && editor.value && !loadError.value) {
+  if (pressed(e, 'write.focus') && editor.value && !loadError.value) {
     e.preventDefault()
     return focus.value ? exitFocus() : enterFocus()
   }
   if (!focus.value) return
-  if (e.key === 'Escape') return exitFocus()
+  if (pressed(e, 'write.exitFocus')) return exitFocus()
   if (e.key === 'Tab') {
     // Keep focus inside: the text, then the few controls in the bar.
     const items = [...root.value!.querySelectorAll<HTMLElement>('textarea, .focus-bar button')]
@@ -420,7 +420,7 @@ const time = (iso: string) => clock(iso).slice(0, 5)
           <span class="switch" aria-hidden="true" />Typewriter<span class="tw-state hide-sm" aria-hidden="true">{{ typewriter ? 'On' : 'Off' }}</span>
         </button>
         <button type="button" class="btn ghost sm" title="Exit focus mode (Esc)" @click="exitFocus">
-          <UiIcon name="close" :size="14" />Exit<kbd class="hide-sm">Esc</kbd>
+          <UiIcon name="close" :size="14" />Exit<kbd class="hide-sm">{{ keyLabel('write.exitFocus') }}</kbd>
         </button>
       </span>
     </div>
@@ -496,7 +496,7 @@ const time = (iso: string) => clock(iso).slice(0, 5)
         <UiButton v-if="selected" variant="ghost" icon="research" class="research-btn" title="Ask Research about the selected words" @mousedown.prevent @click="researchSelection">Research this</UiButton>
         <UiButton variant="ghost" icon="conflicts" :loading="checking" :disabled="loading || !f.content.trim()" :title="selected ? 'Check the selected words against accepted canon' : 'Check this draft against accepted canon'" @mousedown.prevent @click="checkContinuity">{{ selected ? 'Check selection' : 'Check continuity' }}</UiButton>
         <UiButton v-if="wide && !chatOpen" variant="ghost" icon="ask" title="Show the chat beside the text" @click="chatOpen = true">Ask</UiButton>
-        <UiButton variant="ghost" icon="focus" :disabled="loading" title="Only the text on screen (Ctrl+Shift+F)" @click="enterFocus">Focus</UiButton>
+        <UiButton variant="ghost" icon="focus" :disabled="loading" :title="`Only the text on screen (${keyLabel('write.focus')})`" @click="enterFocus">Focus</UiButton>
         <UiButton v-if="draftId" variant="ghost" :disabled="saving" @click="discard">{{ editing ? 'Discard changes' : 'Discard draft' }}</UiButton>
         <UiButton variant="primary" type="submit" icon="check" :loading="saving" :disabled="!canSave || loading" :title="canSave ? undefined : 'Add a title and some text first'">
           {{ editing ? `Save as v${editing.latest + 1}` : 'Save to story' }}

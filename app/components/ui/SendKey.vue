@@ -5,7 +5,7 @@ onMounted(() => { mac.value = /Mac|iPhone|iPad|iPod/.test(navigator.userAgent) }
 </script>
 
 <template>
-  <kbd class="send-key" aria-hidden="true">{{ mac ? '⌘↵' : 'Ctrl↵' }}</kbd>
+  <kbd class="send-key" aria-hidden="true">{{ keyLabel('form.send', mac) }}</kbd>
 </template>
 
 <style scoped>
