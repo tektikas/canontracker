@@ -34,7 +34,7 @@ Shots: `review`, `tide-review`, `canon`, `graph`, `timeline`, `conflicts`, `impa
 
 | Group | Files | Bytes |
 | --- | ---: | ---: |
-| Illustrations `public/art/*.webp` | 19 | 1,097,548 |
+| Illustrations `public/art/*.webp` | 19 | 519,602 |
 | Screenshots `public/shots/*.webp` (including help and pitch crops; refreshed separately) | 118 | 3,685,600 |
 | Social cards `public/og-*.png` | 4 | 469,643 |
 | Icons, favicons, manifest, logo SVGs | 9 | 42,780 |
@@ -43,4 +43,4 @@ A page downloads only what it shows. The home hero is a live card with both veri
 
 ## Pitch deck (`docs/pitch-deck.pdf`)
 
-`/pitch` (`app/pages/pitch.vue`) is the deck: eleven 16:9 slides alternating dark and light (each pinned to one set of the palette), then an appendix (market sizing, competitor table, proof, sources). Type scales with the slide width; print is one 16×9 in page per slide (`@page slide`). Sources and the beachhead model (counts × shares × assumptions × a competitor's list price) live at the top of the page. The three hook drawings are `pitch-door`, `pitch-wand` and `pitch-wound` in `prompts.json`. With the app running (it needs the `watson-card` shot above and the `pitch-*` illustrations), `node scripts/brand/render-pitch.mjs http://localhost:<port>` prints it with the installed headless `playwright-cli` (session `pitch`, light theme) to `docs/pitch-deck.pdf`, and fails if the font or a screenshot did not load or the page count differs from the slide count.
+`/pitch` (`app/pages/pitch.vue`) is the deck: twelve 16:9 slides alternating dark and light (each pinned to one set of the palette), then an appendix (market sizing, competitor table, proof, sources). Type scales with the slide width; print is one 16×9 in page per slide (`@page slide`). Sources and the beachhead model (counts × shares × assumptions × a competitor's list price) live at the top of the page. The three hook drawings are `pitch-stairs` (Happy Days), `pitch-timeline` (Zelda) and `pitch-wound` (Sherlock Holmes) in `prompts.json`; the home page reuses them. With the app running (it needs the `watson-card` shot above and the `pitch-*` illustrations), `node scripts/brand/render-pitch.mjs http://localhost:<port>` prints it with the installed headless `playwright-cli` (session `pitch`, light theme) to `docs/pitch-deck.pdf`, and fails if the font or a screenshot did not load or the page count differs from the slide count.
