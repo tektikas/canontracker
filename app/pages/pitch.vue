@@ -1,76 +1,92 @@
 <script setup lang="ts">
-// Pitch deck: 16:9 slides that read on screen (scroll, or arrow keys) and print one slide per page for "Save as PDF".
-// docs/pitch-deck.pdf is rendered from this page by scripts/brand/render-pitch.mjs. Every number has a numbered source
-// (SOURCES, checked 3 Nov 2026); our own assumptions are marked as such. Not in the site nav: linked from /about and the footer.
+// Pitch deck: eleven 16:9 slides (one idea each, alternating dark and light like the video) and an appendix with the
+// detail: market sizing, competitor table, proof and every source. Reads on screen (scroll or arrow keys) and prints one
+// slide per page; docs/pitch-deck.pdf is rendered from this page by scripts/brand/render-pitch.mjs. Every number has a
+// numbered source (SOURCES, pages opened 3 Nov 2026); our own assumptions are marked. Linked from /about and the footer only.
 import { h, type FunctionalComponent } from 'vue'
 
 definePageMeta({ layout: 'marketing' })
-useMarketingSeo({ title: 'Pitch deck', description: 'Story Bible in 13 slides: the problem, the product, a bottom-up market size with every source, the business model, go-to-market, competition and the team.', path: '/pitch' })
+useMarketingSeo({ title: 'Pitch deck', description: 'Story Bible in eleven slides: every story world breaks, the product that catches it, who builds story worlds today, the model, competition and the team. Sources in the appendix.', path: '/pitch' })
 useSeoMeta({ robots: 'noindex' })
 
-interface Source { id: string, label: string, title: string, url?: string }
-// Order sets the footnote numbers. Accessed 3 Nov 2026 unless the title says otherwise.
+interface Source { id: string, title: string, url?: string }
+// Order sets the footnote numbers.
 const SOURCES: Source[] = [
-  { id: 'onepiece', label: 'One Piece ch. 1', title: 'Eiichiro Oda, One Piece, chapter 1 “Romance Dawn” (Weekly Shōnen Jump, 1997). The carpenter answer is from Oda’s reader Q&A (SBS) as fans record it; we did not confirm the volume.' },
-  { id: 'salon', label: 'Salon 2001', title: 'Salon, “Potter fix”, 12 Jan 2001 (Bloomsbury: “corrected in subsequent editions”)', url: 'https://salon.com/2001/01/12/potterfix' },
-  { id: 'scarlet', label: 'A Study in Scarlet', title: 'Arthur Conan Doyle, A Study in Scarlet (1887), Part I ch. 1, Project Gutenberg #244', url: 'https://www.gutenberg.org/ebooks/244' },
-  { id: 'sign', label: 'The Sign of the Four', title: 'Arthur Conan Doyle, The Sign of the Four (1890), ch. 1, Project Gutenberg #2097', url: 'https://www.gutenberg.org/ebooks/2097' },
-  { id: 'gdc25', label: 'GDC 2025', title: 'GDC, 2025 State of the Game Industry (3,000+ respondents)', url: 'https://gdconf.com/article/gdc-2025-state-of-the-game-industry-devs-weigh-in-on-layoffs-ai-and-more/' },
-  { id: 'gdc26', label: 'GDC 2026', title: 'GDC, 2026 State of the Game Industry (2,300+ respondents), copy hosted by InvestGame', url: 'https://investgame.net/news/pdf/2026-01-29-dec052f4_d88e_48ce_9f83_a18ce2f2a6e5_541400_gdc26_pdf_soti_report/' },
-  { id: 'wga', label: 'WGA 2023 MBA', title: 'WGA East, Summary of the 2023 WGA MBA: TV writers’ room staffing minimums', url: 'https://wgaeast.org/?p=24846' },
-  { id: 'd2d', label: 'Draft2Digital 2023', title: 'Draft2Digital, “The Big Indie Author Data Drop”, 21 Jun 2023', url: 'https://draft2digital.com/blog/?p=207144' },
-  { id: 'vge', label: 'Video Games Europe 2025', title: 'Video Games Europe, 2025 All About Video Games – European Key Facts (workforce: EGDF, 2024 data), copy hosted by InvestGame', url: 'https://investgame.net/news/pdf/2026-08-27-all-about-games-2025-key-facts-report-final_wp/' },
-  { id: 'nchome', label: 'Novelcrafter', title: 'Novelcrafter home page: “Join a community of 252k+ authors” (vendor claim)', url: 'https://www.novelcrafter.com/' },
-  { id: 'fx', label: 'FX/Disney via Deadline', title: 'Deadline (via Yahoo), 9 Feb 2024: 516 scripted titles on air in 2023, source FX/Disney', url: 'https://ca.news.yahoo.com/peak-tv-over-number-original-222100123.html' },
-  { id: 'arcweave', label: 'Arcweave pricing', title: 'Arcweave pricing: Pro $15/$18, Team $25/$30 per member per month (yearly/monthly); MCP server and REST API on Team', url: 'https://arcweave.com/pricing' },
-  { id: 'ncprice', label: 'Novelcrafter pricing', title: 'Novelcrafter pricing: $4, $8, $14, $20 per month', url: 'https://www.novelcrafter.com/pricing' },
-  { id: 'slashdata', label: 'SlashData 2024', title: 'SlashData: 11.1 million game developers in Q1 2024, including serious hobbyists and students', url: 'https://www.slashdata.co/post/there-are-11-1-million-game-developers-in-the-world' },
-  { id: 'webtoon', label: 'WEBTOON 10-K', title: 'WEBTOON Entertainment, Form 10-K for 2025: 27 million creators, “the vast majority” amateur', url: 'https://www.sec.gov/Archives/edgar/data/1997859/000199785926000028/wbtn-20251231.htm' },
-  { id: 'notion', label: 'Notion pricing', title: 'Notion pricing: $0, $10, $20 per member per month; Enterprise custom', url: 'https://www.notion.com/pricing' },
-  { id: 'sudowrite', label: 'Sudowrite pricing', title: 'Sudowrite pricing: $10, $22, $44 per month (monthly billing)', url: 'https://www.sudowrite.com/pricing' },
-  { id: 'legendkeeper', label: 'LegendKeeper', title: 'LegendKeeper home page: Pro $9 a month, $7.50 on the annual plan; “does not have generative AI features”', url: 'https://www.legendkeeper.com/' },
-  { id: 'bcg', label: 'Book Check Genie', title: 'Book Check Genie: £19 per check, £22 and £49 per month; “flags possible slips for you to judge”; “the final call is always yours”', url: 'https://bookcheckgenie.com' },
-  { id: 'repo', label: 'Story Bible repo', title: 'Story Bible source, README, ROADMAP and scripts (state on 3 Nov 2026)', url: GITHUB },
-  { id: 'metanotes', label: 'Meta API notes', title: 'Story Bible, docs/meta-api-notes.md: 15 notes, each tied to a recorded Meta API response', url: `${GITHUB}/blob/master/docs/meta-api-notes.md` },
-  { id: 'ugorur', label: 'ugorur.com', title: 'Umurcan Görür, ugorur.com', url: 'https://ugorur.com' },
-  { id: 'tektik', label: 'tektik.ai', title: 'TekTık Yazılım AŞ, tektik.ai', url: 'https://tektik.ai' },
+  { id: 'onepiece', title: 'Eiichiro Oda, One Piece, chapter 1 “Romance Dawn” (Weekly Shōnen Jump, 1997). The carpenter is Oda’s answer in his reader Q&A (SBS), as fans record it; we did not confirm the volume.' },
+  { id: 'salon', title: 'Salon, “Potter fix”, 12 Jan 2001: Bloomsbury, “corrected in subsequent editions”', url: 'https://salon.com/2001/01/12/potterfix' },
+  { id: 'scarlet', title: 'Arthur Conan Doyle, A Study in Scarlet (1887), Part I ch. 1: “struck on the shoulder by a Jezail bullet”', url: 'https://www.gutenberg.org/ebooks/244' },
+  { id: 'sign', title: 'Arthur Conan Doyle, The Sign of the Four (1890), ch. 1: “I had a Jezail bullet through it” (his leg)', url: 'https://www.gutenberg.org/ebooks/2097' },
+  { id: 'repo', title: 'Story Bible source, README, ROADMAP and scripts, 3 Nov 2026; Sherlock result from scripts/sherlock-probe.mjs', url: GITHUB },
+  { id: 'gdc25', title: 'GDC, 2025 State of the Game Industry: “Roles in the Narrative field saw the most impact, with 19% of respondents”', url: 'https://gdconf.com/article/gdc-2025-state-of-the-game-industry-devs-weigh-in-on-layoffs-ai-and-more/' },
+  { id: 'steam', title: 'Game World Observer, State of Steam 2024: “According to SteamDB, 18,945 games were released on Steam in 2024”', url: 'https://www.gameworldobserver.com/2024/12/30/state-of-steam-2024-19k-new-games-records-ccu-chart-leaders' },
+  { id: 'ggj', title: 'Wikipedia, Global Game Jam: 2025, 35,371 registered participants at 795 sites in 97 countries (secondary)', url: 'https://en.wikipedia.org/wiki/Global_Game_Jam' },
+  { id: 'cass', title: 'China Daily, 14 Apr 2026, on the Chinese Academy of Social Sciences report: online literature writers rose to 32.69 million in 2025', url: 'https://www.chinadaily.com.cn/a/202604/14/WS69de142fa310d6866eb435ec.html' },
+  { id: 'ao3', title: 'Wikipedia, Archive of Our Own: “over 18,470,000 works in over 82,900 fandoms” as of 18 Sep 2026 (secondary)', url: 'https://en.wikipedia.org/wiki/Archive_of_Our_Own' },
+  { id: 'roll20', title: 'Roll20 press release, 22 Feb 2022: “reached 10 million users” (registered accounts)', url: 'https://pressreleases.triplepointpr.com/?p=23852' },
+  { id: 'legendkeeper', title: 'LegendKeeper home page: “Used by 200k+ creators” (vendor claim); Pro $9 a month, $7.50 billed annually; no generative AI', url: 'https://www.legendkeeper.com/' },
+  { id: 'tadc', title: 'YouTube Official Blog, 28 Oct 2024: Amazing Digital Circus videos from GLITCH, “more than 750 million views” (vendor)', url: 'https://blog.youtube/culture-and-trends/indie-animation/' },
+  { id: 'sensortower', title: 'Sensor Tower, State of Short Drama Apps 2025: in-app revenue $178M in Q1 2024 to nearly $700M in Q1 2025', url: 'https://sensortower.com/blog/state-of-short-drama-apps-2025' },
+  { id: 'pw', title: 'Publishers Weekly, 23 Mar 2026 (Bowker, US ISBNs): self-published titles “soared 38.7% to more than 3.5 million” in 2025', url: 'https://www.publishersweekly.com/pw/print/20260323/99943-book-output-topped-4-million-in-2025.html' },
+  { id: 'd2d', title: 'Draft2Digital, “The Big Indie Author Data Drop”, 21 Jun 2023: “75% of book sales (fiction and nonfiction) were part of a series”', url: 'https://draft2digital.com/blog/?p=207144' },
+  { id: 'fx', title: 'Deadline via Yahoo, 9 Feb 2024: “516 scripted titles on air in 2023”, source FX/Disney', url: 'https://ca.news.yahoo.com/peak-tv-over-number-original-222100123.html' },
+  { id: 'wgaw', title: 'Wikipedia, Writers Guild of America West: “around 14,000 total members as of 2026”, citing the US DOL OLMS filing (secondary)', url: 'https://en.wikipedia.org/wiki/Writers_Guild_of_America_West' },
+  { id: 'goldman', title: 'Investing.com, 6 Apr 2023, on Goldman Sachs: creator economy “$250 billion TAM”, “approximately $480B by 2027” (secondary)', url: 'https://uk.investing.com/news/stock-market-news/goldman-sachs-estimates-creator-economy-tam-of-250-billion-432SI-2977867' },
+  { id: 'egdf', title: 'EGDF press release, 21 Aug 2026: “6600 studios that employ over 95 000 people” (2024 data, 28 European countries)', url: 'https://www.egdf.eu/press-release-egdf-publishes-2024-european-games-industry-insights-data/' },
+  { id: 'gdc26', title: 'GDC, 2026 State of the Game Industry (copy hosted by InvestGame): top roles “game design and narrative (22%)”', url: 'https://investgame.net/news/pdf/2026-01-29-dec052f4_d88e_48ce_9f83_a18ce2f2a6e5_541400_gdc26_pdf_soti_report/' },
+  { id: 'nchome', title: 'Novelcrafter home page: “Join a community of 252k+ authors” (vendor claim)', url: 'https://www.novelcrafter.com/' },
+  { id: 'ncprice', title: 'Novelcrafter pricing: $4, $8, $14, $20 a month', url: 'https://www.novelcrafter.com/pricing' },
+  { id: 'arcweave', title: 'Arcweave pricing: Pro $15/$18, Team $25/$30 per member a month (yearly/monthly); REST API and MCP server on Team', url: 'https://arcweave.com/pricing' },
+  { id: 'bcg', title: 'Book Check Genie: “flags possible slips for you to judge”, “the final call is always yours”; £19 a check, £22 and £49 a month', url: 'https://bookcheckgenie.com' },
+  { id: 'sudowrite', title: 'Sudowrite pricing: $10, $22, $44 a month', url: 'https://www.sudowrite.com/pricing' },
+  { id: 'notion', title: 'Notion pricing: Free, Plus $10, Business $20 per member a month', url: 'https://www.notion.com/pricing' },
+  { id: 'kanka', title: 'Kanka blog, 27 Oct 2023: 225,000 accounts created, 27,000 active accounts', url: 'https://blog.kanka.io/2023/10/27/anniversary-six-years-of-kanka-a-celebration' },
+  { id: 'metanotes', title: 'Story Bible, docs/meta-api-notes.md: 15 notes for the Meta API team, each tied to a recorded response', url: `${GITHUB}/blob/master/docs/meta-api-notes.md` },
+  { id: 'ugorur', title: 'Umurcan Görür, ugorur.com', url: 'https://ugorur.com' },
+  { id: 'tektik', title: 'TekTık Yazılım AŞ, tektik.ai', url: 'https://tektik.ai' },
 ]
 const num = (id: string) => SOURCES.findIndex(s => s.id === id) + 1
-/** A footnote marker that links to the sources slide. */
+/** A footnote marker that links to the sources page of the appendix. */
 const R: FunctionalComponent<{ id: string }> = p => h('sup', { class: 'ref' }, h('a', { href: `#src-${p.id}` }, String(num(p.id))))
-/** The slide's footer: its sources by number, and the slide number. */
-const Foot: FunctionalComponent<{ ids?: string[], n: number }> = p => h('footer', { class: 'sfoot' }, [
-  h('span', !p.ids?.length ? 'Story Bible' : p.ids.length > 6 ? `Sources ${p.ids.map(num).join(', ')}: full list on the last slide` : `Sources: ${p.ids.map(id => `${num(id)} ${SOURCES.find(s => s.id === id)!.label}`).join(' · ')}`),
-  h('span', `${p.n} / ${TOTAL}`),
+/** Footer: the slide's source numbers (tiny) and its number. */
+const Foot: FunctionalComponent<{ ids?: string[], n: string }> = p => h('footer', { class: 'sfoot' }, [
+  h('span', p.ids?.length ? `Sources ${p.ids.map(num).join(', ')}, appendix A4` : ''),
+  h('span', p.n),
 ])
-const TOTAL = 13
+const MAIN = 11
 
-// ---------- Market: bottom-up seats × a competitor's list price (not our price) ----------
-const TEAM_SEAT = 25 * 12 // Arcweave Team, yearly billing, per member
-const WRITER = 8 * 12 // Novelcrafter Hobbyist, monthly
-interface Step { text: string, value?: number, factor?: number, show: string, src?: string, assumption?: boolean }
-interface Segment { name: string, steps: Step[], price: number, priceNote: string, som: number }
+// ---------- Who builds story worlds (slide 7): one sourced number each, units never mixed ----------
+const WORLDS = [
+  { who: 'Game makers', big: '18,945', what: 'games released on Steam in 2024', src: 'steam', more: '35,371 people at the 2025 Global Game Jam', moreSrc: 'ggj' },
+  { who: 'Serial and fan fiction', big: '32.69M', what: 'online-literature writers in China, 2025', src: 'cass', more: '18.47M works on AO3 (per Wikipedia)', moreSrc: 'ao3' },
+  { who: 'Game masters', big: '10M', what: 'Roll20 accounts (2022)', src: 'roll20', more: 'LegendKeeper: “200k+ creators” (vendor)', moreSrc: 'legendkeeper' },
+  { who: 'Video creators', big: '750M+', what: 'views of The Amazing Digital Circus videos (YouTube, 2024)', src: 'tadc', more: 'Short-drama apps: $700M in Q1 2025, up from $178M', moreSrc: 'sensortower' },
+  { who: 'Novelists', big: '3.5M+', what: 'self-published titles in 2025 (US ISBNs)', src: 'pw', more: '75% of indie sales are books in a series', moreSrc: 'd2d' },
+  { who: 'Screen and series', big: '516', what: 'scripted US series on air in 2023', src: 'fx', more: 'WGA West: about 14,000 members (per Wikipedia)', moreSrc: 'wgaw' },
+]
+
+// ---------- Beachhead SOM, bottom-up (appendix A1). Prices are competitors' list prices, not ours. ----------
+interface Step { show: string, text: string, value?: number, factor?: number, src?: string, assumption?: boolean }
+interface Segment { name: string, steps: Step[], price: number, priceText: string, priceSrc: string, som: number }
 const SEGMENTS: Segment[] = [
   {
-    name: 'Games, Europe', price: TEAM_SEAT, priceNote: '$25/seat/month', som: 0.03,
+    name: 'Narrative teams, Europe', price: 25 * 12, priceText: '$25 a seat a month (Arcweave Team, yearly)', priceSrc: 'arcweave', som: 0.03,
     steps: [
-      { text: 'people employed in European games (2024)', value: 123_000, show: '123,000', src: 'vge' },
-      { text: 'in game design and narrative (share of GDC 2026 respondents)', factor: 0.22, show: '× 22%', src: 'gdc26' },
-      { text: 'who write story and lore (assumption)', factor: 0.25, show: '× 1 in 4', assumption: true },
+      { show: '95,000', text: 'people employed in European games (2024, 28 countries)', value: 95_000, src: 'egdf' },
+      { show: '× 22%', text: 'in game design and narrative (GDC 2026 respondents)', factor: 0.22, src: 'gdc26' },
+      { show: '× 1 in 4', text: 'who write story and lore', factor: 0.25, assumption: true },
     ],
   },
   {
-    name: 'Series fiction', price: WRITER, priceNote: '$8/month', som: 0.02,
+    name: 'Serial and series writers', price: 8 * 12, priceText: '$8 a month (Novelcrafter Hobbyist)', priceSrc: 'ncprice', som: 0.02,
     steps: [
-      { text: 'authors in Novelcrafter’s community (vendor claim)', value: 252_000, show: '252,000', src: 'nchome' },
-      { text: 'who write a series that needs checks (assumption; 75% of indie sales are series books)', factor: 0.25, show: '× 1 in 4', assumption: true, src: 'd2d' },
+      { show: '252,000', text: 'authors in Novelcrafter’s community (vendor claim)', value: 252_000, src: 'nchome' },
+      { show: '× 1 in 4', text: 'who write a series long enough to need checks (75% of indie sales are series books)', factor: 0.25, assumption: true, src: 'd2d' },
     ],
   },
   {
-    name: 'TV, US scripted', price: TEAM_SEAT, priceNote: '$25/seat/month', som: 0.03,
+    name: 'Game masters and worldbuilders', price: 7.5 * 12, priceText: '$7.50 a month (LegendKeeper Pro, annual)', priceSrc: 'legendkeeper', som: 0.01,
     steps: [
-      { text: 'scripted series on air in 2023', value: 516, show: '516', src: 'fx' },
-      { text: 'writers each, the smallest WGA room minimum', factor: 3, show: '× 3', src: 'wga' },
+      { show: '200,000', text: 'creators already using a lore wiki, LegendKeeper (vendor claim)', value: 200_000, src: 'legendkeeper' },
     ],
   },
 ]
@@ -79,32 +95,27 @@ const MARKET = SEGMENTS.map((s) => {
   const somSeats = Math.round(seats * s.som)
   return { ...s, seats, sam: seats * s.price, somSeats, somValue: somSeats * s.price }
 })
-const SAM_TOTAL = MARKET.reduce((n, m) => n + m.sam, 0)
-const SOM_TOTAL = MARKET.reduce((n, m) => n + m.somValue, 0)
-const money = (v: number) => v >= 1e6 ? `$${(v / 1e6).toFixed(1)}M` : `$${Math.round(v / 1e3)}k`
+const SOM_SEATS = MARKET.reduce((n, m) => n + m.somSeats, 0)
+const SOM_VALUE = MARKET.reduce((n, m) => n + m.somValue, 0)
+const money = (v: number) => v >= 1e6 ? `$${(v / 1e6).toFixed(v >= 1e7 ? 0 : 1)}M` : `$${Math.round(v / 1e3)}k`
 const count = (v: number) => v.toLocaleString('en-US')
-// Bars drawn to scale against the largest SAM.
-const MAX_SAM = Math.max(...MARKET.map(m => m.sam))
-const BAR_W = 340
-const barW = (v: number) => Math.max(1.5, (v / MAX_SAM) * BAR_W)
 
-// ---------- What neighbouring tools cost, per person per month (USD, list prices) ----------
-const PRICES = [
-  { name: 'Arcweave', from: 15, to: 30, note: 'per member, Pro to Team', src: 'arcweave' },
-  { name: 'Notion', from: 10, to: 20, note: 'per member, Plus to Business', src: 'notion' },
-  { name: 'Sudowrite', from: 10, to: 44, note: 'Hobby to Max', src: 'sudowrite' },
-  { name: 'Novelcrafter', from: 4, to: 20, note: 'Scribe to Specialist', src: 'ncprice' },
-  { name: 'LegendKeeper', from: 7.5, to: 9, note: 'Pro, annual to monthly', src: 'legendkeeper' },
+// ---------- Competition (slide 9): placed only by what each vendor's own page says ----------
+// x: checks consistency automatically (0 no claim … 1 rule-based checks); y: cites every fact to its source (0 … 1).
+const MAP = [
+  { name: 'Story Bible', x: 0.74, y: 0.84, us: true },
+  { name: 'Book Check Genie', x: 0.62, y: 0.2, note: 'AI flags slips, you judge', src: 'bcg' },
+  { name: 'Arcweave', x: 0.12, y: 0.24, src: 'arcweave' },
+  { name: 'LegendKeeper', x: 0.24, y: 0.17, src: 'legendkeeper' },
+  { name: 'Novelcrafter', x: 0.2, y: 0.36, src: 'nchome' },
+  { name: 'Sudowrite', x: 0.36, y: 0.28, src: 'sudowrite' },
+  { name: 'Notion', x: 0.05, y: 0.06, src: 'notion' },
+  { name: 'Kanka', x: 0.36, y: 0.04, src: 'kanka' },
 ]
-const PRICE_MAX = 50
-const usd = (v: number) => `$${Number.isInteger(v) ? v : v.toFixed(2)}`
-const px = (v: number) => (v / PRICE_MAX) * 260
-
-// ---------- Competition: what each vendor's own page says (— = not stated on the page we checked) ----------
 const COMPARE = [
-  { name: 'Story Bible', us: true, cite: 'Every fact, verbatim, checked', rules: 'Yes: time and place, travel, relationships, same detail', gate: 'Yes, always', api: 'MCP (38 tools) + API', price: 'Free self-host · cloud: ask' },
+  { name: 'Story Bible', cite: 'Every fact, verbatim, checked', rules: 'Yes: time and place, travel, relationships, same detail', gate: 'Yes, always', api: 'MCP (38 tools) + API', price: 'Free self-host; cloud: ask' },
   { name: 'Arcweave', cite: '—', rules: '—', gate: '—', api: 'REST API + MCP (Team tier)', price: 'Free; $15–$30 per member/mo', src: 'arcweave' },
-  { name: 'Book Check Genie', cite: '—', rules: 'AI “flags possible slips”', gate: 'Yes: “the final call is always yours”', api: '—', price: '£19/check · £22–£49/mo', src: 'bcg' },
+  { name: 'Book Check Genie', cite: '—', rules: 'AI “flags possible slips”', gate: 'Yes: “the final call is always yours”', api: '—', price: '£19/check; £22–£49/mo', src: 'bcg' },
   { name: 'Sudowrite', cite: '—', rules: '—', gate: '—', api: '—', price: '$10–$44/mo', src: 'sudowrite' },
   { name: 'Novelcrafter', cite: '—', rules: '—', gate: '—', api: '—', price: '$4–$20/mo', src: 'ncprice' },
   { name: 'Notion', cite: '—', rules: '—', gate: '—', api: 'Public API', price: 'Free; $10–$20 per member/mo', src: 'notion' },
@@ -119,7 +130,7 @@ function onKey(e: KeyboardEvent) {
   const dir = { ArrowDown: 1, ArrowRight: 1, PageDown: 1, ArrowUp: -1, ArrowLeft: -1, PageUp: -1 }[e.key]
   if (!dir || e.altKey || e.ctrlKey || e.metaKey || (e.target as HTMLElement).closest('input, textarea, select, [contenteditable]')) return
   const slides = [...deck.value?.querySelectorAll<HTMLElement>('.slide') ?? []]
-  const tops = slides.map(s => s.getBoundingClientRect().top - 80) // below the sticky site header
+  const tops = slides.map(s => s.getBoundingClientRect().top - 72) // below the sticky site header
   const current = tops.findLastIndex(t => t <= 8) // the slide at the top of the window (-1: above the first)
   const next = slides[dir > 0 ? current + 1 : (tops[current]! < -8 ? current : current - 1)]
   if (!next) return
@@ -134,496 +145,475 @@ const print = () => window.print()
 <template>
   <div ref="deck" class="deck">
     <div class="deck-bar">
-      <p>Pitch deck · {{ TOTAL }} slides · use the arrow keys to move</p>
+      <p>Pitch deck: {{ MAIN }} slides and an appendix. Arrow keys move one slide.</p>
       <div class="deck-actions">
         <UiButton :to="PDF" size="sm">PDF on GitHub</UiButton>
         <UiButton size="sm" @click="print">Save as PDF</UiButton>
       </div>
     </div>
 
-    <!-- 1. Hook -->
-    <section id="s1" class="slide hook" aria-labelledby="t1">
+    <!-- 1. Hook: three famous slips -->
+    <section class="slide d hook" aria-label="Three famous continuity slips">
       <div class="in">
-        <p class="kicker">Story Bible · pitch deck · Meta AI Developer Hackathon 2026</p>
-        <h1 id="t1">Every story world breaks.</h1>
-        <div class="cases">
-          <article>
-            <h3>One Piece, chapter 1<R id="onepiece" /></h3>
-            <p>A bandit knocks the bar door off its hinges. Later in the scene the door is back. Oda’s answer to a reader: a carpenter fixed it.</p>
-          </article>
-          <article>
-            <h3>Harry Potter and the Goblet of Fire<R id="salon" /></h3>
-            <p>Voldemort killed James, then Lily, yet James stepped out of the wand first. Bloomsbury corrected later editions: Lily first, then James.</p>
-          </article>
-          <article>
-            <h3>Dr Watson’s wound</h3>
-            <p class="story">“struck on the shoulder by a Jezail bullet”<R id="scarlet" /></p>
-            <p class="story">“I had a Jezail bullet through it” <span class="ui">(his leg)</span><R id="sign" /></p>
-          </article>
-        </div>
-        <p class="payoff"><b>Story Bible found Watson’s wound on its own.</b> It read 31 Sherlock Holmes documents, a person accepted the facts, and a deterministic rule paired “shoulder” with “leg”, quoting both books.</p>
-      </div>
-      <Foot :ids="['onepiece', 'salon', 'scarlet', 'sign']" :n="1" />
-    </section>
-
-    <!-- 2. Problem -->
-    <section id="s2" class="slide" aria-labelledby="t2">
-      <div class="in">
-        <p class="kicker">Problem</p>
-        <h2 id="t2">Canon lives in people’s heads, and people move on.</h2>
-        <div class="two">
-          <div>
-            <h3>Who it hurts</h3>
-            <ul class="list">
-              <li><b>Narrative leads at game studios:</b> lore, quests and barks across many documents and many hands.</li>
-              <li><b>Writers’ rooms:</b> a US TV room starts at 3 writers or more under the 2023 WGA contract.<R id="wga" /></li>
-              <li><b>Series novelists:</b> 75% of indie book sales are books in a series.<R id="d2d" /></li>
-              <li><b>Worldbuilders:</b> magic rules, travel times and histories that start long before page one.</li>
-            </ul>
-          </div>
-          <div>
-            <h3>How canon is kept today</h3>
-            <p class="today">Wikis, shared docs, spreadsheets and memory. None of them can say where a fact came from or what a change will break.</p>
-            <div class="stats">
-              <p><b>19%</b><span>of respondents in narrative roles were laid off: the most of any field in GDC’s 2025 survey.<R id="gdc25" /></span></p>
-              <p><b>20%</b><span>of game designers, narrative included, were laid off in the past 12 months (GDC 2026).<R id="gdc26" /></span></p>
-            </div>
-            <p class="gap">When a writer leaves, the canon in their head leaves with them. We found no survey of how teams keep lore; our first design partners will tell us.</p>
-          </div>
+        <div class="three">
+          <figure>
+            <img src="/art/pitch-door.webp" alt="A tavern door lying off its hinges." width="800" height="800">
+            <figcaption>
+              <h2>One Piece, chapter 1<R id="onepiece" /></h2>
+              <p class="story">A door is kicked off its hinges. One scene later, it’s back.</p>
+            </figcaption>
+          </figure>
+          <figure>
+            <img src="/art/pitch-wand.webp" alt="A wand with two curls of smoke rising from its tip." width="800" height="800">
+            <figcaption>
+              <h2>Harry Potter and the Goblet of Fire<R id="salon" /></h2>
+              <p class="story">James leaves the wand before Lily. Later editions swapped them.</p>
+            </figcaption>
+          </figure>
+          <figure>
+            <img src="/art/pitch-wound.webp" alt="An army surgeon’s bag, a bandage and an old musket ball." width="800" height="800">
+            <figcaption>
+              <h2>Sherlock Holmes<R id="scarlet" /><R id="sign" /></h2>
+              <p class="story">Watson’s war wound: the shoulder in book one, the leg in book two.</p>
+            </figcaption>
+          </figure>
         </div>
       </div>
-      <Foot :ids="['wga', 'd2d', 'gdc25', 'gdc26']" :n="2" />
+      <Foot :ids="['onepiece', 'salon', 'scarlet', 'sign']" n="1" />
     </section>
 
-    <!-- 3. Solution -->
-    <section id="s3" class="slide" aria-labelledby="t3">
+    <!-- 2. The line -->
+    <section class="slide l breaks" aria-labelledby="t2">
       <div class="in">
-        <p class="kicker">Solution</p>
-        <h2 id="t3">The AI does the reading. People keep the say.</h2>
+        <h1 id="t2">Every story world breaks.</h1>
+        <p class="lead">Story Bible caught Watson’s wound on its own. It read 31 Sherlock Holmes documents and quoted both books.<R id="repo" /></p>
+      </div>
+      <Foot :ids="['repo']" n="2" />
+    </section>
+
+    <!-- 3. Problem -->
+    <section class="slide d problem" aria-labelledby="t3">
+      <div class="in">
+        <h2 id="t3">When a writer leaves, the canon in their head leaves too.</h2>
+        <div class="bignum">
+          <b>19%</b>
+          <p>of narrative respondents were hit by layoffs, the most of any field in GDC’s 2025 survey.<R id="gdc25" /></p>
+        </div>
+      </div>
+      <Foot :ids="['gdc25']" n="3" />
+    </section>
+
+    <!-- 4. Solution -->
+    <section class="slide l solution" aria-labelledby="t4">
+      <div class="in">
+        <h2 id="t4">The AI does the reading. People keep the say.</h2>
         <ol class="flow">
-          <li><b>Import</b><span>Markdown, Word and voice recordings. Sources stay read-only; a new file is a new version.</span></li>
-          <li class="pencil"><b>AI proposes</b><span>Facts, each with the exact sentence it came from. A quote that isn’t in the source is blocked.</span></li>
-          <li><b>A person decides</b><span>Accept, edit or reject. Nothing becomes canon without a human.</span></li>
-          <li class="ink"><b>Canon</b><span>Every fact cites its sentence and keeps who decided it.</span></li>
-          <li class="checks"><b>Checks</b><span><em>Conflicts:</em> rules for time and place, travel, relationships and “same detail, two answers”. <em>Impact:</em> what a change reaches, two hops deep.</span></li>
+          <li><b>Your sources</b><span>Docs, scripts, recordings. Never edited.</span></li>
+          <li class="pencil"><b>AI proposes</b><span>Each fact with the exact sentence.</span></li>
+          <li class="person"><b>A person decides</b><span>Nothing is canon without a human.</span></li>
+          <li class="ink"><b>Canon</b><span>Every fact cites its source.</span></li>
+          <li class="checks"><b>Conflicts and impact</b><span>Contradictions found by rules, before release.</span></li>
         </ol>
-        <p class="note">No evidence means the answer is “unknown”. The AI never invents a source or a quote.</p>
       </div>
-      <Foot :n="3" />
+      <Foot n="4" />
     </section>
 
-    <!-- 4. Product -->
-    <section id="s4" class="slide product" aria-labelledby="t4">
+    <!-- 5. Product -->
+    <section class="slide d product" aria-labelledby="t5">
       <div class="in">
-        <p class="kicker">Product</p>
-        <h2 id="t4">Working today, on real and sample stories</h2>
-        <div class="shots">
-          <figure class="big">
-            <MarketingShot eager name="watson" alt="Conflict candidates in the Sherlock Holmes sample: Watson’s wound in his shoulder and in his leg, with both quotes." sizes="(max-width: 720px) 100vw, 640px" />
-            <figcaption>Watson’s wound: shoulder in one book, leg in the next. Both quotes, found by a rule.</figcaption>
-          </figure>
-          <figure>
-            <MarketingShot eager name="tide-review" alt="Review: the AI critic marks a figurative “sisters” candidate." sizes="(max-width: 720px) 100vw, 320px" />
-            <figcaption>The AI critic flags a figurative “sister”.</figcaption>
-          </figure>
-          <figure>
-            <MarketingShot eager name="impact" alt="A proposed change to a world rule with the scenes and facts it may touch." sizes="(max-width: 720px) 100vw, 320px" />
-            <figcaption>A rule change and the scenes it reaches.</figcaption>
-          </figure>
-        </div>
+        <h2 id="t5">Shoulder or leg? Both sentences, side by side.</h2>
+        <img class="screen" src="/shots/watson-card-light-1920.webp" srcset="/shots/watson-card-light-960.webp 960w, /shots/watson-card-light-1920.webp 1920w" sizes="(max-width: 900px) 100vw, 1100px" alt="Story Bible’s conflict card: “Watson’s wound was in his shoulder” against “Watson has a Jezail bullet wound in his leg”, each with its verbatim quote and chapter." width="1920" height="873">
+        <p class="caption">A conflict in the Sherlock Holmes sample, found by a rule over accepted canon. A person decides what is true.<R id="repo" /></p>
       </div>
-      <Foot :n="4" />
+      <Foot :ids="['repo']" n="5" />
     </section>
 
-    <!-- 5. Why now / why Meta -->
-    <section id="s5" class="slide" aria-labelledby="t5">
+    <!-- 6. Why now / Muse -->
+    <section class="slide l muse" aria-labelledby="t6">
       <div class="in">
-        <p class="kicker">Why now, why Meta</p>
-        <h2 id="t5">Models can read a whole story world. They still make things up.</h2>
-        <div class="grid4">
-          <article><h3>Muse Spark</h3><p>Extraction, the AI critic, continuity checks, research with web search, and answers from canon only.</p></article>
-          <article><h3>Muse Voice Transcribe</h3><p>Table reads, voice-actor takes and dictation become timed sources: a citation plays the line.</p></article>
-          <article><h3>Muse Image</h3><p>Portraits and covers for wiki pages. Editorial, never canon.</p></article>
-          <article><h3>Muse Code over MCP</h3><p>An agent works with canon through 38 tools; with a propose token, what it suggests waits for a person.</p></article>
-        </div>
-        <p class="trust"><b>The human gate is the trust layer.</b> Every AI output is a proposal with a quote, the server checks the quote word for word, and a person decides. That is what lets a studio use AI on its canon.</p>
-        <p class="note">Built against api.meta.ai: 15 notes for the Meta API team, each tied to a recorded response.<R id="metanotes" /></p>
+        <h2 id="t6">Built on Muse. A person signs off on every fact.</h2>
+        <ul class="models">
+          <li><b>Muse Spark</b><span>reads, critiques and checks continuity</span></li>
+          <li><b>Muse Voice Transcribe</b><span>turns table reads into sources</span></li>
+          <li><b>Muse Image</b><span>draws portraits for the wiki</span></li>
+          <li><b>Muse Code</b><span>works with canon over MCP</span></li>
+        </ul>
+        <p class="lead sub">Models can read a whole story world. They still invent things. The human gate is what makes them safe for canon.<R id="metanotes" /></p>
       </div>
-      <Foot :ids="['metanotes']" :n="5" />
+      <Foot :ids="['metanotes']" n="6" />
     </section>
 
-    <!-- 6. Market -->
-    <section id="s6" class="slide" aria-labelledby="t6">
+    <!-- 7. Who builds story worlds -->
+    <section class="slide d worlds" aria-labelledby="t7">
       <div class="in">
-        <p class="kicker">Market, bottom-up</p>
-        <h2 id="t6">SAM {{ money(SAM_TOTAL) }} a year, SOM {{ money(SOM_TOTAL) }} in three years</h2>
-        <div class="market">
-          <div class="mrows">
-            <div v-for="m in MARKET" :key="m.name" class="mrow">
-              <h3>{{ m.name }} <span class="res">= {{ count(m.seats) }} seats × {{ m.priceNote }}</span></h3>
-              <p class="calc">
-                <template v-for="(st, i) in m.steps" :key="i">
-                  <span :class="{ as: st.assumption }"><b>{{ st.show }}</b> {{ st.text }}<R v-if="st.src" :id="st.src" /></span>{{ ' ' }}
-                </template>
-              </p>
-            </div>
-            <div class="mrow unsized">
-              <h3>Comics <span class="res">not sized</span></h3>
-              <p class="calc">WEBTOON has 27 million creators, “the vast majority” amateur<R id="webtoon" />. We found no count of professional comics writers.</p>
-            </div>
-          </div>
-          <figure class="chart">
-            <svg :viewBox="`0 0 460 ${MARKET.length * 70 + 34}`" role="img" :aria-label="`SAM and SOM per segment: ${MARKET.map(m => `${m.name} SAM ${money(m.sam)}, SOM ${money(m.somValue)}`).join('; ')}`">
-              <g v-for="(m, i) in MARKET" :key="m.name" :transform="`translate(0 ${i * 70})`">
-                <text x="0" y="15" class="c-label">{{ m.name }}</text>
-                <rect x="0" y="23" :width="barW(m.sam)" height="17" rx="2" class="c-sam" />
-                <text :x="barW(m.sam) + 8" y="37" class="c-val">SAM {{ money(m.sam) }}</text>
-                <rect x="0" y="45" :width="barW(m.somValue)" height="10" rx="1" class="c-som" />
-                <text :x="barW(m.somValue) + 8" y="55" class="c-val small">SOM {{ money(m.somValue) }} ({{ count(m.somSeats) }} seats)</text>
-              </g>
-              <text :y="MARKET.length * 70 + 20" x="0" class="c-axis">Bars to scale. SOM: 3% of team seats, 2% of writers.</text>
-            </svg>
-            <figcaption><b>TAM, not valued.</b> The outer bounds we found count people, not buyers: 11.1 million game developers including hobbyists and students<R id="slashdata" />, and 27 million WEBTOON creators.</figcaption>
-            <figcaption><b>How we sized it.</b> Sourced counts × sourced shares × our assumptions (<span class="as">dashed</span>) = seats, × a competitor’s list price, not ours: $25 per seat a month for teams (Arcweave Team, yearly)<R id="arcweave" />, $8 a month for writers (Novelcrafter Hobbyist).<R id="ncprice" /> Left out: games outside Europe, TV outside the US, film, traditional publishing, comics, tabletop.</figcaption>
-          </figure>
-        </div>
+        <h2 id="t7">Millions of people build story worlds.</h2>
+        <ul class="tiles">
+          <li v-for="w in WORLDS" :key="w.who">
+            <span class="who">{{ w.who }}</span>
+            <b>{{ w.big }}</b>
+            <span class="what">{{ w.what }}<R :id="w.src" /></span>
+            <span class="more">{{ w.more }}<R :id="w.moreSrc" /></span>
+          </li>
+        </ul>
+        <p class="start">We start with narrative teams, serial writers and game masters: {{ count(SOM_SEATS) }} paying seats, about {{ money(SOM_VALUE) }} a year, by year three (bottom-up, A1). The creator economy around them: $250B in 2023, about $480B by 2027.<R id="goldman" /></p>
       </div>
-      <Foot :ids="['vge', 'gdc26', 'nchome', 'd2d', 'fx', 'wga', 'webtoon', 'slashdata', 'arcweave', 'ncprice']" :n="6" />
+      <Foot :ids="WORLDS.flatMap(w => [w.src, w.moreSrc]).concat('goldman')" n="7" />
     </section>
 
-    <!-- 7. Business model -->
-    <section id="s7" class="slide" aria-labelledby="t7">
+    <!-- 8. Model and go-to-market -->
+    <section class="slide l model" aria-labelledby="t8">
       <div class="in">
-        <p class="kicker">Business model</p>
-        <h2 id="t7">Open source to spread, cloud for teams to pay</h2>
-        <div class="two">
-          <div class="plans">
-            <article><h3>Open source · free</h3><p>The whole app under AGPL-3.0. Self-host it; bring your own AI key and pay your provider directly.</p></article>
-            <article class="cloud"><h3>Cloud for teams · ask for a price</h3><p>We host it for a studio, a writers’ room or a writer. Today a price is quoted per team.</p></article>
-            <article class="planned"><h3>Planned, not priced yet</h3><p>A per-seat team plan and a solo writer plan. AI usage is the main running cost, so cloud prices will cover it.</p></article>
-          </div>
-          <figure class="chart">
-            <figcaption class="top">What people pay for neighbouring tools, USD per person a month (list prices)</figcaption>
-            <svg :viewBox="`0 0 540 ${PRICES.length * 40 + 40}`" role="img" :aria-label="PRICES.map(p => `${p.name} $${p.from} to $${p.to}`).join('; ')">
-              <g v-for="(p, i) in PRICES" :key="p.name" :transform="`translate(0 ${i * 40})`">
-                <text x="0" y="22" class="c-label">{{ p.name }}<tspan class="c-ref" dx="2" dy="-6">{{ num(p.src) }}</tspan></text>
-                <rect :x="120 + px(p.from)" y="10" :width="Math.max(3, px(p.to) - px(p.from))" height="16" rx="2" class="c-range" />
-                <text :x="120 + px(p.to) + 8" y="23" class="c-val small">{{ usd(p.from) }}–{{ usd(p.to) }} · {{ p.note }}</text>
-              </g>
-              <g :transform="`translate(120 ${PRICES.length * 40 + 8})`">
-                <line x1="0" :x2="px(PRICE_MAX)" y1="0" y2="0" class="c-axisline" />
-                <text v-for="t in [0, 10, 20, 30, 40, 50]" :key="t" :x="px(t)" y="20" text-anchor="middle" class="c-axis">${{ t }}</text>
-              </g>
-            </svg>
-            <figcaption>Book Check Genie charges per check: £19, or £22–£49 a month.<R id="bcg" /> Context only: none of these is our price.</figcaption>
-          </figure>
+        <h2 id="t8">Open source to spread. Cloud for teams to pay.</h2>
+        <div class="split">
+          <div><b>Free</b><span>Self-host the whole app, AGPL-3.0.</span></div>
+          <div class="cloud"><b>Cloud</b><span>We host it for teams. Price on request.</span></div>
         </div>
+        <ol class="channels">
+          <li>GitHub and the four sample worlds</li>
+          <li>Narrative design and writing communities</li>
+          <li>Game master and worldbuilding communities</li>
+          <li>Agents that connect over MCP</li>
+        </ol>
       </div>
-      <Foot :ids="['arcweave', 'notion', 'sudowrite', 'ncprice', 'legendkeeper', 'bcg']" :n="7" />
-    </section>
-
-    <!-- 8. Go-to-market -->
-    <section id="s8" class="slide" aria-labelledby="t8">
-      <div class="in">
-        <p class="kicker">Go-to-market · plan</p>
-        <h2 id="t8">Start where narrative people already gather</h2>
-        <div class="two">
-          <div>
-            <h3>Channels</h3>
-            <ul class="list">
-              <li><b>Open source first.</b> A public repo that runs in about five minutes with no API key, and sample worlds with planted contradictions to find.</li>
-              <li><b>Narrative communities.</b> Game-writing and narrative design groups, narrative talks at game conferences, indie author communities.</li>
-              <li><b>Agents as a channel.</b> MCP setups for Muse Code, Claude Code and Cursor; planned imports from Ink, Yarn Spinner, articy:draft and Twine.</li>
-              <li><b>Design partners to case studies.</b> One game team, one writers’ room and one series novelist, with results we can publish.</li>
-            </ul>
-          </div>
-          <div>
-            <h3>First 90 days</h3>
-            <ol class="days">
-              <li><b>Days 1–30</b><span>Repo public. Hosted cloud for three design partners. Weekly calls with each.</span></li>
-              <li><b>Days 31–60</b><span>Branching canon (roadmap item 1) with the game partner; first game-script import.</span></li>
-              <li><b>Days 61–90</b><span>First paid cloud teams; a published price; one public case study.</span></li>
-            </ol>
-            <p class="note">We will watch facts accepted per project each week, and how many conflicts teams confirm rather than dismiss.</p>
-          </div>
-        </div>
-      </div>
-      <Foot :ids="['repo']" :n="8" />
+      <Foot :ids="['repo']" n="8" />
     </section>
 
     <!-- 9. Competition -->
-    <section id="s9" class="slide" aria-labelledby="t9">
+    <section class="slide d compete" aria-labelledby="t9">
       <div class="in">
-        <p class="kicker">Competition</p>
-        <h2 id="t9">Others store lore or write prose. None we checked cites every fact and checks it by rule.</h2>
-        <div class="table-wrap">
-          <table class="cmp">
-            <thead><tr><th>Product</th><th>Cited facts</th><th>Rule-based checks</th><th>Human gate on AI</th><th>API / MCP</th><th>Price</th></tr></thead>
-            <tbody>
-              <tr v-for="c in COMPARE" :key="c.name" :class="{ us: c.us }">
-                <th scope="row">{{ c.name }}<R v-if="c.src" :id="c.src" /></th>
-                <td>{{ c.cite }}</td><td>{{ c.rules }}</td><td>{{ c.gate }}</td><td>{{ c.api }}</td><td>{{ c.price }}</td>
-              </tr>
-            </tbody>
-          </table>
+        <h2 id="t9">Alone in the top right.</h2>
+        <div class="map" role="img" aria-label="Positioning map. Across: checks consistency automatically. Up: cites every fact to its source. Story Bible is alone in the top right; Book Check Genie checks with AI but does not cite; Arcweave, LegendKeeper, Novelcrafter, Sudowrite, Notion and Kanka make neither claim on their own pages.">
+          <span class="axis y">Cites every fact to its source</span>
+          <span class="axis x">Checks consistency automatically</span>
+          <div class="plot">
+            <span v-for="c in MAP" :key="c.name" class="dot" :class="{ us: c.us }" :style="{ left: `${c.x * 100}%`, bottom: `${c.y * 100}%` }">
+              <i />{{ c.name }}<R v-if="c.src" :id="c.src" /><small v-if="c.note">{{ c.note }}</small>
+            </span>
+          </div>
         </div>
-        <p class="note"><b>Where they are stronger:</b> Arcweave already ships an MCP server; Sudowrite and Novelcrafter write prose and we don’t; Notion, Obsidian and World Anvil have communities we don’t have yet. “—” means the vendor’s own page didn’t say, checked 3 Nov 2026.</p>
+        <p class="caption">Placed only by what each vendor’s own page says (3 Nov 2026); places inside a quarter are only for legibility. Arcweave also has MCP; Sudowrite and Novelcrafter write prose. Table in A2.</p>
       </div>
-      <Foot :ids="['arcweave', 'bcg', 'sudowrite', 'ncprice', 'notion', 'legendkeeper']" :n="9" />
+      <Foot :ids="MAP.filter(c => c.src).map(c => c.src!)" n="9" />
     </section>
 
-    <!-- 10. Traction / proof -->
-    <section id="s10" class="slide" aria-labelledby="t10">
+    <!-- 10. Team -->
+    <section class="slide l team" aria-labelledby="t10">
       <div class="in">
-        <p class="kicker">Proof</p>
-        <h2 id="t10">Built in 9 days, checked like a product</h2>
-        <div class="kpis">
-          <p><b>9</b><span>days, 27 Oct–4 Nov 2026, solo, with 260+ commits</span></p>
-          <p><b>4</b><span>sample worlds, up to 31 documents and 126,658 words</span></p>
-          <p><b>40</b><span>scripted probes and checks that drive the real app</span></p>
-          <p><b>38</b><span>MCP tools, under the same roles as people</span></p>
+        <h2 id="t10">A solo entry, with a company behind it.</h2>
+        <div class="people">
+          <div class="person">
+            <b class="name">Umurcan Görür<R id="ugorur" /></b>
+            <p>Built Story Bible alone for this hackathon.</p>
+            <ul>
+              <li>Paid to write code at fourteen</li>
+              <li>Co-founded three companies; one closed when the money ran out</li>
+              <li>CTO of a company of about fifty people</li>
+              <li>Taught Ruby to around 150 students</li>
+              <li>Builds Orka, open-source teams of coding agents, which built this</li>
+            </ul>
+          </div>
+          <div class="company">
+            <b class="name">TekTık Yazılım AŞ<R id="tektik" /></b>
+            <p>Will develop and host Story Bible.</p>
+            <ul>
+              <li>TekTık Asistan: an office assistant in WhatsApp and Telegram, in beta in Türkiye, with a UK pilot</li>
+              <li>AI API reselling and custom AI software</li>
+            </ul>
+          </div>
         </div>
-        <ul class="list two-col">
-          <li><b>Gold sets with targets.</b> The Metrics page scores each sample’s planted contradictions; on Sherlock Holmes it finds all 4 planted contradictions (4/4) and blocks 62 AI candidates whose quote isn’t in the text.</li>
-          <li><b>Real Meta responses as contract tests.</b> 23 recorded responses from api.meta.ai replay in a fake server.</li>
-          <li><b>Every AI agent is traced.</b> Agent activity shows each run, its steps, and what people did with its output.</li>
-          <li><b>Open source under AGPL-3.0.</b> Self-host it today. No users or revenue yet: this is day zero.</li>
+      </div>
+      <Foot :ids="['ugorur', 'tektik']" n="10" />
+    </section>
+
+    <!-- 11. Close -->
+    <section class="slide d close" aria-labelledby="t11">
+      <div class="in">
+        <BrandMark class="mark" />
+        <h2 id="t11">Create the perfect world for your story.</h2>
+        <p class="lead sub">We’re looking for design partners: a narrative team, a writers’ room, a serial writer and a game master.</p>
+        <p class="contact"><a :href="CONTACT">info@tektik.ai</a><a :href="GITHUB">{{ GITHUB.replace('https://', '') }}</a></p>
+      </div>
+      <Foot n="11" />
+    </section>
+
+    <!-- A1. Market sizing -->
+    <section class="slide l appx" aria-labelledby="ta1">
+      <div class="in">
+        <p class="tag">Appendix A1</p>
+        <h2 id="ta1">Beachhead, sized bottom-up</h2>
+        <table class="sizing">
+          <thead><tr><th>Segment</th><th>Count × share × assumption</th><th>Seats</th><th>At a competitor’s price</th><th>Year-3 share</th><th>Year 3</th></tr></thead>
+          <tbody>
+            <tr v-for="m in MARKET" :key="m.name">
+              <th scope="row">{{ m.name }}</th>
+              <td><span v-for="(st, i) in m.steps" :key="i" class="step" :class="{ as: st.assumption }"><b>{{ st.show }}</b> {{ st.text }}<R v-if="st.src" :id="st.src" /> </span></td>
+              <td class="n">{{ count(m.seats) }}</td>
+              <td>{{ m.priceText }}<R :id="m.priceSrc" /><br><span class="faint">{{ money(m.sam) }} a year at full reach</span></td>
+              <td class="n">{{ Math.round(m.som * 100) }}%</td>
+              <td class="n"><b>{{ count(m.somSeats) }} seats</b><br>{{ money(m.somValue) }}</td>
+            </tr>
+          </tbody>
+          <tfoot><tr><th scope="row" colspan="5">Year 3, all three</th><td class="n"><b>{{ count(SOM_SEATS) }} seats</b><br>{{ money(SOM_VALUE) }} a year</td></tr></tfoot>
+        </table>
+        <ul class="notes">
+          <li><span class="as">Dashed</span> = our assumption. Year-3 shares are assumptions too. Prices are competitors’ list prices, not ours: our cloud price is quoted per team.</li>
+          <li>Not counted: games outside Europe, serial fiction outside one tool’s community, Roll20’s 10M accounts<R id="roll20" />, video creators, screen, comics. The breadth on slide 7 is people, not buyers; units are never added up.</li>
+          <li>The creator economy figure ($250B in 2023, about $480B by 2027) is Goldman Sachs via Investing.com: the broader market, not ours.<R id="goldman" /> Europe uses EGDF’s 2024 figure (95,000 people, 6,600 studios) throughout.<R id="egdf" /></li>
         </ul>
       </div>
-      <Foot :ids="['repo']" :n="10" />
+      <Foot n="A1" />
     </section>
 
-    <!-- 11. Team -->
-    <section id="s11" class="slide" aria-labelledby="t11">
+    <!-- A2. Competitor table -->
+    <section class="slide l appx" aria-labelledby="ta2">
       <div class="in">
-        <p class="kicker">Team</p>
-        <h2 id="t11">A solo entry, with a company behind it</h2>
-        <div class="two">
-          <article class="person">
-            <h3>Umurcan Görür (Umur)<R id="ugorur" /></h3>
-            <p class="role">Founder and engineer. Built Story Bible alone for this hackathon.</p>
-            <ul class="list">
-              <li>Paid to write code at fourteen.</li>
-              <li>Co-founded three companies; one closed when the money ran out.</li>
-              <li>CTO of a company of about fifty people.</li>
-              <li>Taught Ruby to around 150 students.</li>
-              <li>Builds Orka, an open-source way to run teams of coding agents. Story Bible was built with it.</li>
-              <li>Runs a homelab of about a hundred devices, where he tests things.</li>
-            </ul>
-          </article>
-          <article class="company">
-            <h3>TekTık Yazılım AŞ · tektik.ai<R id="tektik" /></h3>
-            <p class="role">The company that will develop and host Story Bible.</p>
-            <ul class="list">
-              <li><b>TekTık Asistan:</b> an office assistant in WhatsApp and Telegram, in beta with companies in Türkiye, with a first UK pilot.</li>
-              <li><b>AI API reseller:</b> several AI models under one invoice.</li>
-              <li><b>Custom AI software</b> and integrations.</li>
-            </ul>
-            <p class="note">The hackathon entry is Umur alone. TekTık gives Story Bible a company to sign contracts, bill and host from day one.</p>
-          </article>
-        </div>
+        <p class="tag">Appendix A2</p>
+        <h2 id="ta2">What each vendor’s page says</h2>
+        <table class="cmp">
+          <thead><tr><th>Product</th><th>Cited facts</th><th>Rule-based checks</th><th>Human gate on AI</th><th>API / MCP</th><th>Price</th></tr></thead>
+          <tbody>
+            <tr v-for="c in COMPARE" :key="c.name" :class="{ us: !c.src }">
+              <th scope="row">{{ c.name }}<R v-if="c.src" :id="c.src" /></th>
+              <td>{{ c.cite }}</td><td>{{ c.rules }}</td><td>{{ c.gate }}</td><td>{{ c.api }}</td><td>{{ c.price }}</td>
+            </tr>
+          </tbody>
+        </table>
+        <ul class="notes">
+          <li>“—” means the vendor’s own page didn’t say, checked 3 Nov 2026. Kanka (225,000 accounts, 27,000 active in 2023) is a source-available campaign wiki.<R id="kanka" /></li>
+          <li>Where they are stronger: Arcweave already ships an MCP server; Sudowrite and Novelcrafter write prose and we don’t; World Anvil, Notion and Kanka have communities we don’t have yet.</li>
+        </ul>
       </div>
-      <Foot :ids="['ugorur', 'tektik']" :n="11" />
+      <Foot n="A2" />
     </section>
 
-    <!-- 12. Roadmap and close -->
-    <section id="s12" class="slide close" aria-labelledby="t12">
+    <!-- A3. Proof -->
+    <section class="slide l appx" aria-labelledby="ta3">
       <div class="in">
-        <p class="kicker">Roadmap · not built yet</p>
-        <h2 id="t12">What canon means in context: an episode, a quest, a player’s choice</h2>
-        <div class="grid3">
-          <article><h3>Next</h3><p><b>Branching canon:</b> facts true only on one player path, checked per ending. <b>Project-level access</b> for outside writers and translators.</p></article>
-          <article><h3>Series</h3><p>Story time apart from release order, canon “as of” an episode, who knows what and when, setup and payoff.</p></article>
-          <article><h3>Games and localization</h3><p>Quest dependencies, game-script import with bulk checks, DLC and patches, an approved-terms glossary for translators.</p></article>
-        </div>
-        <div class="ask">
-          <p class="big">Create the perfect world for your story.</p>
-          <p>We are looking for design partners: a narrative team, a writers’ room and a series novelist. <a :href="CONTACT">info@tektik.ai</a> · <a :href="GITHUB">{{ GITHUB.replace('https://', '') }}</a></p>
-        </div>
+        <p class="tag">Appendix A3</p>
+        <h2 id="ta3">What exists today, from the repository</h2>
+        <ul class="kpis">
+          <li><b>9</b><span>days, 27 Oct–4 Nov 2026, solo, 260+ commits</span></li>
+          <li><b>4</b><span>sample worlds, up to 31 documents and 126,658 words</span></li>
+          <li><b>40</b><span>scripted probes and checks that drive the real app</span></li>
+          <li><b>38</b><span>MCP tools, under the same roles as people</span></li>
+        </ul>
+        <ul class="notes">
+          <li>Sherlock Holmes gold set: all 4 planted contradictions found (4/4), 62 AI candidates blocked because their quote isn’t in the text, every target met.<R id="repo" /></li>
+          <li>23 real Meta API responses, recorded and replayed as contract tests; 15 notes for the Meta API team.<R id="metanotes" /></li>
+          <li>Every AI run is traced on Agent activity. Open source under AGPL-3.0. No users or revenue yet: this is day zero.</li>
+        </ul>
       </div>
-      <Foot :ids="['repo']" :n="12" />
+      <Foot n="A3" />
     </section>
 
-    <!-- 13. Sources -->
-    <section id="s13" class="slide sources" aria-labelledby="t13">
+    <!-- A4. Sources -->
+    <section class="slide l appx sources" aria-labelledby="ta4">
       <div class="in">
-        <p class="kicker">Sources · pages opened 3 Nov 2026</p>
-        <h2 id="t13">Every number, where it came from</h2>
+        <p class="tag">Appendix A4</p>
+        <h2 id="ta4">Sources, opened 3 Nov 2026</h2>
         <ol class="src">
           <li v-for="s in SOURCES" :id="`src-${s.id}`" :key="s.id">{{ s.title }}<template v-if="s.url">. <a :href="s.url">{{ s.url.replace('https://', '') }}</a></template></li>
         </ol>
       </div>
-      <Foot :n="13" />
+      <Foot n="A4" />
     </section>
   </div>
 </template>
 
 <style scoped>
-.deck { --deck-max: 1200px; max-width: var(--deck-max); margin: 0 auto; padding: var(--s-5) var(--mk-pad) 0; display: grid; gap: var(--s-6); }
+.deck { max-width: 1200px; margin: 0 auto; padding: var(--s-5) var(--mk-pad) 0; display: grid; gap: var(--s-6); }
 .deck-bar { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--s-3); }
 .deck-bar p { margin: 0; color: var(--muted); }
 .deck-actions { display: flex; gap: var(--s-2); }
 
-/* A slide is 16:9 and its type scales with its width (cqw), so the screen, the print page and the PDF match. */
-.slide { container-type: inline-size; aspect-ratio: 16 / 9; position: relative; background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); overflow: hidden; scroll-margin-top: 80px; display: flex; flex-direction: column; }
-.in { flex: 1; min-height: 0; font-size: 1.5cqw; line-height: 1.45; padding: 3.2em 4em 0; display: flex; flex-direction: column; gap: 0.9em; }
-.slide :deep(.sfoot) { display: flex; justify-content: space-between; gap: 2em; padding: 0.7em 4.8em 1.1em; color: var(--faint); font-size: max(0.8cqw, 10px); }
-.kicker { margin: 0; color: var(--accent); font-weight: 600; font-size: 0.85em; letter-spacing: 0.01em; }
-.slide h1, .slide h2 { font-size: 2.2em; line-height: 1.1; letter-spacing: -0.025em; margin: 0; max-width: 30ch; text-wrap: balance; }
-.slide h1 { font-size: 3.6em; }
-.slide h3 { font-size: 1.05em; margin: 0 0 0.3em; }
+/* Each slide is pinned to the light or the dark set of main.css (the same values), whatever the site theme, so the deck
+   keeps its dark/light rhythm on screen and in print. Type scales with the slide's width (cqw). */
+.slide.l { --accent: var(--acc); --bg: #f4f0e8; --fg: #2a241d; --mut: #524b42; --faint: #675d50; --acc: #733816; --acc-soft: #f0e2d2; --line: #ddd4c6; --line-strong: #c0b4a2; --bad: #b0321e; --paper: #fdfbf7; --pencil: #555b63; }
+.slide.d { --accent: var(--acc); --bg: #1b1815; --fg: #ebe3d6; --mut: #bab1a4; --faint: #9d9283; --acc: #dba077; --acc-soft: #3a2a1d; --line: #352f29; --line-strong: #4c443b; --bad: #f17e70; --paper: #231f1b; --pencil: #a4a9b1; }
+.slide { container-type: inline-size; aspect-ratio: 16 / 9; background: var(--bg); color: var(--fg); border-radius: var(--r-lg); overflow: hidden; scroll-margin-top: 72px; display: flex; flex-direction: column; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.slide.l { border: 1px solid var(--line); }
+.slide.d { border: 1px solid var(--line-strong); }
+.in { flex: 1; min-height: 0; font-size: 1.6cqw; line-height: 1.4; padding: 4.5cqw 6cqw 0; display: flex; flex-direction: column; justify-content: center; gap: 2.4cqw; }
+.slide :deep(.sfoot) { display: flex; justify-content: space-between; gap: 2em; padding: 1cqw 6cqw 1.6cqw; color: var(--faint); font-size: max(0.75cqw, 10px); }
+.slide h1, .slide h2 { margin: 0; color: var(--fg); font-weight: 600; letter-spacing: -0.03em; line-height: 1.04; text-wrap: balance; }
+.slide h2 { font-size: 4.2cqw; max-width: 24ch; }
 .slide p { margin: 0; }
-.slide :deep(.ref) { font-size: 0.62em; line-height: 0; margin-left: 0.15em; font-weight: 600; }
-.slide :deep(.ref a) { color: var(--accent); text-decoration: none; }
-.note { color: var(--muted); font-size: 0.85em; max-width: 90ch; }
-.list { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.55em; }
-.list li { position: relative; padding-left: 1.1em; }
-.list li::before { content: ''; position: absolute; left: 0.1em; top: 0.6em; width: 0.4em; height: 0.4em; border-radius: 50%; background: var(--accent); }
-.two { display: grid; grid-template-columns: 1fr 1fr; gap: 2.4em; align-items: start; }
-.grid3, .grid4 { display: grid; gap: 1em; }
-.grid3 { grid-template-columns: repeat(3, 1fr); }
-.grid4 { grid-template-columns: repeat(4, 1fr); }
-.grid3 article, .grid4 article, .cases article, .plans article { padding: 0.9em 1em; background: var(--canvas); border: 1px solid var(--line); border-radius: var(--r-md); }
-.grid3 p, .grid4 p, .cases p, .plans p { color: var(--muted); font-size: 0.9em; }
+.slide :deep(.ref) { font-size: 0.55em; line-height: 0; margin-left: 0.15em; font-weight: 600; }
+.slide :deep(.ref a) { color: var(--acc); text-decoration: none; }
+.slide a { color: var(--acc); }
+.lead { font-size: 2.1cqw; line-height: 1.35; color: var(--mut); max-width: 40ch; }
+.lead.sub { font-size: 1.7cqw; max-width: 52ch; }
+.caption { font-size: 1.25cqw; color: var(--mut); max-width: 80ch; }
+.story { font-family: var(--font-story); }
 
 /* 1 */
-.hook .in { justify-content: center; gap: 1.2em; padding-top: 2em; }
-.cases { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1em; }
-.cases article { border-top: 3px solid var(--bad); }
-.story { font-family: var(--font-story); color: var(--ink) !important; font-size: 0.95em !important; margin-bottom: 0.3em !important; }
-.story .ui { font-family: var(--font-ui); color: var(--muted); }
-.payoff { font-size: 1.15em; max-width: 60ch; padding-left: 0.9em; border-left: 3px solid var(--accent); }
+.hook .in { padding-top: 3cqw; }
+.three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4cqw; align-items: end; }
+.three figure { margin: 0; display: grid; gap: 1.2cqw; }
+.three img { width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; }
+.three h2 { font-size: 1.35cqw; letter-spacing: 0; color: var(--acc); max-width: none; }
+.three .story { font-size: 2.05cqw; line-height: 1.3; margin-top: 0.5cqw; }
 
 /* 2 */
-.today { font-size: 1.05em; margin-bottom: 0.9em !important; }
-.stats { display: grid; gap: 0.6em; margin-bottom: 0.8em; }
-.stats p { display: grid; grid-template-columns: 2.4em 1fr; gap: 0.6em; align-items: baseline; }
-.stats b { font-size: 1.9em; color: var(--bad); letter-spacing: -0.02em; }
-.stats span { color: var(--muted); font-size: 0.9em; }
-.gap { color: var(--muted); font-size: 0.85em; }
+.breaks h1 { font-size: 8.4cqw; max-width: 9ch; }
+.breaks .lead { border-left: 0.35cqw solid var(--acc); padding-left: 1.6cqw; }
 
 /* 3 */
-.flow { list-style: none; margin: 0.6em 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, 1fr); gap: 1.6em; counter-reset: step; }
-.flow li { position: relative; display: grid; align-content: start; gap: 0.4em; padding: 1em; background: var(--canvas); border: 1px solid var(--line-strong); border-radius: var(--r-md); counter-increment: step; }
-.flow li::before { content: counter(step); font-weight: 600; color: var(--faint); font-size: 0.85em; }
-.flow li:not(:last-child)::after { content: '→'; position: absolute; right: -1.25em; top: 50%; transform: translateY(-50%); color: var(--faint); font-size: 1.1em; }
-.flow b { font-size: 1.05em; }
-.flow span { color: var(--muted); font-size: 0.88em; }
-.flow em { font-style: normal; font-weight: 600; color: var(--ink); }
-.flow .pencil { border: 1.5px dashed var(--pencil); background: var(--pencil-soft); }
-.flow .ink { background: var(--accent-soft); border-color: var(--accent); }
-.flow .checks { border-top: 3px solid var(--bad); }
+.problem h2 { max-width: 20ch; }
+.bignum { display: grid; grid-template-columns: auto 1fr; gap: 3cqw; align-items: center; }
+.bignum b { font-size: 17cqw; line-height: 0.85; letter-spacing: -0.05em; color: var(--bad); font-weight: 600; }
+.bignum p { font-size: 2.1cqw; color: var(--mut); max-width: 22ch; line-height: 1.3; }
 
 /* 4 */
-.product .in { padding-top: 2.4em; }
-.shots { display: grid; grid-template-columns: 2.25fr 1fr; grid-template-rows: auto auto; gap: 0.9em 1em; min-height: 0; }
-.shots figure { margin: 0; display: grid; gap: 0.35em; align-content: start; min-width: 0; }
-.shots .big { grid-row: span 2; }
-.shots figcaption { font-size: 0.8em; color: var(--muted); }
-.shots :deep(.shot) { padding: 3px; border-radius: 8px; }
-.shots :deep(.shot img) { border-radius: 5px; }
+.flow { list-style: none; margin: 1cqw 0 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 2.6cqw; }
+.flow li { position: relative; display: grid; align-content: start; gap: 1cqw; padding: 2.2cqw 1.8cqw; border: 0.12cqw solid var(--line-strong); border-radius: 0.8cqw; background: var(--paper); min-height: 19cqw; }
+.flow li:not(:last-child)::after { content: ''; position: absolute; top: 50%; right: -2.3cqw; width: 2cqw; height: 0.15cqw; background: var(--line-strong); }
+.flow b { font-size: 2.3cqw; line-height: 1.15; letter-spacing: -0.01em; }
+.flow span { font-size: 1.65cqw; color: var(--mut); line-height: 1.3; }
+.flow .pencil { border-style: dashed; border-color: var(--pencil); background: transparent; }
+.flow .pencil b { color: var(--pencil); }
+.flow .ink { background: var(--acc); border-color: var(--acc); }
+.flow .ink b, .flow .ink span { color: var(--paper); }
+.flow .checks { border-color: var(--bad); border-width: 0.25cqw; }
+.flow .checks b { color: var(--bad); }
 
 /* 5 */
-.grid4 h3 { color: var(--accent); }
-.trust { font-size: 1.05em; max-width: 72ch; padding-left: 0.9em; border-left: 3px solid var(--accent); }
+.product .in { gap: 1.8cqw; padding-top: 3.6cqw; }
+.product h2 { max-width: 30ch; font-size: 3.4cqw; }
+.screen { width: 100%; height: auto; aspect-ratio: 2.2 / 1; object-fit: cover; object-position: top; border-radius: 0.8cqw; box-shadow: 0 1.5cqw 4cqw rgb(0 0 0 / 0.45); }
 
 /* 6 */
-.market { display: grid; grid-template-columns: 1fr 1.05fr; gap: 2em; align-items: start; }
-.mrows { display: grid; gap: 0.75em; }
-.mrow h3 { margin-bottom: 0.15em; }
-.res { font-weight: 600; color: var(--accent); }
-.calc { font-size: 0.82em; color: var(--muted); }
-.calc b { color: var(--ink); font-weight: 600; }
-.as { border: 1px dashed var(--pencil); border-radius: 3px; padding: 0 0.25em; }
-.unsized h3, .unsized .res { color: var(--muted); }
-.chart { margin: 0; display: grid; gap: 0.5em; }
-.chart svg { width: 100%; height: auto; overflow: visible; }
-.chart figcaption { font-size: 0.78em; color: var(--muted); }
-.chart figcaption.top { color: var(--ink); font-weight: 600; font-size: 0.9em; }
-.c-label { font: 600 16px var(--font-ui); fill: var(--ink); }
-.c-ref { font-size: 11px; fill: var(--accent); }
-.c-val { font: 500 15px var(--font-ui); fill: var(--ink); }
-.c-val.small { font-size: 13px; fill: var(--muted); }
-.c-axis { font: 400 13px var(--font-ui); fill: var(--faint); }
-.c-axisline { stroke: var(--line-strong); stroke-width: 1; }
-.c-sam { fill: var(--accent); }
-.c-som { fill: var(--good); }
-.c-range { fill: var(--accent); opacity: 0.85; }
+.models { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2cqw; }
+.models li { display: grid; align-content: start; gap: 0.8cqw; padding-top: 1.6cqw; border-top: 0.3cqw solid var(--acc); }
+.models b { font-size: 2.7cqw; letter-spacing: -0.015em; line-height: 1.1; }
+.models span { font-size: 1.9cqw; color: var(--mut); }
 
 /* 7 */
-.plans { display: grid; gap: 0.7em; }
-.plans .cloud { border-left: 3px solid var(--accent); }
-.plans .planned { border: 1.5px dashed var(--pencil); background: transparent; }
+.worlds .in { gap: 2cqw; padding-top: 3.6cqw; }
+.worlds h2 { font-size: 3.6cqw; max-width: none; }
+.tiles { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 2.2cqw 3cqw; }
+.tiles li { display: grid; align-content: start; gap: 0.3cqw; border-top: 0.12cqw solid var(--line-strong); padding-top: 1cqw; }
+.who { font-size: 1.15cqw; font-weight: 600; color: var(--acc); }
+.tiles b { font-size: 4.6cqw; line-height: 1; letter-spacing: -0.04em; font-weight: 600; }
+.what { font-size: 1.3cqw; color: var(--fg); }
+.more { font-size: 1.05cqw; color: var(--faint); }
+.start { font-size: 1.3cqw; color: var(--mut); max-width: 100ch; border-left: 0.3cqw solid var(--acc); padding-left: 1.2cqw; }
 
 /* 8 */
-.days { list-style: none; margin: 0 0 0.9em; padding: 0; display: grid; gap: 0.6em; }
-.days li { display: grid; grid-template-columns: 6.5em 1fr; gap: 0.6em; padding-bottom: 0.6em; border-bottom: 1px solid var(--line); }
-.days span { color: var(--muted); font-size: 0.92em; }
+.split { display: grid; grid-template-columns: 1fr 1fr; gap: 2.4cqw; }
+.split div { display: grid; gap: 0.6cqw; padding: 2.2cqw 2.4cqw; border-radius: 0.8cqw; border: 0.12cqw solid var(--line-strong); background: var(--paper); }
+.split b { font-size: 4.4cqw; letter-spacing: -0.04em; line-height: 1; }
+.split span { font-size: 1.7cqw; color: var(--mut); }
+.split .cloud { background: var(--acc); border-color: var(--acc); }
+.split .cloud b, .split .cloud span { color: var(--paper); }
+.channels { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2cqw; font-size: 1.7cqw; color: var(--mut); }
+.channels li { border-top: 0.12cqw solid var(--line-strong); padding-top: 0.9cqw; }
 
 /* 9 */
-.slide .table-wrap { border: 1px solid var(--line); border-radius: var(--r-md); overflow: auto; }
-.cmp { width: 100%; border-collapse: collapse; font-size: 0.78em; }
-.cmp th, .cmp td { text-align: left; padding: 0.45em 0.7em; border-bottom: 1px solid var(--line); vertical-align: top; }
-.cmp thead th { background: var(--surface); font-weight: 600; color: var(--muted); }
-.cmp tbody th { font-weight: 600; white-space: nowrap; }
-.cmp tr.us { background: var(--accent-soft); }
-.cmp tr.us td, .cmp tr.us th { color: var(--ink); }
-.cmp td { color: var(--muted); }
-.slide h2#t9 { max-width: 40ch; font-size: 1.9em; }
+.compete .in { padding-top: 3.4cqw; gap: 1.6cqw; }
+.map { position: relative; display: grid; grid-template-columns: 2.4cqw 1fr; grid-template-rows: 1fr 2.4cqw; height: 29cqw; }
+.plot { position: relative; grid-column: 2; grid-row: 1; border-left: 0.15cqw solid var(--line-strong); border-bottom: 0.15cqw solid var(--line-strong);
+  background: linear-gradient(var(--line), var(--line)) 50% 0 / 0.08cqw 100% no-repeat, linear-gradient(var(--line), var(--line)) 0 50% / 100% 0.08cqw no-repeat; }
+.axis { font-size: 1.15cqw; color: var(--faint); align-self: center; }
+.axis.x { grid-column: 2; grid-row: 2; text-align: right; }
+.axis.y { grid-column: 1; grid-row: 1; writing-mode: vertical-rl; transform: rotate(180deg); text-align: left; justify-self: center; }
+.dot { position: absolute; transform: translate(-0.5cqw, 50%); display: inline-flex; align-items: baseline; gap: 0.5cqw; font-size: 1.25cqw; color: var(--mut); white-space: nowrap; flex-wrap: wrap; max-width: 22cqw; }
+.dot i { width: 1cqw; height: 1cqw; border-radius: 50%; background: var(--line-strong); align-self: center; }
+.dot small { flex-basis: 100%; padding-left: 1.5cqw; font-size: 0.9em; color: var(--faint); }
+.dot.us { font-size: 2.2cqw; font-weight: 600; color: var(--fg); transform: translate(-1.1cqw, 50%); }
+.dot.us i { width: 2.2cqw; height: 2.2cqw; background: var(--acc); }
+.dot.us :deep(.ref) { display: none; }
 
 /* 10 */
-.kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 1em; margin: 0.4em 0 0.6em; }
-.kpis p { display: grid; gap: 0.2em; padding: 0.8em 1em; border-top: 3px solid var(--accent); background: var(--canvas); border-radius: 0 0 var(--r-md) var(--r-md); }
-.kpis b { font-size: 2.6em; line-height: 1; letter-spacing: -0.03em; color: var(--accent); }
-.kpis span { color: var(--muted); font-size: 0.88em; }
-.two-col { grid-template-columns: 1fr 1fr; gap: 0.7em 2em; }
+.people { display: grid; grid-template-columns: 1.3fr 1fr; gap: 4cqw; align-items: start; }
+.name { display: block; font-size: 3cqw; letter-spacing: -0.03em; line-height: 1.05; }
+.people p { font-size: 1.6cqw; color: var(--mut); margin: 0.8cqw 0 1.4cqw; }
+.people ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 0.7cqw; font-size: 1.45cqw; }
+.people li { padding-left: 1.4cqw; position: relative; }
+.people li::before { content: ''; position: absolute; left: 0; top: 0.6em; width: 0.6cqw; height: 0.6cqw; border-radius: 50%; background: var(--acc); }
+.person { border-top: 0.35cqw solid var(--acc); padding-top: 1.6cqw; }
+.company { border-top: 0.12cqw solid var(--line-strong); padding-top: 1.83cqw; }
 
 /* 11 */
-.role { color: var(--muted); margin-bottom: 0.7em !important; }
-.person, .company { padding: 1.1em 1.2em; border: 1px solid var(--line); border-radius: var(--r-md); background: var(--canvas); }
-.person { border-top: 3px solid var(--accent); }
-.company .note { margin-top: 0.8em; }
+.close .in { align-items: flex-start; }
+.close .mark { width: 5cqw; height: auto; color: var(--acc); }
+.close h2 { font-size: 6.4cqw; max-width: 14ch; }
+.contact { display: flex; gap: 3cqw; font-size: 1.7cqw; }
 
-/* 12 */
-.ask { margin-top: auto; margin-bottom: 0.4em; padding: 1em 1.2em; border-left: 4px solid var(--accent); background: var(--accent-soft); border-radius: var(--r-md); display: grid; gap: 0.3em; }
-.ask .big { font-size: 1.6em; font-weight: 600; letter-spacing: -0.02em; }
-
-/* 13 */
-.src { margin: 0; padding-left: 1.6em; columns: 2; column-gap: 2.4em; font-size: 0.62em; line-height: 1.35; color: var(--muted); }
-.src li { break-inside: avoid; margin-bottom: 0.3em; }
-.sources h2 { font-size: 1.6em; }
+/* Appendix: denser, still large enough to read in the PDF. */
+.appx .in { justify-content: flex-start; padding-top: 3.2cqw; gap: 1.4cqw; font-size: 1.1cqw; }
+.appx h2 { font-size: 3cqw; max-width: none; }
+.tag { font-size: 1.2cqw; font-weight: 600; color: var(--acc); margin-bottom: -0.8cqw !important; }
+.appx table { width: 100%; border-collapse: collapse; font-size: inherit; }
+.appx th, .appx td { text-align: left; padding: 0.55cqw 0.9cqw; border-bottom: 0.08cqw solid var(--line); vertical-align: top; }
+.appx th { font-size: inherit; }
+.appx thead th { color: var(--faint); font-weight: 600; background: var(--paper); font-size: 0.9em; }
+.appx tbody th, .appx tfoot th { font-weight: 600; }
+.appx tbody th, .appx tfoot th, .appx tfoot td, .appx td { background: transparent; }
+.appx td { color: var(--mut); }
+.appx .n { text-align: right; white-space: nowrap; color: var(--fg); }
+.appx tfoot td, .appx tfoot th { border-bottom: 0; color: var(--fg); }
+.step { display: inline; }
+.step b { color: var(--fg); }
+.as { border: 0.1cqw dashed var(--pencil); border-radius: 0.3cqw; padding: 0 0.3cqw; }
+.faint { color: var(--faint); }
+.notes { margin: 0; padding-left: 1.4cqw; display: grid; gap: 0.5cqw; color: var(--mut); max-width: 120ch; }
+.cmp tr.us { background: var(--acc-soft); }
+.cmp tr.us td, .cmp tr.us th { color: var(--fg); }
+.kpis { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2cqw; }
+.kpis li { display: grid; gap: 0.4cqw; border-top: 0.3cqw solid var(--acc); padding-top: 1cqw; }
+.kpis b { font-size: 5cqw; line-height: 1; letter-spacing: -0.04em; color: var(--acc); }
+.kpis span { color: var(--mut); font-size: 1.3cqw; }
+.src { margin: 0; padding-left: 2cqw; columns: 2; column-gap: 3cqw; font-size: 0.82cqw; line-height: 1.35; color: var(--mut); }
+.src li { break-inside: avoid; margin-bottom: 0.35cqw; }
 .src a { word-break: break-all; }
-.src li:target { color: var(--ink); background: var(--warn-soft); }
 
-/* Phones and narrow windows: slides become cards with natural height and fixed-size type. */
+/* Phones and narrow windows: slides become cards with natural height and fixed-size type. Screen only, so print keeps 16:9. */
 @media screen and (max-width: 900px) {
   .slide { aspect-ratio: auto; }
-  .in { font-size: 15px; padding: 24px 16px 0; }
-  .slide :deep(.sfoot) { font-size: 11px; padding: 12px 16px 16px; flex-direction: column; gap: 4px; }
-  .slide h1 { font-size: 2.2em; }
-  .slide h2, .slide h2#t9 { font-size: 1.5em; }
-  .two, .market, .grid3, .grid4, .cases, .flow, .two-col { grid-template-columns: minmax(0, 1fr); }
-  .kpis { grid-template-columns: 1fr 1fr; }
-  .flow li:not(:last-child)::after { content: '↓'; right: auto; left: 50%; top: auto; bottom: -1.35em; transform: none; }
-  .shots { grid-template-columns: 1fr 1fr; }
-  .shots .big { grid-column: 1 / -1; grid-row: auto; }
-  .src { columns: 1; font-size: 0.8em; }
-  .cmp { font-size: 0.8em; }
-  .cmp tbody th { white-space: normal; }
+  .in { font-size: 15px; padding: 28px 18px 0; gap: 20px; }
+  .slide :deep(.sfoot) { font-size: 11px; padding: 14px 18px 16px; }
+  .slide h2, .appx h2, .worlds h2, .product h2 { font-size: 28px; }
+  .breaks h1 { font-size: 46px; }
+  .close h2 { font-size: 36px; }
+  .lead, .lead.sub, .bignum p { font-size: 18px; }
+  .caption, .start, .channels, .people ul, .models span, .split span, .what, .kpis span { font-size: 15px; }
+  .more, .who, .axis, .dot, .tag, .appx .in { font-size: 13px; }
+  .three, .flow, .models, .tiles, .split, .channels, .people, .kpis { grid-template-columns: minmax(0, 1fr); }
+  .three img { width: 60%; }
+  .three h2 { font-size: 14px; }
+  .three .story { font-size: 19px; }
+  .bignum { grid-template-columns: minmax(0, 1fr); }
+  .bignum b { font-size: 120px; }
+  .flow li { min-height: 0; padding: 14px; gap: 4px; }
+  .flow li:not(:last-child)::after { top: auto; bottom: -14px; left: 50%; right: auto; width: 2px; height: 12px; }
+  .flow b, .models b { font-size: 18px; }
+  .flow span { font-size: 14px; }
+  .tiles b, .split b, .kpis b { font-size: 40px; }
+  .name { font-size: 24px; }
+  .people p { font-size: 16px; }
+  .close .mark { width: 44px; }
+  .contact { font-size: 16px; flex-direction: column; gap: 6px; }
+  .map { height: 300px; grid-template-columns: 22px 1fr; grid-template-rows: 1fr 22px; }
+  .dot { font-size: 11px; max-width: 120px; white-space: normal; }
+  .dot.us { font-size: 15px; white-space: nowrap; }
+  .dot i { width: 8px; height: 8px; } .dot.us i { width: 16px; height: 16px; }
+  .appx table { display: block; overflow-x: auto; }
+  .src { columns: 1; font-size: 12px; }
+  .notes { padding-left: 18px; }
 }
 </style>
 
 <style>
-/* Print: one slide per 16:9 page (a named page, so other pages' A4 rules never apply), light tokens, no site chrome. */
+/* Print: one slide per 16:9 page (a named page, so other pages' A4 rules never apply), no site chrome. */
 @page slide { size: 16in 9in; margin: 0; }
 @media print {
   .mk-top, .mk-foot, .skip, .deck-bar { display: none !important; }
-  html, body { background: var(--raised) !important; }
-  .deck { display: block !important; padding: 0 !important; max-width: none !important; }
-  .deck .slide { page: slide; width: 16in !important; height: 9in !important; aspect-ratio: auto !important; border: 0 !important; border-radius: 0 !important; break-inside: avoid; margin: 0 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-  .deck .slide + .slide { break-before: page; }
-  .mk { min-height: 0 !important; }
   /* The whole document on the slide page: a box outside the slides on the default page would add a blank last page. */
   body:has(.deck) { page: slide; }
+  .mk { min-height: 0 !important; }
+  .deck { display: block !important; padding: 0 !important; max-width: none !important; }
+  .deck .slide { page: slide; width: 16in !important; height: 9in !important; aspect-ratio: auto !important; border: 0 !important; border-radius: 0 !important; break-inside: avoid; margin: 0 !important; }
+  .deck .slide + .slide { break-before: page; }
 }
 </style>

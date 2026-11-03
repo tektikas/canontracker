@@ -106,7 +106,8 @@ const SHOTS = [
   { name: 'team', path: '/settings/team' },
   { name: 'mcp', path: '/settings/agents' },
   { name: 'lantern', path: '/canon', project: 'lantern' },
-  { name: 'watson', path: '/conflicts', project: sherlock, prep: scrollTo("page.locator('article.conflict').filter({ hasText: 'in his shoulder' }).filter({ hasText: 'in his leg' }).first()") },
+  // The pitch deck shows this one card full width: the element alone, at 2× zoom, light only.
+  { name: 'watson-card', path: '/conflicts', project: sherlock, zoom: 2, themes: ['light'], widths: [1920, 960], element: "page.locator('article.conflict').filter({ hasText: 'in his shoulder' }).filter({ hasText: 'in his leg' }).first()" },
 ]
 
 const out = new URL('../../public/shots/', import.meta.url).pathname
@@ -132,7 +133,7 @@ try {
     const want = projectId(shot.project)
     // The session cookie carries the current project, so the browser takes the switched cookie.
     if (want !== current) { await api(`/api/projects/${want}/switch`, { method: 'POST' }); setSession(); current = want }
-    for (const theme of ['light', 'dark']) {
+    for (const theme of shot.themes ?? ['light', 'dark']) {
       const png = join(tmp, `${shot.name}-${theme}.png`)
       cli('run-code', `async page => {
         await page.emulateMedia({ colorScheme: '${theme}', reducedMotion: 'reduce' });
@@ -142,9 +143,11 @@ try {
         ${shot.prep ?? ''}
         await page.mouse.move(0, 799);
         await page.waitForTimeout(400);
-        await page.screenshot({ path: ${JSON.stringify(png)}, fullPage: ${!!shot.full} });
+        ${shot.zoom ? `await page.setViewportSize({ width: ${1280 * shot.zoom}, height: ${800 * shot.zoom} }); await page.evaluate(() => { document.documentElement.style.zoom = '${shot.zoom}' }); await page.waitForTimeout(600);` : ''}
+        ${shot.element ? `await ${shot.element}.screenshot({ path: ${JSON.stringify(png)} });` : `await page.screenshot({ path: ${JSON.stringify(png)}, fullPage: ${!!shot.full} });`}
+        ${shot.zoom ? 'await page.setViewportSize({ width: 1280, height: 800 });' : ''}
       }`)
-      for (const w of [1280, 720]) {
+      for (const w of shot.widths ?? [1280, 720]) {
         execFileSync('magick', [png, '-resize', `${w}x`, '-strip', '-quality', '78', '-define', 'webp:method=6', join(out, `${shot.name}-${theme}-${w}.webp`)])
       }
       console.log(`${shot.name} (${theme}): written`)

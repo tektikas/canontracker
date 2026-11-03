@@ -108,7 +108,7 @@ Others (`ashbell-probe`, `authoring-probe`, `docx-probe`, `library-probe`, `shar
 
 ## More
 
-[ROADMAP.md](ROADMAP.md) lists what is not built yet. The pitch deck (market, business model, go-to-market, team) is [docs/pitch-deck.pdf](docs/pitch-deck.pdf), also on the site at `/pitch`; every number on it has a source on its last slide. [docs/meta-api-notes.md](docs/meta-api-notes.md) is what we ran into building on the Meta Model API, with the recorded responses that show it and our suggestions. [AGENTS.md](AGENTS.md) describes the data model and invariants in detail.
+[ROADMAP.md](ROADMAP.md) lists what is not built yet. The pitch deck (market, business model, go-to-market, team) is [docs/pitch-deck.pdf](docs/pitch-deck.pdf), also on the site at `/pitch`; every number on it has a numbered source in its appendix. [docs/meta-api-notes.md](docs/meta-api-notes.md) is what we ran into building on the Meta Model API, with the recorded responses that show it and our suggestions. [AGENTS.md](AGENTS.md) describes the data model and invariants in detail.
 
 ## License
 

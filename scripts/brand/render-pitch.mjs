@@ -31,7 +31,7 @@ finally {
 }
 
 // One page per slide: count the PDF's page objects against the slides the page declares.
-const slides = Number(readFileSync(new URL('../../app/pages/pitch.vue', import.meta.url), 'utf8').match(/const TOTAL = (\d+)/)[1])
+const slides = (readFileSync(new URL("../../app/pages/pitch.vue", import.meta.url), "utf8").match(/<section class="slide /g) ?? []).length
 const pages = (readFileSync(out, 'latin1').match(/\/Type\s*\/Page[^s]/g) ?? []).length
 if (pages !== slides) throw new Error(`${out}: ${pages} pages, expected ${slides}`)
 console.log(`${out}: ${pages} pages`)
