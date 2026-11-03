@@ -17,8 +17,9 @@ export function stem(t: string, names?: Set<string>) {
   const base = verb[1]!
   return /([^aeioulsz])\1$/.test(base) ? base.slice(0, -1) : /^[^aeiou]*[aeiouy][^aeiouwxy]$/.test(base) ? `${base}e` : base
 }
-// The words of a text, lowercased, without stop words, stemmed; `names` (lowercased) are kept as they are.
-const terms = (s: string, names?: Set<string>) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu)?.filter(t => t.length > 1 && !STOP.has(t)).map(t => stem(t, names)) ?? []
+// The words of a text, lowercased and without stop words: as written (exactTerms), or stemmed (terms; `names` are kept as they are).
+const exactTerms = (s: string) => s.toLowerCase().match(/[\p{L}\p{N}]+/gu)?.filter(t => t.length > 1 && !STOP.has(t)) ?? []
+const terms = (s: string, names?: Set<string>) => exactTerms(s).map(t => stem(t, names))
 // The capitalised words of the project's names (titles, aliases, merged names): proper nouns, never stemmed.
 const nameWords = () => new Set(listEntities().flatMap(namesOf).flatMap(n => n.match(/\p{Lu}[\p{L}\p{N}]*/gu) ?? []).map(w => w.toLowerCase()))
 // Story-time tokens ("day", "13", "00") appear everywhere: they rank results but can't qualify a match on their own.
@@ -30,14 +31,20 @@ export async function askCanon(question: string, opts: { audit: boolean, retriev
   const names = nameWords()
   const qTerms = [...new Set(terms(question, names))]
   const qWords = qTerms.filter(t => !isTimeToken(t))
+  const qExact = [...new Set(exactTerms(question))].filter(t => !isTimeToken(t))
   // ponytail: keyword overlap over canon facts; swap for FTS5 when canon grows past a few thousand facts
+  // A fact qualifies only through a word of the question it contains exactly (case aside: a name or any content word); word
+  // forms (stem) then count towards the match and the ranking, never on their own ("Lens?" doesn't find "Len", nor
+  // "Evening?" "even").
   const scored = listFacts(`status = 'canon'`)
     .map((f) => {
-      const hay = new Set(terms(`${f.statement} ${f.subject} ${f.object ?? ''} ${f.evidence.map(e => e.quote).join(' ')}`, names))
+      const text = `${f.statement} ${f.subject} ${f.object ?? ''} ${f.evidence.map(e => e.quote).join(' ')}`
+      const hay = new Set(terms(text, names))
+      const exact = new Set(exactTerms(text))
       const words = qWords.filter(t => hay.has(t)).length
-      return { fact: f, words, score: words + qTerms.filter(t => isTimeToken(t) && hay.has(t)).length * 0.5 }
+      return { fact: f, words, anchored: qExact.some(t => exact.has(t)), score: words + qTerms.filter(t => isTimeToken(t) && hay.has(t)).length * 0.5 }
     })
-    .filter(s => s.words > 0 && s.words >= Math.min(2, qWords.length))
+    .filter(s => s.anchored && s.words >= Math.min(2, qWords.length))
     .sort((a, b) => b.score - a.score)
     .slice(0, opts.limit ?? 5)
   const model = modelInfo()
