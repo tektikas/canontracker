@@ -7,16 +7,23 @@ const active = computed(() => (data.value?.tokens ?? []).filter(t => !t.revoked_
 const revoked = computed(() => (data.value?.tokens ?? []).filter(t => t.revoked_at))
 
 const name = ref('')
+// What the token may do, fixed at creation: propose (the default) or full ("acts as you", canon decisions included).
+const level = ref<'propose' | 'full'>('propose')
+const LEVELS = [
+  { value: 'propose', label: 'Propose only', hint: 'Reads canon and sources, runs checks, proposes candidates and changes. People decide in the app.' },
+  { value: 'full', label: 'Full access: acts as you', hint: 'Everything your role allows, canon decisions included. Marked “via agent” wherever it decides.' },
+] as const
 const busy = ref(false)
 const error = ref('')
 // The secret exists only in this response; it is kept in memory until the page is left.
-const created = ref<{ id: string, name: string, secret: string }>()
+const created = ref<{ id: string, name: string, level: string, secret: string }>()
 async function create() {
   error.value = ''
   busy.value = true
   try {
-    created.value = await $fetch('/api/agent-tokens', { method: 'POST', body: { name: name.value } })
+    created.value = await $fetch('/api/agent-tokens', { method: 'POST', body: { name: name.value, level: level.value } })
     name.value = ''
+    level.value = 'propose'
     await refresh()
   } catch (e) {
     error.value = errorMessage(e)
@@ -96,7 +103,7 @@ const snippets = computed(() => ({
 }))
 
 const when = (iso: string | null) => (iso ? dateTime(iso) : '')
-// Grouped as a narrative lead would hand out the work. Every tool is read-only except the last group.
+// Grouped as a narrative lead would hand out the work. Read and propose work with any token; the last group needs full access.
 const TOOLS: [string, [string, string][]][] = [
   ['Read canon', [
     ['sb_get_entity', 'Brief on a character, place or item: canon facts with quotes, relationships, timeline, where it appears. Wiki text is marked “not canon”'],
@@ -118,8 +125,29 @@ const TOOLS: [string, [string, string][]][] = [
     ['sb_list_recheck', 'Canon citations to re-check after a new version'],
     ['sb_list_tasks', 'Open re-review tasks from applied changes'],
   ]],
-  ['Propose (editors and up)', [
-    ['sb_propose_candidate', 'Adds a pending candidate for human review. The only write'],
+  ['Read the rest of the project', [
+    ['sb_search', 'Search canon, pages, documents and notes'],
+    ['sb_review list', 'The review queue, with the AI critic’s advice'],
+    ['sb_document history / diff', 'Versions and what changed between them'],
+    ['sb_note, sb_library, sb_images, sb_draft', 'Notes, folders and tags, images, your drafts (list and read)'],
+    ['sb_conversation, sb_research', 'Team conversations in Ask and research notes'],
+    ['sb_export, sb_share list', 'The story bible as Markdown or JSON; share links'],
+    ['sb_audit, sb_metrics, sb_agent_runs', 'Audit trail, project numbers and measurements, AI activity'],
+    ['sb_project, sb_team', 'Project settings, entity types, members'],
+  ]],
+  ['Propose and run checks (editors and up)', [
+    ['sb_propose_candidate, sb_review add', 'Adds a pending candidate quoting a source; waits for a person in Review'],
+    ['sb_change propose / analyze', 'Proposes a canon change and shows its impact; canon is untouched'],
+    ['sb_document extract, sb_conflict scan', 'Runs extraction or the conflict rules; results wait for a person'],
+    ['sb_continuity, sb_research, sb_review critic', 'AI checks and research; advice and notes, never canon'],
+  ]],
+  ['Decide and edit (full access only)', [
+    ['sb_review accept / reject', 'Canon decisions in Review, as you, marked “via agent”'],
+    ['sb_change decide / revert, sb_conflict decide', 'Apply or reject changes, judge conflicts'],
+    ['sb_document import / write, sb_draft', 'Import files (text or Word), save new versions'],
+    ['sb_entity, sb_note, sb_library, sb_images', 'Pages, merges, notes, folders and tags, images'],
+    ['sb_recheck, sb_task, sb_share, sb_conversation post', 'Re-check citations, tasks, share links, post in Ask'],
+    ['sb_project update, sb_team', 'Settings and team (admins and owners only)'],
   ]],
 ]
 const ASKS = [
@@ -128,24 +156,33 @@ const ASKS = [
   'If she reaches the harbour at 21:15 on Day 2, does that clash with anything?',
   'Which canon facts need a re-check after the last import?',
   'Propose the rule stated in that scene as a candidate, quoting it exactly.',
+  'With a full-access token: file the new character from this scene, accept it, and tell me what the change touches.',
 ]
 </script>
 
 <template>
   <div v-if="data" class="stack" style="gap: var(--s-5)">
-    <p class="muted intro">Connect your AI agent (Muse Spark, Claude Code, Cursor, any MCP client) to <b>{{ data.project.name }}</b>. It can read approved canon and the source documents with citations, run continuity checks, and propose candidates. <b>Nothing an agent proposes becomes canon until a person accepts it in Review.</b></p>
+    <p class="muted intro">Connect your AI agent (Muse Spark, Claude Code, Cursor, any MCP client) to <b>{{ data.project.name }}</b>. It can read approved canon and the source documents with citations, run continuity checks, and propose candidates. <b>Nothing an agent proposes becomes canon until a person accepts it.</b> A full-access token can also decide, as you, and is marked “via agent” wherever it does.</p>
 
     <UiPanel title="API tokens" description="A token belongs to you, works for this project only and has your role. Revoke it any time.">
       <form class="token-form" novalidate @submit.prevent="create">
         <UiField label="Token name" :error="error" hint="Name the agent or machine, e.g. “Claude Code on Mira’s laptop”.">
           <input v-model="name" type="text" maxlength="60" placeholder="Claude Code on my laptop">
         </UiField>
+        <fieldset class="levels">
+          <legend class="small">What it may do <span class="faint">(can’t be changed later)</span></legend>
+          <label v-for="l in LEVELS" :key="l.value" class="level" :class="{ on: level === l.value }">
+            <input v-model="level" type="radio" name="level" :value="l.value">
+            <span><b>{{ l.label }}</b><span class="small muted">{{ l.hint }}</span></span>
+          </label>
+        </fieldset>
+        <p v-if="level === 'full'" class="notice warn" role="note">This agent can accept and reject candidates, apply changes, edit pages, notes and the Library, and post for you: anything your role allows. Every action is logged as yours, via this token. Only give it to an agent you trust; you can revoke it any time.</p>
         <UiButton type="submit" variant="primary" icon="plus" :loading="busy" :disabled="!name.trim()">Create token</UiButton>
       </form>
-      <p v-if="data.role === 'viewer'" class="notice info token-note">You are a viewer: this token can read canon but can’t propose candidates.</p>
+      <p v-if="data.role === 'viewer'" class="notice info token-note">You are a viewer: a token can read canon but can’t propose or decide, whatever its access.</p>
 
       <div v-if="created" class="created" role="status">
-        <div class="small"><b>Copy “{{ created.name }}” now.</b> It is shown once and stored hashed; we can’t show it again.</div>
+        <div class="small"><b>Copy “{{ created.name }}” now.</b> It is shown once and stored hashed; we can’t show it again. Access: {{ created.level === 'full' ? 'full, acts as you' : 'propose only' }}.</div>
         <div class="link-row">
           <input :value="created.secret" type="text" readonly class="mono" aria-label="New API token" @focus="($event.target as HTMLInputElement).select()">
           <UiButton :variant="copied === 'token' ? 'good' : 'primary'" :icon="copied === 'token' ? 'check' : 'copy'" @click="copy(created.secret, 'token')">{{ copied === 'token' ? 'Copied' : 'Copy token' }}</UiButton>
@@ -159,6 +196,7 @@ const ASKS = [
           <div class="token-main">
             <strong>{{ t.name }}</strong>
             <span class="mono faint">{{ t.prefix }}…</span>
+            <UiBadge :tone="t.level === 'full' ? 'warn' : 'neutral'" :title="LEVELS.find(l => l.value === t.level)?.hint">{{ t.level === 'full' ? 'Full access' : 'Propose only' }}</UiBadge>
           </div>
           <span class="small muted">Created {{ when(t.created_at) }} · {{ t.last_used_at ? `last used ${when(t.last_used_at)}` : 'never used' }}</span>
           <div class="row token-actions">
@@ -176,7 +214,7 @@ const ASKS = [
         <summary class="small muted">{{ revoked.length }} revoked</summary>
         <ul class="tokens">
           <li v-for="t in revoked" :key="t.id" class="token dim">
-            <div class="token-main"><strong>{{ t.name }}</strong><span class="mono faint">{{ t.prefix }}…</span><UiBadge tone="bad">Revoked</UiBadge></div>
+            <div class="token-main"><strong>{{ t.name }}</strong><span class="mono faint">{{ t.prefix }}…</span><UiBadge>{{ t.level === 'full' ? 'Full access' : 'Propose only' }}</UiBadge><UiBadge tone="bad">Revoked</UiBadge></div>
             <span class="small muted">Revoked {{ when(t.revoked_at) }}</span>
           </li>
         </ul>
@@ -212,7 +250,8 @@ const ASKS = [
         <li v-for="q in ASKS" :key="q">“{{ q }}”</li>
       </ul>
       <p class="small muted">Clients that support MCP prompts also get two ready-made tasks: <b>Brief me on an entity</b> and <b>Continuity-check a scene</b>.</p>
-      <p class="small muted">If canon has nothing, the agent is told “unknown” and never invents sources. Candidates it proposes must quote an imported document word for word, and show up in Review marked “Agent proposal”. Each token can make 120 tool calls a minute.</p>
+      <p class="small muted">If canon has nothing, the agent is told “unknown” and never invents sources. Candidates it proposes must quote an imported document word for word, and show up in Review marked “Agent proposal”. What a full-access token decides shows “by you via agent” in Review, Canon, Conflicts, Changes and the audit trail. Each token can make 120 tool calls a minute; AI tools also count toward your own hourly limits.</p>
+      <p class="small faint">Not available to agents: your account, studios, API tokens, accepting invites, loading a demo (it replaces the project), audio uploads and dictation, and file downloads (portraits, images, audio, EPUB). Use the app for those.</p>
     </UiPanel>
   </div>
 </template>
@@ -222,6 +261,13 @@ const ASKS = [
 .token-form { display: grid; gap: var(--s-3); max-width: 460px; justify-items: start; }
 .token-form :deep(.field) { width: 100%; }
 .token-note { margin-top: var(--s-3); }
+.levels { display: grid; gap: var(--s-2); width: 100%; margin: 0; padding: 0; border: 0; }
+.levels legend { margin-bottom: var(--s-2); padding: 0; font-weight: 600; }
+.level { display: flex; gap: var(--s-3); align-items: flex-start; padding: var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); background: var(--canvas); cursor: pointer; }
+.level > span { display: grid; gap: 2px; }
+.level input { margin-top: 3px; accent-color: var(--accent); }
+.level.on { border-color: var(--accent); background: var(--accent-soft); }
+.level:has(input:focus-visible) { outline: 2px solid var(--accent); outline-offset: 2px; }
 .created { display: grid; gap: var(--s-2); margin-top: var(--s-4); padding: var(--s-4); border: 1px solid color-mix(in srgb, var(--good) 35%, var(--line)); border-radius: var(--r-md); background: var(--good-soft); }
 .created p { margin: 0; }
 .link-row { display: flex; gap: var(--s-2); }
@@ -240,8 +286,8 @@ const ASKS = [
 .snippet-head { display: flex; justify-content: space-between; align-items: center; gap: var(--s-3); padding: 6px 8px 6px 12px; border-bottom: 1px solid var(--line); }
 .snippet pre { margin: 0; padding: var(--s-3) var(--s-4); overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; line-height: 1.55; }
 .tools-h { margin: var(--s-5) 0 var(--s-2); font-size: var(--text-md); }
-.tools { display: grid; grid-template-columns: 13rem 1fr; gap: var(--s-2) var(--s-4); margin: 0 0 var(--s-4); }
-.tools dt { color: var(--ink); }
+.tools { display: grid; grid-template-columns: 18rem 1fr; gap: var(--s-2) var(--s-4); margin: 0 0 var(--s-4); }
+.tools dt { color: var(--ink); overflow-wrap: anywhere; }
 .tools dd { margin: 0; color: var(--muted); font-size: var(--text-sm); }
 .tools-group { margin: var(--s-3) 0 var(--s-2); color: var(--muted); font-weight: 600; text-transform: uppercase; letter-spacing: .04em; }
 .asks { margin: 0 0 var(--s-3); padding-left: var(--s-5); display: grid; gap: var(--s-1); color: var(--ink); }

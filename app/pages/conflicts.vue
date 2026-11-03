@@ -163,10 +163,10 @@ async function decide(id: string, decision: string) {
           </div>
         </footer>
         <footer v-else-if="c.status === 'resolved_by_merge'" class="decide small muted">
-          <span>{{ c.decided_by_name ? `Closed by ${c.decided_by_name}’s merge` : 'Closed by a merge' }}: {{ c.decision_rationale }}</span>
+          <span>{{ c.decided_by_name ? `Closed by ${c.decided_by_name}’s merge${c.decided_via ? ` via agent “${c.decided_via}”` : ''}` : 'Closed by a merge' }}: {{ c.decision_rationale }}</span>
           <NuxtLink v-if="c.merge_audit_id" :to="`/audit#${c.merge_audit_id}`">See the merge in the audit trail</NuxtLink>
         </footer>
-        <footer v-else class="decide small muted"><template v-if="c.decided_by_name">Decided by {{ c.decided_by_name }} · </template>{{ c.decision_rationale }}</footer>
+        <footer v-else class="decide small muted"><template v-if="c.decided_by_name">Decided by {{ c.decided_by_name }}<template v-if="c.decided_via"> via agent “{{ c.decided_via }}”</template> · </template>{{ c.decision_rationale }}</footer>
       </article>
     </div>
   </template>

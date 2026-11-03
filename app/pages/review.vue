@@ -547,7 +547,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
     <ul class="rejected-list">
       <li v-for="f in rejected" :key="f.id">
         <div class="statement">{{ f.statement }}</div>
-        <div class="small muted"><template v-if="f.decided_by_name">Rejected by {{ f.decided_by_name }} · </template>Reason: {{ f.rationale }}</div>
+        <div class="small muted"><template v-if="f.decided_by_name">Rejected by {{ f.decided_by_name }}<template v-if="f.decided_via"> via agent “{{ f.decided_via }}”</template> · </template>Reason: {{ f.rationale }}</div>
       </li>
     </ul>
   </details>

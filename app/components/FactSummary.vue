@@ -6,8 +6,11 @@ const authored = computed(() => {
   if (props.fact.origin !== 'human') return ''
   const ev = props.fact.evidence?.[0]
   const where = ev ? ` from ${ev.document_title}${ev.start_line ? `, line ${ev.start_line}` : ''}` : ''
-  return `Added by ${props.fact.created_by_name ?? 'a teammate'}${where}`
+  return `Added by ${props.fact.created_by_name ?? 'a teammate'}${props.fact.decided_via ? ` via agent “${props.fact.decided_via}”` : ''}${where}`
 })
+// Canon a person decided through an MCP token (Review's accept, a change, a revert) says so; decisions in the app don't need a line.
+const viaAgent = computed(() => (props.fact.origin !== 'human' && props.fact.decided_via
+  ? `Accepted by ${props.fact.decided_by_name ?? 'a teammate'} via agent “${props.fact.decided_via}”` : ''))
 // The same reason the citation badge gives ("Quote not in v5" / "Quote appears twice in v5"), per outdated citation.
 const outdatedWhy = computed(() => (props.fact.evidence ?? []).filter((e: Record<string, any>) => e.recheck === 'outdated')
   .map((e: Record<string, any>) => `${e.document_title}: ${quoteLost(e.recheck_count ?? 0, e.latest_version).toLowerCase()}`).join('; '))
@@ -25,6 +28,7 @@ const outdatedWhy = computed(() => (props.fact.evidence ?? []).filter((e: Record
     </div>
     <div v-if="!details" class="statement"><MentionText :text="fact.statement" /></div>
     <div v-if="authored" class="authored small"><UiIcon name="review" :size="13" />{{ authored }}</div>
+    <div v-else-if="viaAgent" class="authored small"><UiIcon name="review" :size="13" />{{ viaAgent }}</div>
     <!-- Without an object the triple dangles ("Arin → is"); the statement above already says it in full. -->
     <div v-if="fact.object" class="triple">{{ fact.subject }} → {{ fact.predicate }} → {{ fact.object }}</div>
     <div v-if="sources && fact.evidence?.length" class="fact-sources">
