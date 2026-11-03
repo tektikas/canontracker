@@ -1,5 +1,5 @@
 // What changed between two versions of one document, passage by passage, and which canon facts cite a passage of the
-// older version that was changed or removed, or whose quote no longer appears exactly once in the newer one (re-check those
+// older version (or those words in an earlier version) that was changed or removed, or whose quote no longer appears exactly once in the newer one (re-check those
 // before the next build). Read-only.
 export default defineEventHandler((event) => {
   const db = useDb()
@@ -56,22 +56,27 @@ export default defineEventHandler((event) => {
     for (let j = 0; j < ins.length; j++) if (!used.has(j)) rows.push({ op: 'added', to: ins[j] })
   }
 
-  // Canon citing the older version, by passage. Each citation is checked against the newer version the way re-check does
+  // Canon citing the older version or any version before it, by passage of the older version. A citation of an earlier
+  // version is placed where its quote stands in the older version (exactly once, matched as re-check matches); one whose quote
+  // was already gone there isn't about this change. Each citation is checked against the newer version the way re-check does
   // (server/utils/recheck.ts): quote_count is how many times its quote appears there. Listed: citations on a changed or removed
   // passage, and citations whose quote no longer appears exactly once (outdated: gone, or now repeated elsewhere) even when
   // their own passage reads the same. The rest point at passages that read the same and are only counted.
   const touched = new Set(rows.filter(r => r.op === 'changed' || r.op === 'removed').map(r => r.from!.id))
-  const facts = listFacts(`status = 'canon' and id in (select fact_id from evidence where document_id = ?)`, from.id)
-  const byPassage = new Map<string, { id: string, statement: string, quote: string, quote_count: number, outdated: boolean }[]>()
+  const facts = listFacts(`status = 'canon' and id in (select e.fact_id from evidence e join documents d on d.id = e.document_id
+    where d.project_id = ? and d.filename = ? and d.version <= ?)`, pid(), from.filename, from.version)
+  const byPassage = new Map<string, { id: string, statement: string, quote: string, version: number, quote_count: number, outdated: boolean }[]>()
   let unchanged = 0
   for (const f of facts) {
-    for (const ev of f.evidence.filter(e => e.document_id === from.id && e.passage_id)) {
+    for (const ev of f.evidence.filter(e => e.document_key === from.filename && e.document_version <= from.version && e.passage_id)) {
+      const at = ev.document_id === from.id ? ev.passage_id! : quoteOccurrences(a, ev.quote).passage?.id
+      if (!at) continue
       const n = quoteOccurrences(b, ev.quote).count
-      if (!touched.has(ev.passage_id!) && n === 1) {
+      if (!touched.has(at) && n === 1) {
         unchanged++
         continue
       }
-      byPassage.set(ev.passage_id!, [...(byPassage.get(ev.passage_id!) ?? []), { id: f.id, statement: f.statement, quote: ev.quote, quote_count: n, outdated: n !== 1 }])
+      byPassage.set(at, [...(byPassage.get(at) ?? []), { id: f.id, statement: f.statement, quote: ev.quote, version: ev.document_version, quote_count: n, outdated: n !== 1 }])
     }
   }
   const counts = { changed: 0, removed: 0, added: 0, same: 0 }

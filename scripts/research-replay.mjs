@@ -88,10 +88,23 @@ check('trace says which page was opened', rows[0].summary, '1 web search: Big Be
 // 3. A refused request (Meta's real 400) fails once with Meta's message: no retry without max_tool_calls, no split retry.
 rows.length = 0
 await queue(['error-responses-bad-combo'])
-await assert.rejects(agent(), e => /^Research failed: Meta Model API error 400 — `reasoning\.encrypted_content` cannot be used with `previous_response_id`\. Nothing was stored\.$/.test(e.message))
+await assert.rejects(agent(), e => /^Research failed: AI provider error 400 — `reasoning\.encrypted_content` cannot be used with `previous_response_id`\. Nothing was stored\.$/.test(e.message))
 console.log('ok  a real 400 is shown as is')
 await sent('refused request', 1)
 check('one failed trace row', rows.map(r => [r.step, r.status]), [[0, 'failed']])
+
+// 3b. The model calls a tool it wasn't offered (the same recorded run, with fall_time not in the list: as a gateway's own
+// omniroute_web_search would be). It is in the trace as an unknown tool, the model is told, and it is no tool call of the run,
+// so Research never lists it under Calculations.
+rows.length = 0
+const lightDelay = { ...fallTime, name: 'light_delay', description: 'Light delay in seconds over a distance in km.' }
+await queue(['responses-search-and-function-turn1', 'agent-stateless-search-turn2', 'responses-search-and-function-turn2'])
+run = await runAgent({ purpose: 'research', target: { type: 'research', id: 'rn_replay' }, projectId: 'p_replay', instructions: 'Research.', input: 'How long does a fall from the tower take?', tools: [lightDelay], webSearch: true, effort: 'low' })
+req = await sent('unknown tool → answer', 3)
+check('an unknown tool is no tool call of the run', run.toolCalls, [])
+check('trace: each unknown call is a failed step naming it', rows.filter(r => r.tool === 'fall_time').map(r => [r.step, r.status, r.error]), [[0, 'failed', 'Unknown tool: fall_time was not offered, so it did not run.'], [1, 'failed', 'Unknown tool: fall_time was not offered, so it did not run.']])
+check('the model is told it did not run', req[1].input.filter(i => i.type === 'function_call_output').map(i => JSON.parse(i.output).error), ['Unknown tool: fall_time was not offered, so it did not run. Use only the tools listed.'])
+check('the run still answers', run.text, fixtures['responses-search-and-function-turn2'].body.output.at(-1).content[0].text.trim())
 
 // 4. A 400 that names max_tool_calls (the shape the OmniRoute test proxy returns; no network here, $fetch is stubbed): from
 // api.meta.ai it fails once; only another gateway gets one retry without max_tool_calls, and later requests leave it out.
@@ -102,7 +115,7 @@ globalThis.$fetch = async (url, o) => {
   throw Object.assign(new Error('HTTP 400'), { statusCode: 400, data: { error: { message: 'Unsupported parameter: max_tool_calls', type: 'invalid_request_error' } } })
 }
 baseUrl = 'https://api.meta.ai/v1'
-await assert.rejects(agent(), /Meta Model API error 400/)
+await assert.rejects(agent(), /AI provider error 400/)
 check('api.meta.ai: a 400 naming max_tool_calls is not retried', bodies.map(b => 'max_tool_calls' in b), [true])
 bodies.length = 0
 baseUrl = 'https://omniroute.example/v1'

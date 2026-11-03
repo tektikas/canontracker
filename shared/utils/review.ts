@@ -14,6 +14,8 @@ export interface ShownCandidate {
   identity: { role: string, from: string, to: string }[]
   critic?: { id: string, verdict: string, reason: string, current: boolean, canon_changed: boolean } | null
 }
+// Most candidates one accept-verified request takes; the bulk sheet sends a longer confirmed list in batches of this size.
+export const BULK_MAX = 500
 export const candidateFingerprint = (f: ShownCandidate, withCritic = false) => JSON.stringify([
   f.statement, f.subject, f.predicate, f.object ?? null,
   f.evidence.map(e => [e.id, e.passage_id, e.document_id, e.document_title, e.document_version, e.latest_version, e.start_line, e.quote, !!e.verified, e.support]),

@@ -205,8 +205,15 @@ async function acceptAll() {
     // Each candidate goes with the fingerprint of what this sheet shows; the server refuses the lot if any of them changed.
     const critic = bulkMode.value === 'critic'
     const items = bulkShown.value.map(f => ({ id: f.id, fingerprint: candidateFingerprint(f, critic) }))
-    const r = await $fetch('/api/facts/accept-verified', { method: 'POST', body: { items, ...(critic && { critic }) } })
-    for (const id of r.accepted) decided[id] = 'accepted'
+    // The server takes at most BULK_MAX per request: send the confirmed list in order, batch by batch. A batch that finds
+    // a changed candidate stops here (earlier batches stay accepted) and the changed ones are shown again below.
+    const r = { accepted: [] as string[], skipped: [] as unknown[] }
+    for (let i = 0; i < items.length; i += BULK_MAX) {
+      const part = await $fetch('/api/facts/accept-verified', { method: 'POST', body: { items: items.slice(i, i + BULK_MAX), ...(critic && { critic }) } })
+      for (const id of part.accepted) decided[id] = 'accepted'
+      r.accepted.push(...part.accepted)
+      r.skipped.push(...part.skipped)
+    }
     last.value = { decision: 'accepted', statement: `${counted(r.accepted.length, 'candidate')}${r.skipped.length ? ` · ${r.skipped.length} skipped (already decided, quote not found or no longer kept by the AI critic)` : ''}` }
     tour.value = { did: 'bulk' }
     bulkOpen.value = false

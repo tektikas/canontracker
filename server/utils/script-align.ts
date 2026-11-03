@@ -91,18 +91,20 @@ export function alignScript(script: ScriptUnit[], spokenPassages: PassageRow[]):
   }
 
   // Who owns each spoken word: the line whose matched words surround it, the line whose words it replaced (script words
-  // dropped right before it: a reworded or ad-libbed ending, or a whole line said differently), the next line for a stray word
-  // or two, or else a run of added (improvised) speech between lines.
+  // dropped right before it: a reworded or ad-libbed ending, or a whole line said differently), a word or two that end the
+  // line just said (its last words replaced, or said in its turn and not the next line's), the next line for any other stray
+  // word or two, or else a run of added (improvised) speech between lines.
   const lastSame = new Map<number, number>()
   ops.forEach((o, k) => { if (o.op === 'same') lastSame.set(A[o.a]!.unit, k) })
   const owner: string[] = []
   let cur: number | null = null
+  let curTurn: number | null = null
   let run = 0
   for (let k = 0; k < ops.length; k++) {
     const o = ops[k]!
     if (o.op !== 'ins') {
       const u = A[o.a]!.unit
-      if (o.op === 'same') cur = u
+      if (o.op === 'same') { cur = u; curTurn = B[o.b]!.unit }
       owner[k] = `u${u}`
       continue
     }
@@ -115,7 +117,11 @@ export function alignScript(script: ScriptUnit[], spokenPassages: PassageRow[]):
     let d = k
     while (d > 0 && ops[d - 1]!.op === 'del') d--
     const replaced = d < k ? A[(ops[d] as { a: number }).a]!.unit : null
-    const key = end - k + 1 < 3 && (nextSame || cur != null) ? `u${nextSame?.op === 'same' ? A[nextSame.a]!.unit : cur}`
+    const short = end - k + 1 < 3
+    const turn = B[o.b]!.unit
+    const endsCur = cur != null && (replaced === cur || (turn === curTurn && (nextSame?.op !== 'same' || B[nextSame.b]!.unit !== turn)))
+    const key = short && endsCur ? `u${cur}`
+      : short && (nextSame || cur != null) ? `u${nextSame?.op === 'same' ? A[nextSame.a]!.unit : cur}`
       : replaced != null ? `u${replaced}`
       : `a${run++}`
     for (let j = k; j <= end; j++) owner[j] = key
@@ -168,7 +174,8 @@ export function scriptComparison(transcriptId: string, scriptKey: string) {
   const transcript = passagesOf(transcriptId)
   const rows = alignScript(scriptLines(passagesOf(scriptDoc.id), scriptDoc.content), transcript)
 
-  // Facts the transcript states (pending candidates and canon citing this version), placed on the line whose words hold the quote.
+  // Facts the transcript states (pending candidates, including one made from another document that the take said again:
+  // extractInto cites it here instead of making a duplicate, and canon citing this version), placed on the line whose words hold the quote.
   const facts = listFacts(`status in ('pending', 'canon') and id in (select fact_id from evidence where document_id = ? and verified = 1)`, transcriptId)
   const text = new Map(transcript.map(p => [p.id, p.text]))
   const rowOf = new Map<string, number>()

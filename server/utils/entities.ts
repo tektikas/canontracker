@@ -74,6 +74,21 @@ export function syncEntities() {
 }
 
 // Canon (and optionally pending) facts that name this entity as subject or object, by name or alias.
+// How many canon facts name each name (normalised), and the first of them: what a page's fact count and preview add up from.
+export function canonNameCounts() {
+  const facts = useDb().prepare(`select subject, predicate, object, value, statement from facts where project_id = ? and status = 'canon' order by rowid`).all(pid()) as { subject: string, predicate: string, object: string | null, value: string | null, statement: string }[]
+  const counts = new Map<string, number>()
+  const first = new Map<string, string>()
+  for (const f of facts) {
+    for (const n of new Set(factNames(f).map(normName))) {
+      if (!n) continue
+      counts.set(n, (counts.get(n) ?? 0) + 1)
+      if (!first.has(n)) first.set(n, f.statement)
+    }
+  }
+  return { counts, first }
+}
+
 export function factsAbout(e: EntityRow, statuses = ['canon']) {
   const names = new Set(namesOf(e).map(normName))
   return listFacts(`status in (${statuses.map(() => '?').join(', ')})`, ...statuses)

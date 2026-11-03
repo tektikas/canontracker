@@ -71,11 +71,11 @@ await sent('ask', 1, '/chat/completions')
 await queue(['error-bad-model'])
 ask = await api('/api/qa', { question })
 check('ask with real 404 model_not_found', [ask.data.status, ask.data.answer, ask.data.model_error],
-  ['source_only', null, 'Model call failed: Meta Model API error 404 — model_not_found: The requested model was not found. Nothing was replaced with recorded output.'])
+  ['source_only', null, 'Model call failed: AI provider error 404 — model_not_found: The requested model was not found. Nothing was replaced with recorded output.'])
 await sent('ask 404', 1, '/chat/completions')
 await queue(['error-bad-param'])
 ask = await api('/api/qa', { question })
-assert.match(ask.data.model_error, /^Model call failed: Meta Model API error 400 — only `"auto"` is supported for `tool_choice`/)
+assert.match(ask.data.model_error, /^Model call failed: AI provider error 400 — only `"auto"` is supported for `tool_choice`/)
 console.log('ok  ask with real 400 (code null): message shown')
 await sent('ask 400', 1, '/chat/completions')
 
@@ -103,7 +103,7 @@ check('fake refuses a fixture queued for another endpoint', wrong.requests.lengt
 const draft = `Ines waits alone by the furnace at 20:30 on Day 1 (${run}).`
 await queue(['error-responses-bad-combo'])
 const cty = await api('/api/continuity', { text: draft })
-check('continuity on a real 400: Meta\'s message shown', [cty.status, /^Continuity check failed: Meta Model API error 400/.test(cty.data.message)], [503, true])
+check('continuity on a real 400: Meta\'s message shown', [cty.status, /^Continuity check failed: AI provider error 400/.test(cty.data.message)], [503, true])
 await sent('continuity 400', 1, '/responses')
 const mine = (await api('/api/agents/runs?purpose=continuity')).data
 check('author: the failed run is in agent activity', mine.map(r => [r.status, r.steps.some(s => s.input?.includes(draft))]), [['failed', true]])

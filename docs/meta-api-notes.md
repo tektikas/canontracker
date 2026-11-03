@@ -47,6 +47,8 @@ Each item: what we expected, what happened, what we did, and a suggestion.
 
 15. **Chat can't carry reasoning across turns.** Per the docs, `reasoning_content` is redacted for external keys, so multi-step agents have to use Responses. We built every agent (research, continuity) on Responses for that reason.
 
+16. **Voice `keywords` are limited to 30 characters.** The speech-to-text page (dev.meta.ai/docs/speech-to-text, checked 3 Nov 2026) gives no limit on the number or length of `keywords`; it only says they bias recognition. Live, a request whose 5th keyword was 36 characters (a wiki page titled "a husband and father of two children") was refused with 400 "ASR keyword 5 exceeds the maximum length of 30 characters", so one long page name stopped a whole project from transcribing. Not kept as a fixture (it came from a recording session, not the contract run). *We did:* send only names of at most 30 characters (a page with a long title still contributes its short aliases), deduped, at most 100; the count limit is unknown (about 30 keywords were tested live). *Suggestion:* document both limits, and ignore or truncate an over-long keyword instead of failing the request.
+
 ## Summary of suggestions
 
 1. Show credit and billing state clearly; name the missing step in a 402.
@@ -55,6 +57,6 @@ Each item: what we expected, what happened, what we did, and a suggestion.
 4. Make `max_tool_calls` match the docs, or document it as shared.
 5. Document `phase: "commentary"` and keep `url_citation` annotations reliable.
 6. Return actual image dimensions.
-7. Voice: accept common audio formats, document modes that return turns, consider word timestamps.
+7. Voice: accept common audio formats, document modes that return turns and the `keywords` limits, consider word timestamps.
 8. An MCP tool type on the Responses API.
 9. A stable `code` on every error.
