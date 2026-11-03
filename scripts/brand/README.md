@@ -1,53 +1,40 @@
 # Story Bible brand assets
 
-Original assets for card c24. The logo mark is hand-authored SVG; the wordmark is outlined Instrument Sans semibold, used under the included OFL license. No generation model drew the logo or any lettering. `BrandMark.vue` retains its original mark-only API; the surrounding existing text completes the app lockup.
+Logo, icons, illustrations, product screenshots and social cards for the app and the public site, in the writer palette (`app/assets/main.css`: linen `#f4f0e8`, paper `#fdfbf7`, walnut ink `#733816`, tan ink `#dba077` in dark). The logo mark is hand-authored SVG; the wordmark is outlined Instrument Sans semibold, used under the included OFL license. No generation model drew the logo or any lettering.
 
-## Generation prompts
+## Logo and icons
 
-The exact full prompt for **every generated source** is in [prompts.json](./prompts.json), keyed by its final filename stem: `story-world`, `import`, `review`, `canon`, `conflicts`, `impact`. Tool: built-in Codex `image_gen.imagegen`, with `transparent_background: true` for each of six separate generations. The five spots share a common pencil-and-ink style specification. All scenes and objects are original; there are no brands or copyrighted characters. Any manuscript marks are abstract strokes, not copy.
+- `public/brand/mark.svg`, `story-bible.svg` and `public/favicon.svg`: walnut `#733816`, tan `#dba077` under `prefers-color-scheme: dark`. `story-bible-mono.svg` uses `currentColor`.
+- `node scripts/brand/render-icons.mjs` (system ImageMagick) derives `icon-512.png`, `icon-192.png`, `apple-touch-icon.png` and the 32/16px `favicon.ico` from `mark.svg`: walnut mark on a linen `#f4f0e8` square with safe padding. `site.webmanifest` uses the same two colours.
 
-The hero depicts an open ledger becoming a coastal world, beside connected story cards. The spots depict gathered source pages, deliberate pen review, a reference ledger, contradictory scene cards and downstream scene connections. The OG cards reuse `story-world.webp`; their logo and all copy are real SVG/HTML text in [og.html](./og.html), rendered in a headless browser. They require no additional image-generation prompts.
+## Illustrations (`public/art/*.webp`)
 
-## Regeneration
+Pencil-and-ink spots and one hero, generated with **OmniRoute images** (`POST https://gateway.example/v1/images/generations`, model `codex/gpt-image-2`). The exact prompt and size of every image is in [prompts.json](./prompts.json), keyed by its file name. All subjects are original objects; no people, characters, brands or lettering.
 
-1. Generate each source using the corresponding exact prompt and transparency option. Keep the source PNGs outside `public/`.
-2. Use the existing system ImageMagick to optimise copies. Hero: `magick SOURCE -resize 720x480 -strip -quality 80 -define webp:alpha-quality=85 public/art/story-world.webp`. PNG fallback: same resize, then `-strip -dither None -colors 128 PNG8:public/art/story-world.png`.
-3. Each spot: `magick SOURCE -resize 200x160 -background none -gravity center -extent 200x160 -strip -quality 80 -define webp:alpha-quality=85 public/art/NAME.webp`. PNG fallback: same geometry, then `-strip -dither None -colors 96 PNG8:public/art/NAME.png`. Preserve alpha; never flatten on a theme colour.
-4. Icons: `node scripts/brand/render-icons.mjs` (system ImageMagick, no app dependency). It derives all raster icons from `public/brand/mark.svg`; SVG favicon uses the same mark. The ICO contains actual 32px and 16px entries. PNG app icons use a fixed light canvas and safe padding.
-5. With the app running on **http://localhost:3640**, run `node scripts/brand/render-og.mjs`. It uses installed `@playwright/cli` in its own headless `c24-og` session, waits for the real Instrument Sans font and illustration to load, renders both 1200×630 cards, then closes the session. Google Fonts must be reachable; a missing font fails the render. The HTML template is the source of truth for copy and composition.
+Transparent backgrounds work (`background: "transparent"`), but the model draws a soft white glow into the alpha, which shows as a halo on the dark theme. So every image is drawn on the flat linen paper colour, and `LandingArt.vue` shows it on a linen plate of the same colour in both themes (slightly dimmed in dark).
 
-The standalone logo SVGs contain outlined glyphs, so no font download is required to display them. Typography source: Google Fonts' `ofl/instrumentsans/InstrumentSans[wdth,wght].ttf`, weight 600 and width 100; fontTools was used only as a local authoring tool to outline the glyphs. No package dependencies were added.
+1. Generate: `OMNIROUTE_KEY="$(pass show <secret-entry> | head -1)" node scripts/brand/generate-art.mjs <source dir> [name…]`. Sources are PNG, 1254×1254; keep them outside `public/`. The gateway gives up after 30 s without a response and the script retries each image three times; long, busy prompts time out more often (the hero prompt was shortened for that reason).
+2. Optimise: `node scripts/brand/optimise-art.mjs <source dir>`. ImageMagick flood-fills the background from the four corners to exactly `#f4f0e8` (3% fuzz), resizes (hero 960px, spots 400px: twice their largest display size) and writes WebP quality 80. No PNG fallbacks: every supported browser reads WebP.
 
-## Asset sizes
+## Product screenshots (`public/shots/*.webp`)
 
-All landing artwork, **including both formats**, totals **224,812 bytes** (219.5 KiB). A WebP browser transfers only 101.5 KiB. Hero: 720×480; each spot: 200×160; OG cards: 1200×630.
+Real screens of the app with the bundled samples, light and dark, 1280 and 720 wide (`MarketingShot.vue` picks the theme with `prefers-color-scheme` and the width with `srcset`; lazy below the fold).
 
-| Asset | Bytes |
-| --- | ---: |
-| `public/art/canon.png` | 6,346 |
-| `public/art/canon.webp` | 4,360 |
-| `public/art/conflicts.png` | 7,055 |
-| `public/art/conflicts.webp` | 6,800 |
-| `public/art/impact.png` | 3,996 |
-| `public/art/impact.webp` | 4,846 |
-| `public/art/import.png` | 4,700 |
-| `public/art/import.webp` | 4,558 |
-| `public/art/review.png` | 5,656 |
-| `public/art/review.webp` | 6,246 |
-| `public/art/story-world.png` | 93,169 |
-| `public/art/story-world.webp` | 77,080 |
-| `public/favicon.svg` | 576 |
-| `public/favicon.ico` | 5,430 |
-| `public/apple-touch-icon.png` | 18,392 |
-| `public/icon-192.png` | 18,961 |
-| `public/icon-512.png` | 5,197 |
-| `public/site.webmanifest` | 366 |
-| `public/brand/mark.svg` | 576 |
-| `public/brand/story-bible.svg` | 10,719 |
-| `public/brand/story-bible-mono.svg` | 10,633 |
-| `public/og-default.png` | 252,606 |
-| `public/og-landing.png` | 263,751 |
+With a prod build on localhost with its own `.data` (default AI mode: each sample replays its own AI output), run `node scripts/brand/render-shots.mjs http://localhost:<port> [name…]`. It signs up a throwaway account (“Ada Marlow”, “Northlight Studio”) through the API, loads Lantern Row, Broken Tide and The Ashbell Pass into three projects, walks the Ashbell Pass through review (figurative candidate rejected, verified candidates accepted), a conflict scan with two decisions, the Salt Gate → Saltgate merge, a proposed change to the bell rule, the sample voice take linked to its script and one Ask question, then captures each page at 1280×800 with the installed headless `playwright-cli` (session `shots`). The session cookie carries the current project, so a project switch re-sets the browser cookie.
 
-## Review evidence
+Shots: `review`, `tide-review`, `canon`, `graph`, `timeline`, `conflicts`, `impact`, `entity`, `library`, `reader`, `voice`, `ask`, `agent-activity`, `export`, `team`, `mcp`, `lantern`.
 
-Browser evidence belongs in `.orka-evidence/c24-*.png` (ignored by git): desktop 1280×800 and mobile 390×844 in both themes, full-size OG views, favicon/app-icon/logo sheets and PNG fallback. Social tags use the canonical staging origin `https://storybible.trythis.work`; update those absolute URLs in both `nuxt.config.ts` and `LandingPage.vue` if the public origin changes.
+## Social cards (`public/og-*.png`)
+
+`node scripts/brand/render-og.mjs http://localhost:<port>` renders [og.html](./og.html) at 1200×630 for each variant (`landing`, `default`, `agents`, `security`) with the installed `playwright-cli` (session `og`); the running app serves the illustration. It waits for Instrument Sans and the art and fails if either is missing (Google Fonts must be reachable). Copy and composition live in `og.html`. Pages set their card through `useMarketingSeo()` (`app/utils/marketing.ts`); absolute URLs use `https://storybible.trythis.work`.
+
+## Sizes
+
+| Group | Files | Bytes |
+| --- | ---: | ---: |
+| Illustrations `public/art/*.webp` (hero 69,002) | 16 | 257,354 |
+| Screenshots `public/shots/*.webp` (17 screens × light/dark × 720/1280) | 68 | 2,371,052 |
+| Social cards `public/og-*.png` | 4 | 682,532 |
+| Icons, favicons, manifest, logo SVGs | 9 | 70,984 |
+
+A page downloads only what it shows: the home page loads the hero screenshot (22–49 KB) eagerly and everything else lazily, one theme and one width per screenshot.
