@@ -1,18 +1,27 @@
 // "Same detail, two answers" (ATTRIBUTE_MISMATCH, server/utils/analysis.ts). A single-valued detail of a subject is stored as
 // predicate "<detail>_is" (snake_case: wound_location_is, first_name_is, eye_colour_is) with the answer in `value` and no
 // object: "Watson · wound_location_is · shoulder". Only the `_is` form is read this way, so free-form predicates
-// ("has_daughter", "owns") stay multi-valued and never clash. The value is not an entity: it never files a wiki page.
+// ("has_daughter", "owns") stay multi-valued and never clash. The answer never files a wiki page of its own ("shoulder"), but
+// when it names an entity that exists ("spouse_is Mary") impact, the wiki and the graph follow it like an object (factNames).
 
 const DETAIL = /^[a-z0-9]+(?:_[a-z0-9]+)*_is$/
 export const isDetailPredicate = (p: string | null | undefined) => !!p && DETAIL.test(p)
 // "wound_location_is" -> "wound location"
 export const detailName = (p: string) => p.replace(/_is$/, '').replace(/_/g, ' ')
 
-// A detail written with its answer in `object` (as Add fact's third box or a model may send it) is stored with the answer in
-// `value`, so it never becomes an entity page. Anything else is returned as it came.
+// A detail's answer is stored in `value` with no object. One typed in `object` (Add fact's third box, Review's Answer box, a
+// model or an agent) is the answer and wins over an older value: an edited answer always replaces the one it corrects.
+// Anything that isn't a detail is returned as it came.
 export function asDetail<T extends { predicate: string, object?: string | null, value?: string | null }>(f: T): T {
-  return isDetailPredicate(f.predicate) && !f.value?.toString().trim() && f.object?.trim() ? { ...f, value: f.object.trim(), object: null } : f
+  if (!isDetailPredicate(f.predicate)) return f
+  const answer = f.object?.trim() || f.value?.toString().trim() || null
+  return { ...f, value: answer, object: null }
 }
+
+// The names a fact is about, for impact, the wiki and the graph: subject, object, and a detail's answer (which matches an
+// entity only when one has that name).
+export const factNames = (f: { subject: string, predicate: string, object: string | null, value?: string | null }) =>
+  [f.subject, f.object, isDetailPredicate(f.predicate) ? f.value ?? null : null]
 
 // Two answers to one detail agree when one says no more than the other: words compared without case, punctuation, articles,
 // possessives and little linking words, and one word set inside the other ("shoulder" = "the left shoulder" = "his shoulder").

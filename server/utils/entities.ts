@@ -77,7 +77,7 @@ export function syncEntities() {
 export function factsAbout(e: EntityRow, statuses = ['canon']) {
   const names = new Set(namesOf(e).map(normName))
   return listFacts(`status in (${statuses.map(() => '?').join(', ')})`, ...statuses)
-    .filter(f => names.has(normName(f.subject)) || names.has(normName(f.object)))
+    .filter(f => factNames(f).some(n => names.has(normName(n))))
 }
 
 const mergeRows = () => useDb().prepare('select name_norm, name, canonical from entity_merges where project_id = ? order by rowid')

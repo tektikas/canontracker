@@ -77,11 +77,13 @@ async function open(m: Mode, prefill?: CriticSuggestion | null) {
   }
   error.value = ''
   const t = splitTimeLabel(f.time_label)
-  Object.assign(form, { statement: f.statement, subject: f.subject, predicate: f.predicate, object: f.object ?? '', time_from: t.from, time_to: t.to, approximate: t.approximate, rationale: '' })
+  // A detail ("wound_location_is") shows its answer in the third box; whatever is typed there is saved as the answer.
+  const answer = (predicate: string, object: string | null | undefined) => object || (isDetailPredicate(predicate) ? f.value ?? '' : '')
+  Object.assign(form, { statement: f.statement, subject: f.subject, predicate: f.predicate, object: answer(f.predicate, f.object), time_from: t.from, time_to: t.to, approximate: t.approximate, rationale: '' })
   timeAtOpen.value = timeOf()
   if (prefill) {
     const s = prefill.time === undefined ? t : splitTimeLabel(prefill.time)
-    Object.assign(form, { statement: prefill.statement, subject: prefill.subject, predicate: prefill.predicate, object: prefill.object ?? '', time_from: s.from, time_to: s.to, approximate: s.approximate, rationale: 'AI critic suggestion' })
+    Object.assign(form, { statement: prefill.statement, subject: prefill.subject, predicate: prefill.predicate, object: answer(prefill.predicate, prefill.object), time_from: s.from, time_to: s.to, approximate: s.approximate, rationale: 'AI critic suggestion' })
   }
   mode.value = m
   await nextTick()
@@ -399,7 +401,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
         <div class="triple-fields">
           <UiField label="Subject"><input v-model="form.subject" type="text" required></UiField>
           <UiField label="Predicate"><input v-model="form.predicate" type="text" required></UiField>
-          <UiField label="Object"><input v-model="form.object" type="text"></UiField>
+          <UiField :label="isDetailPredicate(form.predicate) ? 'Answer' : 'Object'"><input v-model="form.object" type="text"></UiField>
         </div>
         <div class="triple-fields">
           <UiField label="From" :error="timeError(form.time_from)"><input v-model="form.time_from" type="text" placeholder="e.g. D2 14:30" autocomplete="off"></UiField>

@@ -20,9 +20,12 @@ const searched = computed(() => list.value.filter(matches))
 const count = (k: string) => searched.value.filter(e => e.kind === k).length
 // The project's types in its order; a page whose type was removed outside the app still gets a group at the end.
 const kinds = computed(() => [...new Set([...types.value.map(t => t.key), ...list.value.map(e => e.kind)])].map(kindOf))
+// A big wiki (a whole novel's canon) opens with the most-named pages first; a small one by name. Both are one click away.
+const sort = ref<'name' | 'facts'>(list.value.length > 60 ? 'facts' : 'name')
+const order = (a: EntityListItem, b: EntityListItem) => (sort.value === 'facts' ? b.facts - a.facts : 0) || a.name.localeCompare(b.name)
 const groups = computed(() => kinds.value
   .filter(t => !kind.value || t.key === kind.value)
-  .map(t => ({ type: t, items: searched.value.filter(e => e.kind === t.key) }))
+  .map(t => ({ type: t, items: searched.value.filter(e => e.kind === t.key).sort(order) }))
   .filter(g => g.items.length))
 
 // New page form
@@ -112,6 +115,9 @@ async function create() {
             </button>
           </template>
         </div>
+        <label class="small sort">Sort
+          <select v-model="sort" aria-label="Sort entities"><option value="facts">Most canon facts</option><option value="name">Name</option></select>
+        </label>
         <NuxtLink v-if="editable" :to="`/settings/projects/${me?.current?.project.id}#entity-types`" class="small manage"><UiIcon name="settings" :size="14" />Edit types</NuxtLink>
       </div>
     </div>
@@ -153,6 +159,8 @@ async function create() {
 .search input { padding-left: 34px; width: 100%; }
 .filter-row { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); align-items: center; justify-content: space-between; }
 .filters { display: flex; flex-wrap: wrap; gap: var(--s-2); min-width: 0; }
+.sort { display: inline-flex; align-items: center; gap: var(--s-2); color: var(--muted); }
+.sort select { width: auto; min-height: 34px; }
 .manage { display: inline-flex; align-items: center; gap: 6px; color: var(--muted); }
 .manage:hover { color: var(--accent); }
 .f { display: inline-flex; align-items: center; gap: 6px; font: inherit; font-size: var(--text-sm); color: var(--muted); background: var(--raised); border: 1px solid var(--line-strong); border-radius: var(--r-md); padding: 6px 12px; min-height: 34px; cursor: pointer; }

@@ -39,6 +39,10 @@ assert.equal(isDetailPredicate('wound_location_is'), true)
 for (const p of ['is', 'is_at', 'located_at', 'has_daughter', 'This_is', 'wound location is']) assert.equal(isDetailPredicate(p), false, p)
 assert.deepEqual(asDetail({ predicate: 'wound_location_is', object: 'leg', value: null }), { predicate: 'wound_location_is', object: null, value: 'leg' })
 assert.deepEqual(asDetail({ predicate: 'owns', object: 'a bull pup', value: null }), { predicate: 'owns', object: 'a bull pup', value: null })
+assert.deepEqual(asDetail({ predicate: 'wound_location_is', object: 'leg', value: 'shoulder' }), { predicate: 'wound_location_is', object: null, value: 'leg' }, 'an edited answer replaces the old one')
+assert.deepEqual(asDetail({ predicate: 'wound_location_is', object: null, value: 'shoulder' }), { predicate: 'wound_location_is', object: null, value: 'shoulder' }, 'no edit keeps the answer')
+assert.deepEqual(detail.factNames({ subject: 'Watson', predicate: 'spouse_is', object: null, value: 'Mary' }), ['Watson', null, 'Mary'], 'a detail answer is a name for impact and the wiki')
+assert.deepEqual(detail.factNames({ subject: 'Watson', predicate: 'owns', object: null, value: 'a pup' }), ['Watson', null, null])
 
 // The rule as the scan runs it.
 let n = 0

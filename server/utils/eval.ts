@@ -17,6 +17,9 @@ interface Gold {
   // Conflicts a set plants for after a merge or an applied change: not in the baseline recall, but true alerts, not false ones.
   after_merge?: { id: string, rule: string, statements: string[] }[]
   after_change?: { id: string, rule: string, rule_statement: string, statements: string[] }[]
+  // Hits a rule is expected to raise that a person should dismiss (Sherlock's F1: shoulder vs left arm). Open, one counts
+  // against alert precision; dismissed as a false alarm, it is a judged alert and leaves precision.
+  expected_false_alarms?: { id: string, rule: string, statements: string[] }[]
 }
 
 // "C1–C4", "C1–C5, M1": consecutive ids with one prefix read as a range.
@@ -70,11 +73,19 @@ export async function runEval() {
   results.push(ratio('conflict_recall', `Conflict recall (${idList(gold.conflicts.map(g => g.id))})`, allOf(gold.conflicts.length), found.length, gold.conflicts.length, (n, d) => n === d,
     gold.conflicts.filter(g => !found.includes(g)).map(g => `missing ${g.id}`).join(', ') || undefined))
 
-  const alerts = conflicts.filter(c => c.confidence >= 0.5)
+  const expected = gold.expected_false_alarms ?? []
+  const dismissed = (c: typeof conflicts[number]) => c.status === 'false_positive' && expected.some(g => g.rule === c.rule && samePair(c.pair, g.statements))
+  const alerts = conflicts.filter(c => c.confidence >= 0.5 && !dismissed(c))
   const known = [...gold.conflicts, ...gold.after_merge ?? [], ...(gold.after_change ?? []).flatMap(g => g.statements.map(s => ({ rule: g.rule, statements: [g.rule_statement, s] })))]
   const trueAlerts = alerts.filter(c => known.some(g => g.rule === c.rule && samePair(c.pair, g.statements)))
   results.push(ratio('alert_precision', 'Alert precision (confidence ≥ 50%)', '≥ 80%', trueAlerts.length, alerts.length, (n, d) => n / d >= 0.8,
-    gold.after_merge || gold.after_change ? 'Conflicts the gold set plants for after a merge or a change count as true alerts.' : 'Conflicts created by an applied change are not in the baseline gold set.'))
+    [gold.after_merge || gold.after_change ? 'Conflicts the gold set plants for after a merge or a change count as true alerts.' : 'Conflicts created by an applied change are not in the baseline gold set.',
+      expected.length ? `An expected false alarm (${idList(expected.map(g => g.id))}) counts against precision until someone dismisses it.` : ''].filter(Boolean).join(' ')))
+  if (expected.length) {
+    const judged = expected.filter(g => conflicts.some(c => dismissed(c) && samePair(c.pair, g.statements)))
+    results.push(ratio('expected_false_alarms', `${idList(expected.map(g => g.id))} raised and dismissed as a false alarm`, allOf(expected.length), judged.length, expected.length, (n, d) => n === d,
+      expected.filter(g => !judged.includes(g)).map(g => `${g.id} ${conflicts.some(c => c.rule === g.rule && samePair(c.pair, g.statements)) ? 'not dismissed' : 'not raised'}`).join(', ') || undefined))
+  }
 
   if (gold.false_alarms?.length) {
     const falseAlarmsRejected = gold.false_alarms.filter(g => conflicts.some(c => samePair(c.pair, g.statements) && c.status === 'false_positive' && c.confidence < 0.5))

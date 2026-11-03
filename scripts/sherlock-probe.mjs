@@ -88,8 +88,20 @@ const fact = s => { const f = canon.find(x => x.statement === s); assert.ok(f, `
 // 3. Scan: exactly the slips the extraction states (W1, W2) and the F1 false alarm; every hit is rule-based and hard.
 step(3)
 t = Date.now()
-check('scan', (await a('/api/conflicts/scan', { method: 'POST' })).data.model_error, null)
+const scan = (await a('/api/conflicts/scan', { method: 'POST' })).data
+check('scan', scan.model_error, null)
 console.log(`--  scan of ${canon.length} canon facts took ${Date.now() - t} ms`)
+// World rules read every fact of their context, in calls of at most 120 (recorded mode: no violations for this set).
+const ne = s => s?.trim().toLowerCase() || null
+const isRule = f => f.kind === 'rule' && f.predicate === 'rule'
+const contexts = canon.filter(isRule).map((r) => {
+  const direct = canon.filter(f => f.id !== r.id && [f.subject, f.object].some(e => ne(e) === ne(r.subject)))
+  const actors = new Set(direct.map(f => ne(f.subject)))
+  return canon.filter(f => f.id !== r.id && !isRule(f) && (direct.includes(f) || actors.has(ne(f.subject)))).length
+}).filter(Boolean)
+check('world-rule checks: every context fact read, in batches of ≤ 120', scan.rule_checks,
+  { rules: contexts.length, calls: contexts.reduce((n, c) => n + Math.ceil(c / 120), 0), facts: contexts.reduce((n, c) => n + c, 0) })
+assert.ok(contexts.some(c => c > 120), 'a rule context over 120 facts is batched, not cut')
 let conflicts = (await a('/api/conflicts')).data
 const pairOf = c => sorted([c.left.statement, c.right.statement])
 const find = (statements, rule = RULE) => conflicts.filter(c => c.rule === rule && JSON.stringify(pairOf(c)) === JSON.stringify(sorted(statements)))
@@ -102,7 +114,14 @@ check('W1 rationale names both answers', w1.rationale, 'Watson\'s wound location
 for (const pair of gold.no_conflict_pairs) check(`no conflict: ${pair.join(' / ')}`, conflicts.filter(c => JSON.stringify(pairOf(c)) === JSON.stringify(sorted(pair))).length, 0)
 check('the limb answer is canon (and fits any limb)', fact('Watson has a jezail bullet wound in one of his limbs.').value, 'one of my limbs')
 const f1 = find(gold.expected_false_alarms[0].statements)[0]
+// Metrics: F1 still open counts against alert precision, and its "dismissed" target is not met.
+const metric = (run, key) => run.results.find(r => r.key === key)
+let ev = (await a('/api/eval', { method: 'POST' })).data
+check('F1 open: precision 2/3, F1 not dismissed', [metric(ev, 'alert_precision').measured, metric(ev, 'alert_precision').pass, metric(ev, 'expected_false_alarms').measured, metric(ev, 'expected_false_alarms').pass],
+  ['2/3 (67%)', false, '0/1 (0%)', false])
 check('F1 dismissed as a false alarm', (await a(`/api/conflicts/${f1.id}/decision`, { method: 'POST', body: { decision: 'false_positive', rationale: 'A shattered shoulder leaves the arm stiff: the same wound.' } })).data.status, 'false_positive')
+ev = (await a('/api/eval', { method: 'POST' })).data
+check('F1 dismissed: precision 2/2, F1 target met', [metric(ev, 'alert_precision').measured, metric(ev, 'expected_false_alarms').measured, metric(ev, 'expected_false_alarms').pass], ['2/2 (100%)', '1/1 (100%)', true])
 check('W1 confirmed', (await a(`/api/conflicts/${w1.id}/decision`, { method: 'POST', body: { decision: 'confirmed', rationale: 'One Jezail bullet, two places.' } })).data.status, 'confirmed')
 
 // 4. Add fact: a reader records the details the AI did not state as a detail. The answer typed in the object box is stored
@@ -181,6 +200,48 @@ const evalRun = (await a('/api/eval', { method: 'POST' })).data
 for (const r of evalRun.results) console.log(`${r.pass === false ? 'MISS' : 'ok '} ${r.label}: ${r.measured} (target ${r.target})${r.note ? ` — ${r.note}` : ''}`)
 check('eval dataset', evalRun.dataset, gold.dataset)
 check('every target met', evalRun.results.filter(r => r.pass === false).map(r => r.key), [])
+
+// 11. Impact follows a detail whose answer names an entity: Watson's spouse is Mary, so a change to it reaches facts about Mary.
+step(11)
+check('authored: Watson is to marry Mary (spouse is → Mary)', (await a('/api/facts', { method: 'POST', body: { to: 'canon', document_id: docId.get('1890-the-sign-of-the-four-12-the-strange-story-of-jonathan-small.md'),
+  quote: 'Miss Morstan has done me the honour to accept me as a husband in prospective.', statement: 'Watson is engaged to Mary.', kind: 'character', subject: 'Watson', predicate: 'spouse is', object: 'Mary' } })).status, 200)
+canon = (await a('/api/facts?status=canon')).data
+const spouse = fact('Watson is engaged to Mary.')
+check('stored as a detail with Mary as the answer', [spouse.predicate, spouse.object, spouse.value], ['spouse_is', null, 'Mary'])
+const change = (await a('/api/changes', { method: 'POST', body: { target_fact_id: spouse.id, proposed_statement: 'Watson is engaged to Mrs. Cecil Forrester.', rationale: 'probe' } })).data
+const viaMary = change.impact.filter(i => i.target_type === 'fact' && i.via === 'Mary').map(i => i.label)
+check('impact reaches facts about Mary through the answer', viaMary.includes("Mary's mother was dead."), true)
+const mary = (await a('/api/entities')).data.find(e => e.name === 'Mary')
+check('Mary\'s wiki page lists the spouse fact', (await a(`/api/entities/${mary.id}`)).data.facts.some(f => f.id === spouse.id), true)
+check('reject the probe change', (await a(`/api/changes/${change.id}/decision`, { method: 'POST', body: { decision: 'reject', rationale: 'probe' } })).status, 200)
+
+// 12. Edit & accept: the edited answer replaces the candidate's, and conflicts check the edited one (Review form and MCP).
+step(12)
+const proposeKnee = async (statement) => {
+  const r = await a('/api/facts', { method: 'POST', body: { to: 'review', document_id: docId.get('1890-the-sign-of-the-four-01-the-science-of-deduction.md'),
+    quote: 'I had a Jezail bullet through it some time before', statement, kind: 'character', subject: 'Watson', predicate: 'wound location is', object: 'knee' } })
+  assert.equal(r.status, 200, JSON.stringify(r.data))
+  return r.data.id
+}
+const editId = await proposeKnee('Watson was shot in the knee (review form).')
+check('Review form: edit the answer knee → leg', (await a(`/api/facts/${editId}/review`, { method: 'POST', body: { decision: 'correct_and_accept', corrected: { object: 'leg' }, rationale: 'The text says leg.' } })).status, 200)
+canon = (await a('/api/facts?status=canon')).data
+check('stored answer is the edited one', [fact('Watson was shot in the knee (review form).').object, fact('Watson was shot in the knee (review form).').value], [null, 'leg'])
+const full = (await a('/api/agent-tokens', { method: 'POST', body: { name: 'Probe (full)', level: 'full' } })).data
+const mcp2 = new Client({ name: 'sherlock-probe-full', version: '1.0.0' })
+await mcp2.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`), { requestInit: { headers: { authorization: `Bearer ${full.secret}` } } }))
+const mcpId = await proposeKnee('Watson was shot in the knee (agent).')
+const r12 = await mcp2.callTool({ name: 'sb_review', arguments: { action: 'edit_accept', fact_id: mcpId, corrected: { value: 'left arm' }, rationale: 'Holmes reads the left arm.' } })
+check('MCP sb_review edit_accept with a new answer', r12.isError ?? false, false)
+await mcp2.close()
+canon = (await a('/api/facts?status=canon')).data
+check('agent-edited answer stored', fact('Watson was shot in the knee (agent).').value, 'left arm')
+await a('/api/conflicts/scan', { method: 'POST' })
+conflicts = (await a('/api/conflicts')).data
+const about = s => conflicts.filter(c => [c.left.statement, c.right.statement].includes(s)).map(c => c.rationale)
+check('conflicts read the edited answers, never "knee"', [about('Watson was shot in the knee (review form).').every(r => r.includes('"leg"')) && about('Watson was shot in the knee (review form).').length > 0,
+  about('Watson was shot in the knee (agent).').every(r => r.includes('"left arm"')) && about('Watson was shot in the knee (agent).').length > 0,
+  conflicts.some(c => c.rationale.includes('"knee"'))], [true, true, false])
 
 if (dbPath) {
   const db = new DatabaseSync(dbPath, { readOnly: true })
