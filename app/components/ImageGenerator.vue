@@ -55,12 +55,12 @@ const sent = computed(() => composeImagePrompt(prompt.value, style.value, data.v
 
 // The server's message is exact but technical; lead with a sentence a writer can act on and keep the rest under "Details".
 function plainError(raw: string) {
-  const sentence = /billing is not set up/.test(raw) ? 'Image generation isn’t available yet: billing for the Meta Model API isn’t set up.'
-    : /rejected the key|key is not set/.test(raw) ? 'Image generation isn’t available: the Meta Model API didn’t accept this workspace’s key.'
-    : /rate limited/.test(raw) ? 'The Meta Model API is busy right now. Wait a moment and try again.'
-    : /timed out/.test(raw) ? `Muse Image took longer than ${IMAGE_DEADLINE_MS / 1000} seconds, so Story Bible stopped waiting.`
-    : /could not reach/.test(raw) ? 'Story Bible couldn’t reach the Meta Model API.'
-    : /^(Image generation failed|Model call failed)/.test(raw) ? 'Muse Image didn’t return a usable image.'
+  const sentence = /billing is not set up/.test(raw) ? 'Image generation isn’t available yet: billing for the AI service isn’t set up.'
+    : /rejected the key|key is not set/.test(raw) ? 'Image generation isn’t available: the AI service didn’t accept this workspace’s key.'
+    : /rate limited/.test(raw) ? 'The AI service is busy right now. Wait a moment and try again.'
+    : /timed out/.test(raw) ? `The AI took longer than ${IMAGE_DEADLINE_MS / 1000} seconds, so Story Bible stopped waiting.`
+    : /could not reach/.test(raw) ? 'Story Bible couldn’t reach the AI service.'
+    : /^(Image generation failed|Model call failed)/.test(raw) ? 'The AI didn’t return a usable image.'
     : ''
   return { summary: sentence || raw, detail: sentence ? raw : '' }
 }
@@ -157,7 +157,7 @@ function uploadInstead() {
             </div>
 
             <details class="sent small">
-              <summary>Exact prompt sent to Muse Image</summary>
+              <summary>Exact prompt sent to the AI</summary>
               <pre>{{ sent }}</pre>
             </details>
           </fieldset>
