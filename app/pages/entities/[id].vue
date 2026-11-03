@@ -47,7 +47,7 @@ const tabs = computed(() => [
 // Key canon facts on the Story tab: everything except links to other entities (those are on Relationships).
 const FACT_GROUPS = [['character', 'Who they are'], ['rule', 'Rules'], ['claim', 'Claims'], ['event', 'Events'], ['location', 'Places']] as const
 // Long pages stay workable: each group shows its first FIRST facts until "Show all"; pages with many facts get a filter.
-const FIRST = 8
+const FIRST = 5
 const factFilter = ref('')
 const shown = ref<Record<string, number>>({}) // facts shown per group; grows by 20
 const storyFacts = computed(() => {
@@ -57,8 +57,8 @@ const storyFacts = computed(() => {
     .filter(g => g.facts.length)
 })
 // Appearances: the first documents and the first passages of each until asked for more.
-const APP_DOCS = 8
-const APP_PASSAGES = 4
+const APP_DOCS = 5
+const APP_PASSAGES = 2
 const docLimit = ref(APP_DOCS)
 const openDocs = ref<Record<string, boolean>>({})
 const linkedOnly = computed(() => facts.value.filter(f => f.kind === 'relationship').length)
