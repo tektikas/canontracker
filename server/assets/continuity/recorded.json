@@ -6,32 +6,41 @@
         {
           "tool": "sb_get_entity",
           "args": {
-            "entity": "Captain Rourke",
-            "facts_limit": 40
+            "entity": "Captain Rourke"
           }
         },
         {
           "tool": "sb_get_entity",
           "args": {
-            "entity": "Saltgate",
-            "facts_limit": 40
+            "entity": "Saltgate"
           }
         },
         {
-          "tool": "sb_search_facts",
+          "tool": "sb_get_entity",
           "args": {
-            "query": "Rourke Day 2 21:30 Saltgate Bell Gate",
-            "limit": 10
+            "entity": "Bell Gate"
           }
         },
         {
           "tool": "sb_get_timeline",
           "args": {
-            "entity": "Captain Rourke",
-            "from": "D2",
-            "to": "D2 23:59",
-            "limit": 100,
-            "cursor": "0"
+            "from": "D2 21:00",
+            "to": "D2 22:00"
+          }
+        }
+      ],
+      [
+        {
+          "tool": "sb_get_entity",
+          "args": {
+            "entity": "Rourke"
+          }
+        },
+        {
+          "tool": "sb_search_facts",
+          "args": {
+            "limit": 10,
+            "query": "Rourke located"
           }
         }
       ],
@@ -42,29 +51,41 @@
             "facts": [
               {
                 "kind": "event",
-                "subject": "Rourke",
-                "predicate": "located_at",
                 "object": "Saltgate",
-                "value": "",
+                "predicate": "located_at",
+                "statement": "Captain Rourke is at Saltgate at 21:30 on Day 2.",
+                "subject": "Rourke",
                 "time_from": "D2 21:30",
-                "time_to": "D2 21:30",
-                "time_precision": "exact",
-                "statement": "At 21:30 on Day 2, Captain Rourke walks the market stalls of Saltgate, haggling over a sack of salt."
+                "time_to": "D2 21:30"
               }
             ]
+          }
+        }
+      ],
+      [
+        {
+          "tool": "sb_get_fact",
+          "args": {
+            "fact_id": "fact_9bad1323b057405c"
+          }
+        },
+        {
+          "tool": "sb_get_fact",
+          "args": {
+            "fact_id": "fact_492b9752224f4469"
           }
         }
       ]
     ],
     "final": {
-      "summary": "The scene places Rourke at Saltgate at a time when canon places him elsewhere. The text gives Day 2 explicitly, so no day assumption is needed.",
+      "summary": "The draft places Rourke at Saltgate at D2 21:30, which cannot be true if canon holds that he is at the Bell Gate from 21:00-22:00 and at the Kettle & Coal at 21:30.",
       "findings": [
         {
           "sentence": "At 21:30 on Day 2, Captain Rourke walks the market stalls of Saltgate, haggling over a sack of salt.",
           "kind": "contradicts",
           "severity": "hard",
-          "explanation": "The continuity check found an exact-time location conflict: canon places Rourke at the Bell Gate from 21:00 to 22:00 and at the Kettle & Coal at 21:30 on Day 2.",
-          "fix": "Move the Saltgate scene to a time when canon does not place Rourke elsewhere, or change who is at the market.",
+          "explanation": "Canon places Rourke at the Bell Gate from 21:00 to 22:00 on Day 2, which overlaps the draft's 21:30 Saltgate placement as confirmed by deterministic check.",
+          "fix": "Move the Saltgate walk to outside 21:00-22:00 on Day 2, or keep Rourke on watch at the Bell Gate.",
           "claim": {
             "kind": "event",
             "subject": "Rourke",
@@ -72,29 +93,30 @@
             "object": "Saltgate",
             "time_from": "D2 21:30",
             "time_to": "D2 21:30",
-            "statement": "At 21:30 on Day 2, Captain Rourke walks the market stalls of Saltgate, haggling over a sack of salt."
+            "statement": "Captain Rourke is at Saltgate at 21:30 on Day 2."
           },
           "facts": [
-            "Captain Rourke stands watch at the Bell Gate from 21:00 to 22:00 on Day 2.",
-            "Captain Rourke is at the Kettle & Coal at 21:30 on Day 2."
+            "Captain Rourke stands watch at the Bell Gate from 21:00 to 22:00 on Day 2."
           ]
         },
         {
-          "sentence": "He does not think about the Bell Gate at all.",
-          "kind": "new",
-          "severity": "info",
-          "explanation": "No accepted canon returned establishes Rourke's thoughts at this moment; this is a new claim, not a canon contradiction.",
-          "fix": null,
+          "sentence": "At 21:30 on Day 2, Captain Rourke walks the market stalls of Saltgate, haggling over a sack of salt.",
+          "kind": "contradicts",
+          "severity": "hard",
+          "explanation": "Canon places Rourke at the Kettle & Coal at 21:30 on Day 2, which overlaps the same time at Saltgate as confirmed by deterministic check.",
+          "fix": "Change the location to the Kettle & Coal or change the time to avoid 21:30 on Day 2.",
           "claim": {
-            "kind": "claim",
+            "kind": "event",
             "subject": "Rourke",
-            "predicate": "thinks_about",
-            "object": "Bell Gate",
+            "predicate": "located_at",
+            "object": "Saltgate",
             "time_from": "D2 21:30",
             "time_to": "D2 21:30",
-            "statement": "Rourke does not think about the Bell Gate at all at 21:30 on Day 2."
+            "statement": "Captain Rourke is at Saltgate at 21:30 on Day 2."
           },
-          "facts": []
+          "facts": [
+            "Captain Rourke is at the Kettle & Coal at 21:30 on Day 2."
+          ]
         }
       ]
     }
@@ -106,34 +128,35 @@
         {
           "tool": "sb_get_entity",
           "args": {
-            "entity": "Captain Rourke",
-            "facts_limit": 40
-          }
-        }
-      ],
-      [
-        {
-          "tool": "sb_search_facts",
-          "args": {
-            "query": "Captain Rourke Kettle Coal",
-            "limit": 10
+            "entity": "Captain Rourke"
           }
         },
         {
-          "tool": "sb_search_facts",
+          "tool": "sb_get_entity",
           "args": {
-            "query": "Rourke located_at Day 2 21:30",
-            "limit": 10
+            "entity": "Kettle & Coal"
           }
         },
         {
           "tool": "sb_get_timeline",
           "args": {
-            "entity": "Rourke",
             "from": "D2 21:00",
-            "to": "D2 22:00",
-            "limit": 100,
-            "cursor": "0"
+            "to": "D2 22:00"
+          }
+        }
+      ],
+      [
+        {
+          "tool": "sb_get_entity",
+          "args": {
+            "entity": "Rourke"
+          }
+        },
+        {
+          "tool": "sb_search_facts",
+          "args": {
+            "limit": 10,
+            "query": "Rourke Bell Gate watch"
           }
         }
       ],
@@ -144,14 +167,11 @@
             "facts": [
               {
                 "kind": "event",
-                "subject": "Rourke",
-                "predicate": "located_at",
                 "object": "Kettle & Coal",
-                "value": "",
-                "time_from": "D2 21:30",
-                "time_to": "D2 21:30",
-                "time_precision": "exact",
-                "statement": "At 21:30 on Day 2, Captain Rourke is drinking alone at the Kettle & Coal."
+                "predicate": "located_at",
+                "statement": "Captain Rourke is at the Kettle & Coal at 21:30 on Day 2.",
+                "subject": "Rourke",
+                "time_from": "D2 21:30"
               }
             ]
           }
@@ -159,25 +179,43 @@
       ]
     ],
     "final": {
-      "summary": "The passage is verbatim supported by one accepted canon fact, but it conflicts with another accepted fact placing Rourke elsewhere at the same time. The continuity check flags this as a hard location overlap.",
+      "summary": "The line directly matches canon placing Rourke at the Kettle & Coal, but it overlaps canon placing him on watch at the Bell Gate at the same time.",
       "findings": [
         {
           "sentence": "At 21:30 on Day 2, Captain Rourke is drinking alone at the Kettle & Coal.",
           "kind": "contradicts",
           "severity": "hard",
-          "explanation": "The exact sentence is supported by fact_f21d77b489a94ada, but fact_a307cf328e4e4c90 places Rourke at Bell Gate from 21:00 to 22:00 on Day 2. The deterministic continuity check flags these exact, overlapping locations as a hard conflict.",
-          "fix": "Resolve the conflicting whereabouts: change the time or place in this line, or revise the Bell Gate watch line if it is not intended to apply.",
+          "explanation": "Automated check reports EXACT_TIME_LOCATION_OVERLAP: canon places Rourke at the Bell Gate from 21:00 to 22:00 on Day 2, which overlaps 21:30 at the Kettle & Coal.",
+          "fix": "Move the drink to outside 21:00-22:00 on Day 2, or reconcile it with the Bell Gate watch.",
           "claim": {
             "kind": "event",
             "subject": "Rourke",
             "predicate": "located_at",
             "object": "Kettle & Coal",
             "time_from": "D2 21:30",
-            "time_to": "D2 21:30",
-            "statement": "At 21:30 on Day 2, Captain Rourke is drinking alone at the Kettle & Coal."
+            "time_to": null,
+            "statement": "Captain Rourke is at the Kettle & Coal at 21:30 on Day 2."
           },
           "facts": [
-            "Captain Rourke stands watch at the Bell Gate from 21:00 to 22:00 on Day 2.",
+            "Captain Rourke stands watch at the Bell Gate from 21:00 to 22:00 on Day 2."
+          ]
+        },
+        {
+          "sentence": "At 21:30 on Day 2, Captain Rourke is drinking alone at the Kettle & Coal.",
+          "kind": "depends_on",
+          "severity": "hard",
+          "explanation": "Canon contains the same line from S06, placing Rourke at the Kettle & Coal at 21:30 on Day 2, so the text directly matches accepted canon.",
+          "fix": null,
+          "claim": {
+            "kind": "event",
+            "subject": "Rourke",
+            "predicate": "located_at",
+            "object": "Kettle & Coal",
+            "time_from": "D2 21:30",
+            "time_to": null,
+            "statement": "Captain Rourke is at the Kettle & Coal at 21:30 on Day 2."
+          },
+          "facts": [
             "Captain Rourke is at the Kettle & Coal at 21:30 on Day 2."
           ]
         }

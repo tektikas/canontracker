@@ -4,6 +4,7 @@
 // Nitro's globals replaced by plain stand-ins (like scripts/research-replay.mjs). Not a gate; needs a key:
 //   SB_BASE_URL=https://gateway.example/v1 SB_MODEL_ID=codex/gpt-6-luna SB_API_KEY="$(pass show …)" \
 //     node scripts/sherlock-record.mjs [--only <file,file…>] [--concurrency 4]
+// SB_EFFORT sets the extraction's reasoning effort (NUXT_EXTRACT_REASONING_EFFORT; empty = low).
 // Writes only when every document's call succeeded (a failed one is retried once). Prints calls, candidates, drops and time.
 import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs'
 import * as storyTime from '../shared/utils/story-time.ts'
@@ -16,7 +17,7 @@ if (!baseUrl || !modelId || !key) throw new Error('set SB_BASE_URL, SB_MODEL_ID 
 const dir = new URL('../server/assets/sherlock-holmes/', import.meta.url)
 const calls = []
 Object.assign(globalThis, storyTime, {
-  useRuntimeConfig: () => ({ metaBaseUrl: baseUrl, modelId, metaApiKey: key, modelMode: 'meta' }),
+  useRuntimeConfig: () => ({ metaBaseUrl: baseUrl, modelId, metaApiKey: key, modelMode: 'meta', extractReasoningEffort: process.env.SB_EFFORT ?? '' }),
   useDb: () => ({ prepare: () => ({ run: (...a) => calls.push({ target: a[5], status: a[8], ms: a[9], summary: a[10], error: a[11] }) }) }),
   pid: () => 'record', newId: p => `${p}_${calls.length}`, now: () => new Date().toISOString(),
   createError: o => Object.assign(new Error(o.message), o),
@@ -58,7 +59,8 @@ console.log(`\n${ok.length} ok / ${calls.length} calls, ${n} candidates, ${Math.
 if (Object.keys(out).length !== files.length) { console.log('not written: some documents failed'); process.exit(1) }
 const path = new URL('candidates.json', dir)
 const prev = only && existsSync(path) ? JSON.parse(readFileSync(path, 'utf8')) : {}
-const note = `Recorded ${new Date().toISOString().slice(0, 10)} by scripts/sherlock-record.mjs: ${modelId} via ${new URL(baseUrl).host} (OpenAI-compatible gateway), prompt ${PROMPT_VERSIONS.extract}, cleaned by cleanCandidates exactly as a live import; quotes as the model wrote them. Not a Muse run.`
-const merged = { _note: prev._note ?? note, ...Object.fromEntries(Object.entries({ ...prev, ...out }).filter(([k]) => k !== '_note').sort(([a], [b]) => a.localeCompare(b))) }
+const meta = new URL(baseUrl).host === 'api.meta.ai'
+const note = `Recorded ${new Date().toISOString().slice(0, 10)} by scripts/sherlock-record.mjs: ${modelId} via ${meta ? 'the Meta Model API (a Muse run)' : `${new URL(baseUrl).host} (OpenAI-compatible gateway; not a Muse run)`}, prompt ${PROMPT_VERSIONS.extract}, cleaned by cleanCandidates exactly as a live import; quotes as the model wrote them.`
+const merged = { _note: only ? prev._note ?? note : note, ...Object.fromEntries(Object.entries({ ...prev, ...out }).filter(([k]) => k !== '_note').sort(([a], [b]) => a.localeCompare(b))) }
 writeFileSync(path, `{\n${Object.entries(merged).map(([k, v]) => `  ${JSON.stringify(k)}: ${k === '_note' ? JSON.stringify(v) : `[\n${v.map(c => `    ${JSON.stringify(c)}`).join(',\n')}\n  ]`}`).join(',\n')}\n}\n`)
 console.log(`wrote ${path.pathname}`)

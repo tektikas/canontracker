@@ -80,7 +80,7 @@ async function chatJson(system: string, user: string, opts: { schema?: { name: s
   const { metaBaseUrl, modelId } = useRuntimeConfig()
   const res = await $fetch<{ choices: { message: { content: string } }[], usage?: ChatUsage }>(`${metaBaseUrl}/chat/completions`, {
     method: 'POST',
-    timeout: 60_000,
+    timeout: 180_000, // a whole chapter's extraction on Muse can take over a minute even at low effort
     headers: { Authorization: `Bearer ${apiKey()}` },
     body: {
       model: opts.model ?? modelId, temperature: 0, messages: [{ role: 'system', content: system }, { role: 'user', content: user }],
@@ -207,6 +207,7 @@ Predicates:
 Time: only for facts that happen on a stated story day ("on Day 3", "D-3650"). Identities, traits, rules, background and daily routines ("every evening", "at eight each day") get no time. "D<day> HH:MM" when the text gives a clock time (precision "exact"). When it names only a part of the day ("at dusk", "around evening") use precision "approximate" with a range covering that part of the day. Otherwise use day-only "D<day>" (never 00:00-23:59, never a guessed range). Days before D1 are D0, D-1, D-3650 ….
 Do not invent facts. Figurative language ("my sister in all but blood") is NOT a literal relationship; skip it or give it low confidence.`,
       `${doc.names?.length ? `Names this project already uses (write a name exactly like this when the document means the same one; other names it goes by follow "="):\n${doc.names.join('\n')}\n\n` : ''}Document: ${doc.title}\n\n${doc.text}`,
+      { reasoningEffort: String(useRuntimeConfig().extractReasoningEffort || 'low') },
     )
     const { kept, ...bad } = cleanCandidates(out.candidates)
     dropped = dropNote(bad)
