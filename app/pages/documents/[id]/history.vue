@@ -195,7 +195,7 @@ const how = (v: { origin: string, created_by_name: string | null }) => `${v.orig
                       <div class="rc-top">
                         <UiBadge v-if="f.outdated" tone="bad" dot>Evidence outdated</UiBadge>
                         <UiBadge v-else tone="warn">Quote unchanged</UiBadge>
-                        <span class="small muted">Canon fact citing v{{ diff.from.version }}, line {{ lineOf(b.row.from) }}; <template v-if="f.outdated">the {{ quoteLost(f.quote_count, diff.to.version).toLowerCase() }}</template><template v-else>the quote still reads the same in v{{ diff.to.version }}</template></span>
+                        <span class="small muted"><template v-if="f.version === diff.from.version">Canon fact citing v{{ diff.from.version }}, line {{ lineOf(b.row.from) }}</template><template v-else>Canon fact citing v{{ f.version }} (the same words are in v{{ diff.from.version }}, line {{ lineOf(b.row.from) }})</template>; <template v-if="f.outdated">the {{ quoteLost(f.quote_count, diff.to.version).toLowerCase() }}</template><template v-else>the quote still reads the same in v{{ diff.to.version }}</template></span>
                       </div>
                       <p class="statement">{{ f.statement }}</p>
                       <blockquote class="quote prior">{{ f.quote }}</blockquote>

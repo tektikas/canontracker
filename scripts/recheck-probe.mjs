@@ -240,4 +240,29 @@ const typoConf = (await a('/api/audit')).data.find(e => e.event_type === 'citati
 check('audit citation.confirmed records old and new quote', [typoConf.detail.citations[0].quote, typoConf.detail.citations[0].new_quote], [canonQ, canonV2])
 const typoMoved = (await a('/api/audit')).data.find(e => e.event_type === 'candidate.evidence_moved' && e.target_id === tp.id)
 check('audit candidate.evidence_moved records old and new quote', [typoMoved.detail.quote, typoMoved.detail.new_quote], [pendQ, pendV2])
+
+// History diff across versions: canon cites v1; v2 changes another paragraph, v3 changes the cited one. Comparing v2 → v3
+// lists the v1 citation on the changed passage, outdated (as re-check says), not "no canon cites the changed text".
+const h = await account('Hal')
+const hs = (await h('/api/studios', { method: 'POST', body: { name: 'History Studio' } })).data
+await h('/api/projects', { method: 'POST', body: { name: 'History', studio_id: hs.id } })
+const P1 = 'The lighthouse keeper rings the bell at dusk.'
+const P2 = 'Mara keeps the harbour ledger in a locked drawer.'
+const P3 = 'The ferry leaves at noon on market days.'
+const hName = `history-${run}.md`
+const hV1 = (await h('/api/documents', { method: 'POST', form: form(hName, `${P1}\n\n${P2}\n\n${P3}\n`) })).data.results[0]
+const hFact = (await h('/api/facts', { method: 'POST', body: { to: 'canon', document_id: hV1.document_id, quote: P2, kind: 'claim', subject: 'Mara', predicate: 'keeps', object: 'harbour ledger', statement: 'Mara keeps the harbour ledger locked away.' } })).data
+const hV2 = (await h('/api/documents', { method: 'POST', form: form(hName, `${P1}\n\n${P2}\n\nThe ferry leaves at dawn on market days.\n`) })).data.results[0]
+const hV3 = (await h('/api/documents', { method: 'POST', form: form(hName, `${P1}\n\nMara keeps the harbour ledger in an open drawer.\n\nThe ferry leaves at dawn on market days.\n`) })).data.results[0]
+check('three versions', [hV1.version, hV2.version, hV3.version], [1, 2, 3])
+const d12 = (await h(`/api/documents/${hV2.document_id}/diff?from=${hV1.document_id}`)).data
+check('v1 → v2: the v1 citation reads the same', [d12.recheck, d12.unchanged_citations], [0, 1])
+const d23 = (await h(`/api/documents/${hV3.document_id}/diff?from=${hV2.document_id}`)).data
+const d23row = d23.rows.find(r => r.op === 'changed')
+check('v2 → v3: the v1 citation of the changed passage is listed, outdated', [d23.recheck, d23.outdated, d23row?.from.text, d23row?.facts.map(f => [f.id, f.version, f.outdated, f.quote_count])], [1, 1, P2, [[hFact.id, 1, true, 0]]])
+const hRecheck = (await h('/api/facts?status=canon')).data.find(f => f.id === hFact.id)
+check('…consistent with re-check', hRecheck.evidence[0].recheck, 'outdated')
+const d13 = (await h(`/api/documents/${hV3.document_id}/diff?from=${hV1.document_id}`)).data
+check('v1 → v3 lists it too', [d13.recheck, d13.rows.flatMap(r => r.facts).map(f => [f.id, f.version])], [1, [[hFact.id, 1]]])
+
 console.log('recheck probe: all checks passed')
