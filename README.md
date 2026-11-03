@@ -1,39 +1,62 @@
 # Story Bible
 
-A story builder for anyone building a story world: novelists, game writers, screen and series writers, worldbuilders, solo or in a team. Story Bible keeps your canon human-approved and source-cited. Import lore, notes and scene scripts (read-only), turn model-extracted candidates into human-approved, source-cited canon, flag narrow conflicts, and see the 1-2 hop impact of a proposed canon change before it reaches the build or the manuscript. Games are one use case, not the only one: the samples are Broken Tide and Lantern Row (prose scenes) and The Ashbell Pass (a game story). Built for the Meta AI Developer Hackathon.
+Story Bible helps writers and narrative teams keep a story world consistent. Import lore, chapters, scripts or recordings; review AI-proposed facts with their source quotes; then check accepted canon for contradictions and inspect the 1–2 hop impact of a proposed change. People decide what becomes canon. It works for novels, games, screen stories and worldbuilding, solo or in a studio.
+
+Meta AI Developer Hackathon · Startup track. **Demo video:** `VIDEO_URL` · **Live app:** `LIVE_URL` (filled at submission). Staging is LAN/VPN-only; use the local quick start to try it now.
+
+## Built during the hackathon (27 Oct–4 Nov 2026)
+
+Built by **Umur**, solo, at [TekTık](https://tektik.ai). The application was built during this hackathon window; repository history starts on 30 Oct. The only pre-existing component is the generic CI/CD deployment pipeline reused for staging. The application, sample workflows and Meta integrations were built for this entry. See the [submission draft](docs/submission.md).
+
+## How Story Bible uses Meta
+
+- **Muse Spark 1.3** extracts candidates, gives critic opinions, answers from canon and suggests world-rule violations. Bounded Responses agents combine web search with deterministic calculators for Research and call the app's own MCP read/check tools for Continuity.
+- **Muse Voice Transcribe 1.0** turns recordings into timestamped transcripts and fills dictation in Write and Ask. Entity names are recognition hints; script comparison uses deterministic rules to check changed lines against canon.
+- **Muse Image 1.0** creates editorial portraits and document covers; images never become canon evidence.
+- **Muse Code** connects directly over MCP. Its 38 tools share the web app's permissions, validation and audit. Muse Spark API clients use the bridge script generated in Settings → Agents & API.
+
+Story Bible's own AI cannot accept canon. A person must approve facts in Review or authorize decisions through their own `full` MCP token, labelled “via agent”. Quotes are checked against stored passages; no evidence means `unknown`. Calls and tool steps are inspectable in Agent activity and Metrics. [Meta API notes](docs/meta-api-notes.md) document dated live observations, redacted responses, API constraints and reproducible contract tests.
 
 ## Run it (about 5 minutes, no API key)
 
-You need Node 24 and pnpm (`mise install` reads `mise.toml`, or install both yourself).
+Use **Node 24** and **pnpm 12.16.1** (`mise install` reads `mise.toml`, or install these versions yourself). Install **ffmpeg and ffprobe** for audio conversion, including the voice sample.
 
 ```sh
-git clone <this repo> storybible && cd storybible
+git clone https://github.com/ugorur/storybible
+cd storybible
 pnpm install
+# Create .env from the example, filling the session password without printing it.
+node -e "const fs = require('node:fs'); const crypto = require('node:crypto'); fs.writeFileSync('.env', fs.readFileSync('.env.example', 'utf8').replace('NUXT_SESSION_PASSWORD=', 'NUXT_SESSION_PASSWORD=' + crypto.randomBytes(24).toString('hex')))"
 pnpm dev --port 3000
 ```
 
 Open http://localhost:3000, then:
 
-1. **Sign up** (any name, email and password; the data stays in a local SQLite file under `.data/`).
+1. **Sign up** with a name, email and password of at least 8 characters; the data stays in a local SQLite file under `.data/`.
 2. Name your studio and first project.
 3. On the last onboarding step click **Load The Ashbell Pass** (28 documents) or **Load demo and take the tour** (Broken Tide + Lantern Row).
 
-No `.env` is needed in dev: the session password is generated and written to `.env` on first start, and the model runs in recorded mode. For a production build, set `NUXT_SESSION_PASSWORD` (32+ characters, see `.env.example`), then `pnpm build && node .output/server/index.mjs`.
+Run the `.env` creation command once on a fresh clone. Keep the password stable for your sessions. An empty `NUXT_SESSION_PASSWORD` prevents sign-in; production needs at least 32 characters. `.env` and `.data/` are ignored by Git. Stop dev before starting the production build:
+
+```sh
+pnpm build
+HOST=localhost PORT=3000 node --env-file=.env .output/server/index.mjs
+```
+
+The production server does not load `.env` itself; Node's `--env-file` supplies it. Persist `.data/` when self-hosting. Other samples, including Sherlock Holmes, are available in **Settings → Projects → your project**; a sample load replaces that project's content, retaining its audit trail.
 
 ## Recorded mode and live mode
 
-- **Recorded (default, `NUXT_MODEL_MODE=mock`)**: model steps replay recorded output for the three samples. The UI labels it **"Recorded demo run"**. Your own files import fine but get no candidates; add facts by hand from their text.
-- **Live (`NUXT_MODEL_MODE=meta`)**: calls the Meta Model API with your key. The UI names the model ("Muse Spark 1.3 via Meta Model API"). A live failure (no key, 401, 402, timeout, invalid JSON) is shown and logged, and never falls back to recorded output.
+- **Recorded (default, `NUXT_MODEL_MODE=mock`)**: model steps replay stored output only for matching sample text. Lantern Row preloads explicitly marked sample canon instead of extracting it. Your own files import but get no extraction output; add facts by hand from their text.
+- **Live (`NUXT_MODEL_MODE=meta`)**: calls the Meta Model API with your key. A live failure (no key, 401, 402, timeout, invalid JSON) is shown and logged, and never falls back to recorded output.
 
-```sh
-NUXT_MODEL_MODE=meta NUXT_META_API_KEY=<your key> pnpm dev --port 3000
-```
+Set `NUXT_MODEL_MODE=meta` and `NUXT_META_API_KEY` in your local `.env` or server environment. The product UI says “AI”; model IDs and recorded/live provenance stay in the developer trace. Sherlock's stored extraction was recorded with `codex/gpt-6-luna` through an OpenAI-compatible gateway, not Muse; recordings keep their provenance.
 
-Optional: `NUXT_MODEL_ID` (default `muse-spark-1.3`), `NUXT_IMAGE_MODEL_ID` (default `muse-image-1.0`), `NUXT_META_BASE_URL` (default `https://api.meta.ai/v1`), `NUXT_TRANSCRIBE_MODEL_ID` (default `muse-voice-transcribe-1.0`; `NUXT_TRANSCRIBE_BASE_URL` / `NUXT_TRANSCRIBE_API_KEY` default to the Meta ones). Recordings in formats other than mono 16 or 24 kHz WAV need `ffmpeg` on the server (the production image installs it). The key is read on the server only and never reaches the browser. Live runs have not been tested against a funded key yet: Meta billing was not active when this was written.
+Optional: `NUXT_MODEL_ID` (default `muse-spark-1.3`), `NUXT_CRITIC_MODEL_ID` (empty uses the main model), `NUXT_IMAGE_MODEL_ID` (default `muse-image-1.0`), `NUXT_META_BASE_URL` (default `https://api.meta.ai/v1`), `NUXT_TRANSCRIBE_MODEL_ID` (default `muse-voice-transcribe-1.0`; `NUXT_TRANSCRIBE_BASE_URL` / `NUXT_TRANSCRIBE_API_KEY` default to the Meta ones). Audio conversion uses ffmpeg (the production image installs it). The key is read on the server only and never reaches the browser. Dated live results are in the Meta API notes; local recorded/contract checks do not establish current service availability or billing status.
 
 ## Meta AI in Story Bible
 
-Every model call goes through one file, `server/utils/model.ts`. The Meta Model API (`https://api.meta.ai/v1`, OpenAI-compatible) is called from the Story Bible server, never from the browser.
+The model adapter is `server/utils/model.ts`; multi-step Responses calls run in `server/utils/agent.ts`. The Meta Model API (`https://api.meta.ai/v1`, OpenAI-compatible) is called from the Story Bible server. The optional MCP bridge runs on the user's machine with their own credentials.
 
 | Agent | What it does | Meta model | Meta API | Runs |
 | --- | --- | --- | --- | --- |
@@ -41,19 +64,25 @@ Every model call goes through one file, `server/utils/model.ts`. The Meta Model 
 | Rule checker | Tests a world rule against accepted canon and suggests `WORLD_RULE_VIOLATION` conflicts (labelled as model-suggested). | Muse Spark 1.3 | Chat completions | Story Bible server |
 | Ask / Canon | Answers a question from accepted canon only, with citations; no evidence means `unknown`. | Muse Spark 1.3 | Chat completions | Story Bible server |
 | Transcriber | Turns audio into text: recordings (voice-actor takes, table reads, interviews, voice notes) become read-only transcripts with a time on every passage (citations play "at 02:14"), and dictation fills the writer and Ask. Sends the project's entity names as recognition keywords. Script vs recording then flags changed or ad-libbed lines that contradict canon (deterministic rules, no model). | Muse Voice Transcribe 1.0 | Speech to text (`/asr/transcribe`, multipart WAV, ENDPOINTING turns, `keywords`) | Story Bible server (audio converted with ffmpeg) |
-| Illustrator | Generates portrait and location images for wiki pages (editorial, never canon). | Muse Image 1.0 | Images (`/images/generations`) | Story Bible server |
-| MCP bridge | Lets Muse Spark read canon and propose candidates through Story Bible's `/mcp` tools (16 tools, one write: `sb_propose_candidate`). A small script from Settings > Agents & API relays Muse's function calls to `/mcp`. Not yet run against a live Meta key. | Muse Spark 1.3 | Chat completions with function calling | User's machine (the script); `/mcp` runs on the server |
-| Research | Answers real-world questions (science, history, crime scenes, period travel) with a verdict, sources whose quotes are checked on the fetched page, and numbers from deterministic calculators (orbits, light delay, moon phase, sunrise, calendars, time since death). A bounded multi-step agent on the server; results are research notes, promoted to canon only through review. Run live through an OpenAI-compatible gateway; not yet against a funded Meta key. | Muse Spark 1.3 | Responses API (`/responses`) with built-in `web_search` and function calling | Story Bible server |
+| Illustrator | Generates entity portraits and document covers (editorial, never canon). | Muse Image 1.0 | Images (`/images/generations`) | Story Bible server |
+| MCP bridge | Relays Muse Spark function calls to the app's 38 MCP tools. Token level and the person's live role determine allowed actions; decisions with a full token are attributed to that person and marked via agent. Settings → Agents & API generates the bridge script. | Muse Spark 1.3 | Chat completions with function calling | User's machine (script); `/mcp` on the server |
+| Research | Answers real-world questions with a verdict, quotes checked on fetched pages and deterministic calculators (physics, sky, calendars, period travel, time since death). A bounded agent; results are research notes, promoted to canon only through review. | Muse Spark 1.3 | Responses API (`/responses`), built-in `web_search` and function calling | Story Bible server |
 | Critic | Gives a second opinion on each verified candidate in Review: keep / reject / needs edit, a reason (figurative, not stated in the passage, ambiguous time or place, duplicate of a canon fact, wrong subject) and one line why, plus a corrected fact for "needs edit". It reads the candidate, its source passage and nearby canon; it never sees a blocked candidate, never writes a quote and never changes a fact. Review filters and sorts by it and offers "Accept N the AI critic keeps" (still one human confirmation). | Muse Spark 1.3 | Chat completions (JSON output) | Story Bible server, in batches after extraction and on demand |
-| Continuity | Checks a draft scene, a selected passage or lines typed in Ask against accepted canon. A bounded agent calls Story Bible's own MCP read tools step by step (`sb_get_entity`, `sb_search_facts`, `sb_get_fact`, `sb_get_timeline`, `sb_read_document`, `sb_check_facts`), then reports each finding: the sentence, the canon fact it contradicts or rests on (with its source quote), the rule-engine conflict behind it and a suggested fix that is never applied. The server checks every finding before it is shown. Every run, with each step, is on the Agent activity page. Run live through an OpenAI-compatible gateway; not yet against a funded Meta key. | Muse Spark 1.3 | Responses API (`/responses`) with function calling | Story Bible server |
+| Continuity | Checks a draft, selected passage or Ask text against canon using the app's own MCP read/check tools. Reports sentences, cited facts, rule-engine hits and suggested fixes that are never applied. The server grounds every finding; Agent activity shows each step. | Muse Spark 1.3 | Responses API (`/responses`) with function calling | Story Bible server |
 
-Rows marked "in progress" are not in the app yet.
+## Screenshots
+
+![Review with source evidence](public/shots/review-light-1280.webp)
+
+![Conflict review](public/shots/conflicts-light-1280.webp)
+
+![Canon relationship graph](public/shots/graph-light-1280.webp)
 
 ## Rules the app enforces
 
-- **Human gate:** the model only proposes candidates. Nothing becomes canon without an explicit human decision.
+- **Human gate:** the model only proposes candidates. Canon decisions are explicit and attributed to a person, including decisions authorized through their full MCP token.
 - **Verbatim citations:** every canon fact has at least one evidence row whose quote appears word for word in a passage of an imported document. Hallucinated quotes are blocked.
-- **Sources stay read-only:** imported documents (`.md`, `.txt`, or Word `.docx`, converted to text on upload with the original file kept) are never modified; a changed file becomes a new version and flags stale citations.
+- **Versions stay intact:** uploads and edits create new versions; earlier source text stays unchanged and affected citations need re-checking. Uploaded and written documents can be edited in the app as new versions. Recording transcripts cannot. Word `.docx` is converted on upload and the original file kept.
 - **No evidence, no answer:** the answer is `unknown`. Change proposals, conflict candidates and possible review impact are three separate things; impact stays inside accepted canon, at most 2 hops, with path, evidence and rationale.
 
 ## Samples
@@ -62,7 +91,9 @@ Rows marked "in progress" are not in the app yet.
 - **Lantern Row:** three short documents with five preloaded sample canon facts and one planted conflict.
 - **The Ashbell Pass:** 28 documents (about 22.5k words) with folders, NPCs and quests, for a larger-scale run. To try voice in recorded mode, drop `public/samples/harl-crier-take.wav` (a synthetic text-to-speech take of the town crier's lines, with one ad-libbed line) on the Library, open it and choose **Compare with a script** → "Dialogue: The Town Crier". Accept S05 first to see the ad-lib flagged against canon. In recorded mode only this file has a transcript.
 
-`POST /api/demo/load` takes `{ "set": "broken-tide" | "lantern-row" | "ashbell-pass" }` and replaces the current project's data (admin and above).
+- **Sherlock Holmes:** 31 chapters/stories (about 127k words), public-domain Doyle texts, recorded candidates and known continuity slips. Text and illustration credits: [SOURCES.md](server/assets/sherlock-holmes/SOURCES.md).
+
+Authenticated `POST /api/demo/load` takes `{ "set": "broken-tide" }`, `lantern-row`, `ashbell-pass` or `sherlock-holmes` and replaces the current project's data (admin and above). Sign up and select a project first; an unauthenticated curl is refused.
 
 ## Connect an agent over MCP
 
@@ -70,7 +101,7 @@ Rows marked "in progress" are not in the app yet.
 2. Point an MCP client at `http://localhost:3000/mcp` (Streamable HTTP) and send `Authorization: Bearer sb_...` with every request.
 3. 38 tools: 16 canon and document tools (search facts, context pack, entities, timeline, `sb_ask`, `sb_check_facts`, conflicts, impact, ...) and 22 area tools that cover what a person does in the app (review, entities, changes, conflicts, documents, notes, library, research, continuity, export, ...). Team changes, tokens, sample loads and audio uploads stay in the app. Empty results mean `unknown` or "no impact found".
 
-**Muse Code** connects directly; add this to `~/.config/muse/settings.json` and run `/mcp`:
+**Muse Code** connects directly; add this to `~/.config/muse/settings.json`, supply `STORYBIBLE_TOKEN` in your environment and run `/mcp`:
 
 ```json
 {
@@ -91,20 +122,17 @@ The settings page generates ready-made snippets with your token for Muse Code, t
 
 Nuxt 4 (SSR pages and the Nitro API in one process), SQLite through Node's built-in `node:sqlite` with no ORM (file at `.data/storybible.db`), `nuxt-auth-utils` sealed-cookie sessions with studios, roles (owner, admin, editor, viewer) and projects. One middleware (`server/middleware/access.ts`) guards every content route and scopes each query to the current project. Documents are split into passages; model output passes through `server/utils/model.ts` and a single verbatim quote check before a human reviews it. `/mcp` exposes the same data to agents. `audit_events` is append-only.
 
-## Probes
+## Checks
 
-Probes drive a running server over HTTP with throwaway accounts. Start `pnpm dev --port 3000`, then:
+Run the full serial gate:
 
 ```sh
-node scripts/samples-probe.mjs http://localhost:3000
-node scripts/isolation-probe.mjs http://localhost:3000
-node scripts/mcp-probe.mjs http://localhost:3000
-node scripts/research-probe.mjs http://localhost:3000
-node scripts/continuity-probe.mjs http://localhost:3000
-node scripts/calculators-check.ts
+pnpm check
 ```
 
-Others (`ashbell-probe`, `authoring-probe`, `docx-probe`, `library-probe`, `share-probe`, ...) are in `scripts/`; the first lines of each file say how to run it. The UI itself is checked in a browser, and the gates are `pnpm exec nuxi typecheck` and `pnpm build`.
+Runs typecheck, production build, every `scripts/*-check.*`, all HTTP probes against isolated production servers, migrations, seeded merge fuzzing, Meta contract replay and research replay, serially. No live key or working tree `.data/` is used. Requires `ffmpeg`, `ffprobe`, `unzip`, `xmllint`, `openssl`, `ss` and Git with full history for migration fixtures. Uses **4650/4651** by default; override with `CHECK_PORT=4700 pnpm check`. Logs stay in a printed temporary directory; failures exit nonzero. [docs/checks.md](docs/checks.md) lists individual commands and coverage.
+
+Browser QA is separate, using `playwright-cli` at desktop and mobile sizes. Recorded and stubbed checks are not live Meta verification.
 
 ## More
 

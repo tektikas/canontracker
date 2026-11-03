@@ -9,6 +9,7 @@
     "dev": "nuxt dev",
     "generate": "nuxt generate",
     "preview": "nuxt preview",
+    "check": "node scripts/check-all.mjs",
     "postinstall": "nuxt prepare"
   },
   "dependencies": {

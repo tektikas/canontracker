@@ -1,8 +1,8 @@
-# Roadmap
+# Roadmap (planned)
 
-Story Bible today: source documents stay read-only, the model only proposes, people decide what becomes canon, every canon fact carries a verbatim citation, and a proposed change shows its 1–2 hop impact before it ships.
+Story Bible today: stored source versions stay unchanged, the model only proposes, people decide what becomes canon, every canon fact carries a verbatim citation, and a proposed change shows its 1–2 hop impact before it ships.
 
-Everything below is **not built yet**. It comes from early studio reviews: writers and narrative leads on a series and an open-world game who used the MVP on their own material. Each item builds on what already exists: facts with subject, time and citations, rule-based conflict checks, impact analysis and the MCP server.
+Everything below is **not built yet**. These are proposed directions for studio workflows; they are not implemented features or delivery commitments. Each item builds on what already exists: facts with subject, time and citations, rule-based conflict checks, impact analysis and the MCP server.
 
 ## Next
 
@@ -30,7 +30,7 @@ Today a studio member sees every project in the studio. Studios with several tit
 - **Facts with a validity window:** "alive" holds until a given episode; a retcon is recorded with the episode that made it.
 - **Setup and payoff:** open questions ("Who forged the key? Asked in S1E2, not answered yet"), listed at the end of a season.
 - **Episode pack:** `sb_get_episode_pack("S01E04")` gathers the characters, open threads and earlier events a writer or an agent needs for one episode.
-- **Time before day 1 and parallel clocks:** events years before the story starts, and several timelines running at different speeds.
+- **Parallel clocks and calendar eras:** day-zero and negative story days already work; planned work adds several timelines running at different speeds and dates across calendar eras.
 
 ### Games
 - **Quest dependencies:** "Quest C comes after A and B", plus a check that the player can know a fact at the moment a quest needs it, instead of a single fixed clock.
