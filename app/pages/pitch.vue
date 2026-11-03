@@ -12,8 +12,8 @@ useSeoMeta({ robots: 'noindex' })
 interface Source { id: string, title: string, url?: string }
 // Order sets the footnote numbers.
 const SOURCES: Source[] = [
-  { id: 'onepiece', title: 'Eiichiro Oda, One Piece, chapter 1 “Romance Dawn” (Weekly Shōnen Jump, 1997). The carpenter is Oda’s answer in his reader Q&A (SBS), as fans record it; we did not confirm the volume.' },
-  { id: 'salon', title: 'Salon, “Potter fix”, 12 Jan 2001: Bloomsbury, “corrected in subsequent editions”', url: 'https://salon.com/2001/01/12/potterfix' },
+  { id: 'happydays', title: 'Mental Floss, “When Chuck Cunningham Vanished From ‘Happy Days’”, 7 Jul 2023: Chuck, Richie’s older brother, appeared in the first and second seasons, then was “never to be seen or mentioned in the Cunningham household again”; “Chuck Cunningham syndrome”', url: 'https://www.mentalfloss.com/posts/chuck-cunningham-happy-days-mystery' },
+  { id: 'zelda', title: 'Zelda Universe, 21 Dec 2011: the official Zelda timeline revealed in Nintendo’s Hyrule Historia, split into three branches', url: 'https://zeldauniverse.net/2011/12/21/zelda-timeline-revealed-in-hyrule-historia/' },
   { id: 'scarlet', title: 'Arthur Conan Doyle, A Study in Scarlet (1887), Part I ch. 1: “struck on the shoulder by a Jezail bullet”', url: 'https://www.gutenberg.org/ebooks/244' },
   { id: 'sign', title: 'Arthur Conan Doyle, The Sign of the Four (1890), ch. 1: “I had a Jezail bullet through it” (his leg)', url: 'https://www.gutenberg.org/ebooks/2097' },
   { id: 'repo', title: 'CanonTracker source, README, ROADMAP and scripts, 3 Nov 2026; Sherlock result from scripts/sherlock-probe.mjs', url: GITHUB },
@@ -164,17 +164,17 @@ const print = () => window.print()
       <div class="in">
         <div class="three">
           <figure>
-            <img src="/art/pitch-door.webp" alt="A tavern door lying off its hinges." width="800" height="800">
+            <img src="/art/pitch-stairs.webp" alt="An empty staircase in a family house, a closed door at the top." width="800" height="800">
             <figcaption>
-              <h2>One Piece, chapter 1<R id="onepiece" /></h2>
-              <p class="story">A door is kicked off its hinges. One scene later, it’s back.</p>
+              <h2>Happy Days<R id="happydays" /></h2>
+              <p class="story">Richie’s older brother Chuck disappears after season two, never seen or mentioned again.</p>
             </figcaption>
           </figure>
           <figure>
-            <img src="/art/pitch-wand.webp" alt="A wand with two curls of smoke rising from its tip." width="800" height="800">
+            <img class="line-art" src="/art/pitch-timeline.webp" alt="A line of milestones that splits into three parallel branches at one orange point." width="800" height="800">
             <figcaption>
-              <h2>Harry Potter and the Goblet of Fire<R id="salon" /></h2>
-              <p class="story">James leaves the wand before Lily. Later editions swapped them.</p>
+              <h2>The Legend of Zelda<R id="zelda" /></h2>
+              <p class="story">For 25 years the games fit no single order. In 2011 Nintendo split the timeline in three.</p>
             </figcaption>
           </figure>
           <figure>
@@ -186,7 +186,7 @@ const print = () => window.print()
           </figure>
         </div>
       </div>
-      <Foot :ids="['onepiece', 'salon', 'scarlet', 'sign']" n="1" />
+      <Foot :ids="['happydays', 'zelda', 'scarlet', 'sign']" n="1" />
     </section>
 
     <!-- 2. The line -->
@@ -515,9 +515,11 @@ const print = () => window.print()
 
 /* 1 */
 .hook .in { padding-top: 3cqw; }
-.three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4cqw; align-items: end; }
+.three { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4cqw; align-items: start; }
 .three figure { margin: 0; display: grid; gap: 1.2cqw; }
 .three img { width: 100%; height: auto; aspect-ratio: 1; object-fit: contain; }
+/* A line drawing with no white fill would vanish on the dark slide: draw it in pale ink, orange kept. */
+.three img.line-art { filter: invert(1) hue-rotate(180deg); }
 .three h2 { font-size: 1.35cqw; letter-spacing: 0; color: var(--acc); max-width: none; }
 .three .story { font-size: 2.05cqw; line-height: 1.3; margin-top: 0.5cqw; }
 

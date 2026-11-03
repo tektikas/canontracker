@@ -96,7 +96,7 @@ const FOOTER = [
       <div class="foot-inner">
         <div class="foot-brand">
           <NuxtLink to="/" class="brand"><BrandMark />CanonTracker</NuxtLink>
-          <p>A story builder with canon you can cite. Open source under AGPL-3.0, built for the Meta AI Developer Hackathon.</p>
+          <p>The canon tracker for story worlds, with a source for every fact. Open source under AGPL-3.0, built for the Meta AI Developer Hackathon.</p>
           <p class="foot-links"><a :href="GITHUB">Source on GitHub</a><a :href="LICENSE_URL">License</a><a :href="CONTACT">info@tektik.ai</a><NuxtLink to="/pitch">Pitch deck</NuxtLink></p>
         </div>
         <nav v-for="g in FOOTER" :key="g.title" class="foot-col" :aria-label="g.title">

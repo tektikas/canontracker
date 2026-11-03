@@ -172,7 +172,7 @@ export interface UseCase { slug: string, title: string, nav: string, art: string
 export const USE_CASES: UseCase[] = [
   {
     slug: 'novelists',
-    title: 'For novelists',
+    title: 'For novelists and series authors',
     nav: 'Novelists',
     art: 'novelists',
     sample: 'Lantern Row, a short prose sample with preloaded canon and one planted timing conflict.',
@@ -190,8 +190,8 @@ export const USE_CASES: UseCase[] = [
   },
   {
     slug: 'games',
-    title: 'For game writers',
-    nav: 'Game writers',
+    title: 'For game studios and narrative designers',
+    nav: 'Game studios',
     art: 'games',
     sample: 'The Ashbell Pass, a 28-document game story with locations, NPCs, dialogue, a recorded take and planted contradictions.',
     lead: 'Narrative teams write lore, quest scripts and barks across many documents and many hands. CanonTracker keeps one canon that every writer, and every tool, can check.',
@@ -208,8 +208,8 @@ export const USE_CASES: UseCase[] = [
   },
   {
     slug: 'screen',
-    title: 'For screen and series writers',
-    nav: 'Screen and series',
+    title: 'For TV and film writers’ rooms',
+    nav: 'TV and film',
     art: 'screen',
     sample: 'Broken Tide, eleven short scenes with a world rule, a figurative “sister” and a scene-level change to trace.',
     lead: 'A writers’ room produces outlines, scene scripts and table reads faster than anyone can cross-check them. CanonTracker keeps the facts of the show in one cited place.',
@@ -226,11 +226,11 @@ export const USE_CASES: UseCase[] = [
   },
   {
     slug: 'worldbuilding',
-    title: 'For worldbuilders',
+    title: 'For worldbuilders, game masters and creators',
     nav: 'Worldbuilders',
     art: 'worldbuilding',
     sample: 'Broken Tide and The Ashbell Pass, both built around world rules that later change.',
-    lead: 'Rules of magic, travel times between places, histories that start long before day one. CanonTracker keeps them as cited facts and checks the story against them.',
+    lead: 'Rules of magic, travel times between places, histories that start long before day one, whether the world lives in a campaign, a webcomic, a serial or a video series. CanonTracker keeps them as cited facts and checks the story against them.',
     jobs: [
       { title: 'Rules as canon', text: 'A world rule is a fact with a source. The AI suggests where a scene may break it, labelled as a suggestion.' },
       { title: 'Distances and timing', text: 'Travel times are facts too: a trip that is faster than the road allows is flagged.' },

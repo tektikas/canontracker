@@ -5,7 +5,7 @@ useMarketingSeo({ title: 'About', description: 'CanonTracker was built by Umur f
 
 <template>
   <div>
-    <MarketingHero title="About CanonTracker" lead="A story builder for anyone building a story world, made so the AI does the reading and people keep the say." art="novelists" art-alt="A manuscript tied with twine, a cup of tea and a fountain pen." />
+    <MarketingHero title="About CanonTracker" lead="A canon tracker for anyone building a story world, whether it ships as a game, a series, a book or all three: the AI does the reading and people keep the say." art="story-world" art-alt="A small world drawn in pencil: a lighthouse on the coast and a mountain pass with a bell tower." />
     <div class="about">
       <section>
         <h2>Why it exists</h2>

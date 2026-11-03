@@ -23,7 +23,6 @@ Sizes in bytes, from tracked files on 3 Nov. All have an application, sample or 
 | 156,490 | `public/og-agents.png` |
 | 83,910 | `public/shots/watson-card-light-1920.webp` |
 | 82,834 | `public/art/story-world.webp` |
-| 78,872 | `public/art/pitch-door.webp` |
 | 78,366 | `public/shots/review-light-1280.webp` |
 | 77,920 | `public/art/pitch-wound.webp` |
 | 75,708 | `public/shots/review-dark-1280.webp` |
