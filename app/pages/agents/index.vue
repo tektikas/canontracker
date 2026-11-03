@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
-useMarketingSeo({ title: 'AI agents and MCP', description: 'What Story Bible’s AI does, which model runs it, what it may never do, and how your own agents connect through MCP.', image: 'og-agents', path: '/agents' })
+useMarketingSeo({ title: 'AI agents and MCP', description: 'What CanonTracker’s AI does, which model runs it, what it may never do, and how your own agents connect through MCP.', image: 'og-agents', path: '/agents' })
 
 const MAY = [
   'Read your documents and propose facts, each with a verbatim quote',
@@ -73,9 +73,9 @@ const EXCLUDED = [
 ]
 const client = ref<'musecode' | 'claude' | 'cursor' | 'other'>('musecode')
 const SNIPPETS = {
-  musecode: JSON.stringify({ schema_version: 1, mcp_servers: { 'story-bible': { transport: 'streamable_http', url: `${SITE}/mcp`, headers: { Authorization: 'Bearer sb_…' } } } }, null, 2),
-  claude: `claude mcp add --transport http story-bible ${SITE}/mcp \\\n  --header "Authorization: Bearer sb_…"`,
-  cursor: JSON.stringify({ mcpServers: { 'story-bible': { url: `${SITE}/mcp`, headers: { Authorization: 'Bearer sb_…' } } } }, null, 2),
+  musecode: JSON.stringify({ schema_version: 1, mcp_servers: { 'canontracker': { transport: 'streamable_http', url: `${SITE}/mcp`, headers: { Authorization: 'Bearer sb_…' } } } }, null, 2),
+  claude: `claude mcp add --transport http canontracker ${SITE}/mcp \\\n  --header "Authorization: Bearer sb_…"`,
+  cursor: JSON.stringify({ mcpServers: { 'canontracker': { url: `${SITE}/mcp`, headers: { Authorization: 'Bearer sb_…' } } } }, null, 2),
   other: `URL:        ${SITE}/mcp\nHeader:     Authorization: Bearer sb_…\nTransport:  Streamable HTTP (stateless)`,
 }
 const copied = ref(false)
@@ -87,7 +87,7 @@ async function copy() {
 
 <template>
   <div>
-    <MarketingHero title="AI agents that read, check and propose" lead="Story Bible uses AI for the reading: finding facts, second opinions, continuity, research and transcripts. Every one of them proposes; none of them decides. Your own agents connect through MCP under the same rules." art="agents" art-alt="A brass lamp over an open ledger, a loose pencilled card waiting beside it." />
+    <MarketingHero title="AI agents that read, check and propose" lead="CanonTracker uses AI for the reading: finding facts, second opinions, continuity, research and transcripts. Every one of them proposes; none of them decides. Your own agents connect through MCP under the same rules." art="agents" art-alt="A brass lamp over an open ledger, a loose pencilled card waiting beside it." />
 
     <section class="block">
       <h2>The agents, and the model behind each</h2>
@@ -125,7 +125,7 @@ async function copy() {
 
     <section class="block rules">
       <div>
-        <h2>What Story Bible’s AI may do</h2>
+        <h2>What CanonTracker’s AI may do</h2>
         <ul class="may"><li v-for="m in MAY" :key="m">{{ m }}</li></ul>
       </div>
       <div>
@@ -141,7 +141,7 @@ async function copy() {
     <section id="mcp" class="block mcp">
       <div class="mcp-copy">
         <h2>Connect your own agents with MCP</h2>
-        <p>Story Bible is an MCP server (Streamable HTTP) with 38 tools: an agent can do almost everything you do in a project (the exceptions are listed below). Create a token in Settings, under Agents &amp; API. It works in one project, as you, within your current role, and is stored as a hash, shown once and revocable.</p>
+        <p>CanonTracker is an MCP server (Streamable HTTP) with 38 tools: an agent can do almost everything you do in a project (the exceptions are listed below). Create a token in Settings, under Agents &amp; API. It works in one project, as you, within your current role, and is stored as a hash, shown once and revocable.</p>
         <ul>
           <li>Every action goes through the app’s own checks and limits, and every change is audited, so an agent can never do more than its person</li>
           <li>Every change made through a token is in the audit log with <i>via MCP</i> and the token’s name</li>

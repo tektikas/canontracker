@@ -109,7 +109,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
         <UiIcon name="menu" :size="20" />
       </button>
       <NuxtLink to="/" class="brand topbar-project">
-        <BrandMark /><span class="topbar-name">{{ current?.project.name ?? 'Story Bible' }}</span>
+        <BrandMark /><span class="topbar-name">{{ current?.project.name ?? 'CanonTracker' }}</span>
       </NuxtLink>
       <HelpButton />
       <button class="icon-btn" type="button" aria-label="Search" aria-haspopup="dialog" @click="paletteOpen = true"><UiIcon name="search" :size="20" /></button>
@@ -119,7 +119,7 @@ onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
 
     <aside id="sidebar" class="sidebar" aria-label="Sidebar">
       <div class="sidebar-head">
-        <NuxtLink to="/" class="brand"><BrandMark />Story Bible</NuxtLink>
+        <NuxtLink to="/" class="brand"><BrandMark />CanonTracker</NuxtLink>
         <button ref="navClose" class="icon-btn" type="button" aria-label="Close navigation" @click="navOpen = false">
           <UiIcon name="close" :size="20" />
         </button>

@@ -1,11 +1,11 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
-useMarketingSeo({ title: 'Features', description: 'Canon and review, conflicts and impact, a wiki and timeline, writing and import with Word and voice, export and share, and team roles: what Story Bible does today.', path: '/features' })
+useMarketingSeo({ title: 'Features', description: 'Canon and review, conflicts and impact, a wiki and timeline, writing and import with Word and voice, export and share, and team roles: what CanonTracker does today.', path: '/features' })
 </script>
 
 <template>
   <div>
-    <MarketingHero title="Everything between your first document and a story bible you can share" lead="Story Bible is one workflow: bring documents in, let the AI propose facts, decide what is canon, keep it consistent and hand it on. Each area has its own page." art="story-world" art-alt="An open ledger whose page rises into a small world." />
+    <MarketingHero title="Everything between your first document and a story bible you can share" lead="CanonTracker is one workflow: bring documents in, let the AI propose facts, decide what is canon, keep it consistent and hand it on. Each area has its own page." art="story-world" art-alt="An open ledger whose page rises into a small world." />
 
     <div class="wrap">
       <section v-for="(p, i) in PILLARS" :key="p.slug" class="pillar" :class="{ flip: i % 2 }">

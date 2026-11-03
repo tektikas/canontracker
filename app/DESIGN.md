@@ -1,11 +1,11 @@
-# Story Bible design system: pencil and ink
+# CanonTracker design system: graphite and signal orange
 
-Comics and animation teams draw in pencil and commit in ink. Story Bible works the same way: the model sketches candidates in **pencil**, a person commits them to canon in **ink**. Every visual choice follows from that.
+Comics and animation teams draw in pencil and commit in ink. CanonTracker works the same way: the model sketches candidates in **pencil**, a person commits them to canon in **ink**. Every visual choice follows from that.
 
 - **Pencil** (graphite, dashed outlines): proposed, not yet canon. Pending candidates, future workflow steps.
-- **Ink** (walnut / iron-gall brown `--accent`, solid fill): canon, primary actions, the current location.
-- **Vermilion** (`--bad`): conflicts and unverified quotes. **Ochre** (`--warn`, brass): caution, approximate times, find highlights. **Moss** (`--good`, the green of a leather desk pad): verified evidence. **Plum** (`--research`): research answers from outside sources, never canon.
-- **A writer's desk, not an office.** Daylight is a linen desk (`--canvas`), its deeper shade for the sidebar (`--surface`) and paper sheets on it (`--raised`), written in warm ink. Night is the same desk under a lamp: warm dark wood, never blue-black. Every neutral leans warm; only pencil stays graphite, a touch cool, so it reads as pencil on the paper.
+- **Orange** (`--accent`, solid fill): canon, primary actions, the current location. Text-safe burnt orange in light, brighter orange in dark. Signal orange `#e8501a` belongs only to the logo's accepted point and large brand moments.
+- **Crimson** (`--bad`): conflicts and unverified quotes. **Amber** (`--warn`): caution, approximate times, find highlights. **Green** (`--good`): verified evidence. **Plum** (`--research`): research answers from outside sources, never canon.
+- **Graphite surfaces.** Light uses a cool grey canvas and white raised panels. Dark uses near-black graphite surfaces and pale ink. Neutral drawings leave orange for decisions and crimson for conflicts.
 - **Serif is the story's voice.** Literata appears only for words from the story: statements, quotes, passages. Everything that belongs to the tool (labels, buttons, headings, tables) is Instrument Sans. Never set UI in the serif.
 - Calm by default: flat bordered panels, no gradients, no decorative shadows, no entrance animations. One bold element per page at most (on Home it is the workflow rail).
 
@@ -13,12 +13,14 @@ Comics and animation teams draw in pencil and commit in ink. Story Bible works t
 
 All colors are CSS variables with a light set and a dark set (`prefers-color-scheme: dark`, or `data-theme` on `<html>` when a person toggled it in the command palette). Never hard-code a hex in a page.
 
+Small orange labels and links use `--accent-strong`. Green badges and entity labels mix 94% `--good` with 6% `--ink`: the supplied light accent/green on their soft fills otherwise measure 4.41:1. These text treatments preserve the palette and clear 4.5:1.
+
 | Group | Tokens |
 | --- | --- |
 | Surfaces | `--canvas` (page), `--surface` (sidebar, table heads, sunk panels), `--raised` (panels, inputs), `--sunken` (hover, neutral badge), `--quote-bg` |
 | Text | `--ink`, `--muted` (secondary), `--faint` (meta, counts). All three meet 4.5:1 on every surface in both themes; keep it that way when tuning. |
 | Lines | `--line`, `--line-strong` (inputs, buttons, dashed pencil) |
-| Palette | Light: desk `#f4f0e8`, deep desk `#ece6dc`, paper `#fdfbf7`, ink text `#2a241d`, walnut `#733816`, graphite `#555b63`, moss `#2e5e4e`, ochre `#835c00`, vermilion `#b0321e`, plum `#75366f`. Dark: desk `#1b1815`, deep `#161311`, paper `#231f1b`, text `#ebe3d6`, tan ink `#dba077`. Status and entity-type colours (Settings → Entity types, graph nodes) must stay ≥ 3:1 on `--surface` and apart from each other; text pairs ≥ 4.5:1 in both themes. |
+| Palette | Light: canvas `#f2f3f5`, surface `#e8e9ec`, raised `#ffffff`, ink `#16171a`, orange `#c2410c`, pencil `#5a5f6b`, green `#1f7a55`, amber `#8a5a00`, crimson `#b0173f`, plum `#75366f`. Dark: canvas `#111214`, surface `#16171a`, raised `#1c1e22`, ink `#ebecef`, orange `#ff7a45`. Main text tokens meet ≥ 4.5:1 on all five surfaces. Status and entity-type colours (Settings → Entity types, graph nodes) stay ≥ 3:1 on `--surface` and apart from each other; use their soft backgrounds for badges. |
 | Meaning | `--accent` / `--accent-strong` / `--accent-soft` / `--accent-ink`, `--pencil` / `--pencil-soft`, `--good`, `--warn`, `--bad`, `--research` (each with `-soft`) |
 | Type | `--font-ui` Instrument Sans, `--font-story` Literata, `--font-code` JetBrains Mono (hashes, triples, line numbers only). Sizes `--text-xs` 12 · `sm` 13 · `base` 14 (UI body) · `md` 16 (story text) · `lg` 19 · `xl` 24 · `2xl` 30 |
 | Space | 4px grid: `--s-1` 4, `--s-2` 8, `--s-3` 12, `--s-4` 16, `--s-5` 24, `--s-6` 32, `--s-7` 48 |
@@ -30,11 +32,11 @@ Fonts load from Google Fonts in `nuxt.config.ts`.
 
 ## Brand
 
-The mark is an open story ledger: graphite-style strokes on the left, solid ink on the right. Keep at least one quarter of the mark’s width clear around it. Minimum size: 16px for the mark, 140px for the horizontal lockup. Do not stretch, rotate, add shadows or place it on a busy image.
+The mark is a canon track on a 32×32 grid: a short horizontal ink line joins three points. The outer two are small hollow graphite circles; the middle is a filled signal-orange circle, the accepted fact. Keep at least one quarter of the mark’s width clear around it. Minimum size: 16px for the mark, 140px for the horizontal lockup. Do not stretch, rotate, add shadows or place it on a busy image.
 
-`BrandMark.vue` keeps the inline mark in the app’s existing text lockups. Standalone vectors live in `public/brand/`: `mark.svg` and `story-bible.svg` adapt to the system theme; `story-bible-mono.svg` uses `currentColor` when inlined. The wordmark is outlined Instrument Sans semibold (license alongside it). In the app the mark takes `--accent` (walnut brown / lamp-lit tan in dark mode). The standalone files in `public/brand/`, the favicon and the app icons use the same walnut (tan in dark), app icons on a linen square; use one solid ink colour for monochrome. Keep Instrument Sans for UI and branding; Literata stays reserved for story content.
+`BrandMark.vue` keeps the inline mark in the app’s text lockups, using `--ink` and signal orange. Standalone vectors live in `public/brand/`: `mark.svg` and `story-bible.svg` adapt to the system theme; `story-bible-mono.svg` uses `currentColor` when inlined. The legacy asset paths stay stable. The wordmark is live text in Instrument Sans semibold (license alongside it), with Helvetica/Arial fallbacks; standalone SVGs require the font on the consuming system. App icons use graphite and orange on a cool-grey square. Keep Instrument Sans for UI and branding; Literata stays reserved for story content.
 
-Original generated pencil-and-ink illustrations live in `public/art/` as WebP drawn on the linen paper colour; `LandingArt` shows them on a linen plate in both themes. Keep them square and don't recolour them. They are editorial artwork, not canon or screenshots. Product screenshots for the public site live in `public/shots/` (light and dark, re-taken with `scripts/brand/render-shots.mjs`). App icons and 1200×630 social PNGs live in `public/`; the social composition source and every generation prompt are in `scripts/brand/`. Keep social image URLs absolute in metadata. Regeneration details and asset sizes: `scripts/brand/README.md`.
+Original generated pencil-and-ink illustrations live in `public/art/` as transparent WebP cutouts, converted to neutral graphite with alpha preserved. Keep them square. They are editorial artwork, not canon or screenshots. Product screenshots for the public site live in `public/shots/` (light and dark, re-taken with `scripts/brand/render-shots.mjs`). The landing hero uses `MarketingWatsonConflict`, a theme-aware source-cited card from the Sherlock Holmes gold set, rather than a story-world illustration or character cards. App icons and 1200×630 social PNGs live in `public/`; the social composition source and generation prompts are in `scripts/brand/`. Keep social image URLs absolute in metadata. Regeneration details: `scripts/brand/README.md`.
 
 ## Components (`app/components/ui/`, auto-imported as `Ui*`)
 
@@ -61,9 +63,9 @@ The components render the same global classes old pages use, so both stay consis
 
 ## Layout
 
-- **Shell** (`app/app.vue`): sidebar 240px on desktop with nav grouped as Home / Workflow (Review, Canon, Conflicts, Changes) / Tools (Ask, Metrics, Audit). Live counts: pending review (ink), open conflicts (vermilion), canon and changes (quiet). The shell shows no model status; the UI says "AI", provenance lives in the Metrics trace.
+- **Shell** (`app/app.vue`): sidebar 240px on desktop with nav grouped as Home / Workflow (Review, Canon, Conflicts, Changes) / Tools (Ask, Metrics, Audit). Live counts: pending review (orange), open conflicts (crimson), canon and changes (quiet). The shell shows no model status; the UI says "AI", provenance lives in the Metrics trace.
 - **Mobile (≤ 900px)**: a 52px top bar with menu, brand and the model badge; the sidebar becomes a drawer that closes on navigation, scrim tap or Esc.
-- **Phones (≤ 720px)**: a bottom nav with Home, Review, Canon, Entities and More (opens the drawer). Review carries the pending count; More shows a vermilion dot for open conflicts. It respects the safe-area inset; anything fixed or sticky at the bottom sits at `bottom: var(--bottom-nav-h)`. Focus mode and modal dialogs cover it.
+- **Phones (≤ 720px)**: a bottom nav with Home, Review, Canon, Entities and More (opens the drawer). Review carries the pending count; More shows a crimson dot for open conflicts. It respects the safe-area inset; anything fixed or sticky at the bottom sits at `bottom: var(--bottom-nav-h)`. Focus mode and modal dialogs cover it.
 - **Empty pages**: `UiEmptyState` with one sentence of why and one primary action. When the fix is "add or review something", use `useFillAction()` so every page sends people to the same next step.
 - **Content**: max 1100px, left-aligned, 40px side padding (16px on phones). Text blocks stay under ~70ch.
 - **Page rhythm**: `UiPageHeader`, then optional notice, then panels separated by `--s-5`. Two-column layouts collapse to one column at 720px (`.grid-2`) or 1100px (Home).

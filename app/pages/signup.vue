@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
-useHead({ title: 'Create your account · Story Bible' })
+useHead({ title: 'Create your account · CanonTracker' })
 const route = useRoute()
 const invite = computed(() => (typeof route.query.invite === 'string' ? route.query.invite : ''))
 const { data: inviteInfo } = await useFetch(() => `/api/invites/${invite.value}`, { immediate: !!invite.value, key: `invite-${invite.value}` })

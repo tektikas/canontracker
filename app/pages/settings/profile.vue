@@ -1,5 +1,5 @@
 <script setup lang="ts">
-useHead({ title: 'Profile · Story Bible' })
+useHead({ title: 'Profile · CanonTracker' })
 const me = useMe()
 
 const profile = reactive({ name: me.value?.user?.name ?? '', email: me.value?.user?.email ?? '' })

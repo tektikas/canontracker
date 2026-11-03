@@ -7,7 +7,7 @@ useHelpKey()
 <template>
   <div class="auth">
     <header class="auth-top">
-      <NuxtLink to="/" class="brand"><BrandMark />Story Bible</NuxtLink>
+      <NuxtLink to="/" class="brand"><BrandMark />CanonTracker</NuxtLink>
       <span class="auth-actions">
         <HelpButton />
         <button v-if="me?.user" type="button" class="btn ghost sm" @click="logOut">Log out</button>
@@ -16,7 +16,7 @@ useHelpKey()
     <main class="auth-main">
       <slot />
     </main>
-    <footer class="auth-foot small faint">Story Bible · a story builder with human-approved, source-cited canon</footer>
+    <footer class="auth-foot small faint">CanonTracker · a story builder with human-approved, source-cited canon</footer>
   </div>
 </template>
 

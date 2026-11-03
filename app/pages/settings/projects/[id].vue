@@ -8,7 +8,7 @@ if (error.value) throw createError({ statusCode: error.value.statusCode === 404 
 const project = computed(() => data.value!.project)
 const manage = computed(() => data.value!.can_manage)
 const isCurrent = computed(() => me.value?.current?.project.id === id.value)
-useHead(() => ({ title: `${project.value.name} · Projects · Story Bible` }))
+useHead(() => ({ title: `${project.value.name} · Projects · CanonTracker` }))
 
 const busy = ref('')
 const error1 = ref('')

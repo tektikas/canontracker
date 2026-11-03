@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'auth' })
-useHead({ title: 'Log in · Story Bible' })
+useHead({ title: 'Log in · CanonTracker' })
 const route = useRoute()
 const form = reactive({ email: '', password: '' })
 const error = ref('')
@@ -47,7 +47,7 @@ async function submit() {
     </form>
 
     <p class="small muted switch">
-      New to Story Bible? <NuxtLink :to="{ path: '/signup', query: inviting ? { invite: redirect.split('/').pop() } : {} }">Create an account</NuxtLink>
+      New to CanonTracker? <NuxtLink :to="{ path: '/signup', query: inviting ? { invite: redirect.split('/').pop() } : {} }">Create an account</NuxtLink>
     </p>
   </div>
 </template>

@@ -234,8 +234,8 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
           </template>
         </UiMenu>
         <UiBadge v-if="doc.recording" tone="good" title="The transcript is the source: quotes match it word for word. Transcribing again makes a new version; it is never edited.">Read-only transcript</UiBadge>
-        <UiBadge v-else tone="good" :title="doc.origin === 'written' ? 'Each save is a new version; saved versions never change' : 'Story Bible never edits imported sources; Edit saves your changes as a new version'">{{ doc.origin === 'written' ? 'Saved version' : 'Read-only source' }}</UiBadge>
-        <span v-if="doc.origin === 'written'" class="small muted">Written in Story Bible<template v-if="doc.created_by_name"> by {{ doc.created_by_name }}</template>, {{ shortDate(doc.imported_at) }}</span>
+        <UiBadge v-else tone="good" :title="doc.origin === 'written' ? 'Each save is a new version; saved versions never change' : 'CanonTracker never edits imported sources; Edit saves your changes as a new version'">{{ doc.origin === 'written' ? 'Saved version' : 'Read-only source' }}</UiBadge>
+        <span v-if="doc.origin === 'written'" class="small muted">Written in CanonTracker<template v-if="doc.created_by_name"> by {{ doc.created_by_name }}</template>, {{ shortDate(doc.imported_at) }}</span>
         <span class="mono faint" :title="`sha256 ${doc.sha256}`">sha256 {{ String(doc.sha256).slice(0, 12) }}…</span>
       </span>
       <template #actions>

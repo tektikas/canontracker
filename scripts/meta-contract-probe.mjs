@@ -1,4 +1,4 @@
-// Runs Story Bible's real Meta Model API code paths (extraction, Ask, image generation) against responses Meta really
+// Runs CanonTracker's real Meta Model API code paths (extraction, Ask, image generation) against responses Meta really
 // returned, replayed by scripts/meta-fake.mjs. Start both first:
 //   node scripts/meta-fake.mjs 4281
 //   HOST=localhost PORT=4280 NUXT_SESSION_PASSWORD=<32+ chars> NUXT_MODEL_MODE=meta NUXT_META_API_KEY=fixture \

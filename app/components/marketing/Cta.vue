@@ -10,7 +10,7 @@ defineProps<{ title?: string, text?: string }>()
       <LandingArt name="canon" alt="" :size="160" class="cta-art" />
       <div class="cta-copy">
         <h2>{{ title ?? 'Start with a finished story' }}</h2>
-        <p>{{ text ?? 'Create a studio and load The Ashbell Pass or Broken Tide: real documents, AI candidates to review and planted contradictions to find. Or run Story Bible on your own server; it is open source.' }}</p>
+        <p>{{ text ?? 'Create a studio and load The Ashbell Pass or Broken Tide: real documents, AI candidates to review and planted contradictions to find. Or run CanonTracker on your own server; it is open source.' }}</p>
       </div>
       <div class="cta-actions">
         <UiButton v-if="me?.user" to="/" variant="primary" size="lg">Open the app</UiButton>

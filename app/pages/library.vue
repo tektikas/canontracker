@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Every source document, at its latest version, with the labels a team files them under. Folders, tags, kind and title are
 // editorial: they never touch a document's text or hash (server/api/library/organise.post.ts). Viewers read only.
-useHead({ title: 'Library · Story Bible' })
+useHead({ title: 'Library · CanonTracker' })
 const me = useMe()
 const editor = computed(() => canEdit(me.value))
 const route = useRoute()

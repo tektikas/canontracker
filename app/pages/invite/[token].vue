@@ -4,7 +4,7 @@ const route = useRoute()
 const token = String(route.params.token)
 const me = useMe()
 const { data: invite, error: loadError } = await useFetch(`/api/invites/${token}`, { key: `invite-${token}` })
-useHead({ title: () => (invite.value ? `Join ${invite.value.studio_name} · Story Bible` : 'Invite · Story Bible') })
+useHead({ title: () => (invite.value ? `Join ${invite.value.studio_name} · CanonTracker` : 'Invite · CanonTracker') })
 const busy = ref(false)
 const error = ref('')
 const expires = computed(() => invite.value && shortDate(invite.value.expires_at))
@@ -29,7 +29,7 @@ const open = () => join() // already a member: accept only switches into the stu
     <div v-if="loadError || !invite" class="stack">
       <h1>This invite link doesn’t work</h1>
       <p class="muted">It may have been mistyped or copied only in part. Ask the person who sent it for a new link.</p>
-      <UiButton :to="me?.user ? '/' : '/login'" variant="primary">{{ me?.user ? 'Go to Story Bible' : 'Log in' }}</UiButton>
+      <UiButton :to="me?.user ? '/' : '/login'" variant="primary">{{ me?.user ? 'Go to CanonTracker' : 'Log in' }}</UiButton>
     </div>
 
     <div v-else-if="invite.member" class="stack">
@@ -42,13 +42,13 @@ const open = () => join() // already a member: accept only switches into the stu
     <div v-else-if="invite.status !== 'valid'" class="stack">
       <h1>This invite has {{ invite.status === 'used' ? 'already been used' : invite.status === 'expired' ? 'expired' : 'been revoked' }}</h1>
       <p class="muted">Invite links work once and only until they expire. Ask {{ invite.created_by_name }} at {{ invite.studio_name }} to send you a new one.</p>
-      <UiButton :to="me?.user ? '/' : '/login'">{{ me?.user ? 'Go to Story Bible' : 'Log in' }}</UiButton>
+      <UiButton :to="me?.user ? '/' : '/login'">{{ me?.user ? 'Go to CanonTracker' : 'Log in' }}</UiButton>
     </div>
 
     <div v-else class="stack">
       <span class="kicker">Invitation</span>
       <h1>Join {{ invite.studio_name }}</h1>
-      <p class="muted">{{ invite.created_by_name }} invited you to join {{ invite.studio_name }} on Story Bible, where the team keeps its story canon.</p>
+      <p class="muted">{{ invite.created_by_name }} invited you to join {{ invite.studio_name }} on CanonTracker, where the team keeps its story canon.</p>
 
       <div class="panel role-card">
         <div class="spread">

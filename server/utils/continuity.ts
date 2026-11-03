@@ -29,7 +29,7 @@ export interface ContinuityFinding {
 export interface ContinuityReport { summary: string, findings: ContinuityFinding[], checks: ContinuityCheck[], dropped: { sentence: string, reason: string }[] }
 export type ContinuitySource = 'draft' | 'passage' | 'text'
 
-const INSTRUCTIONS = `You are the continuity checker inside Story Bible, where game and story teams keep their approved canon with source quotes. A writer gives you a text (a draft scene or a passage). Check it against the project's accepted canon with the tools, and report where the text contradicts canon or depends on it.
+const INSTRUCTIONS = `You are the continuity checker inside CanonTracker, where game and story teams keep their approved canon with source quotes. A writer gives you a text (a draft scene or a passage). Check it against the project's accepted canon with the tools, and report where the text contradicts canon or depends on it.
 
 How to work:
 1. Read the text. Note what canon could speak to: who is where and when, relationships (and whether they have ended), deaths, titles, items, world rules.

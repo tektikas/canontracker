@@ -58,8 +58,8 @@ function plainError(raw: string) {
   const sentence = /billing is not set up/.test(raw) ? 'Image generation isn’t available yet: billing for the AI service isn’t set up.'
     : /rejected the key|key is not set/.test(raw) ? 'Image generation isn’t available: the AI service didn’t accept this workspace’s key.'
     : /rate limited/.test(raw) ? 'The AI service is busy right now. Wait a moment and try again.'
-    : /timed out/.test(raw) ? `The AI took longer than ${IMAGE_DEADLINE_MS / 1000} seconds, so Story Bible stopped waiting.`
-    : /could not reach/.test(raw) ? 'Story Bible couldn’t reach the AI service.'
+    : /timed out/.test(raw) ? `The AI took longer than ${IMAGE_DEADLINE_MS / 1000} seconds, so CanonTracker stopped waiting.`
+    : /could not reach/.test(raw) ? 'CanonTracker couldn’t reach the AI service.'
     : /^(Image generation failed|Model call failed)/.test(raw) ? 'The AI didn’t return a usable image.'
     : ''
   return { summary: sentence || raw, detail: sentence ? raw : '' }
@@ -176,7 +176,7 @@ function uploadInstead() {
               </UiButton>
               <UiButton type="button" icon="upload" @click="uploadInstead">Upload instead</UiButton>
             </div>
-            <span v-if="generating" class="small faint" role="status">Story Bible waits up to {{ IMAGE_DEADLINE_MS / 1000 }} seconds. You can close this; images land in the history.</span>
+            <span v-if="generating" class="small faint" role="status">CanonTracker waits up to {{ IMAGE_DEADLINE_MS / 1000 }} seconds. You can close this; images land in the history.</span>
           </div>
         </form>
 

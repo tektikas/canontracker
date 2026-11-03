@@ -1,6 +1,6 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
-useMarketingSeo({ title: 'Pricing', description: 'Story Bible is open source under AGPL-3.0: self-host the whole app for free. For a hosted copy for your team, ask us for a price.', path: '/pricing' })
+useMarketingSeo({ title: 'Pricing', description: 'CanonTracker is open source under AGPL-3.0: self-host the whole app for free. For a hosted copy for your team, ask us for a price.', path: '/pricing' })
 
 const INCLUDED = [
   'AI candidates with verbatim quotes, the AI critic and human review',
@@ -16,7 +16,7 @@ const INCLUDED = [
 
 <template>
   <div>
-    <MarketingHero title="Pricing" lead="Story Bible is open source. Run it yourself for free, with everything in it, or ask us to host it for your team." />
+    <MarketingHero title="Pricing" lead="CanonTracker is open source. Run it yourself for free, with everything in it, or ask us to host it for your team." />
 
     <section class="plans" aria-label="Options">
       <article class="plan">
@@ -29,7 +29,7 @@ const INCLUDED = [
       <article class="plan">
         <h2>Cloud</h2>
         <p class="price">Ask for a price</p>
-        <p class="what">We host Story Bible for your team, so you don’t run a server. Tell us about your team and project.</p>
+        <p class="what">We host CanonTracker for your team, so you don’t run a server. Tell us about your team and project.</p>
         <UiButton :to="CONTACT" size="lg">Contact us</UiButton>
         <p class="license">Write to <a :href="CONTACT">info@tektik.ai</a>.</p>
       </article>

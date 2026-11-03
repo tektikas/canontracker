@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Export the story bible (Markdown, or PDF through the print view), as a book (PDF, EPUB) or the manuscript, and manage read-only share links.
 // Everyone in the project may export (it holds only canon they can already read); editors and up create and revoke links.
-useHead({ title: 'Export & share · Story Bible' })
+useHead({ title: 'Export & share · CanonTracker' })
 const me = useMe()
 const editor = computed(() => canEdit(me.value))
 const kindLabel = useKind()

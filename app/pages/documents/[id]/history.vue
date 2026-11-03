@@ -4,7 +4,7 @@
 const route = useRoute()
 const router = useRouter()
 const { data: doc, error } = await useFetch(() => `/api/documents/${route.params.id}`)
-useHead({ title: computed(() => `History · ${doc.value?.title ?? 'Document'} · Story Bible`) })
+useHead({ title: computed(() => `History · ${doc.value?.title ?? 'Document'} · CanonTracker`) })
 
 const versions = computed(() => doc.value?.versions ?? [])
 // Compare `from` (older) → `to` (newer), as ids of two versions; versions are listed newest first. Default: the version you came
@@ -64,7 +64,7 @@ const lineOf = (p?: { start_line: number, end_line: number }) => (p ? `${p.start
 // Gutter fits the longest line label in this diff (a changed passage reads "113–115→143–145").
 const gutter = computed(() => `${Math.max(4, ...(diff.value?.rows ?? []).map(r => (r.from && r.to ? `${lineOf(r.from)}→${lineOf(r.to)}` : lineOf(r.from ?? r.to)).length)) + 1}ch`)
 const OP_LABEL = { changed: 'Changed', removed: 'Removed', added: 'Added', same: 'Unchanged' } as const
-const how = (v: { origin: string, created_by_name: string | null }) => `${v.origin === 'written' ? 'Written in Story Bible' : v.origin === 'research' ? 'Saved from a research note' : 'Uploaded'}${v.created_by_name ? ` by ${v.created_by_name}` : ''}`
+const how = (v: { origin: string, created_by_name: string | null }) => `${v.origin === 'written' ? 'Written in CanonTracker' : v.origin === 'research' ? 'Saved from a research note' : 'Uploaded'}${v.created_by_name ? ` by ${v.created_by_name}` : ''}`
 </script>
 
 <template>

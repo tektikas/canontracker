@@ -79,5 +79,6 @@
       "size": "1024x1024",
       "prompt": "Pitch deck illustration for Story Bible, a story builder for anyone building a story world. Style: fine graphite pencil lines with walnut-brown iron-gall ink outlines (#733816), sparse crosshatching, one small brass accent (#835c00), warm linen-white paper (#fdfbf7) interiors. Flat hand-drawn editorial pencil-and-ink illustration, calm and understated, like a fine book's chapter ornament. No blue. Composition: one compact centred vignette, square, wide empty margins, the object fully visible, readable at 400 pixels wide. Background: flat plain linen paper colour #f4f0e8 filling the whole canvas edge to edge, no texture, no vignette, no glow, no shadow, no border, no frame. Constraints: original artwork, no people, no brands, no words, no letters, no numbers, no watermark, no gradients, no photorealism, no user interface; page markings are only short abstract strokes. Subject: a Victorian army surgeon's leather medical bag, half open, with a rolled linen bandage and a single old lead musket ball resting beside it on a wooden table. An old wound."
     }
-  }
+  },
+  "_note": "Historical generation prompts: the product was then called Story Bible. Shipped cutouts were converted to neutral graphite with alpha preserved on 2026-11-03; optimise-art.mjs also neutralises future output."
 }

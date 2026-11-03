@@ -1,5 +1,5 @@
 <script setup lang="ts">
-useHead({ title: 'Team · Story Bible' })
+useHead({ title: 'Team · CanonTracker' })
 const me = useMe()
 const { data: team, refresh } = await useFetch('/api/team')
 const ROLES: Role[] = ['owner', 'admin', 'editor', 'viewer']
@@ -124,7 +124,7 @@ const inDays = (iso: string) => {
           <UiButton :variant="copied === 'new' ? 'good' : 'primary'" :icon="copied === 'new' ? 'check' : 'copy'" @click="copy(created.url, 'new')">{{ copied === 'new' ? 'Copied' : 'Copy link' }}</UiButton>
         </div>
         <p v-if="copyFailed === 'new'" class="small field-error" role="alert">Couldn’t copy. The link is selected; press Ctrl+C.</p>
-        <p class="small muted">Story Bible doesn’t send email yet. Paste this link to your teammate yourself, in chat or email. It works once.</p>
+        <p class="small muted">CanonTracker doesn’t send email yet. Paste this link to your teammate yourself, in chat or email. It works once.</p>
       </div>
     </UiPanel>
 

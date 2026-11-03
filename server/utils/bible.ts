@@ -276,6 +276,7 @@ export function bibleMarkdown(b: Bible, imageFile: (e: BibleEntity) => string | 
       out.push('')
     }
   }
+  out.push('Made with CanonTracker', '')
   return `${out.join('\n').trim()}\n`
 }
 
@@ -335,6 +336,7 @@ export function manuscriptMarkdown(m: Manuscript) {
     // The document's own title line is the chapter heading above.
     out.push(c.text.replace(/\r\n?/g, '\n').replace(new RegExp(`^# ${c.title.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\n`), '').trim(), '')
   }
+  out.push('Made with CanonTracker', '')
   return `${out.join('\n').trim()}\n`
 }
 
@@ -345,7 +347,7 @@ const esc = (s: string) => s.replace(XML_BAD, '').replace(/&/g, '&amp;').replace
 const xhtml = (title: string, body: string) => `<?xml version="1.0" encoding="utf-8"?>
 <!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" lang="en"><head><meta charset="utf-8"/><title>${esc(title)}</title><link rel="stylesheet" href="style.css"/></head><body>${body}</body></html>`
-const EPUB_CSS = `body{font-family:serif;line-height:1.5}h1{margin:1.2em 0 .6em}h2{margin:1.4em 0 .2em}h3{margin:1em 0 .3em}.sub,.small{color:#555;font-size:.9em}.ed{font-size:.8em;font-weight:bold;text-transform:uppercase;color:#7a5c1e}.fact{margin:.8em 0}.n{font-size:.75em;color:#666;margin-right:.5em}.lab{font-size:.8em;font-weight:bold;margin-right:.5em}aside p{font-size:.85em;margin:.2em 0}img.portrait{max-width:40%;float:right;margin:0 0 .5em 1em}.cover img{max-width:100%}`
+const EPUB_CSS = `body{font-family:serif;line-height:1.5}h1{margin:1.2em 0 .6em}h2{margin:1.4em 0 .2em}h3{margin:1em 0 .3em}.sub,.small{color:#4a4d55;font-size:.9em}.ed{font-size:.8em;font-weight:bold;text-transform:uppercase;color:#5a5f6b}.fact{margin:.8em 0}.n{font-size:.75em;color:#5d6068;margin-right:.5em}.lab{font-size:.8em;font-weight:bold;margin-right:.5em}aside p{font-size:.85em;margin:.2em 0}img.portrait{max-width:40%;float:right;margin:0 0 .5em 1em}.cover img{max-width:100%}`
 
 export function bookEpub(book: Book, images: Map<string, { file: string, data: Buffer, mime: string }>, cover: { data: Buffer, mime: string } | null) {
   // Markdown emphasis becomes <em> / <strong>; the delimiters are not printed.
@@ -361,7 +363,7 @@ export function bookEpub(book: Book, images: Map<string, { file: string, data: B
     const notes = c.notes.map(n => `<aside epub:type="footnote" id="fn${n.n}"><p>${n.n}. ${esc(n.text)}</p></aside>`).join('')
     return { file: `ch${i + 1}.xhtml`, title: c.title, html: xhtml(emphasisPlain(c.title), `<h1>${rich(c.title)}</h1>${c.intro ? `<p class="sub">${esc(c.intro)}</p>` : ''}${sections}${notes}`) }
   })
-  const front = xhtml(book.title, `<h1>${esc(book.title)}</h1><p>${esc(book.kicker)}</p><p class="sub">${esc(book.studio)} · ${esc(book.line)}</p>`)
+  const front = xhtml(book.title, `<h1>${esc(book.title)}</h1><p>${esc(book.kicker)}</p><p class="sub">${esc(book.studio)} · ${esc(book.line)}</p><p class="small">Made with CanonTracker</p>`)
   const nav = xhtml('Contents', `<nav epub:type="toc"><h1>Contents</h1><ol>${chapters.map(c => `<li><a href="${c.file}">${rich(c.title)}</a></li>`).join('')}</ol></nav>`)
   const mediaOf = (f: string, mime: string) => `<item id="${f.replace(/\W/g, '-')}" href="${f}" media-type="${mime}"/>`
   const imgItems = [...images.values()].map(i => mediaOf(i.file, i.mime)).join('')

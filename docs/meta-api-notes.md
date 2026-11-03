@@ -1,6 +1,6 @@
 # Building on the Meta Model API: what we ran into
 
-Notes for the Meta Model API team, from building Story Bible during the Meta AI Developer Hackathon (27 Oct–4 Nov 2026). We use Muse Spark for extraction, the AI critic, continuity checks, research (web search plus our own function tools) and grounded answers; Muse Voice Transcribe for recordings and dictation; Muse Image for portraits and covers; and Muse Code connects to Story Bible over MCP.
+Notes for the Meta Model API team, from building CanonTracker during the Meta AI Developer Hackathon (27 Oct–4 Nov 2026). We use Muse Spark for extraction, the AI critic, continuity checks, research (web search plus our own function tools) and grounded answers; Muse Voice Transcribe for recordings and dictation; Muse Image for portraits and covers; and Muse Code connects to CanonTracker over MCP.
 
 Most behaviour below was recorded against `https://api.meta.ai/v1` on 2 Nov 2026 and is kept as redacted fixtures in [`server/assets/meta-fixtures/`](../server/assets/meta-fixtures/) (each file has a `_note`, the request we sent and the status and body we got). `node scripts/meta-fake.mjs <port>` replays them and `node scripts/meta-contract-probe.mjs` runs the app against them, so every point here can be reproduced. Where a point comes from the docs rather than a recording, it says so.
 
@@ -11,7 +11,7 @@ Most behaviour below was recorded against `https://api.meta.ai/v1` on 2 Nov 2026
 - **Web search and function tools in one Responses call** (`responses-search-and-function-turn1.json`). One request can search the web and then call our calculators.
 - **Stateless agents.** `store: false` with `include: ["reasoning.encrypted_content"]`, replaying every output item on the next turn, worked across web-search and function-call turns (`responses-stateless-turn2.json`, `agent-stateless-search-turn2.json`).
 - **Voice transcription works without chat billing.** Muse Voice Transcribe answered while Chat Completions still returned 402, which let us build and test the voice features early. Entity names passed as `keywords` helped with invented names.
-- **Muse Code speaks MCP** (`streamable_http` with headers). Story Bible's MCP server connected with a few lines of settings and no adapter.
+- **Muse Code speaks MCP** (`streamable_http` with headers). CanonTracker's MCP server connected with a few lines of settings and no adapter.
 
 ## Things we ran into
 

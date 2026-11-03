@@ -43,7 +43,7 @@ export async function panelCall(method: string, path: string, opts: { query?: Re
   let data: any = text
   if ((res.headers.get('content-type') ?? '').includes('json')) try { data = JSON.parse(text) } catch {}
   if (!res.ok) {
-    if (res.status >= 500) throw new McpToolError('INTERNAL', res.status === 502 && data?.message ? data.message : 'Story Bible failed on this call. Try again; if it keeps failing, tell the studio.')
+    if (res.status >= 500) throw new McpToolError('INTERNAL', res.status === 502 && data?.message ? data.message : 'CanonTracker failed on this call. Try again; if it keeps failing, tell the studio.')
     throw new McpToolError(MCP_H3_CODES[res.status] ?? 'BAD_INPUT', data?.message ?? `Refused (${res.status}).`, { reason: data?.statusMessage, ...(data?.data && { details: data.data }) })
   }
   return data

@@ -11,7 +11,7 @@ const FILE_TOOLS = new Set(['sb_document', 'sb_draft', 'sb_entity', 'sb_images']
 export default defineEventHandler(async (event) => {
   const auth = accessForToken(event) // headers only: an unauthenticated body is never read
   if (!auth) {
-    setResponseHeader(event, 'www-authenticate', 'Bearer realm="Story Bible"')
+    setResponseHeader(event, 'www-authenticate', 'Bearer realm="CanonTracker"')
     throw createError({ statusCode: 401, statusMessage: 'UNAUTHENTICATED', message: 'Missing, invalid or revoked API token. Create one under Settings > Agents & API.' })
   }
   await readLimitedBody(event, MAX_FILE_BODY, `MCP requests are limited to ${MAX_FILE_BODY / 1_000_000} MB.`)

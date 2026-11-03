@@ -1,4 +1,4 @@
-# Story Bible
+# CanonTracker
 
 **Tagline:** Human-approved story canon, with evidence and change impact.
 
@@ -10,13 +10,13 @@ Story worlds grow across chapters, scripts, lore documents and recordings. A wri
 
 ## What it does
 
-Story Bible imports Markdown, text, Word documents and audio into versioned sources. AI proposes facts with source quotes. A person reviews them before they become canon. Deterministic checks flag narrow contradictions in time, location, travel, relationships and single-valued details; AI separately suggests world-rule violations. Change proposals show paths through accepted canon, bounded to two hops, before a person applies or rejects them.
+CanonTracker imports Markdown, text, Word documents and audio into versioned sources. AI proposes facts with source quotes. A person reviews them before they become canon. Deterministic checks flag narrow contradictions in time, location, travel, relationships and single-valued details; AI separately suggests world-rule violations. Change proposals show paths through accepted canon, bounded to two hops, before a person applies or rejects them.
 
 The app includes studio roles, projects, an entity wiki, canon timelines and graphs, team conversations, research notes, draft continuity checks, citation re-checking after source changes, and Markdown, print/PDF and EPUB export. Editorial notes, images and wiki summaries stay separate from canon. Four samples support local evaluation, including public-domain Sherlock Holmes texts and an original game story, The Ashbell Pass.
 
 ## How it uses Meta
 
-- **Muse Spark 1.3:** extraction, critic opinions, grounded canon answers and world-rule checks. Research uses a bounded Responses agent with web search and deterministic calculators. Continuity uses the same runtime with Story Bible's own MCP read/check tools, then grounds the report on the server.
+- **Muse Spark 1.3:** extraction, critic opinions, grounded canon answers and world-rule checks. Research uses a bounded Responses agent with web search and deterministic calculators. Continuity uses the same runtime with CanonTracker's own MCP read/check tools, then grounds the report on the server.
 - **Muse Voice Transcribe 1.0:** timestamped transcript documents from recordings and dictation in the writer and Ask. Entity names are sent as recognition hints. Script comparison identifies changed or added lines and checks their proposed facts against canon with deterministic rules.
 - **Muse Image 1.0:** editorial entity portraits and document covers. Generated images never serve as canon evidence.
 - **Muse Code through MCP:** a direct Streamable HTTP connection exposes 38 tools with the same role checks and audit as the app. Propose tokens can read, run checks and propose; a person's full token may make decisions as that person, marked “via agent”. Muse Spark API clients use a generated function-call bridge.
@@ -45,7 +45,7 @@ Branching canon conditioned on player choices, project-specific membership withi
 
 - Demo video: `VIDEO_URL`
 - Public live app: `LIVE_URL` (current staging is LAN/VPN-only)
-- Source: https://github.com/ugorur/storybible (mirror to be made public by the owner at submission)
+- Source: https://github.com/ugorur/canontracker (mirror to be made public by the owner at submission)
 - Pitch deck: [pitch-deck.pdf](pitch-deck.pdf), also `/pitch` on a running app
 - Local quick start and checks: [README.md](../README.md)
 - License: [AGPL-3.0-or-later](../LICENSE)

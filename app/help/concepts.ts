@@ -9,7 +9,7 @@ export default [
     sections: [
       {
         title: 'The human gate',
-        text: 'Story Bible keeps two kinds of fact apart. A candidate is a proposal, drawn in pencil. Canon is what your team accepted, drawn in ink. Nothing becomes canon without a person deciding it, and that person\'s name stays on the decision.',
+        text: 'CanonTracker keeps two kinds of fact apart. A candidate is a proposal, drawn in pencil. Canon is what your team accepted, drawn in ink. Nothing becomes canon without a person deciding it, and that person\'s name stays on the decision.',
         points: [
           'The AI reads your sources and proposes candidates. It never accepts anything.',
           'Conflict checks, impact analysis, Ask in Canon mode and continuity checks read accepted canon only, so a candidate can\'t cause or hide a problem until someone accepts it.',
@@ -55,10 +55,10 @@ export default [
     sections: [
       {
         title: 'One rule: the words must be in the source',
-        text: 'Each fact cites at least one passage of a document with a quote. Story Bible checks that the quote appears in that passage word for word before the fact can become canon. A verified citation shows **Verbatim match**; one that fails shows **Quote not found in source**.',
+        text: 'Each fact cites at least one passage of a document with a quote. CanonTracker checks that the quote appears in that passage word for word before the fact can become canon. A verified citation shows **Verbatim match**; one that fails shows **Quote not found in source**.',
         points: [
           'The check is the same everywhere: AI extraction, **Add fact**, agents over MCP, research and continuity.',
-          'A fact without verified evidence can\'t become canon, and Ask answers "unknown" when no canon fact covers a question. Story Bible never invents a source or a quote.',
+          'A fact without verified evidence can\'t become canon, and Ask answers "unknown" when no canon fact covers a question. CanonTracker never invents a source or a quote.',
           'Imported documents are never changed. A citation points at one version of a document; see [Versions and re-check](/help/versions-and-recheck).',
         ],
       },
@@ -93,7 +93,7 @@ export default [
     slug: 'conflict-rules',
     group: 'concepts',
     title: 'Conflict rules',
-    summary: 'The narrow checks Story Bible runs over accepted canon, what each one catches, and how hard and soft conflicts are judged.',
+    summary: 'The narrow checks CanonTracker runs over accepted canon, what each one catches, and how hard and soft conflicts are judged.',
     sections: [
       {
         title: 'How conflicts work',
@@ -161,7 +161,7 @@ export default [
     sections: [
       {
         title: 'Three different things',
-        text: 'Story Bible keeps these apart, in the data and on screen.',
+        text: 'CanonTracker keeps these apart, in the data and on screen.',
         points: [
           '**Change proposal**: someone wants a canon fact to say something else. Made on [Changes](/help/changes).',
           'Conflict candidate: two canon facts may clash. Found on [Conflicts](/help/conflicts).',
@@ -218,7 +218,7 @@ export default [
       },
       {
         title: 'What a re-check says',
-        text: 'When a canon fact cites an older version, Story Bible looks for its quote in the newest one.',
+        text: 'When a canon fact cites an older version, CanonTracker looks for its quote in the newest one.',
         points: [
           'Unchanged: the quote is still in the newest version, exactly once. The fact shows **Source updated** and the citation "Same quote in v…". Confirm moves the citation to the newest version.',
           'Outdated: the quote is gone, or it now appears more than once so no single passage holds it. The fact shows **Evidence outdated**, and the citation says which.',
@@ -262,7 +262,7 @@ export default [
       },
       {
         title: 'Before you merge',
-        text: 'Story Bible warns when the two pages are of different types, or when both have their own canon. Those are often two different things that share a name. The merge is still allowed, but read the warning first.',
+        text: 'CanonTracker warns when the two pages are of different types, or when both have their own canon. Those are often two different things that share a name. The merge is still allowed, but read the warning first.',
       },
     ],
     related: ['entity-page', 'entities', 'conflicts', 'changes', 'conflict-rules', 'change-impact', 'glossary'],
@@ -272,7 +272,7 @@ export default [
     slug: 'glossary',
     group: 'concepts',
     title: 'Glossary',
-    summary: 'The words Story Bible uses, each in a sentence or two.',
+    summary: 'The words CanonTracker uses, each in a sentence or two.',
     sections: [
       {
         title: 'A to F',

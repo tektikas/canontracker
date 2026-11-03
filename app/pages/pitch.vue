@@ -6,7 +6,7 @@
 import { h, type FunctionalComponent } from 'vue'
 
 definePageMeta({ layout: 'marketing' })
-useMarketingSeo({ title: 'Pitch deck', description: 'Story Bible in twelve slides: every story world breaks, the product that catches it, who builds story worlds today, the model, go-to-market, competition and the team. Sources in the appendix.', path: '/pitch' })
+useMarketingSeo({ title: 'Pitch deck', description: 'CanonTracker in twelve slides: every story world breaks, the product that catches it, who builds story worlds today, the model, go-to-market, competition and the team. Sources in the appendix.', path: '/pitch' })
 useSeoMeta({ robots: 'noindex' })
 
 interface Source { id: string, title: string, url?: string }
@@ -16,7 +16,7 @@ const SOURCES: Source[] = [
   { id: 'salon', title: 'Salon, “Potter fix”, 12 Jan 2001: Bloomsbury, “corrected in subsequent editions”', url: 'https://salon.com/2001/01/12/potterfix' },
   { id: 'scarlet', title: 'Arthur Conan Doyle, A Study in Scarlet (1887), Part I ch. 1: “struck on the shoulder by a Jezail bullet”', url: 'https://www.gutenberg.org/ebooks/244' },
   { id: 'sign', title: 'Arthur Conan Doyle, The Sign of the Four (1890), ch. 1: “I had a Jezail bullet through it” (his leg)', url: 'https://www.gutenberg.org/ebooks/2097' },
-  { id: 'repo', title: 'Story Bible source, README, ROADMAP and scripts, 3 Nov 2026; Sherlock result from scripts/sherlock-probe.mjs', url: GITHUB },
+  { id: 'repo', title: 'CanonTracker source, README, ROADMAP and scripts, 3 Nov 2026; Sherlock result from scripts/sherlock-probe.mjs', url: GITHUB },
   { id: 'gdc25', title: 'GDC, 2025 State of the Game Industry: “Roles in the Narrative field saw the most impact, with 19% of respondents”', url: 'https://gdconf.com/article/gdc-2025-state-of-the-game-industry-devs-weigh-in-on-layoffs-ai-and-more/' },
   { id: 'steam', title: 'Game World Observer, 30 Dec 2024, State of Steam 2024: “According to SteamDB, 18,945 games were released on Steam in 2024” (count as of that date)', url: 'https://www.gameworldobserver.com/2024/12/30/state-of-steam-2024-19k-new-games-records-ccu-chart-leaders' },
   { id: 'ggj', title: 'Wikipedia, Global Game Jam: 2025, 35,371 registered participants at 795 sites in 97 countries (secondary)', url: 'https://en.wikipedia.org/wiki/Global_Game_Jam' },
@@ -41,7 +41,7 @@ const SOURCES: Source[] = [
   { id: 'sudowrite', title: 'Sudowrite pricing: $10, $22, $44 a month', url: 'https://www.sudowrite.com/pricing' },
   { id: 'notion', title: 'Notion pricing: Free, Plus $10, Business $20 per member a month', url: 'https://www.notion.com/pricing' },
   { id: 'kanka', title: 'Kanka blog, 27 Oct 2023: 225,000 accounts created, 27,000 active accounts', url: 'https://blog.kanka.io/2023/10/27/anniversary-six-years-of-kanka-a-celebration' },
-  { id: 'metanotes', title: 'Story Bible, docs/meta-api-notes.md: 15 notes for the Meta API team, each tied to a recorded response', url: `${GITHUB}/blob/master/docs/meta-api-notes.md` },
+  { id: 'metanotes', title: 'CanonTracker, docs/meta-api-notes.md: 15 notes for the Meta API team, each tied to a recorded response', url: `${GITHUB}/blob/master/docs/meta-api-notes.md` },
   { id: 'ugorur', title: 'Umurcan Görür, ugorur.com', url: 'https://ugorur.com' },
   { id: 'tektik', title: 'TekTık Yazılım AŞ, tektik.ai', url: 'https://tektik.ai' },
 ]
@@ -110,7 +110,7 @@ const count = (v: number) => v.toLocaleString('en-US')
 // ---------- Competition (slide 9): placed only by what each vendor's own page says ----------
 // x: checks consistency automatically (0 no claim … 1 deterministic rules); y: cites every canon fact verbatim (0 no claim … 1 every fact).
 const MAP = [
-  { name: 'Story Bible', x: 0.74, y: 0.84, us: true },
+  { name: 'CanonTracker', x: 0.74, y: 0.84, us: true },
   { name: 'Book Check Genie', x: 0.62, y: 0.38, note: 'AI flags slips and quotes each finding', src: 'bcg' },
   { name: 'Arcweave', x: 0.12, y: 0.24, src: 'arcweave' },
   { name: 'LegendKeeper', x: 0.24, y: 0.17, src: 'legendkeeper' },
@@ -120,7 +120,7 @@ const MAP = [
   { name: 'Kanka', x: 0.36, y: 0.04, src: 'kanka' },
 ]
 const COMPARE = [
-  { name: 'Story Bible', cite: 'Every fact, verbatim, checked', rules: 'Yes: time and place, travel, relationships, same detail', gate: 'Yes, always', api: 'MCP (38 tools) + API', price: 'Free self-host; cloud: ask' },
+  { name: 'CanonTracker', cite: 'Every fact, verbatim, checked', rules: 'Yes: time and place, travel, relationships, same detail', gate: 'Yes, always', api: 'MCP (38 tools) + API', price: 'Free self-host; cloud: ask' },
   { name: 'Arcweave', cite: '—', rules: '—', gate: '—', api: 'REST API + MCP (Team tier)', price: 'Free; $15–$30 per member/mo', src: 'arcweave' },
   { name: 'Book Check Genie', cite: 'Each finding quoted, with chapter references', rules: 'AI “flags possible slips”', gate: 'Yes: “the final call is always yours”', api: '—', price: '£19/check; £22–£49/mo', src: 'bcg' },
   { name: 'Sudowrite', cite: '—', rules: '—', gate: '—', api: '—', price: '$10–$44/mo', src: 'sudowrite' },
@@ -193,7 +193,7 @@ const print = () => window.print()
     <section class="slide l breaks" aria-labelledby="t2">
       <div class="in">
         <h1 id="t2">Every story world breaks.</h1>
-        <p class="lead">Story Bible caught Watson’s wound on its own. It read 31 Sherlock Holmes documents and quoted both books.<R id="repo" /></p>
+        <p class="lead">CanonTracker caught Watson’s wound on its own. It read 31 Sherlock Holmes documents and quoted both books.<R id="repo" /></p>
       </div>
       <Foot :ids="['repo']" n="2" />
     </section>
@@ -229,7 +229,7 @@ const print = () => window.print()
     <section class="slide d product" aria-labelledby="t5">
       <div class="in">
         <h2 id="t5">Shoulder or leg? Both sentences, side by side.</h2>
-        <img class="screen" src="/shots/watson-card-light-1920.webp" srcset="/shots/watson-card-light-960.webp 960w, /shots/watson-card-light-1920.webp 1920w" sizes="(max-width: 900px) 100vw, 1100px" alt="Story Bible’s conflict card: “Watson’s wound was in his shoulder” against “Watson has a Jezail bullet wound in his leg”, each with its verbatim quote and chapter." width="1920" height="873">
+        <img class="screen" src="/shots/watson-card-light-1920.webp" srcset="/shots/watson-card-light-960.webp 960w, /shots/watson-card-light-1920.webp 1920w" sizes="(max-width: 900px) 100vw, 1100px" alt="CanonTracker’s conflict card: “Watson’s wound was in his shoulder” against “Watson has a Jezail bullet wound in his leg”, each with its verbatim quote and chapter." width="1920" height="873">
         <p class="caption">A conflict in the Sherlock Holmes sample, found by a rule over accepted canon. A person decides what is true.<R id="repo" /></p>
       </div>
       <Foot :ids="['repo']" n="5" />
@@ -313,7 +313,7 @@ const print = () => window.print()
     <section class="slide l compete" aria-labelledby="t9">
       <div class="in">
         <h2 id="t9">Alone in the top right.</h2>
-        <div class="map" role="img" aria-label="Positioning map. Across: checks consistency automatically. Up: cites every canon fact verbatim. Story Bible is alone in the top right: every canon fact cited verbatim, checked by deterministic rules. Book Check Genie checks with AI and quotes each finding, but does not keep every fact cited; Arcweave, LegendKeeper, Novelcrafter, Sudowrite, Notion and Kanka make neither claim on their own pages.">
+        <div class="map" role="img" aria-label="Positioning map. Across: checks consistency automatically. Up: cites every canon fact verbatim. CanonTracker is alone in the top right: every canon fact cited verbatim, checked by deterministic rules. Book Check Genie checks with AI and quotes each finding, but does not keep every fact cited; Arcweave, LegendKeeper, Novelcrafter, Sudowrite, Notion and Kanka make neither claim on their own pages.">
           <span class="axis y">Cites every canon fact verbatim</span>
           <span class="axis x">Checks consistency automatically</span>
           <div class="plot">
@@ -322,7 +322,7 @@ const print = () => window.print()
             </span>
           </div>
         </div>
-        <p class="caption">Placed only by what each vendor’s own page says (3 Nov 2026); places inside a quarter are only for legibility. Book Check Genie quotes each finding; Story Bible cites every canon fact and checks it by deterministic rules. Table in A3.</p>
+        <p class="caption">Placed only by what each vendor’s own page says (3 Nov 2026); places inside a quarter are only for legibility. Book Check Genie quotes each finding; CanonTracker cites every canon fact and checks it by deterministic rules. Table in A3.</p>
       </div>
       <Foot :ids="MAP.filter(c => c.src).map(c => c.src!)" n="10" />
     </section>
@@ -334,7 +334,7 @@ const print = () => window.print()
         <div class="people">
           <div class="person">
             <b class="name">Umurcan Görür<R id="ugorur" /></b>
-            <p>Built Story Bible alone for this hackathon.</p>
+            <p>Built CanonTracker alone for this hackathon.</p>
             <ul>
               <li>Paid to write code at fourteen</li>
               <li>Co-founded three companies; one closed when the money ran out</li>
@@ -345,7 +345,7 @@ const print = () => window.print()
           </div>
           <div class="company">
             <b class="name">TekTık Yazılım AŞ<R id="tektik" /></b>
-            <p>Will develop and host Story Bible.</p>
+            <p>Will develop and host CanonTracker.</p>
             <ul>
               <li>TekTık Asistan: an office assistant in WhatsApp and Telegram, in beta in Türkiye, with a UK pilot</li>
               <li>AI API reselling and custom AI software</li>
@@ -495,8 +495,8 @@ const print = () => window.print()
 
 /* Each slide is pinned to the light or the dark set of main.css (the same values), whatever the site theme, so the deck
    keeps its dark/light rhythm on screen and in print. Type scales with the slide's width (cqw). */
-.slide.l { --accent: var(--acc); --bg: #f4f0e8; --fg: #2a241d; --mut: #524b42; --faint: #675d50; --acc: #733816; --acc-soft: #f0e2d2; --line: #ddd4c6; --line-strong: #c0b4a2; --bad: #b0321e; --paper: #fdfbf7; --pencil: #555b63; }
-.slide.d { --accent: var(--acc); --bg: #1b1815; --fg: #ebe3d6; --mut: #bab1a4; --faint: #9d9283; --acc: #dba077; --acc-soft: #3a2a1d; --line: #352f29; --line-strong: #4c443b; --bad: #f17e70; --paper: #231f1b; --pencil: #a4a9b1; }
+.slide.l { --accent: var(--acc); --bg: #f2f3f5; --fg: #16171a; --mut: #4a4d55; --faint: #5d6068; --acc: #c2410c; --acc-soft: #fde9df; --line: #d9dbe0; --line-strong: #b9bcc4; --bad: #b0173f; --paper: #ffffff; --pencil: #5a5f6b; }
+.slide.d { --accent: var(--acc); --bg: #111214; --fg: #ebecef; --mut: #b4b7bf; --faint: #9a9ea8; --acc: #ff7a45; --acc-soft: #33221a; --line: #2c2f35; --line-strong: #3e424a; --bad: #f2557a; --paper: #1c1e22; --pencil: #a6abb5; }
 .slide { container-type: inline-size; aspect-ratio: 16 / 9; background: var(--bg); color: var(--fg); border-radius: var(--r-lg); overflow: hidden; scroll-margin-top: 72px; display: flex; flex-direction: column; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 .slide.l { border: 1px solid var(--line); }
 .slide.d { border: 1px solid var(--line-strong); }
@@ -613,7 +613,7 @@ const print = () => window.print()
 
 /* 11 */
 .close .in { align-items: flex-start; }
-.close .mark { width: 5cqw; height: auto; color: var(--acc); }
+.close .mark { --ink: var(--fg); width: 5cqw; height: auto; color: var(--acc); }
 .close h2 { font-size: 6.4cqw; max-width: 14ch; }
 .contact { display: flex; gap: 3cqw; font-size: 1.7cqw; }
 

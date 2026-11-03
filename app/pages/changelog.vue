@@ -1,17 +1,18 @@
 <script setup lang="ts">
 definePageMeta({ layout: 'marketing' })
-useMarketingSeo({ title: 'Changelog', description: 'What shipped in Story Bible, day by day, from day one of the hackathon.', path: '/changelog' })
+useMarketingSeo({ title: 'Changelog', description: 'What shipped in CanonTracker, day by day, from day one of the hackathon.', path: '/changelog' })
 
 // From day one (27 Oct). From 30 Oct: the merge commits on master (git log --merges); before that, the project notes (no repo yet).
 // One line per shipped change, newest first. 1 Nov had no commits.
 const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
   { date: '2026-11-03', label: 'Day 8 · 3 Nov 2026', entries: [
+    ['Renamed to CanonTracker', 'A graphite and signal-orange palette and a canon-track mark. The product was then called Story Bible in earlier releases.'],
     ['Same detail, two answers', 'A new conflict rule: one character, two different answers for a detail that can only have one (Watson’s wound: shoulder or leg). Deterministic, with both quotes.'],
     ['Sherlock Holmes sample', 'Seven public-domain works, 31 documents and 127,000 words, with the famous continuity slips as a gold set.'],
-    ['Muse Code', 'Connects to Story Bible over MCP from its settings file; the first example in Settings and on this site.'],
+    ['Muse Code', 'Connects to CanonTracker over MCP from its settings file; the first example in Settings and on this site.'],
     ['This website', 'Feature, use-case, agents, security, pricing and changelog pages; art and icons in the writer palette; a light and dark switch.'],
     ['MCP parity', 'Agents can do almost everything people do in a project through MCP (team changes, sample loads, audio uploads and downloads stay in the app): 38 tools. Tokens are propose-only or full access (acts as you), and decisions made by an agent show “via agent”.'],
-    ['Open source', 'Story Bible is licensed under AGPL-3.0.'],
+    ['Open source', 'CanonTracker is licensed under AGPL-3.0.'],
     ['Plain AI labels', 'The product says “AI” everywhere; which model ran is on Agent activity and Metrics.'],
   ] },
   { date: '2026-11-02', label: 'Day 7 · 2 Nov 2026', entries: [
@@ -23,7 +24,7 @@ const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
     ['Team conversations in Ask', 'Shared conversations with a canon or research switch, follow-up questions and a chat drawer on every page.'],
     ['A writer’s palette', 'Linen, paper and walnut ink in light; warm wood in dark.'],
     ['The Ashbell Pass', 'A third sample: a 28-document game story with planted contradictions.'],
-    ['For any story world', 'Story Bible now speaks to novelists, game, screen and series writers, and worldbuilders.'],
+    ['For any story world', 'CanonTracker now speaks to novelists, game, screen and series writers, and worldbuilders.'],
     ['MCP and API', 'MCP grows to 16 grounded read and propose tools with paging and limits; every API route answers bad input with 400.'],
     ['Canon page', 'A paged, filterable list and a readable relationship graph.'],
     ['Version re-check', 'A new version flags only the canon facts whose quote is gone or repeated.'],
@@ -70,7 +71,7 @@ const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
 
 <template>
   <div>
-    <MarketingHero title="Changelog" lead="What shipped, day by day, from day one. Story Bible was built during the Meta AI Developer Hackathon, 27 Oct–4 Nov 2026; the git history starts on day 4." />
+    <MarketingHero title="Changelog" lead="What shipped, day by day, from day one. CanonTracker was built during the Meta AI Developer Hackathon, 27 Oct–4 Nov 2026; the git history starts on day 4." />
     <div class="log">
       <section v-for="d in DAYS" :key="d.date" class="day" :aria-labelledby="`d-${d.date}`">
         <h2 :id="`d-${d.date}`"><time :datetime="d.date">{{ d.label }}</time></h2>

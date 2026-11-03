@@ -2,7 +2,7 @@
 // Ask: the project's conversations. Left, every conversation on the project (anyone on the team can read and post in any);
 // right, the open one (?c=<id>; none = a new conversation, started by its first message). The list refreshes every 5 s
 // while the tab is visible, so a teammate's new conversation or message shows up without a reload.
-useHead({ title: 'Ask · Story Bible' })
+useHead({ title: 'Ask · CanonTracker' })
 const route = useRoute()
 const router = useRouter()
 const me = useMe()

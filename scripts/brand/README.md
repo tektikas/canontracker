@@ -1,21 +1,22 @@
-# Story Bible brand assets
+# CanonTracker brand assets
 
-Logo, icons, illustrations, product screenshots and social cards for the app and the public site, in the writer palette (`app/assets/main.css`: linen `#f4f0e8`, paper `#fdfbf7`, walnut ink `#733816`, tan ink `#dba077` in dark). The logo mark is hand-authored SVG; the wordmark is outlined Instrument Sans semibold, used under the included OFL license. No generation model drew the logo or any lettering.
+Logo, icons, illustrations, product screenshots and social cards in graphite and signal orange (`app/assets/main.css`: canvas `#f2f3f5`, panels `#ffffff`, ink `#16171a`, text-safe orange `#c2410c`; dark canvas `#111214`, ink `#ebecef`, orange `#ff7a45`). The mark is hand-authored SVG: a canon track with two hollow points and one accepted signal-orange `#e8501a` point. No generation model drew the logo or lettering.
 
 ## Logo and icons
 
-- `public/brand/mark.svg`, `story-bible.svg` and `public/favicon.svg`: walnut `#733816`, tan `#dba077` under `prefers-color-scheme: dark`. `story-bible-mono.svg` uses `currentColor`.
-- `node scripts/brand/render-icons.mjs` (system ImageMagick) derives `icon-512.png`, `icon-192.png`, `apple-touch-icon.png` and the 32/16px `favicon.ico` from `mark.svg`: walnut mark on a linen `#f4f0e8` square with safe padding. `site.webmanifest` uses the same two colours.
+- `public/brand/mark.svg`, `story-bible.svg` and `public/favicon.svg`: graphite ink, pale ink under `prefers-color-scheme: dark`, and the signal-orange middle point. `story-bible-mono.svg` uses `currentColor`. Legacy filenames stay stable. The wordmark is live Instrument Sans semibold text (OFL license included), with Helvetica/Arial fallbacks; the font must be present when using standalone SVGs. The app loads Instrument Sans itself.
+- `node scripts/brand/render-icons.mjs` (system ImageMagick) derives `icon-512.png`, `icon-192.png`, `apple-touch-icon.png` and the 32/16px `favicon.ico` from `mark.svg`: graphite/orange on a cool-grey `#f2f3f5` square with safe padding. `site.webmanifest` uses the light canvas and text-safe accent.
 
 ## Illustrations (`public/art/*.webp`)
 
-Pencil-and-ink spots and one hero, generated with **OmniRoute images** (`POST https://gateway.example/v1/images/generations`, model `codex/gpt-image-2`). The exact prompt and size of every image is in [prompts.json](./prompts.json), keyed by its file name. All subjects are original objects; no people, characters, brands or lettering.
+Pencil-and-ink spots and one hero, generated with **OmniRoute images** (`POST https://gateway.example/v1/images/generations`, model `codex/gpt-image-2`). The original prompt and size of every image is archived in [prompts.json](./prompts.json), keyed by file name; these historical prompts preserve the product's old name and warm colours before the graphite conversion. All subjects are original objects; no people, characters, brands or lettering.
 
-Transparent backgrounds work (`background: "transparent"`), but the model draws a soft white glow into the alpha, which shows as a halo on the dark theme. So every image is drawn on the flat linen paper colour, and `LandingArt.vue` shows it on a linen plate of the same colour in both themes (slightly dimmed in dark).
+The original sources used a warm ground. BiRefNet removed it before optimisation; `LandingArt.vue` displays the transparent cutouts directly in both themes. The rebrand converts their RGB to neutral graphite and keeps alpha and dimensions.
 
 1. Generate: `OMNIROUTE_KEY="$(pass show <secret-entry> | head -1)" node scripts/brand/generate-art.mjs <source dir> [name…]`. Sources are PNG, 1254×1254; keep them outside `public/`. The gateway gives up after 30 s without a response and the script retries each image three times; long, busy prompts time out more often (the hero prompt was shortened for that reason).
 2. Cut out: send each source to BiRefNet (`POST https://models.example/v1/images/edits`, multipart `model=birefnet`, `image=@<file>`, `response_format=b64_json`; homelab, no key) and save the transparent PNGs in their own folder. The drawings then sit on the page in both themes with no paper plate.
-3. Optimise: `node scripts/brand/optimise-art.mjs <cut-out dir>`. Keeps the alpha (a source without alpha falls back to flood-filling its linen ground), resizes (hero 960px, spots 400px: twice their largest display size) and writes WebP quality 82 with alpha quality 90. No PNG fallbacks: every supported browser reads WebP.
+3. Optimise: `node scripts/brand/optimise-art.mjs <cut-out dir>`. Keeps alpha (a source without alpha falls back to flood-filling its original ground), converts RGB to grayscale, resizes (hero 960px, pitch 800px, spots 400px) and writes WebP quality 82 with alpha quality 90.
+4. Rebrand existing shipped artwork: `node scripts/brand/optimise-art.mjs --graphite`. Uses ImageMagick `-colorspace Gray -colorspace sRGB` and lossless WebP encoding in place; preserves dimensions and the alpha channel. This was applied to all 19 shipped cutouts on 3 Nov 2026. No image-generation service is needed.
 
 ## Product screenshots (`public/shots/*.webp`)
 
@@ -33,12 +34,12 @@ Shots: `review`, `tide-review`, `canon`, `graph`, `timeline`, `conflicts`, `impa
 
 | Group | Files | Bytes |
 | --- | ---: | ---: |
-| Illustrations `public/art/*.webp` | 19 | 518,806 |
-| Screenshots `public/shots/*.webp` (including help and pitch crops) | 118 | 3,671,290 |
-| Social cards `public/og-*.png` | 4 | 682,532 |
-| Icons, favicons, manifest, logo SVGs | 9 | 70,984 |
+| Illustrations `public/art/*.webp` | 19 | 1,097,548 |
+| Screenshots `public/shots/*.webp` (including help and pitch crops; refreshed separately) | 118 | 3,685,600 |
+| Social cards `public/og-*.png` | 4 | 469,643 |
+| Icons, favicons, manifest, logo SVGs | 9 | 42,780 |
 
-A page downloads only what it shows: the home page loads the hero screenshot (22–49 KB) eagerly and everything else lazily, one theme and one width per screenshot.
+A page downloads only what it shows. The home hero is a live card with both verified Watson quotes, so it needs no hero image. Illustrations and screenshots below the fold load lazily, one theme and width per screenshot. The grayscale art uses lossless WebP to preserve the existing alpha exactly; the one-off conversion increased its total size from about 619 KB to 1.1 MB.
 
 ## Pitch deck (`docs/pitch-deck.pdf`)
 

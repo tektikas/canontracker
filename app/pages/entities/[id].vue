@@ -7,7 +7,7 @@ const me = useMe()
 const { data: e, error: loadError, refresh } = await useFetch(() => `/api/entities/${route.params.id}`)
 // The image history (uploads and generated together) for the Images tab and its count.
 const { data: gallery, refresh: refreshImages } = await useFetch('/api/images', { query: computed(() => ({ target_type: 'entity', target_id: String(route.params.id) })) })
-useHead(() => ({ title: `${e.value?.name ?? 'Entity'} · Story Bible` }))
+useHead(() => ({ title: `${e.value?.name ?? 'Entity'} · CanonTracker` }))
 useChatContext(() => (e.value ? [{ type: 'entity' as const, id: e.value.id, label: e.value.name }] : []))
 const editable = computed(() => canEdit(me.value))
 const manager = computed(() => canManage(me.value))
@@ -243,7 +243,7 @@ const ago = (iso: string) => {
       <div class="ident">
         <div class="row">
           <UiBadge :class="`kt-${kindLabel(e.kind).color}`" class="type-badge"><UiIcon :name="kindLabel(e.kind).icon as IconName" :size="13" />{{ kindLabel(e.kind).one }}</UiBadge>
-          <UiBadge v-if="e.origin === 'canon'" title="Story Bible made this page because accepted canon names it. The type is a guess; change it if it's wrong.">From canon</UiBadge>
+          <UiBadge v-if="e.origin === 'canon'" title="CanonTracker made this page because accepted canon names it. The type is a guess; change it if it's wrong.">From canon</UiBadge>
         </div>
         <h1>{{ e.name }}</h1>
         <p v-if="handAliases.length" class="aliases">Also known as {{ handAliases.join(', ') }}</p>
