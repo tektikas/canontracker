@@ -221,18 +221,23 @@ const factKey = (f: { kind: string, subject: string, predicate: string, object?:
 // already has, in any status, is skipped. Names are compared under their kept analysis identity (entity_merges), because a
 // merge rewrites the names of the facts it moves but keeps their statements: a re-imported "Lighthouse" candidate equals the
 // canon (or rejected) fact now naming "Causeway". Stored facts keep their original statements and quotes.
+// A recording's transcript that restates a pending candidate cites that candidate too (a verified quote in the
+// transcript, like movePendingEvidence adds one for a new version), so the take's script comparison still sees what the line
+// says and can flag it against canon; no second candidate is made. Canon and decided candidates are never touched.
 export async function extractInto(doc: { id: string, filename: string, title: string, content: string }, passages: { id: string, text: string }[], storeAfter?: Promise<unknown>) {
   const db = useDb()
   const projectId = pid()
   const drafts = await extractCandidates({ id: doc.id, filename: doc.filename, title: doc.title, text: doc.content })
   await storeAfter?.catch(() => {})
   const model = modelInfo()
-  const existing = db.prepare('select statement, kind, subject, predicate, object, value, t_from, t_to, precision, status from facts where project_id = ?').all(projectId) as { statement: string, kind: string, subject: string, predicate: string, object: string | null, value: string | null, t_from: number | null, t_to: number | null, precision: string | null, status: string }[]
-  const seen = new Map<string, string>()
+  const existing = db.prepare('select id, statement, kind, subject, predicate, object, value, t_from, t_to, precision, status from facts where project_id = ?').all(projectId) as { id: string, statement: string, kind: string, subject: string, predicate: string, object: string | null, value: string | null, t_from: number | null, t_to: number | null, precision: string | null, status: string }[]
+  const seen = new Map<string, { id: string, status: string }>()
   const kept = keptNameOf()
   const keyOf = (f: Parameters<typeof factKey>[0]) => factKey({ ...f, subject: kept(f.subject), object: kept(f.object) })
-  const remember = (keys: string[], status: string) => { for (const k of keys) seen.set(k, status) }
-  for (const f of existing) remember([`s:${norm(f.statement)}`, `k:${keyOf(f)}`], f.status)
+  const remember = (keys: string[], fact: { id: string, status: string }) => { for (const k of keys) seen.set(k, fact) }
+  for (const f of existing) remember([`s:${norm(f.statement)}`, `k:${keyOf(f)}`], f)
+  const recording = (db.prepare('select origin from documents where id = ?').get(doc.id) as { origin: string } | undefined)?.origin === 'recording'
+  const citesHere = db.prepare('select 1 from evidence where fact_id = ? and document_id = ?')
   const created: string[] = []
   let unverified = 0
   const skipped: Record<string, number> = {}
@@ -242,14 +247,20 @@ export async function extractInto(doc: { id: string, filename: string, title: st
       const keys = [`s:${norm(c.statement)}`, `k:${keyOf({ ...c, t_from: tFrom, t_to: tTo, precision: c.time ? (c.time.precision ?? 'exact') : null })}`]
       const already = keys.map(k => seen.get(k)).find(Boolean)
       if (already) {
-        skipped[already] = (skipped[already] ?? 0) + 1
+        skipped[already.status] = (skipped[already.status] ?? 0) + 1
+        const match = recording && already.status === 'pending' ? findQuotePassage(passages, c.quote) : null
+        if (match && !citesHere.get(already.id, doc.id)) {
+          db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, 1, ?)')
+            .run(newId('ev'), already.id, doc.id, match.passage.id, match.quote, projectId)
+          audit('candidate.evidence_added', 'fact', already.id, { document_id: doc.id, title: doc.title, passage_id: match.passage.id, quote: match.quote, from: 'recording', model_id: model.id })
+        }
         continue
       }
-      remember(keys, 'pending')
+      const factId = newId('fact')
+      remember(keys, { id: factId, status: 'pending' })
       const match = findQuotePassage(passages, c.quote)
       const passage = match?.passage
       const precision = c.time ? (c.time.precision ?? 'exact') : null
-      const factId = newId('fact')
       db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision,
         status, confidence, origin, model_id, created_at, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)`)
         .run(factId, c.kind, c.subject, c.predicate, c.object ?? null, c.value == null ? null : String(c.value), c.statement, tFrom, tTo,

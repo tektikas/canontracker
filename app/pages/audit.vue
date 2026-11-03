@@ -49,6 +49,8 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'candidate.corrected_and_accepted': return [`${who} corrected and accepted a candidate: ${q(d.after?.statement)}`, [because(d), identity(d)].filter(Boolean).join(' · ')]
     case 'candidate.evidence_moved': return [`A pending candidate now cites ${d.filename}${inFolder(d)} v${d.to?.version}${d.to?.line ? `, line ${d.to.line}` : ''}`,
       `Its quote appears exactly once in the new version (was v${d.from?.version}${d.from?.line ? `, line ${d.from.line}` : ''}): ${q(d.quote)} · still waiting for a human decision`]
+    case 'candidate.evidence_added': return [`A pending candidate is also said in the recording ${q(d.title)}`,
+      `The transcript states it again, so it now cites ${q(d.quote)} there too; no second candidate was made · still waiting for a human decision`]
     case 'candidate.accept_refused': return [`${who} tried to accept a candidate; it was refused`, 'Quote not found verbatim in the source']
     case 'fact.authored': return [d.to === 'canon' ? `${who} added a fact to canon: ${q(d.statement)}` : `${who} sent a fact to review: ${q(d.statement)}`,
       [`From the source: ${q(d.quote)}`, d.to === 'canon' ? 'Added by hand, a person’s decision' : 'Waiting for a human decision', identity(d)].filter(Boolean).join(' · ')]

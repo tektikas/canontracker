@@ -260,4 +260,39 @@ const projOver = await clip(val, 300)
 check('5 more would pass 90: the project limit, 429, although Val used only 5 minutes', [projOver.status, /This project can transcribe up to 90 minutes/.test(projOver.data.message)], [429, true])
 check('the other project is not affected', (await a('/api/voice/transcribe', { method: 'POST', form: vf })).status, 200)
 
+// 9. The take says what a candidate the project already has says (made from another document): extraction makes no second
+// candidate. A pending one now cites the transcript too, so its line is still flagged against canon. A rejected one stays as
+// the person decided (not cited, not in the comparison, like any rejected candidate of the take).
+for (const status of ['pending', 'rejected']) {
+  const d = await account(`Dup${status}`)
+  const ds = (await d('/api/studios', { method: 'POST', body: { name: `Dup ${status}` } })).data
+  await d('/api/projects', { method: 'POST', body: { name: 'Ashbell dup', studio_id: ds.id } })
+  await d('/api/demo/load', { method: 'POST', body: { set: 'ashbell-pass' } })
+  const dScript = (await d('/api/documents')).data.find(x => x.name === 'dlg-town-crier.md')
+  const sp = (await d(`/api/documents/${dScript.id}`)).data.passages.find(p => p.text.length > 60)
+  const dS05 = (await d('/api/facts?status=pending')).data.find(f => f.subject === 'Rourke' && f.predicate === 'located_at' && f.object === 'Bell Gate')
+  await d(`/api/facts/${dS05.id}/review`, { method: 'POST', body: { decision: 'accept' } })
+  const said = FIXTURE.candidates[0]
+  const prior = await d('/api/facts', { method: 'POST', body: { document_id: dScript.id, passage_id: sp.id, quote: sp.text.slice(0, 40), statement: said.statement, kind: said.kind, subject: said.subject, predicate: said.predicate, object: said.object, time_from: said.time.from, to: 'review' } })
+  check(`${status}: the same statement is already a candidate`, prior.status, 200)
+  if (status === 'rejected') await d(`/api/facts/${prior.data.id}/review`, { method: 'POST', body: { decision: 'reject', rationale: 'probe' } })
+  const dr = (await d('/api/recordings', { method: 'POST', form: audioForm('harl-crier-take.wav', SAMPLE, { script_document_id: dScript.id }) })).data.results[0]
+  check(`${status}: the take adds only its other candidate`, [dr.status, dr.candidates, dr.skipped], ['imported', FIXTURE.candidates.length - 1, 1])
+  const same = (await d(`/api/facts?status=${status}`)).data.filter(f => f.statement === said.statement)
+  check(`${status}: still one candidate with that statement`, same.map(f => f.id), [prior.data.id])
+  const tev = same[0].evidence.find(e => e.document_id === dr.document_id)
+  const dDoc = (await d(`/api/documents/${dr.document_id}`)).data
+  const dCmp = (await d(`/api/documents/${dr.document_id}/script`)).data
+  const dRow = dCmp.rows.find(x => x.facts.some(f => f.id === prior.data.id))
+  const dFlag = dRow?.facts.find(f => f.id === prior.data.id).flags[0]
+  const added = (await d('/api/audit')).data.filter(e => e.event_type === 'candidate.evidence_added' && e.target_id === prior.data.id)
+  if (status === 'pending') {
+    check('pending: it now cites the transcript, verbatim', [tev?.verified, dDoc.passages.find(p => p.id === tev?.passage_id)?.text.includes(tev?.quote)], [1, true])
+    check('pending: the Rourke line is flagged against canon', [dRow?.script.pieces.map(p => p.text).join('').includes('Captain Rourke'), dFlag?.with, dFlag?.rule, dFlag?.against.id, dCmp.flagged], [true, 'canon', 'EXACT_TIME_LOCATION_OVERLAP', dS05.id, 1])
+    check('pending: audited once, with the transcript', added.map(e => e.detail.document_id), [dr.document_id])
+  } else {
+    check('rejected: the decision stands (not cited, not compared, nothing audited)', [tev, dRow, dCmp.flagged, added.length], [undefined, undefined, 0, 0])
+  }
+}
+
 console.log('voice probe passed')

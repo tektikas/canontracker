@@ -174,7 +174,8 @@ export function scriptComparison(transcriptId: string, scriptKey: string) {
   const transcript = passagesOf(transcriptId)
   const rows = alignScript(scriptLines(passagesOf(scriptDoc.id), scriptDoc.content), transcript)
 
-  // Facts the transcript states (pending candidates and canon citing this version), placed on the line whose words hold the quote.
+  // Facts the transcript states (pending candidates, including one made from another document that the take said again:
+  // extractInto cites it here instead of making a duplicate, and canon citing this version), placed on the line whose words hold the quote.
   const facts = listFacts(`status in ('pending', 'canon') and id in (select fact_id from evidence where document_id = ? and verified = 1)`, transcriptId)
   const text = new Map(transcript.map(p => [p.id, p.text]))
   const rowOf = new Map<string, number>()
