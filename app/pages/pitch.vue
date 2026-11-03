@@ -18,16 +18,16 @@ const SOURCES: Source[] = [
   { id: 'sign', title: 'Arthur Conan Doyle, The Sign of the Four (1890), ch. 1: “I had a Jezail bullet through it” (his leg)', url: 'https://www.gutenberg.org/ebooks/2097' },
   { id: 'repo', title: 'Story Bible source, README, ROADMAP and scripts, 3 Nov 2026; Sherlock result from scripts/sherlock-probe.mjs', url: GITHUB },
   { id: 'gdc25', title: 'GDC, 2025 State of the Game Industry: “Roles in the Narrative field saw the most impact, with 19% of respondents”', url: 'https://gdconf.com/article/gdc-2025-state-of-the-game-industry-devs-weigh-in-on-layoffs-ai-and-more/' },
-  { id: 'steam', title: 'Game World Observer, State of Steam 2024: “According to SteamDB, 18,945 games were released on Steam in 2024”', url: 'https://www.gameworldobserver.com/2024/12/30/state-of-steam-2024-19k-new-games-records-ccu-chart-leaders' },
+  { id: 'steam', title: 'Game World Observer, 30 Dec 2024, State of Steam 2024: “According to SteamDB, 18,945 games were released on Steam in 2024” (count as of that date)', url: 'https://www.gameworldobserver.com/2024/12/30/state-of-steam-2024-19k-new-games-records-ccu-chart-leaders' },
   { id: 'ggj', title: 'Wikipedia, Global Game Jam: 2025, 35,371 registered participants at 795 sites in 97 countries (secondary)', url: 'https://en.wikipedia.org/wiki/Global_Game_Jam' },
   { id: 'cass', title: 'China Daily, 14 Apr 2026, on the Chinese Academy of Social Sciences report: online literature writers rose to 32.69 million in 2025', url: 'https://www.chinadaily.com.cn/a/202604/14/WS69de142fa310d6866eb435ec.html' },
   { id: 'ao3', title: 'Wikipedia, Archive of Our Own: “over 18,470,000 works in over 82,900 fandoms” as of 18 Sep 2026 (secondary)', url: 'https://en.wikipedia.org/wiki/Archive_of_Our_Own' },
   { id: 'roll20', title: 'Roll20 press release, 22 Feb 2022: “reached 10 million users” (registered accounts)', url: 'https://pressreleases.triplepointpr.com/?p=23852' },
   { id: 'legendkeeper', title: 'LegendKeeper home page: “Used by 200k+ creators” (vendor claim); Pro $9 a month, $7.50 billed annually; no generative AI', url: 'https://www.legendkeeper.com/' },
   { id: 'tadc', title: 'YouTube Official Blog, 28 Oct 2024: Amazing Digital Circus videos from GLITCH, “more than 750 million views” (vendor)', url: 'https://blog.youtube/culture-and-trends/indie-animation/' },
-  { id: 'sensortower', title: 'Sensor Tower, State of Short Drama Apps 2025: in-app revenue $178M in Q1 2024 to nearly $700M in Q1 2025', url: 'https://sensortower.com/blog/state-of-short-drama-apps-2025' },
+  { id: 'sensortower', title: 'Sensor Tower, State of Short Drama Apps 2025: global in-app revenue of short-drama apps, $178M in Q1 2024 to nearly $700M in Q1 2025', url: 'https://sensortower.com/blog/state-of-short-drama-apps-2025' },
   { id: 'pw', title: 'Publishers Weekly, 23 Mar 2026 (Bowker, US ISBNs): self-published titles “soared 38.7% to more than 3.5 million” in 2025', url: 'https://www.publishersweekly.com/pw/print/20260323/99943-book-output-topped-4-million-in-2025.html' },
-  { id: 'd2d', title: 'Draft2Digital, “The Big Indie Author Data Drop”, 21 Jun 2023: “75% of book sales (fiction and nonfiction) were part of a series”', url: 'https://draft2digital.com/blog/?p=207144' },
+  { id: 'd2d', title: 'Draft2Digital, “The Big Indie Author Data Drop”, 21 Jun 2023 (Draft2Digital distribution data, labelled 2022): “75% of book sales (fiction and nonfiction) were part of a series”', url: 'https://draft2digital.com/blog/?p=207144' },
   { id: 'fx', title: 'Deadline via Yahoo, 9 Feb 2024: “516 scripted titles on air in 2023”, source FX/Disney', url: 'https://ca.news.yahoo.com/peak-tv-over-number-original-222100123.html' },
   { id: 'wgaw', title: 'Wikipedia, Writers Guild of America West: “around 14,000 total members as of 2026”, citing the US DOL OLMS filing (secondary)', url: 'https://en.wikipedia.org/wiki/Writers_Guild_of_America_West' },
   { id: 'goldman', title: 'Investing.com, 6 Apr 2023, on Goldman Sachs: creator economy “$250 billion TAM”, “approximately $480B by 2027” (secondary)', url: 'https://uk.investing.com/news/stock-market-news/goldman-sachs-estimates-creator-economy-tam-of-250-billion-432SI-2977867' },
@@ -37,7 +37,7 @@ const SOURCES: Source[] = [
   { id: 'nchome', title: 'Novelcrafter home page: “Join a community of 252k+ authors” (vendor claim)', url: 'https://www.novelcrafter.com/' },
   { id: 'ncprice', title: 'Novelcrafter pricing: $4, $8, $14, $20 a month', url: 'https://www.novelcrafter.com/pricing' },
   { id: 'arcweave', title: 'Arcweave pricing: Pro $15/$18, Team $25/$30 per member a month (yearly/monthly); REST API and MCP server on Team', url: 'https://arcweave.com/pricing' },
-  { id: 'bcg', title: 'Book Check Genie: “flags possible slips for you to judge”, “the final call is always yours”; £19 a check, £22 and £49 a month', url: 'https://bookcheckgenie.com' },
+  { id: 'bcg', title: 'Book Check Genie: “flags possible slips for you to judge”; “Each finding comes with chapter references and supporting quotes”; “the final call is always yours”; £19 a check, £22 and £49 a month', url: 'https://bookcheckgenie.com' },
   { id: 'sudowrite', title: 'Sudowrite pricing: $10, $22, $44 a month', url: 'https://www.sudowrite.com/pricing' },
   { id: 'notion', title: 'Notion pricing: Free, Plus $10, Business $20 per member a month', url: 'https://www.notion.com/pricing' },
   { id: 'kanka', title: 'Kanka blog, 27 Oct 2023: 225,000 accounts created, 27,000 active accounts', url: 'https://blog.kanka.io/2023/10/27/anniversary-six-years-of-kanka-a-celebration' },
@@ -57,11 +57,11 @@ const MAIN = 11
 
 // ---------- Who builds story worlds (slide 7): one sourced number each, units never mixed ----------
 const WORLDS = [
-  { who: 'Game makers', big: '18,945', what: 'games released on Steam in 2024', src: 'steam', more: '35,371 people at the 2025 Global Game Jam', moreSrc: 'ggj' },
+  { who: 'Game makers', big: '18,945', what: 'games released on Steam in 2024 (as of 30 Dec 2024)', src: 'steam', more: '35,371 people at the 2025 Global Game Jam', moreSrc: 'ggj' },
   { who: 'Serial and fan fiction', big: '32.69M', what: 'online-literature writers in China, 2025', src: 'cass', more: '18.47M works on AO3 (per Wikipedia)', moreSrc: 'ao3' },
   { who: 'Game masters', big: '10M', what: 'Roll20 accounts (2022)', src: 'roll20', more: 'LegendKeeper: “200k+ creators” (vendor)', moreSrc: 'legendkeeper' },
-  { who: 'Video creators', big: '750M+', what: 'views of The Amazing Digital Circus videos (YouTube, 2024)', src: 'tadc', more: 'Short-drama apps: $700M in Q1 2025, up from $178M', moreSrc: 'sensortower' },
-  { who: 'Novelists', big: '3.5M+', what: 'self-published titles in 2025 (US ISBNs)', src: 'pw', more: '75% of indie sales are books in a series', moreSrc: 'd2d' },
+  { who: 'Video creators', big: '750M+', what: 'views of The Amazing Digital Circus videos (YouTube, 2024)', src: 'tadc', more: 'Short-drama apps, global in-app revenue: ~$700M in Q1 2025 vs $178M in Q1 2024', moreSrc: 'sensortower' },
+  { who: 'Novelists', big: '3.5M+', what: 'self-published titles in 2025 (US ISBNs)', src: 'pw', more: '75% of sales through Draft2Digital were books in a series (2022 data)', moreSrc: 'd2d' },
   { who: 'Screen and series', big: '516', what: 'scripted US series on air in 2023', src: 'fx', more: 'WGA West: about 14,000 members (per Wikipedia)', moreSrc: 'wgaw' },
 ]
 
@@ -108,10 +108,10 @@ const pct = (v: number) => `${Math.round(v * 100)}%`
 const count = (v: number) => v.toLocaleString('en-US')
 
 // ---------- Competition (slide 9): placed only by what each vendor's own page says ----------
-// x: checks consistency automatically (0 no claim … 1 rule-based checks); y: cites every fact to its source (0 … 1).
+// x: checks consistency automatically (0 no claim … 1 deterministic rules); y: cites every canon fact verbatim (0 no claim … 1 every fact).
 const MAP = [
   { name: 'Story Bible', x: 0.74, y: 0.84, us: true },
-  { name: 'Book Check Genie', x: 0.62, y: 0.2, note: 'AI flags slips, you judge', src: 'bcg' },
+  { name: 'Book Check Genie', x: 0.62, y: 0.38, note: 'AI flags slips and quotes each finding', src: 'bcg' },
   { name: 'Arcweave', x: 0.12, y: 0.24, src: 'arcweave' },
   { name: 'LegendKeeper', x: 0.24, y: 0.17, src: 'legendkeeper' },
   { name: 'Novelcrafter', x: 0.2, y: 0.36, src: 'nchome' },
@@ -122,7 +122,7 @@ const MAP = [
 const COMPARE = [
   { name: 'Story Bible', cite: 'Every fact, verbatim, checked', rules: 'Yes: time and place, travel, relationships, same detail', gate: 'Yes, always', api: 'MCP (38 tools) + API', price: 'Free self-host; cloud: ask' },
   { name: 'Arcweave', cite: '—', rules: '—', gate: '—', api: 'REST API + MCP (Team tier)', price: 'Free; $15–$30 per member/mo', src: 'arcweave' },
-  { name: 'Book Check Genie', cite: '—', rules: 'AI “flags possible slips”', gate: 'Yes: “the final call is always yours”', api: '—', price: '£19/check; £22–£49/mo', src: 'bcg' },
+  { name: 'Book Check Genie', cite: 'Each finding quoted, with chapter references', rules: 'AI “flags possible slips”', gate: 'Yes: “the final call is always yours”', api: '—', price: '£19/check; £22–£49/mo', src: 'bcg' },
   { name: 'Sudowrite', cite: '—', rules: '—', gate: '—', api: '—', price: '$10–$44/mo', src: 'sudowrite' },
   { name: 'Novelcrafter', cite: '—', rules: '—', gate: '—', api: '—', price: '$4–$20/mo', src: 'ncprice' },
   { name: 'Notion', cite: '—', rules: '—', gate: '—', api: 'Public API', price: 'Free; $10–$20 per member/mo', src: 'notion' },
@@ -289,8 +289,8 @@ const print = () => window.print()
     <section class="slide d compete" aria-labelledby="t9">
       <div class="in">
         <h2 id="t9">Alone in the top right.</h2>
-        <div class="map" role="img" aria-label="Positioning map. Across: checks consistency automatically. Up: cites every fact to its source. Story Bible is alone in the top right; Book Check Genie checks with AI but does not cite; Arcweave, LegendKeeper, Novelcrafter, Sudowrite, Notion and Kanka make neither claim on their own pages.">
-          <span class="axis y">Cites every fact to its source</span>
+        <div class="map" role="img" aria-label="Positioning map. Across: checks consistency automatically. Up: cites every canon fact verbatim. Story Bible is alone in the top right: every canon fact cited verbatim, checked by deterministic rules. Book Check Genie checks with AI and quotes each finding, but does not keep every fact cited; Arcweave, LegendKeeper, Novelcrafter, Sudowrite, Notion and Kanka make neither claim on their own pages.">
+          <span class="axis y">Cites every canon fact verbatim</span>
           <span class="axis x">Checks consistency automatically</span>
           <div class="plot">
             <span v-for="c in MAP" :key="c.name" class="dot" :class="{ us: c.us }" :style="{ left: `${c.x * 100}%`, bottom: `${c.y * 100}%` }">
@@ -298,7 +298,7 @@ const print = () => window.print()
             </span>
           </div>
         </div>
-        <p class="caption">Placed only by what each vendor’s own page says (3 Nov 2026); places inside a quarter are only for legibility. Arcweave also has MCP; Sudowrite and Novelcrafter write prose. Table in A3.</p>
+        <p class="caption">Placed only by what each vendor’s own page says (3 Nov 2026); places inside a quarter are only for legibility. Book Check Genie quotes each finding; Story Bible cites every canon fact and checks it by deterministic rules. Table in A3.</p>
       </div>
       <Foot :ids="MAP.filter(c => c.src).map(c => c.src!)" n="9" />
     </section>
