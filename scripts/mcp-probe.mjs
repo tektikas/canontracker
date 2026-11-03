@@ -539,7 +539,10 @@ await no(F, 'sb_project', { action: 'type_delete', key: 'no_such_type' }, 'NOT_F
 ok('sb_project: get / types (read), update + type create/update/delete (full)')
 
 // --- sb_team
+const adminInvite = (await ada('/api/team/invites', { method: 'POST', body: { role: 'admin', days: 7 } })).data
 const team = await yes(P, 'sb_team', { action: 'list' })
+assert.ok(adminInvite.token && !('invites' in team) && !JSON.stringify(team).includes(adminInvite.token), 'sb_team list must never return invite tokens')
+await ada(`/api/team/invites/${adminInvite.id}`, { method: 'DELETE' })
 assert.ok(team.members.some(m => m.name === 'Bo' && m.role === 'viewer'))
 // Team changes are not offered to agents at any level: the actions don't exist.
 for (const [cl, action] of [[F, 'invite_create'], [F, 'set_role'], [F, 'remove'], [F, 'invite_revoke'], [V, 'invite_create']])

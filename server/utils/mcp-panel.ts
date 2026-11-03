@@ -236,9 +236,10 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
 
   // Read only: who is in the studio is a person's decision (roles, removals and invites stay in the app, never an agent's).
   tool('sb_team', 'Studio members',
-    'list (read): the studio\'s members and roles (open invite links for admins). Changing roles, removing members and invites are not available to agents: a person does them in Settings > Team. Example: {"action": "list"}',
+    'list (read): the studio\'s members and roles. Invite links are never returned (they are bearer secrets). Changing roles, removing members and invites are not available to agents: a person does them in Settings > Team. Example: {"action": "list"}',
     {}, {
-      list: { level: 'read', run: () => panelCall('GET', '/api/team') },
+      // ponytail: drop invites, not filter them: an invite token is a bearer secret that enrols whoever holds it.
+      list: { level: 'read', run: async () => { const { invites: _, ...team } = await panelCall('GET', '/api/team') as { invites: unknown }; return team } },
     })
 
   // ---------------------------------------------------------------- Sources
