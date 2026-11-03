@@ -1,257 +1,256 @@
 <script setup lang="ts">
-// Public landing page. Every example is real content from the Broken Tide demo, and the model note says what this instance actually runs.
-useSeoMeta({
+// Public home page (signed out). Every example is real content from the bundled samples, and every screenshot is the app.
+useMarketingSeo({
   title: 'Story Bible · A story builder with canon you can cite',
-  description: 'Know what’s canon. Trace every fact to its source and see which scenes a change touches before it ships.',
-  ogTitle: 'Story Bible · Know what’s canon',
-  ogDescription: 'Human-approved, source-cited canon and change impact for anyone building a story world.',
-  ogImage: 'https://storybible.trythis.work/og-landing.png',
-  ogImageAlt: 'Story Bible — Know what’s canon. See what a change touches.',
-  twitterCard: 'summary_large_image',
-  twitterTitle: 'Story Bible · Know what’s canon',
-  twitterDescription: 'Human-approved, source-cited canon and change impact for anyone building a story world.',
-  twitterImage: 'https://storybible.trythis.work/og-landing.png',
-  twitterImageAlt: 'Story Bible — Know what’s canon. See what a change touches.',
+  description: 'Story Bible turns your lore, scripts and chapters into human-approved canon with a source for every fact, finds contradictions, and shows what a change touches before you make it.',
+  image: 'og-landing',
+  path: '/',
 })
 const me = useMe()
 
+// The Ashbell Pass: three of its planted contradictions, word for word from canon.
+const PROBLEMS = [
+  { a: 'Captain Rourke stands watch at the Bell Gate from 21:00 to 22:00 on Day 2.', b: 'Captain Rourke is at the Kettle & Coal at 21:30 on Day 2.', why: 'Two places at the same time' },
+  { a: 'Ves is at the Bell Gate at 14:00 on Day 3.', b: 'Ves is at Saltgate at 14:10 on Day 3.', why: 'The walk takes forty-five minutes' },
+  { a: 'Ysolde and Corin were sworn partners until Ysolde broke the oath at 18:00 on Day 2.', b: "Corin is Ysolde's sworn partner at 08:00 on Day 4.", why: 'A relationship used after it ended' },
+]
 const STEPS = [
-  { title: 'Import', art: 'import', alt: 'Manuscript pages gathered with a paper clip.', text: 'Bring lore docs and scene scripts as Markdown or text. Sources are hashed, versioned and never edited.' },
-  { title: 'Review', art: 'review', alt: 'A pen and a reviewed manuscript card.', text: 'Muse Spark proposes facts, each with the exact quote it came from. A person accepts, corrects or rejects every one.' },
-  { title: 'Canon', art: 'canon', alt: 'A reference ledger with an ink-blue bookmark.', text: 'Accepted facts become canon: characters, places, relationships and rules, each cited to its passage.' },
-  { title: 'Conflicts', art: 'conflicts', alt: 'Two scene cards with an interrupted connection.', text: 'Catch someone in two places at once, a trip that’s too fast, or a relationship used after it ended.' },
-  { title: 'Impact', art: 'impact', alt: 'A story card connected to two downstream scenes.', text: 'Before you change canon, see which facts and scenes it touches, up to two steps away. Export the list for re-review.' },
+  { title: 'Import', art: 'import', text: 'Markdown, text, Word or a recording. Sources are versioned and never edited.' },
+  { title: 'Review', art: 'review', text: 'The AI proposes facts with the exact quote. A person accepts, edits or rejects each one.' },
+  { title: 'Canon', art: 'canon', text: 'Accepted facts become canon: a wiki, a graph and a timeline, every fact cited.' },
+  { title: 'Conflicts', art: 'conflicts', text: 'Rules flag two places at once, impossible travel and broken relationships.' },
+  { title: 'Impact', art: 'impact', text: 'Before you change a fact, see the facts and scenes it touches, two steps deep.' },
 ]
-const PRINCIPLES = [
-  { title: 'A person decides', text: 'The model only proposes. Nothing becomes canon until someone on your team accepts it, and their name is on the decision.' },
-  { title: 'No quote, no canon', text: 'Every canon fact cites a passage, word for word. A candidate whose quote isn’t in the source can’t be accepted.' },
-  { title: 'Unknown beats invented', text: 'Ask canon a question it can’t support and the answer is “unknown”, never a guess with made-up sources.' },
-  { title: 'Nothing is overwritten', text: 'Your files stay read-only. Changes create new versions, old facts are kept, and the audit log is append-only.' },
+const HIGHLIGHTS = [PILLARS[0]!.sections[0]!, PILLARS[1]!.sections[0]!, PILLARS[1]!.sections[1]!, PILLARS[3]!.sections[2]!]
+const TRUST = [
+  { title: 'A person decides', text: 'The AI only proposes. Nothing becomes canon until someone accepts it, and their name stays on the decision, with “via agent” when their own agent made it.' },
+  { title: 'Word for word', text: 'Every canon fact cites a passage that contains its quote exactly. No quote, no canon; no evidence, “unknown”.' },
+  { title: 'Nothing is rewritten', text: 'Imported files stay read-only, old facts are kept when canon changes, and the audit log is append-only.' },
+  { title: 'Projects stay apart', text: 'One guard checks membership and role on every request. Viewers read; editors decide; admins manage.' },
 ]
-const TEAM = [
-  { title: 'Story leads', text: 'Own the canon. Decide what’s true, settle contradictions and approve changes with the impact in front of you.' },
-  { title: 'Writers', text: 'Check a detail in seconds, with the passage it comes from, instead of searching ten documents.' },
-  { title: 'Producers and editors', text: 'Know which scenes or chapters need another pass before a change reaches the build or the manuscript, and who signed off on what.' },
-]
+const MCP_SNIPPET = `claude mcp add --transport http story-bible ${SITE}/mcp \\\n  --header "Authorization: Bearer sb_…"`
 </script>
 
 <template>
-  <div class="landing">
-    <header class="lp-top">
-      <NuxtLink to="/" class="brand"><BrandMark />Story Bible</NuxtLink>
-      <nav class="lp-nav" aria-label="Page">
-        <a href="#how" class="hide-sm">How it works</a>
-        <a href="#principles" class="hide-sm">Principles</a>
-        <NuxtLink to="/login" class="btn ghost">Log in</NuxtLink>
-        <NuxtLink to="/signup" class="btn primary">Create your studio</NuxtLink>
-      </nav>
-    </header>
-
-    <main>
+  <NuxtLayout name="marketing">
+    <div class="home">
       <section class="hero">
         <div class="hero-copy">
-          <span class="kicker">A story builder for novels, games, series and worlds</span>
-          <h1>Know what’s canon.<br>See what a change breaks before it ships.</h1>
+          <p class="for">For novelists, game writers, screen and series writers, and worldbuilders</p>
+          <h1>Know what’s canon. See what a change touches before you make it.</h1>
           <p class="lead">
-            Story Bible’s AI reads your lore, notes and scene scripts, proposes facts with the exact quote they came from,
-            and lets you or your story lead decide what becomes canon. Then it flags contradictions and shows which scenes or chapters a change will touch.
+            Story Bible reads your lore, scripts and chapters, proposes facts with the exact sentence they came from, and lets a person decide what becomes canon.
+            Then it finds contradictions and shows which scenes a change will reach.
           </p>
-          <div class="row cta">
-            <UiButton to="/signup" variant="primary" size="lg">Create your studio<UiIcon name="arrow" :size="16" /></UiButton>
-            <UiButton to="/login" size="lg">Log in</UiButton>
+          <div class="cta">
+            <UiButton v-if="me?.user" to="/" variant="primary" size="lg">Open the app</UiButton>
+            <UiButton v-else to="/signup" variant="primary" size="lg">Start free</UiButton>
+            <UiButton to="/features" size="lg">See every feature</UiButton>
           </div>
-          <p class="small muted">Comes with original sample stories with planted contradictions: Broken Tide (prose scenes), Lantern Row, and The Ashbell Pass (a longer game story). Try it before importing your own lore.</p>
+          <p class="fine">Open source under AGPL-3.0. Comes with three sample stories to try before you import your own.</p>
         </div>
+        <div class="hero-shot">
+          <MarketingShot name="tide-review" alt="The review queue: the AI proposes “Mara and Leya are sisters” with its source line, and the AI critic flags it as figurative. A person decides." eager sizes="(max-width: 900px) 100vw, 680px" />
+          <p class="caption">Review in the Broken Tide sample. The quote is checked against the source; the critic’s flag is advice.</p>
+        </div>
+      </section>
 
-        <div class="hero-visual">
-          <LandingArt name="story-world" alt="An open story ledger unfolds into a coastal world, with linked scene cards beside it." :width="720" :height="480" eager class="hero-art" />
-          <figure class="preview" aria-label="Example from the Broken Tide demo">
-            <div class="pv-bar">
-              <span class="small"><b>Review</b> <span class="faint">· Broken Tide</span></span>
-              <UiBadge tone="pencil">3 of 25 candidates</UiBadge>
-            </div>
-
-            <div class="pv-card candidate">
-              <div class="pv-meta"><UiBadge tone="pencil">Candidate</UiBadge><span class="small faint">relationship · from S02</span></div>
-              <p class="statement">Mara and Leya are sisters.</p>
-              <blockquote class="quote">“You’re my sister in all but blood,” Mara says, and Leya laughs.</blockquote>
-              <div class="pv-decision">
-                <span class="pv-btn reject" aria-hidden="true">Reject</span>
-                <span class="small muted"><b>Rejected by Ada</b> · figurative, they aren’t related</span>
-              </div>
-            </div>
-
-            <div class="pv-card canon">
-              <div class="pv-meta"><UiBadge tone="accent">Canon</UiBadge><UiBadge tone="good" dot>Quote verified</UiBadge></div>
-              <p class="statement">Leya and Arin are biological siblings; Arin is four years older.</p>
-              <span class="small faint">characters.md · accepted by Ada</span>
-            </div>
-
-            <div class="pv-impact">
-              <div class="small"><b>Change a world rule</b> <span class="muted">· the chord stone erases the last hour</span></div>
-              <div class="row">
-                <span class="small muted">Scenes to re-review</span>
-                <UiBadge v-for="s in ['S04', 'S07', 'S09', 'S10']" :key="s" tone="warn">{{ s }}</UiBadge>
-              </div>
-            </div>
-          </figure>
+      <section class="problem band">
+        <div class="problem-art">
+          <LandingArt name="story-world" alt="An open ledger whose page rises into a small world: a lighthouse, a mountain pass with a bell tower, a winding road." :size="480" />
+        </div>
+        <div class="problem-copy">
+          <h2>Every story world contradicts itself eventually</h2>
+          <p class="muted">
+            Facts live in different files, written by different people at different times. These three are from The Ashbell Pass, a 28-document game story.
+            Each pair looks fine on its own.
+          </p>
+          <ul class="pairs">
+            <li v-for="p in PROBLEMS" :key="p.why">
+              <span class="why">{{ p.why }}</span>
+              <blockquote>{{ p.a }}</blockquote>
+              <blockquote>{{ p.b }}</blockquote>
+            </li>
+          </ul>
         </div>
       </section>
 
       <section id="how" class="band">
         <div class="band-head">
-          <h2>From lore docs to canon you can cite</h2>
-          <p class="muted">Five steps, in the order your team already works.</p>
+          <h2>From documents to canon you can cite</h2>
+          <p class="muted">Five steps, in the order a story team already works.</p>
         </div>
         <ol class="steps">
           <li v-for="(s, i) in STEPS" :key="s.title">
-            <LandingArt :name="s.art" :alt="s.alt" :width="200" :height="160" class="step-art" />
-            <div class="step-heading"><span class="step-n">{{ i + 1 }}</span><h3>{{ s.title }}</h3></div>
+            <LandingArt :name="s.art" alt="" :size="200" class="step-art" />
+            <h3><span class="step-n" aria-hidden="true">{{ i + 1 }}</span>{{ s.title }}</h3>
             <p>{{ s.text }}</p>
           </li>
         </ol>
       </section>
 
-      <section id="principles" class="band">
+      <div class="band features">
+        <MarketingFeature v-for="(s, i) in HIGHLIGHTS" :key="s.title" :section="s" :flip="i % 2 === 1" />
+      </div>
+
+      <section class="band">
         <div class="band-head">
-          <h2>Built so the model can’t write your canon</h2>
-          <p class="muted">Language models are good at reading and bad at being sure. Story Bible uses the first and guards against the second.</p>
+          <h2>Everything a story world needs</h2>
+          <p class="muted">Six areas, each with its own page.</p>
         </div>
-        <div class="cards four">
-          <div v-for="p in PRINCIPLES" :key="p.title" class="panel">
-            <h3>{{ p.title }}</h3>
-            <p>{{ p.text }}</p>
+        <ul class="pillars">
+          <li v-for="p in PILLARS" :key="p.slug">
+            <NuxtLink :to="`/features/${p.slug}`" class="pillar">
+              <LandingArt :name="p.art" alt="" :size="120" class="pillar-art" />
+              <span><b>{{ p.title }}</b><span>{{ p.short }}</span></span>
+            </NuxtLink>
+          </li>
+        </ul>
+      </section>
+
+      <section class="band agents">
+        <div class="band-head">
+          <h2>AI that proposes, people who decide</h2>
+          <p class="muted">AI helpers do the reading. None of them can change canon.</p>
+        </div>
+        <ul class="agent-list">
+          <li v-for="a in AGENTS" :key="a.name">
+            <UiIcon :name="a.icon" :size="20" class="agent-icon" />
+            <div>
+              <h3>{{ a.name }}</h3>
+              <p>{{ a.does }}</p>
+              <p class="never">{{ a.never }}</p>
+            </div>
+          </li>
+        </ul>
+        <div class="mcp">
+          <div>
+            <h3>Bring your own agents through MCP</h3>
+            <p>Story Bible is an MCP server with 38 tools, so an agent can do almost everything you do in a project. A propose token reads, checks and proposes; nothing it does becomes canon. A full-access token acts as you, and each decision it makes is marked “via agent” with the token’s name.</p>
+            <NuxtLink to="/agents">How agents work with Story Bible</NuxtLink>
           </div>
+          <pre class="code" aria-label="Example: connect Claude Code"><code>{{ MCP_SNIPPET }}</code></pre>
         </div>
       </section>
 
       <section class="band">
-        <div class="panel sunk model-note">
-          <span class="status-dot" aria-hidden="true" />
-          <div>
-            <h3>AI built into the workflow</h3>
-            <p>
-              Story Bible runs on Meta’s Muse Spark through the Meta Model API. Extraction reads your sources and proposes facts, each with a verbatim quote.
-              It also suggests world-rule violations, answers questions in Ask from accepted canon only, and generates entity portraits with Muse Image.
-              Your own AI agents can read canon and propose facts through MCP. The model only proposes: nothing becomes canon without a person.
-            </p>
-          </div>
+        <div class="band-head">
+          <h2>Built for anyone building a story</h2>
+          <p class="muted">Alone or as a team, prose or game script.</p>
         </div>
+        <ul class="cases">
+          <li v-for="u in USE_CASES" :key="u.slug">
+            <NuxtLink :to="`/use-cases/${u.slug}`" class="case">
+              <LandingArt :name="u.art" alt="" :size="240" />
+              <b>{{ u.nav }}</b>
+              <span>{{ u.lead }}</span>
+            </NuxtLink>
+          </li>
+        </ul>
       </section>
 
-      <section class="band">
-        <div class="band-head"><h2>For everyone building the story</h2>
-          <p class="muted">Novelists, game writers, screen and series writers and worldbuilders, working alone or as a team.</p></div>
-        <div class="cards three">
-          <div v-for="t in TEAM" :key="t.title" class="team-card">
-            <h3>{{ t.title }}</h3>
-            <p>{{ t.text }}</p>
-          </div>
+      <section class="band trust">
+        <div class="band-head">
+          <h2>Rules the product keeps</h2>
+          <p class="muted">The same four rules hold in the app, the API and every agent. <NuxtLink to="/security">Read how</NuxtLink>.</p>
         </div>
+        <dl class="rules">
+          <div v-for="t in TRUST" :key="t.title">
+            <dt>{{ t.title }}</dt>
+            <dd>{{ t.text }}</dd>
+          </div>
+        </dl>
       </section>
 
-      <section class="band final">
-        <div class="panel final-card">
-          <div>
-            <h2>Try it on a finished story first</h2>
-            <p class="muted">Create your studio, load Broken Tide and review your first candidates in under a minute. Invite your team when you’re ready.</p>
-          </div>
-          <UiButton to="/signup" variant="primary" size="lg">Create your studio<UiIcon name="arrow" :size="16" /></UiButton>
-        </div>
-      </section>
-    </main>
-
-    <footer class="lp-foot small faint">
-      <span>Story Bible · built for the Meta AI Developer Hackathon</span>
-      <span>Broken Tide and The Ashbell Pass are original, synthetic stories made for this sample.</span>
-    </footer>
-  </div>
+      <MarketingCta />
+    </div>
+  </NuxtLayout>
 </template>
 
 <style scoped>
-.landing { --lp-max: 1120px; min-height: 100vh; }
-.lp-top, main > section, .lp-foot { width: 100%; max-width: var(--lp-max); margin: 0 auto; padding-inline: 40px; }
-.lp-top { display: flex; align-items: center; justify-content: space-between; gap: var(--s-4); padding-block: var(--s-4); }
-.lp-nav { display: flex; align-items: center; gap: var(--s-2); }
-.lp-nav > a:not(.btn) { padding: 6px 10px; color: var(--muted); text-decoration: none; font-weight: 500; }
-.lp-nav > a:not(.btn):hover { color: var(--ink); }
+.home > section, .home > .band { max-width: var(--mk-max); margin: 0 auto; padding-inline: var(--mk-pad); }
+.band { padding-block: 72px; border-top: 1px solid var(--line); }
+.band-head { margin-bottom: var(--s-6); }
+.band-head h2, .problem-copy h2 { font-size: clamp(1.5rem, 1.1rem + 1.2vw, 2rem); letter-spacing: -0.025em; margin-bottom: var(--s-2); }
+.band-head p { margin: 0; max-width: 64ch; font-size: 1rem; }
 
-.hero { display: grid; grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr); gap: var(--s-7); align-items: center; padding-block: var(--s-7) 72px; }
-.hero-copy { align-self: start; padding-top: var(--s-6); }
-.kicker { display: inline-block; margin-bottom: var(--s-3); font-size: var(--text-sm); font-weight: 600; color: var(--accent); }
-.hero h1 { font-size: clamp(2rem, 1.2rem + 2.6vw, 3.1rem); line-height: 1.08; letter-spacing: -0.03em; margin-bottom: var(--s-4); }
-.lead { font-size: 1.0625rem; line-height: 1.6; color: var(--muted); max-width: 56ch; margin-bottom: var(--s-5); }
-.cta { margin-bottom: var(--s-3); }
-.hero-visual { display: grid; gap: var(--s-3); min-width: 0; }
-.hero-art { width: min(100%, 360px); margin-inline: auto; }
+.hero { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: var(--s-7); align-items: center; padding-block: 64px 80px; }
+.for { margin: 0 0 var(--s-4); color: var(--accent); font-weight: 600; }
+.hero h1 { font-size: clamp(2.1rem, 1.3rem + 2.6vw, 3.4rem); line-height: 1.05; letter-spacing: -0.035em; margin-bottom: var(--s-5); text-wrap: balance; }
+.lead { font-size: 1.125rem; line-height: 1.6; color: var(--muted); margin: 0 0 var(--s-5); max-width: 52ch; }
+.cta { display: flex; flex-wrap: wrap; gap: var(--s-2); margin-bottom: var(--s-4); }
+.fine { margin: 0; color: var(--faint); font-size: var(--text-sm); }
+.hero-shot { min-width: 0; }
+.caption { margin: var(--s-2) 0 0; color: var(--faint); font-size: var(--text-sm); }
 
-/* The one bold element: a slice of the real review screen. */
-.preview { margin: 0; display: grid; gap: var(--s-3); padding: var(--s-4); background: var(--surface); border: 1px solid var(--line); border-radius: 14px; }
-.pv-bar { display: flex; justify-content: space-between; align-items: center; gap: var(--s-2); padding: 0 var(--s-1); }
-.pv-card { display: grid; gap: var(--s-2); padding: var(--s-4); background: var(--raised); border-radius: var(--r-lg); }
-.pv-card.candidate { border: 1.5px dashed var(--line-strong); }
-.pv-card.canon { border: 1px solid var(--line); box-shadow: inset 3px 0 0 var(--accent); }
-.pv-card .statement { margin: 0; }
-.pv-card .quote { font-size: var(--text-base); }
-.pv-meta { display: flex; gap: var(--s-2); align-items: center; flex-wrap: wrap; }
-.pv-decision { display: flex; gap: var(--s-3); align-items: center; flex-wrap: wrap; }
-.pv-btn { display: inline-flex; align-items: center; min-height: 28px; padding: 3px 10px; border-radius: var(--r-md); font-size: var(--text-sm); font-weight: 500; }
-.pv-btn.reject { border: 1px solid var(--bad); color: var(--bad); background: var(--bad-soft); }
-.pv-impact { display: grid; gap: var(--s-2); padding: var(--s-3) var(--s-4); border: 1px solid color-mix(in srgb, var(--warn) 30%, var(--line)); border-radius: var(--r-lg); background: var(--raised); }
+.problem { display: grid; grid-template-columns: minmax(0, 4fr) minmax(0, 7fr); gap: var(--s-7); align-items: center; }
+.problem-art { max-width: 420px; }
+.problem-copy > p { max-width: 60ch; font-size: 1rem; line-height: 1.6; }
+.pairs { list-style: none; margin: var(--s-5) 0 0; padding: 0; display: grid; gap: var(--s-4); }
+.pairs li { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-2) var(--s-4); padding: var(--s-4); background: var(--raised); border: 1px solid var(--line); border-left: 3px solid var(--bad); border-radius: var(--r-lg); }
+.why { grid-column: 1 / -1; color: var(--bad); font-weight: 600; font-size: var(--text-sm); }
+.pairs blockquote { margin: 0; font-family: var(--font-story); font-size: var(--text-md); line-height: 1.5; }
 
-.band { padding-block: var(--s-7); border-top: 1px solid var(--line); }
-.band-head { margin-bottom: var(--s-5); }
-.band-head h2 { font-size: var(--text-xl); letter-spacing: -0.02em; margin-bottom: var(--s-1); }
-.band-head p { max-width: 64ch; margin: 0; }
-
-.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-4); }
+.steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: var(--s-5); }
 .steps li { display: grid; gap: var(--s-2); align-content: start; }
-.step-art { width: min(100%, 160px); }
-.step-heading { display: flex; align-items: center; gap: var(--s-2); }
-.steps h3, .cards h3 { margin: 0; font-size: var(--text-md); }
-.steps p, .cards p { margin: 0; color: var(--muted); }
-.step-n { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 50%; border: 1.5px dashed var(--pencil); color: var(--pencil); font-size: var(--text-xs); font-weight: 600; }
+.step-art { width: 100%; max-width: 180px; margin-bottom: var(--s-2); }
+.steps h3 { display: flex; align-items: center; gap: var(--s-2); margin: 0; font-size: var(--text-md); }
+.steps p { margin: 0; color: var(--muted); line-height: 1.5; }
+.step-n { display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; border: 1.5px dashed var(--pencil); color: var(--pencil); font-size: var(--text-xs); }
 
-.cards { display: grid; gap: var(--s-4); }
-.cards.four { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-.cards.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.cards .panel { display: grid; gap: var(--s-2); align-content: start; }
-.team-card { display: grid; gap: var(--s-2); align-content: start; padding-left: var(--s-4); border-left: 2px solid var(--accent); }
+.features { display: grid; gap: 96px; }
 
-.model-note { display: flex; gap: var(--s-3); align-items: flex-start; border-style: dashed; border-color: var(--line-strong); }
-.model-note.live { border-style: solid; }
-.model-note h3 { margin: 0 0 var(--s-1); font-size: var(--text-md); }
-.model-note p { margin: 0; color: var(--muted); max-width: 80ch; }
-.model-note .status-dot { margin-top: 6px; }
-.model-note.live .status-dot { background: var(--good); border-color: var(--good); }
+.pillars { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-4); }
+.pillar { display: grid; grid-template-columns: 88px minmax(0, 1fr); gap: var(--s-4); align-items: center; height: 100%; padding: var(--s-4); background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-lg); color: var(--ink); text-decoration: none; }
+.pillar:hover { border-color: var(--accent); }
+.pillar > span { display: grid; gap: 4px; }
+.pillar > span > span { color: var(--muted); line-height: 1.45; }
 
-.final-card { display: flex; gap: var(--s-5); align-items: center; justify-content: space-between; flex-wrap: wrap; padding: var(--s-6); }
-.final-card h2 { font-size: var(--text-xl); margin-bottom: var(--s-1); }
-.final-card p { margin: 0; max-width: 60ch; }
+.agent-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-6) var(--s-5); }
+.agent-list li { display: grid; grid-template-columns: 36px minmax(0, 1fr); gap: var(--s-3); }
+.agent-icon { display: grid; place-items: center; width: 36px; height: 36px; padding: 8px; color: var(--accent); background: var(--accent-soft); border-radius: var(--r-md); box-sizing: border-box; }
+.agent-list h3 { margin: 6px 0 var(--s-2); }
+.agent-list p { margin: 0 0 var(--s-2); color: var(--muted); line-height: 1.5; }
+.agent-list .never { color: var(--ink); padding-left: var(--s-3); border-left: 2px dashed var(--pencil); }
+.mcp { margin-top: var(--s-7); display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); gap: var(--s-6); align-items: center; padding: var(--s-6); background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-lg); }
+.mcp h3 { font-size: var(--text-lg); }
+.mcp p { color: var(--muted); line-height: 1.55; }
+.code { margin: 0; padding: var(--s-4); background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-md); font-family: var(--font-code); font-size: var(--text-sm); line-height: 1.6; overflow-x: auto; white-space: pre; }
 
-.lp-foot { display: flex; justify-content: space-between; gap: var(--s-2) var(--s-4); flex-wrap: wrap; padding-block: var(--s-5) var(--s-6); border-top: 1px solid var(--line); }
+.cases { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--s-5); }
+.case { display: grid; gap: var(--s-2); color: var(--ink); text-decoration: none; }
+.case b { font-size: var(--text-md); margin-top: var(--s-2); }
+.case span { color: var(--muted); line-height: 1.5; }
+.case:hover b { color: var(--accent); text-decoration: underline; }
 
-@media (max-width: 1000px) {
-  .hero { grid-template-columns: minmax(0, 1fr); gap: var(--s-6); padding-top: var(--s-5); }
-  .hero-copy { padding-top: 0; }
-  .steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .cards.four { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.rules { margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); border-top: 2px solid var(--ink); }
+.rules > div { padding: var(--s-4) var(--s-4) 0 0; }
+.rules > div + div { padding-left: var(--s-4); border-left: 1px solid var(--line); }
+.rules dt { font-weight: 600; font-size: var(--text-md); margin-bottom: var(--s-2); }
+.rules dd { margin: 0; color: var(--muted); line-height: 1.55; }
+
+@media (max-width: 1100px) {
+  .steps { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .agent-list, .pillars { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cases, .rules { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .rules > div:nth-child(3) { padding-left: 0; border-left: 0; }
+  .rules > div { padding-bottom: var(--s-4); }
+}
+@media (max-width: 900px) {
+  .hero, .problem, .mcp { grid-template-columns: minmax(0, 1fr); }
+  .hero { padding-block: var(--s-6) var(--s-7); gap: var(--s-6); }
+  .problem-art { max-width: 200px; }
 }
 @media (max-width: 720px) {
-  .lp-top, main > section, .lp-foot { padding-inline: var(--s-4); }
-  .lp-top { padding-block: var(--s-3); }
-  .lp-nav .btn.ghost { padding-inline: 10px; }
-  .hero { padding-block: var(--s-4) var(--s-6); }
+  .band { padding-block: var(--s-7); }
+  .features { gap: 64px; }
+  .steps { grid-template-columns: minmax(0, 1fr); gap: var(--s-4); }
+  .steps li { grid-template-columns: 88px minmax(0, 1fr); column-gap: var(--s-4); }
+  .step-art { grid-row: span 2; margin: 0; }
+  .agent-list, .pillars, .cases, .rules { grid-template-columns: minmax(0, 1fr); }
+  .rules > div, .rules > div + div { padding-left: 0; border-left: 0; border-bottom: 1px solid var(--line); }
+  .pairs li { grid-template-columns: minmax(0, 1fr); }
+  .mcp { padding: var(--s-4); }
   .cta .btn { flex: 1 1 auto; }
-  .preview { padding: var(--s-3); }
-  .band { padding-block: var(--s-6); }
-  .steps, .cards.four, .cards.three { grid-template-columns: minmax(0, 1fr); }
-  .steps li { grid-template-columns: 92px minmax(0, 1fr); column-gap: var(--s-4); }
-  .step-art { grid-row: span 2; align-self: center; }
-  .final-card { padding: var(--s-5); }
-  .final-card .btn { width: 100%; }
-}
-@media (max-width: 380px) {
-  .lp-nav .btn.primary { padding-inline: 10px; }
 }
 </style>
