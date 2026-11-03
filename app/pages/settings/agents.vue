@@ -133,21 +133,22 @@ const TOOLS: [string, [string, string][]][] = [
     ['sb_conversation, sb_research', 'Team conversations in Ask and research notes'],
     ['sb_export, sb_share list', 'The story bible as Markdown or JSON; share links'],
     ['sb_audit, sb_metrics, sb_agent_runs', 'Audit trail, project numbers and measurements, AI activity'],
-    ['sb_project, sb_team', 'Project settings, entity types, members'],
+    ['sb_project, sb_team', 'Project settings, entity types, members (read only)'],
   ]],
   ['Propose and run checks (editors and up)', [
     ['sb_propose_candidate, sb_review add', 'Adds a pending candidate quoting a source; waits for a person in Review'],
     ['sb_change propose / analyze', 'Proposes a canon change and shows its impact; canon is untouched'],
     ['sb_document extract, sb_conflict scan', 'Runs extraction or the conflict rules; results wait for a person'],
     ['sb_continuity, sb_research, sb_review critic', 'AI checks and research; advice and notes, never canon'],
+    ['sb_conversation start / post', 'Ask in a team conversation, like any member'],
   ]],
   ['Decide and edit (full access only)', [
     ['sb_review accept / reject', 'Canon decisions in Review, as you, marked “via agent”'],
     ['sb_change decide / revert, sb_conflict decide', 'Apply or reject changes, judge conflicts'],
     ['sb_document import / write, sb_draft', 'Import files (text or Word), save new versions'],
     ['sb_entity, sb_note, sb_library, sb_images', 'Pages, merges, notes, folders and tags, images'],
-    ['sb_recheck, sb_task, sb_share, sb_conversation post', 'Re-check citations, tasks, share links, post in Ask'],
-    ['sb_project update, sb_team', 'Settings and team (admins and owners only)'],
+    ['sb_recheck, sb_task, sb_share', 'Re-check citations, tasks, share links'],
+    ['sb_project update', 'Project settings (admins and owners only)'],
   ]],
 ]
 const ASKS = [
@@ -251,7 +252,7 @@ const ASKS = [
       </ul>
       <p class="small muted">Clients that support MCP prompts also get two ready-made tasks: <b>Brief me on an entity</b> and <b>Continuity-check a scene</b>.</p>
       <p class="small muted">If canon has nothing, the agent is told “unknown” and never invents sources. Candidates it proposes must quote an imported document word for word, and show up in Review marked “Agent proposal”. What a full-access token decides shows “by you via agent” in Review, Canon, Conflicts, Changes and the audit trail. Each token can make 120 tool calls a minute; AI tools also count toward your own hourly limits.</p>
-      <p class="small faint">Not available to agents: your account, studios, API tokens, accepting invites, loading a demo (it replaces the project), audio uploads and dictation, and file downloads (portraits, images, audio, EPUB). Use the app for those.</p>
+      <p class="small faint">Not available to agents: your account, studios, team changes (roles, removing members, invites), API tokens, accepting invites, loading a demo (it replaces the project), audio uploads and dictation, and file downloads (portraits, images, audio, EPUB). Use the app for those.</p>
     </UiPanel>
   </div>
 </template>

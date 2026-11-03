@@ -400,6 +400,11 @@ export function audit(eventType: string, targetType: string, targetId: string, d
     .run(id, eventType, targetType, targetId, user.id, JSON.stringify(full), now(), project.id)
   return id
 }
+// Writes the panel leaves out of the shared trail (a private draft's autosave, each chat message) are still audited when an
+// MCP token makes them, so every agent write has a row naming its token. Ids and titles only, never a draft's text.
+export function agentAudit(eventType: string, targetType: string, targetId: string, detail: Record<string, unknown> = {}) {
+  if (access().agent) audit(eventType, targetType, targetId, detail)
+}
 // The API token the current request acts through, stored next to decided_by / reverted_by (null in the web app).
 export const agentToken = () => access().agent?.token_id ?? null
 

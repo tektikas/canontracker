@@ -96,6 +96,12 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'account.password_changed': return [`${who} changed their password`, 'The password itself is never logged']
     case 'token.created': return [`${who} created the API token “${d.name}”`, 'Shown once, stored hashed']
     case 'token.revoked': return [`${who} revoked an API token`, '']
+    // Logged only when an agent does them (drafts are private, messages live in Ask): ids and titles, never a draft's text.
+    case 'draft.created': return [`${who} started a private draft${d.title ? ` “${clip(d.title, 60)}”` : ''}`, 'Private to its author until saved']
+    case 'draft.updated': return [`${who} edited a private draft${d.title ? ` “${clip(d.title, 60)}”` : ''}`, 'Private to its author until saved']
+    case 'draft.deleted': return [`${who} discarded a private draft${d.title ? ` “${clip(d.title, 60)}”` : ''}`, '']
+    case 'draft.saved': return [`${who} saved a draft to the story${d.title ? `: “${clip(d.title, 60)}”` : ''}`, d.unchanged ? 'The text was unchanged' : 'Now a read-only document version']
+    case 'message.posted': return [`${who} posted in an Ask conversation`, d.mode === 'research' ? 'Research mode' : 'Canon mode']
     case 'entity.created': return [`${who} created a page for ${d.name}`, `${kindLabel(d.kind).one}`]
     case 'entity_type.created': return [`${who} added the entity type “${d.one}”`, 'Wiki structure · canon unaffected']
     case 'entity_type.updated': return [d.before?.one && d.before.one !== d.after?.one ? `${who} renamed the entity type “${d.before.one}” to “${d.after.one}”` : `${who} changed the entity type “${kindLabel(d.key).one}”`,

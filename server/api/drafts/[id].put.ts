@@ -4,6 +4,9 @@ export default defineEventHandler(async (event) => {
   const f = draftFields((await readBody<Record<string, unknown>>(event)) ?? {})
   const next = { title: f.title ?? d.title, kind: f.kind ?? d.kind, content: f.content ?? d.content }
   const at = now()
-  useDb().prepare('update drafts set title = ?, kind = ?, content = ?, updated_at = ? where id = ?').run(next.title, next.kind, next.content, at, d.id)
+  tx(() => {
+    useDb().prepare('update drafts set title = ?, kind = ?, content = ?, updated_at = ? where id = ?').run(next.title, next.kind, next.content, at, d.id)
+    agentAudit('draft.updated', 'draft', d.id, { title: next.title })
+  })
   return { id: d.id, updated_at: at }
 })

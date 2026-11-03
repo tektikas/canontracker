@@ -29,11 +29,13 @@ export default defineEventHandler(async (event) => {
       if (latest.title !== title || latest.kind !== d.kind)
         throw createError({ statusCode: 409, statusMessage: 'TEXT_UNCHANGED', message: `The text is the same as v${latest.version}. A new version needs a change in the text.` })
       db.prepare('delete from drafts where id = ?').run(d.id)
+      agentAudit('draft.saved', 'draft', d.id, { title, document_id: result.document_id, unchanged: true })
       return { ...result, status: 'unchanged' as const, version: latest.version }
     }
     const same = db.prepare('select title, version from documents where id = ?').get(result.document_id) as { title: string, version: number }
     throw createError({ statusCode: 409, statusMessage: 'DUPLICATE_TEXT', message: `This text is word for word the same as “${same.title}” v${same.version}. Change something before saving.` })
   }
   db.prepare('delete from drafts where id = ?').run(d.id)
+  agentAudit('draft.saved', 'draft', d.id, { title, document_id: result.document_id })
   return result
 })

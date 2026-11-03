@@ -21,7 +21,10 @@ export default defineEventHandler(async (event) => {
   }
   const f = { ...base, ...draftFields(body) }
   const id = newId('drf')
-  db.prepare('insert into drafts (id, filename, title, kind, content, user_id, created_at, updated_at, project_id, base_document_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
-    .run(id, filename, f.title, f.kind, f.content, user, now(), now(), pid(), baseId)
+  tx(() => {
+    db.prepare('insert into drafts (id, filename, title, kind, content, user_id, created_at, updated_at, project_id, base_document_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+      .run(id, filename, f.title, f.kind, f.content, user, now(), now(), pid(), baseId)
+    agentAudit('draft.created', 'draft', id, { title: f.title, document_id: baseId })
+  })
   return getDraft(id)
 })

@@ -10,7 +10,7 @@ import { candidateFingerprint } from '../../shared/utils/review'
 // events are the ones the panel runs, with the token owner's live role (the project guard blocks viewer writes as usual).
 // Level: read (any token), propose (any token: proposals and model runs, nothing becomes canon), full (a full-access token
 // only: decisions and editorial writes, made as its owner and audited via: 'mcp' with the token).
-// Not here, on purpose: account routes (sign-up, log-in, password, profile), studios, API tokens (an agent never mints one),
+// Not here, on purpose: account routes (sign-up, log-in, password, profile), studios, team changes (roles, removals, invites), API tokens (an agent never mints one),
 // invite accept, demo load (a destructive reset), audio uploads and dictation (audio does not fit a tool call), binary
 // downloads (portraits, images, audio, the original .docx, EPUB/zip) and OAuth.
 
@@ -234,15 +234,11 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
       type_delete: { level: 'full', run: (a) => (need(a, 'key'), panelCall('DELETE', `/api/entity-types/${a.key}`, { query: { move_to: a.move_to } })) },
     })
 
-  tool('sb_team', 'Studio members and invites',
-    'list (read): the studio\'s members and roles (open invite links for admins). set_role / remove (full, studio admin+; only owners touch owners, a studio keeps one owner). '
-    + 'invite_create (full, admin+): a single-use link for a role, valid 1, 7 or 30 days; no email is sent. invite_revoke (full, admin+). Example: {"action": "invite_create", "role": "editor", "days": 7}',
-    { user_id: id.optional(), role: z.enum(['viewer', 'editor', 'admin', 'owner']).optional(), days: z.union([z.literal(1), z.literal(7), z.literal(30)]).optional(), invite_id: id.optional() }, {
+  // Read only: who is in the studio is a person's decision (roles, removals and invites stay in the app, never an agent's).
+  tool('sb_team', 'Studio members',
+    'list (read): the studio\'s members and roles (open invite links for admins). Changing roles, removing members and invites are not available to agents: a person does them in Settings > Team. Example: {"action": "list"}',
+    {}, {
       list: { level: 'read', run: () => panelCall('GET', '/api/team') },
-      set_role: { level: 'full', run: (a) => (need(a, 'user_id', 'role'), panelCall('PATCH', `/api/team/${enc(a.user_id)}`, { body: { role: a.role } })) },
-      remove: { level: 'full', run: (a) => (need(a, 'user_id'), panelCall('DELETE', `/api/team/${enc(a.user_id)}`)) },
-      invite_create: { level: 'full', run: (a) => (need(a, 'role'), panelCall('POST', '/api/team/invites', { body: { role: a.role, days: a.days ?? 7 } })) },
-      invite_revoke: { level: 'full', run: (a) => (need(a, 'invite_id'), panelCall('DELETE', `/api/team/invites/${enc(a.invite_id)}`)) },
     })
 
   // ---------------------------------------------------------------- Sources
@@ -424,7 +420,7 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
     })
 
   tool('sb_conversation', 'Team conversations in Ask',
-    'Ask\'s conversations are shared with the whole team. list / read (read). start / post (full; viewers may post too): a message in canon mode (grounded answer, or "unknown") or research mode (outside sources, not canon); action "continuity" checks the text in canon mode. '
+    'Ask\'s conversations are shared with the whole team. list / read (read). start / post (propose; viewers may post too, as in the app): a message in canon mode (grounded answer, or "unknown") or research mode (outside sources, not canon); action "continuity" checks the text in canon mode. '
     + 'rename (full, editor+). Example: {"action": "post", "conversation_id": "cnv_0123abcd", "text": "Where was Odo on D2?", "mode": "canon"}',
     {
       conversation_id: id.optional(), text: z.string().max(2000).optional(), mode: z.enum(['canon', 'research']).optional(), check_continuity: z.boolean().optional(),
@@ -435,8 +431,8 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
         return { total: page.total, next_cursor: page.next_cursor, conversations: page.items }
       } },
       read: { level: 'read', run: (a) => (need(a, 'conversation_id'), panelCall('GET', `/api/conversations/${enc(a.conversation_id)}`)) },
-      start: { level: 'full', run: (a) => (need(a, 'text'), panelCall('POST', '/api/conversations', { body: { text: a.text, mode: a.mode, ...(a.check_continuity && { action: 'continuity' }) } })) },
-      post: { level: 'full', run: (a) => (need(a, 'conversation_id', 'text'), panelCall('POST', `/api/conversations/${enc(a.conversation_id)}/messages`, { body: { text: a.text, mode: a.mode, ...(a.check_continuity && { action: 'continuity' }) } })) },
+      start: { level: 'propose', run: (a) => (need(a, 'text'), panelCall('POST', '/api/conversations', { body: { text: a.text, mode: a.mode, ...(a.check_continuity && { action: 'continuity' }) } })) },
+      post: { level: 'propose', run: (a) => (need(a, 'conversation_id', 'text'), panelCall('POST', `/api/conversations/${enc(a.conversation_id)}/messages`, { body: { text: a.text, mode: a.mode, ...(a.check_continuity && { action: 'continuity' }) } })) },
       rename: { level: 'full', run: (a) => (need(a, 'conversation_id', 'title'), panelCall('PATCH', `/api/conversations/${enc(a.conversation_id)}`, { body: { title: a.title } })) },
     })
 

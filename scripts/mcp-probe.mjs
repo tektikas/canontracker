@@ -541,14 +541,11 @@ ok('sb_project: get / types (read), update + type create/update/delete (full)')
 // --- sb_team
 const team = await yes(P, 'sb_team', { action: 'list' })
 assert.ok(team.members.some(m => m.name === 'Bo' && m.role === 'viewer'))
-await levelRefusal('sb_team', { action: 'invite_create', role: 'editor' })
-await no(V, 'sb_team', { action: 'invite_create', role: 'editor' }, 'FORBIDDEN', 'viewer invites')
-const inv = await yes(F, 'sb_team', { action: 'invite_create', role: 'editor', days: 1 })
-await yes(F, 'sb_team', { action: 'invite_revoke', invite_id: inv.id })
-const boId = team.members.find(m => m.name === 'Bo').id
-await yes(F, 'sb_team', { action: 'set_role', user_id: boId, role: 'viewer' })
-await no(F, 'sb_team', { action: 'set_role', user_id: boId, role: 'emperor' }, 'BAD_INPUT', 'bad role')
-ok('sb_team: list, invites and roles (full, admin+)')
+// Team changes are not offered to agents at any level: the actions don't exist.
+for (const [cl, action] of [[F, 'invite_create'], [F, 'set_role'], [F, 'remove'], [F, 'invite_revoke'], [V, 'invite_create']])
+  await no(cl, 'sb_team', { action, role: 'editor', user_id: team.members[0].id }, 'BAD_INPUT', `sb_team ${action} is not offered`)
+assert.deepEqual(tools.find(t => t.name === 'sb_team').inputSchema.properties.action.enum, ['list'])
+ok('sb_team: list only; roles, removals and invites refused at every level')
 
 // --- sb_document (import text and .docx, history, diff, extract, write)
 await levelRefusal('sb_document', { action: 'import', filename: `probe-${run}.md`, text: 'x' })
@@ -582,7 +579,10 @@ assert.equal(savedDraft.status, 'imported')
 const dr2 = await yes(F, 'sb_draft', { action: 'create', title: 'Throwaway' })
 await yes(F, 'sb_draft', { action: 'delete', draft_id: dr2.id })
 await no(X, 'sb_draft', { action: 'get', draft_id: dr2.id }, 'NOT_FOUND', 'someone else\'s draft')
-ok('sb_draft: create / update / list / get / save / delete (full)')
+const draftEvents = (await yes(P, 'sb_audit', { action: 'list', type: 'draft', via_mcp: true, limit: 50 })).events.filter(e => [dr.id, dr2.id].includes(e.target_id))
+assert.deepEqual(draftEvents.map(e => e.event_type).sort(), ['draft.created', 'draft.created', 'draft.deleted', 'draft.saved', 'draft.updated'])
+assert.ok(draftEvents.every(e => e.detail.token_name === 'Agent full (Ada)' && !JSON.stringify(e.detail).includes('Vendors')), 'draft audit: token, never the text')
+ok('sb_draft: create / update / list / get / save / delete (full); each audited with the token, no draft text')
 
 // --- sb_note
 await levelRefusal('sb_note', { action: 'create', document: imported.document_id, quote: 'the night ferry', body: 'x' })
@@ -645,15 +645,18 @@ await no(P, 'sb_research', { action: 'promote', note_id: rnote.id, as: 'fact', s
 ok('sb_research: run / list / get / promote (propose), pin / unpin (full)')
 
 // --- sb_conversation
-await levelRefusal('sb_conversation', { action: 'start', text: 'Who stands watch at the Bell Gate on Day 2?' })
-const conv = await yes(F, 'sb_conversation', { action: 'start', text: 'Who stands watch at the Bell Gate on Day 2?', mode: 'canon' })
+// Posting in Ask is propose level (viewers post in the app too); renaming is full.
+const conv = await yes(P, 'sb_conversation', { action: 'start', text: 'Who stands watch at the Bell Gate on Day 2?', mode: 'canon' })
 const convId = conv.conversation.id
-await yes(F, 'sb_conversation', { action: 'post', conversation_id: convId, text: 'And on Day 3?' })
+await yes(P, 'sb_conversation', { action: 'post', conversation_id: convId, text: 'And on Day 3?' })
+await levelRefusal('sb_conversation', { action: 'rename', conversation_id: convId, title: 'x' })
 await yes(F, 'sb_conversation', { action: 'rename', conversation_id: convId, title: 'Bell Gate watch' })
 assert.ok((await yes(P, 'sb_conversation', { action: 'list' })).conversations.some(x => x.id === convId))
 assert.ok((await yes(P, 'sb_conversation', { action: 'read', conversation_id: convId })).messages.length >= 4)
 await no(X, 'sb_conversation', { action: 'read', conversation_id: convId }, 'NOT_FOUND', 'other project conversation')
-ok('sb_conversation: start / post / rename (full), list / read')
+const askEvents = (await yes(P, 'sb_audit', { action: 'list', via_mcp: true, limit: 100 })).events.filter(e => e.target_id === convId)
+assert.deepEqual(askEvents.map(e => `${e.event_type}:${e.detail.token_name}`).sort(), ['conversation.created:Claude Code (Ada)', 'conversation.renamed:Agent full (Ada)', 'message.posted:Claude Code (Ada)', 'message.posted:Claude Code (Ada)'])
+ok('sb_conversation: start / post (propose), rename (full), list / read; each post audited message.posted with the token')
 
 // --- sb_export, sb_share, sb_audit, sb_metrics, sb_agent_runs, sb_search
 const ex1 = await yes(V, 'sb_export', { action: 'bible', format: 'md', max_chars: 5000 })
