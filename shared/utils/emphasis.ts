@@ -42,6 +42,9 @@ export function emphasisMarks(source: string): Set<number> {
   return marks
 }
 
+/** The text without its emphasis delimiters, for places that take plain text (page headers, XHTML <title>). */
+export const emphasisPlain = (text: string) => emphasisRuns(text).filter(r => !r.mark).map(r => r.text).join('')
+
 export interface EmphasisRun { text: string, start: number, mark: boolean, em: boolean, strong: boolean }
 /**
  * The text cut into runs that share a style: `mark` runs are the delimiters themselves (hidden or dropped on display), the

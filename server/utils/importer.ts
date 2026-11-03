@@ -28,13 +28,12 @@ export function splitPassages(content: string) {
 export const DOCUMENT_KINDS = ['scene', 'lore', 'character', 'location', 'quest', 'dialogue', 'recording', 'other'] as const
 
 // The kind a new upload gets when nobody chose one. Impact counts scenes, so the story's own text should be one: "S01…" in
-// any project, and in a novel or prose project also chapter-like names ("Chapter 3", "ch02", "Part II", "Prologue", or a
-// leading number as in "01 The Arrival"). Everything else starts as lore; the Library changes a kind in one step.
-const CHAPTER = /^\d|\b(?:chapter|chap|ch|part|book|prologue|epilogue|interlude)(?:\s*\d+|\s+[ivxlc]+)?\b/i
+// any project, and in a novel or prose project also chapter-like names (chapterLike, shared/utils/upload.ts). Everything
+// else starts as lore; the Library changes a kind in one step.
 function sceneLike(filename: string, projectId: string) {
   if (/^S\d+/i.test(filename)) return true
   const medium = (useDb().prepare('select medium from projects where id = ?').get(projectId) as { medium: string } | undefined)?.medium
-  return medium === 'prose' && CHAPTER.test(filename.replace(/\.[^.]+$/, '').replace(/[_\-.]+/g, ' '))
+  return medium === 'prose' && chapterLike(filename)
 }
 
 // What an import would call a file on its own: its first heading, else the filename.

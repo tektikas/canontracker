@@ -351,7 +351,7 @@ export function bookEpub(book: Book, images: Map<string, { file: string, data: B
   // Markdown emphasis becomes <em> / <strong>; the delimiters are not printed.
   const rich = (t: string) => emphasisRuns(t).filter(r => !r.mark)
     .map(r => (r.strong ? `<strong>${r.em ? `<em>${esc(r.text)}</em>` : esc(r.text)}</strong>` : r.em ? `<em>${esc(r.text)}</em>` : esc(r.text))).join('')
-  const para = (p: BookPara) => (p.kind === 'h' ? `<h3>${esc(p.text)}</h3>` : `<p class="${p.kind ?? ''}">${rich(p.text).replace(/\n/g, '<br/>')}</p>`)
+  const para = (p: BookPara) => (p.kind === 'h' ? `<h3>${rich(p.text)}</h3>` : `<p class="${p.kind ?? ''}">${rich(p.text).replace(/\n/g, '<br/>')}</p>`)
   const chapters = book.chapters.map((c, i) => {
     const sections = c.sections.map((s) => {
       const img = s.portraitKey ? images.get(s.portraitKey) : null
@@ -359,10 +359,10 @@ export function bookEpub(book: Book, images: Map<string, { file: string, data: B
         + s.facts.map(f => `<p class="fact"><span class="n">${esc(f.n)}</span>${f.label ? `<span class="lab">${esc(f.label)}</span>` : ''}${esc(f.statement)}${f.sample ? ' <em>(sample canon)</em>' : ''}${f.notes.map(k => `<a epub:type="noteref" href="#fn${k}"><sup>${k}</sup></a>`).join('')}</p>`).join('') + '</section>'
     }).join('')
     const notes = c.notes.map(n => `<aside epub:type="footnote" id="fn${n.n}"><p>${n.n}. ${esc(n.text)}</p></aside>`).join('')
-    return { file: `ch${i + 1}.xhtml`, title: c.title, html: xhtml(c.title, `<h1>${esc(c.title)}</h1>${c.intro ? `<p class="sub">${esc(c.intro)}</p>` : ''}${sections}${notes}`) }
+    return { file: `ch${i + 1}.xhtml`, title: c.title, html: xhtml(emphasisPlain(c.title), `<h1>${rich(c.title)}</h1>${c.intro ? `<p class="sub">${esc(c.intro)}</p>` : ''}${sections}${notes}`) }
   })
   const front = xhtml(book.title, `<h1>${esc(book.title)}</h1><p>${esc(book.kicker)}</p><p class="sub">${esc(book.studio)} · ${esc(book.line)}</p>`)
-  const nav = xhtml('Contents', `<nav epub:type="toc"><h1>Contents</h1><ol>${chapters.map(c => `<li><a href="${c.file}">${esc(c.title)}</a></li>`).join('')}</ol></nav>`)
+  const nav = xhtml('Contents', `<nav epub:type="toc"><h1>Contents</h1><ol>${chapters.map(c => `<li><a href="${c.file}">${rich(c.title)}</a></li>`).join('')}</ol></nav>`)
   const mediaOf = (f: string, mime: string) => `<item id="${f.replace(/\W/g, '-')}" href="${f}" media-type="${mime}"/>`
   const imgItems = [...images.values()].map(i => mediaOf(i.file, i.mime)).join('')
   const coverExt = cover ? EXT[cover.mime] ?? 'img' : ''

@@ -146,6 +146,18 @@ for (const f of gold.authored) {
   const r = await a('/api/facts', { method: 'POST', body: { to: 'canon', document_id: docId.get(f.file), quote: f.quote, statement: f.statement, kind: f.kind, subject: f.subject, predicate: f.relation, object: f.answer } })
   check(`authored: ${f.statement}`, r.status, 200)
 }
+// A selection that cuts the italic "_Being a reprint from the Reminiscences of_" in half: the dialog's preview is widened to the
+// whole phrase and is exactly what the save stores.
+{
+  const memoir = docId.get('1887-a-study-in-scarlet-1-01-mr-sherlock-holmes.md')
+  const selected = 'reprint from the Reminiscences of JOHN H. WATSON'
+  const preview = (await a(`/api/documents/${memoir}/quote?quote=${encodeURIComponent(selected)}`)).data
+  check('quote preview widened to the italic phrase', [preview.quote, preview.widened], ['_Being a reprint from the Reminiscences of_ JOHN H. WATSON', true])
+  const saved = (await a('/api/facts', { method: 'POST', body: { to: 'review', document_id: memoir, passage_id: preview.passage_id, quote: selected, statement: 'The narrative is a reprint of Watson\'s reminiscences.', kind: 'claim', subject: 'Watson', predicate: 'wrote', object: 'Reminiscences' } })).data
+  check('preview === stored evidence quote', (await a('/api/facts?status=pending')).data.find(f => f.id === saved.id).evidence[0].quote, preview.quote)
+  check('rejected again so canon is unchanged', (await a(`/api/facts/${saved.id}/review`, { method: 'POST', body: { decision: 'reject', rationale: 'probe' } })).status, 200)
+  check('a plain selection is not widened', (await a(`/api/documents/${memoir}/quote?quote=${encodeURIComponent('In the year 1878 I took my degree')}`)).data.widened, false)
+}
 canon = (await a('/api/facts?status=canon')).data
 for (const f of gold.authored) check(`stored as a detail: ${f.statement}`, [fact(f.statement).predicate, fact(f.statement).object, fact(f.statement).value], [f.relation.replace(/ /g, '_'), null, f.answer])
 await a('/api/conflicts/scan', { method: 'POST' })

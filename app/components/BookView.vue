@@ -10,7 +10,7 @@ const margins = `font: 9pt "Instrument Sans", Arial, sans-serif; color: #675d50;
 const pages = computed(() => [
   `@page cover, front { @top-left { content: none; } @top-right { content: none; } @bottom-center { content: none; } }`,
   // flow (manuscript): chapters share one page style, so a short chapter follows the last one on the same page; the running header is the book title.
-  ...(b.value.flow ? [`@page body { size: A4; margin: 22mm 20mm 20mm; @top-left { content: ${cssString(b.value.title)}; ${margins} } @top-right { content: none; } @bottom-center { content: counter(page); ${margins} } }`] : b.value.chapters.map((c, i) => `@page ch${i} { size: A4; margin: 22mm 20mm 20mm; @top-left { content: ${cssString(b.value.title)}; ${margins} } @top-right { content: ${cssString(c.title)}; ${margins} } @bottom-center { content: counter(page); ${margins} } }`)),
+  ...(b.value.flow ? [`@page body { size: A4; margin: 22mm 20mm 20mm; @top-left { content: ${cssString(b.value.title)}; ${margins} } @top-right { content: none; } @bottom-center { content: counter(page); ${margins} } }`] : b.value.chapters.map((c, i) => `@page ch${i} { size: A4; margin: 22mm 20mm 20mm; @top-left { content: ${cssString(b.value.title)}; ${margins} } @top-right { content: ${cssString(emphasisPlain(c.title))}; ${margins} } @bottom-center { content: counter(page); ${margins} } }`)),
 ].join('\n'))
 useHead(() => ({ style: [{ key: 'book-pages', innerHTML: pages.value }] }))
 const portrait = (s: BookSection) => (s.portrait ? s.portrait : null)
@@ -37,19 +37,19 @@ const portrait = (s: BookSection) => (s.portrait ? s.portrait : null)
     <nav class="toc" aria-label="Contents">
       <h2>Contents</h2>
       <ol>
-        <li v-for="c in book.chapters" :key="c.id"><a :href="`#ch-${c.id}`"><span class="t">{{ c.title }}</span></a></li>
+        <li v-for="c in book.chapters" :key="c.id"><a :href="`#ch-${c.id}`"><span class="t"><EmText :text="c.title" /></span></a></li>
       </ol>
     </nav>
 
     <section v-for="(c, i) in book.chapters" :id="`ch-${c.id}`" :key="c.id" class="chapter" :class="{ flow: book.flow }" :style="{ page: book.flow ? 'body' : `ch${i}` }">
-      <h2>{{ c.title }}</h2>
+      <h2><EmText :text="c.title" /></h2>
       <p v-if="c.intro" class="intro">{{ c.intro }}</p>
       <article v-for="s in c.sections" :id="s.id" :key="s.id" class="sec">
         <img v-if="portrait(s)" :src="portrait(s)!" alt="" class="portrait">
         <h3 v-if="s.title">{{ s.title }}</h3>
         <p v-if="s.sub" class="sub">{{ s.sub }}</p>
         <template v-for="(p, j) in s.paras" :key="j">
-          <h4 v-if="p.kind === 'h'">{{ p.text }}</h4>
+          <h4 v-if="p.kind === 'h'"><EmText :text="p.text" /></h4>
           <p v-else :class="p.kind"><EmText :text="p.text" /></p>
         </template>
         <p v-for="f in s.facts" :id="f.n" :key="f.n" class="fact">

@@ -9,3 +9,10 @@ export function uploadNameProblem(name: string, other = 'Not a supported file: u
   if (/\.(doc|dot|rtf|odt|pages)$/i.test(name)) return 'This word-processor format is not imported. Save it as a Word Document (.docx).'
   return other
 }
+
+// A file name that reads as a chapter of a book: a leading number ("01 The Arrival"), a chapter word with a number ("Chapter 3",
+// "ch02", "Book 2", "Part II", "Chapter One"), or Prologue / Epilogue / Interlude as the first word. A chapter word without a
+// number is not enough ("book-notes", "Part of the plan"), and only whole words count ("notebook", "facebook").
+const WORDS = '(?:[ivx]{1,5}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)'
+const CHAPTER = new RegExp(`^\\d|\\b(?:chapter|chap|ch|part|book)(?:\\s*\\d+|\\s+${WORDS})\\b|^(?:prologue|epilogue|interlude)\\b`, 'i')
+export const chapterLike = (filename: string) => CHAPTER.test(filename.replace(/\.[^.]+$/, '').replace(/[_\-.]+/g, ' ').trim())

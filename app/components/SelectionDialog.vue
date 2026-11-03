@@ -11,6 +11,14 @@ export type SelectionMode = 'fact' | 'entity' | 'note'
 const props = defineProps<{ selection: TextSelection, mode: SelectionMode }>()
 const emit = defineEmits<{ close: [], saved: [kind: 'fact' | 'note', result: Record<string, any>] }>()
 
+// The quote the server will store, asked before anyone decides (same check as the save): a selection that cuts an italic or
+// bold phrase in half is widened to the whole phrase, and the person sees that here, not after saving.
+const { data: preview } = useFetch<{ quote: string | null, widened: boolean }>(() => `/api/documents/${props.selection.doc.id}/quote`, {
+  query: { passage_id: props.selection.passage.id, quote: props.selection.quote }, immediate: props.mode !== 'entity', server: false,
+})
+const shownQuote = computed(() => preview.value?.quote ?? props.selection.quote)
+const widenedAs = computed(() => (preview.value?.widened ? (emphasisRuns(shownQuote.value).some(r => r.strong) ? 'bold' : 'italic') : null))
+
 const dialog = ref<HTMLDialogElement>()
 onMounted(() => dialog.value?.showModal())
 
@@ -143,8 +151,9 @@ const TITLE = { fact: 'Add a fact', entity: 'Add an entity', note: 'Add a note' 
       </header>
 
       <figure v-if="mode !== 'entity'" class="sel-quote">
-        <blockquote class="quote">{{ selection.quote }}</blockquote>
+        <blockquote class="quote" :data-quote="shownQuote"><EmText :text="shownQuote" /></blockquote>
         <figcaption class="small muted"><UiIcon name="file" :size="14" />{{ selection.doc.title }}, {{ line }}</figcaption>
+        <p v-if="widenedAs" class="small muted widened">Extended to the whole {{ widenedAs }} phrase, so the citation doesn’t split it.</p>
       </figure>
 
       <template v-if="mode === 'note'">
@@ -247,6 +256,7 @@ const TITLE = { fact: 'Add a fact', entity: 'Add an entity', note: 'Add a note' 
 .sel-quote { margin: 0; display: grid; gap: 6px; }
 .sel-quote .quote { max-height: 9.6em; overflow-y: auto; white-space: pre-wrap; }
 .sel-quote figcaption { display: flex; align-items: center; gap: 6px; }
+.sel-quote .widened { margin: 0; }
 .statement-input { font-family: var(--font-story); font-size: var(--text-md); }
 .parts { border: 1px solid var(--line); border-radius: var(--r-md); }
 .parts summary { display: flex; flex-wrap: wrap; align-items: center; gap: 4px var(--s-2); padding: 10px 12px; cursor: pointer; list-style: none; font-weight: 600; font-size: var(--text-sm); }
