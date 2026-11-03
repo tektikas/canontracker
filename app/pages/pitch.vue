@@ -1,12 +1,12 @@
 <script setup lang="ts">
-// Pitch deck: eleven 16:9 slides (one idea each, alternating dark and light like the video) and an appendix with the
+// Pitch deck: twelve 16:9 slides (one idea each, alternating dark and light like the video) and an appendix with the
 // detail: TAM/SAM (A1), SOM and ramp (A2), competitor table, proof and every source. Reads on screen (scroll or arrow keys) and prints one
 // slide per page; docs/pitch-deck.pdf is rendered from this page by scripts/brand/render-pitch.mjs. Every number has a
 // numbered source (SOURCES, pages opened 3 Nov 2026); our own assumptions are marked. Linked from /about and the footer only.
 import { h, type FunctionalComponent } from 'vue'
 
 definePageMeta({ layout: 'marketing' })
-useMarketingSeo({ title: 'Pitch deck', description: 'Story Bible in eleven slides: every story world breaks, the product that catches it, who builds story worlds today, the model, competition and the team. Sources in the appendix.', path: '/pitch' })
+useMarketingSeo({ title: 'Pitch deck', description: 'Story Bible in twelve slides: every story world breaks, the product that catches it, who builds story worlds today, the model, go-to-market, competition and the team. Sources in the appendix.', path: '/pitch' })
 useSeoMeta({ robots: 'noindex' })
 
 interface Source { id: string, title: string, url?: string }
@@ -53,7 +53,7 @@ const Foot: FunctionalComponent<{ ids?: string[], n: string }> = p => h('footer'
   h('span', p.ids?.length ? `Sources ${p.ids.map(num).join(', ')}, appendix A5` : ''),
   h('span', p.n),
 ])
-const MAIN = 11
+const MAIN = 12
 
 // ---------- Who builds story worlds (slide 7): one sourced number each, units never mixed ----------
 const WORLDS = [
@@ -267,7 +267,7 @@ const print = () => window.print()
       <Foot :ids="WORLDS.flatMap(w => [w.src, w.moreSrc])" n="7" />
     </section>
 
-    <!-- 8. Model and go-to-market -->
+    <!-- 8. Business model -->
     <section class="slide l model" aria-labelledby="t8">
       <div class="in">
         <h2 id="t8">Open source to spread. Cloud for teams to pay.</h2>
@@ -275,18 +275,42 @@ const print = () => window.print()
           <div><b>Free</b><span>Self-host the whole app, AGPL-3.0.</span></div>
           <div class="cloud"><b>Cloud</b><span>We host it for teams. Price on request.</span></div>
         </div>
-        <ol class="channels">
-          <li>GitHub and the four sample worlds</li>
-          <li>Narrative design and writing communities</li>
-          <li>Game master and worldbuilding communities</li>
-          <li>Agents that connect over MCP</li>
-        </ol>
+        <p class="lead sub">A solo writer starts free. A team pays when it wants us to host it, so nobody has to run a server.</p>
       </div>
       <Foot :ids="['repo']" n="8" />
     </section>
 
-    <!-- 9. Competition -->
-    <section class="slide d compete" aria-labelledby="t9">
+    <!-- 9. Go-to-market -->
+    <section class="slide d gtm" aria-labelledby="t9g">
+      <div class="in">
+        <h2 id="t9g">Go-to-market: game teams first, then every story world.</h2>
+        <ol class="phases">
+          <li>
+            <span class="when">Year 1</span>
+            <b>Game narrative teams and game masters</b>
+            <span class="why">Their lore already lives in docs, and their coding agents need canon to build from.</span>
+            <span class="how">Open source on GitHub with four sample worlds · Muse Code and other agents over MCP · game jams (35,371 people at the 2025 Global Game Jam<R id="ggj" />)</span>
+          </li>
+          <li>
+            <span class="when">Year 2</span>
+            <b>Creators: serial and web fiction, webcomics, YouTube and TikTok worlds, series novelists</b>
+            <span class="why">One world, many episodes, a fandom that notices every slip.</span>
+            <span class="how">“Find the slip” videos on public-domain classics, like Watson’s wound · share pages and EPUB books that carry the name · creator partnerships</span>
+          </li>
+          <li>
+            <span class="when">Year 3 on</span>
+            <b>Studios: writers’ rooms and game studios</b>
+            <span class="why">Many writers, long productions, canon that must outlive any one of them.</span>
+            <span class="how">Cloud Team and Studio seats, sales-assisted · self-hosting support for studios that keep canon in-house</span>
+          </li>
+        </ol>
+        <p class="caption">A plan, not traction yet. Seat ramp and shares in A2.</p>
+      </div>
+      <Foot :ids="['ggj']" n="9" />
+    </section>
+
+    <!-- 10. Competition -->
+    <section class="slide l compete" aria-labelledby="t9">
       <div class="in">
         <h2 id="t9">Alone in the top right.</h2>
         <div class="map" role="img" aria-label="Positioning map. Across: checks consistency automatically. Up: cites every canon fact verbatim. Story Bible is alone in the top right: every canon fact cited verbatim, checked by deterministic rules. Book Check Genie checks with AI and quotes each finding, but does not keep every fact cited; Arcweave, LegendKeeper, Novelcrafter, Sudowrite, Notion and Kanka make neither claim on their own pages.">
@@ -300,11 +324,11 @@ const print = () => window.print()
         </div>
         <p class="caption">Placed only by what each vendor’s own page says (3 Nov 2026); places inside a quarter are only for legibility. Book Check Genie quotes each finding; Story Bible cites every canon fact and checks it by deterministic rules. Table in A3.</p>
       </div>
-      <Foot :ids="MAP.filter(c => c.src).map(c => c.src!)" n="9" />
+      <Foot :ids="MAP.filter(c => c.src).map(c => c.src!)" n="10" />
     </section>
 
-    <!-- 10. Team -->
-    <section class="slide l team" aria-labelledby="t10">
+    <!-- 11. Team -->
+    <section class="slide d team" aria-labelledby="t10">
       <div class="in">
         <h2 id="t10">A solo entry, with a company behind it.</h2>
         <div class="people">
@@ -329,10 +353,10 @@ const print = () => window.print()
           </div>
         </div>
       </div>
-      <Foot :ids="['ugorur', 'tektik']" n="10" />
+      <Foot :ids="['ugorur', 'tektik']" n="11" />
     </section>
 
-    <!-- 11. Close -->
+    <!-- 12. Close -->
     <section class="slide d close" aria-labelledby="t11">
       <div class="in">
         <BrandMark class="mark" />
@@ -340,7 +364,7 @@ const print = () => window.print()
         <p class="lead sub">We’re looking for design partners: a narrative team, a writers’ room, a serial writer and a game master.</p>
         <p class="contact"><a :href="CONTACT">info@tektik.ai</a><a :href="GITHUB">{{ GITHUB.replace('https://', '') }}</a></p>
       </div>
-      <Foot n="11" />
+      <Foot n="12" />
     </section>
 
     <!-- A1. TAM and SAM -->
@@ -552,10 +576,17 @@ const print = () => window.print()
 .split span { font-size: 1.7cqw; color: var(--mut); }
 .split .cloud { background: var(--acc); border-color: var(--acc); }
 .split .cloud b, .split .cloud span { color: var(--paper); }
-.channels { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, 1fr); gap: 2cqw; font-size: 1.7cqw; color: var(--mut); }
-.channels li { border-top: 0.12cqw solid var(--line-strong); padding-top: 0.9cqw; }
 
 /* 9 */
+.gtm .in { gap: 2cqw; padding-top: 3.6cqw; }
+.gtm h2 { font-size: 3.4cqw; max-width: none; }
+.phases { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 2.4cqw; counter-reset: none; }
+.phases li { display: grid; align-content: start; gap: 0.9cqw; padding-top: 1.4cqw; border-top: 0.3cqw solid var(--acc); }
+.phases .when { font-size: 1.2cqw; font-weight: 600; color: var(--acc); text-transform: uppercase; letter-spacing: 0.08em; }
+.phases b { font-size: 2.1cqw; line-height: 1.15; letter-spacing: -0.01em; }
+.phases .why { font-size: 1.55cqw; line-height: 1.3; }
+.phases .how { font-size: 1.3cqw; line-height: 1.4; color: var(--mut); }
+
 .compete .in { padding-top: 3.4cqw; gap: 1.6cqw; }
 .map { position: relative; display: grid; grid-template-columns: 2.4cqw 1fr; grid-template-rows: 1fr 2.4cqw; height: 29cqw; }
 .plot { position: relative; grid-column: 2; grid-row: 1; border-left: 0.15cqw solid var(--line-strong); border-bottom: 0.15cqw solid var(--line-strong);
@@ -629,9 +660,9 @@ const print = () => window.print()
   .breaks h1 { font-size: 46px; }
   .close h2 { font-size: 36px; }
   .lead, .lead.sub, .bignum p { font-size: 18px; }
-  .caption, .sizes span, .channels, .people ul, .models span, .split span, .what, .kpis span { font-size: 15px; }
+  .caption, .sizes span, .phases .why, .phases .how, .people ul, .models span, .split span, .what, .kpis span { font-size: 15px; }
   .more, .who, .axis, .dot, .tag, .appx .in { font-size: 13px; }
-  .three, .flow, .models, .tiles, .split, .channels, .people, .kpis { grid-template-columns: minmax(0, 1fr); }
+  .three, .flow, .models, .tiles, .split, .phases, .people, .kpis { grid-template-columns: minmax(0, 1fr); }
   .three img { width: 60%; }
   .three h2 { font-size: 14px; }
   .three .story { font-size: 19px; }
