@@ -14,7 +14,8 @@ Pencil-and-ink spots and one hero, generated with **OmniRoute images** (`POST ht
 Transparent backgrounds work (`background: "transparent"`), but the model draws a soft white glow into the alpha, which shows as a halo on the dark theme. So every image is drawn on the flat linen paper colour, and `LandingArt.vue` shows it on a linen plate of the same colour in both themes (slightly dimmed in dark).
 
 1. Generate: `OMNIROUTE_KEY="$(pass show <secret-entry> | head -1)" node scripts/brand/generate-art.mjs <source dir> [name…]`. Sources are PNG, 1254×1254; keep them outside `public/`. The gateway gives up after 30 s without a response and the script retries each image three times; long, busy prompts time out more often (the hero prompt was shortened for that reason).
-2. Optimise: `node scripts/brand/optimise-art.mjs <source dir>`. ImageMagick flood-fills the background from the four corners to exactly `#f4f0e8` (3% fuzz), resizes (hero 960px, spots 400px: twice their largest display size) and writes WebP quality 80. No PNG fallbacks: every supported browser reads WebP.
+2. Cut out: send each source to BiRefNet (`POST https://models.example/v1/images/edits`, multipart `model=birefnet`, `image=@<file>`, `response_format=b64_json`; homelab, no key) and save the transparent PNGs in their own folder. The drawings then sit on the page in both themes with no paper plate.
+3. Optimise: `node scripts/brand/optimise-art.mjs <cut-out dir>`. Keeps the alpha (a source without alpha falls back to flood-filling its linen ground), resizes (hero 960px, spots 400px: twice their largest display size) and writes WebP quality 82 with alpha quality 90. No PNG fallbacks: every supported browser reads WebP.
 
 ## Product screenshots (`public/shots/*.webp`)
 
