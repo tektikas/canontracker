@@ -348,7 +348,10 @@ const xhtml = (title: string, body: string) => `<?xml version="1.0" encoding="ut
 const EPUB_CSS = `body{font-family:serif;line-height:1.5}h1{margin:1.2em 0 .6em}h2{margin:1.4em 0 .2em}h3{margin:1em 0 .3em}.sub,.small{color:#555;font-size:.9em}.ed{font-size:.8em;font-weight:bold;text-transform:uppercase;color:#7a5c1e}.fact{margin:.8em 0}.n{font-size:.75em;color:#666;margin-right:.5em}.lab{font-size:.8em;font-weight:bold;margin-right:.5em}aside p{font-size:.85em;margin:.2em 0}img.portrait{max-width:40%;float:right;margin:0 0 .5em 1em}.cover img{max-width:100%}`
 
 export function bookEpub(book: Book, images: Map<string, { file: string, data: Buffer, mime: string }>, cover: { data: Buffer, mime: string } | null) {
-  const para = (p: BookPara) => (p.kind === 'h' ? `<h3>${esc(p.text)}</h3>` : `<p class="${p.kind ?? ''}">${esc(p.text).replace(/\n/g, '<br/>')}</p>`)
+  // Markdown emphasis becomes <em> / <strong>; the delimiters are not printed.
+  const rich = (t: string) => emphasisRuns(t).filter(r => !r.mark)
+    .map(r => (r.strong ? `<strong>${r.em ? `<em>${esc(r.text)}</em>` : esc(r.text)}</strong>` : r.em ? `<em>${esc(r.text)}</em>` : esc(r.text))).join('')
+  const para = (p: BookPara) => (p.kind === 'h' ? `<h3>${esc(p.text)}</h3>` : `<p class="${p.kind ?? ''}">${rich(p.text).replace(/\n/g, '<br/>')}</p>`)
   const chapters = book.chapters.map((c, i) => {
     const sections = c.sections.map((s) => {
       const img = s.portraitKey ? images.get(s.portraitKey) : null

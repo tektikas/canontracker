@@ -50,7 +50,7 @@ const portrait = (s: BookSection) => (s.portrait ? s.portrait : null)
         <p v-if="s.sub" class="sub">{{ s.sub }}</p>
         <template v-for="(p, j) in s.paras" :key="j">
           <h4 v-if="p.kind === 'h'">{{ p.text }}</h4>
-          <p v-else :class="p.kind">{{ p.text }}</p>
+          <p v-else :class="p.kind"><EmText :text="p.text" /></p>
         </template>
         <p v-for="f in s.facts" :id="f.n" :key="f.n" class="fact">
           <span class="n">{{ f.n }}</span><span v-if="f.label" class="lab" :class="{ approx: f.approx }">{{ f.label }}</span>{{ f.statement }}<em v-if="f.sample" class="sample"> (sample canon)</em><sup v-for="k in f.notes" :key="k" class="ref"><a :href="`#fn-${c.id}-${k}`">{{ k }}</a></sup>

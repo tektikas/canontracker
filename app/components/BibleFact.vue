@@ -15,7 +15,7 @@ defineProps<{ fact: BibleFact }>()
     </div>
     <p class="statement">{{ fact.statement }}</p>
     <figure v-for="(c, i) in fact.citations" :key="i" class="cite">
-      <blockquote class="quote" :class="{ prior: c.prior_source }">{{ c.quote }}</blockquote>
+      <blockquote class="quote" :class="{ prior: c.prior_source }"><EmText :text="c.quote" /></blockquote>
       <figcaption class="small">
         <UiIcon name="file" :size="13" />
         <span class="doc">{{ c.document }}</span>
