@@ -1,3 +1,4 @@
+import { isDetailPredicate } from './detail.ts'
 import { parseStoryRange } from './story-time.ts'
 
 // What the "Accept all verified" sheet showed for one candidate, as one comparable string: the wording and triple, each
@@ -72,7 +73,7 @@ const same = (a: string | null, b: string | null) => norm(a) === norm(b)
 export const WORDING_ONLY = 'Suggested a wording change only; who, what, where and when stay as they are.'
 export const OTHER_PARTY = 'Suggested another party of the same fact as its object; the one the candidate names is in the passage too.'
 // Facts the conflict rules read by their object (shared/../server/utils/analysis.ts): there, a different object is a different fact.
-const conflictRead = (c: CriticAsked) => ['located_at', 'travel_time', 'rule'].includes(c.predicate) || ['relationship', 'rule'].includes(c.kind ?? '')
+const conflictRead = (c: CriticAsked) => ['located_at', 'travel_time', 'rule'].includes(c.predicate) || isDetailPredicate(c.predicate) || ['relationship', 'rule'].includes(c.kind ?? '')
 
 // Model output → opinions we can show. One per asked candidate; anything that doesn't hold together is dropped and counted:
 // an unknown id or label, an opinion whose echoed statement isn't the candidate's (it was written about another candidate in

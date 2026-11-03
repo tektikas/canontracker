@@ -12,7 +12,7 @@ export function factPhrase(f: Record<string, any>, entities: Iterable<string> = 
   if (f.object && words.length >= 3 && PREP.has(words.at(-2)!)) {
     return [...words.slice(0, -2), f.object, ...words.slice(-2)].join(' ')
   }
-  return [words.join(' '), f.object].filter(Boolean).join(' ')
+  return [words.join(' '), f.object ?? (isDetailPredicate(f.predicate) ? f.value : null)].filter(Boolean).join(' ')
 }
 
 // Relations offered when a person adds a fact by hand, in the words a writer would use. The first four are the ones conflict

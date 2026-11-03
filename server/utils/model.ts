@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto'
+import { asDetail } from '../../shared/utils/detail.ts'
 import type { Turn, Wav } from './audio'
 
 // All model calls go through here. MODEL_MODE=mock replays recorded fixture output;
@@ -13,7 +14,7 @@ export interface CandidateDraft {
 
 export interface RuleViolation { fact_id: string, rationale: string, confidence: number }
 
-export const PROMPT_VERSIONS = { extract: 'extract-v2', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', research: 'research-v1', continuity: 'continuity-v1', critic: 'critic-v2', transcribe: 'transcribe-v1' } as const
+export const PROMPT_VERSIONS = { extract: 'extract-v3', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', research: 'research-v1', continuity: 'continuity-v1', critic: 'critic-v2', transcribe: 'transcribe-v1' } as const
 
 export function modelInfo() {
   const { modelMode, modelId } = useRuntimeConfig()
@@ -119,7 +120,7 @@ function identityNotes(facts: PromptFact[]) {
 // The demo sets with a recorded run. Recorded output is replayed only for a sample's own text: the sha256 of the imported
 // content must equal the sha256 of one of the set's source files (docs/ or v2/). A file that merely shares a sample's name
 // gets nothing, so an unrelated upload never receives another story's candidates.
-const RECORDED_SETS = ['broken-tide', 'ashbell-pass']
+const RECORDED_SETS = ['broken-tide', 'ashbell-pass', 'sherlock-holmes']
 const sha = (text: string) => createHash('sha256').update(text).digest('hex')
 let sources: Promise<Map<string, { set: string, filename: string, candidates?: CandidateDraft[] }>> | undefined
 const recordedSources = () => sources ??= (async () => {
@@ -169,7 +170,7 @@ export function cleanCandidates(raw: unknown) {
     }
     if (t?.to && t.to === t.from) delete t.to // a point in time, not a range
     const confidence = typeof c.confidence === 'number' && c.confidence >= 0 && c.confidence <= 1 ? c.confidence : undefined
-    return [{ kind, subject, predicate, object: field(c.object) || null, value: field(c.value) || null, statement, quote, confidence,
+    return [{ kind, subject, ...asDetail({ predicate, object: field(c.object) || null, value: field(c.value) || null }), statement, quote, confidence,
       ...(t && (t.from || t.to) && { time: { ...t, precision: c.time.precision === 'approximate' ? 'approximate' : 'exact' } }) }]
   })
   return { kept, malformed: list.length - kept.length - badTimes.length, badTimes }
@@ -185,7 +186,7 @@ export function extractCandidates(doc: { id: string, filename: string, title: st
     if (modelInfo().mode === 'mock') return (await recordedCandidates(doc.text)) ?? []
     const out = await chatJson(
       `You extract narrative canon candidates from game lore documents for a story bible that tracks continuity. Return only JSON {"candidates":[...]}.
-Each candidate: {"kind":"character|location|relationship|event|rule|claim","subject":"short entity name","predicate":"snake_case verb","object":"entity name or null","value":"number for measurable rules (e.g. travel minutes) or null","statement":"one plain sentence","quote":"EXACT verbatim substring of the document that supports it","time":{"from":"D<day> HH:MM","to":"D<day> HH:MM","precision":"exact|approximate"} or omitted,"confidence":0-1}.
+Each candidate: {"kind":"character|location|relationship|event|rule|claim","subject":"short entity name","predicate":"snake_case verb","object":"entity name or null","value":"number for measurable rules (e.g. travel minutes), the answer of a single-valued detail, or null","statement":"one plain sentence","quote":"EXACT verbatim substring of the document that supports it","time":{"from":"D<day> HH:MM","to":"D<day> HH:MM","precision":"exact|approximate"} or omitted,"confidence":0-1}.
 kind is exactly one of those six words (a "located_at" fact is kind "event").
 What to extract: facts a writer must keep consistent — who someone is, where someone is and when, what they do in the plot, relationships, world rules, travel times, what items and places do. In scenes, include each plot action a character takes (what they do, say or refuse, and when), because actions are what world rules are checked against. Skip mood, looks, scenery and trivia. One candidate per fact; do not restate the same fact twice.
 Quotes: copy one contiguous span character-for-character, keeping the document's capitalisation and punctuation. A quote never spans two paragraphs, never skips words and never joins separate sentences; when speech is broken by "she says" or similar, quote one side of it only. Prefer the single sentence that supports the fact.
@@ -196,6 +197,7 @@ Predicates:
 - "rule": a law of the world that holds for anyone and that a story event could break (a curse, the cost of a ritual or magic, what a magical item or place does to people). kind "rule", predicate "rule", subject = the thing the rule is about, statement = the rule as written. Customs, opening hours, a character's habit, choice or order are claims, not rules.
 - Relationships (kind "relationship"): one predicate per bond, the same one every time it appears (e.g. "sworn_to"), with the same subject and object (for a two-way bond such as partners or siblings, the two names in alphabetical order). A bond that ended gets time.to = when it ended; a bond stated as active at a time gets time.from = that time.
 - "is" only with an object that says what the subject is (e.g. "keeper of the Solen Lighthouse").
+- Single-valued details: whenever the text states, even in passing, a detail that can have only one answer at a time — where someone's wound or scar is, eye or hair colour, age, first or full name, year or place of birth, who someone's spouse, landlord or employer is, whether someone is alive or dead, what a place or ship is called — make it its own candidate with predicate "<detail>_is" (snake_case, the plain general name of the detail: "wound_location_is", "first_name_is", "eye_colour_is", "spouse_is"), value = the answer in a few of the text's own words, object null, never "has" or "is". Examples: "the sabre cut on her left arm still ached" → {"kind":"character","subject":"Mara","predicate":"wound_location_is","value":"left arm","statement":"Mara's wound is in her left arm."}; "her husband, Tom Vell" → {"subject":"Mara","predicate":"spouse_is","value":"Tom Vell"}. Name the same detail the same way every time it comes up, so answers from different documents can be compared. A detail that changes during the story gets the time it holds. Never use "_is" for something that can have several answers at once (skills, friends, possessions).
 Time: only for facts that happen on a stated story day ("on Day 3", "D-3650"). Identities, traits, rules, background and daily routines ("every evening", "at eight each day") get no time. "D<day> HH:MM" when the text gives a clock time (precision "exact"). When it names only a part of the day ("at dusk", "around evening") use precision "approximate" with a range covering that part of the day. Otherwise use day-only "D<day>" (never 00:00-23:59, never a guessed range). Days before D1 are D0, D-1, D-3650 ….
 Do not invent facts. Figurative language ("my sister in all but blood") is NOT a literal relationship; skip it or give it low confidence.`,
       `Document: ${doc.title}\n\n${doc.text}`,
