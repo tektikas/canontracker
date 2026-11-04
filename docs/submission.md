@@ -45,7 +45,7 @@ Branching canon conditioned on player choices, project-specific membership withi
 
 ## Links to fill at submission
 
-- Demo video: https://youtu.be/uzPa375gpYU
+- Demo video: https://youtu.be/tb1EZ1d2VSk
 - Public live app: `LIVE_URL` (current staging is LAN/VPN-only)
 - Source: https://github.com/tektikas/canontracker (mirror to be made public by the owner at submission)
 - Pitch deck: [pitch-deck.pdf](pitch-deck.pdf), also `/pitch` on a running app

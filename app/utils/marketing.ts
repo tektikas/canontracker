@@ -8,7 +8,7 @@ export const GITHUB = 'https://github.com/tektikas/canontracker'
 export const LICENSE_URL = 'https://github.com/tektikas/canontracker/blob/master/LICENSE'
 export const CONTACT = 'mailto:info@tektik.ai'
 /** YouTube id of the three-minute demo video. Empty hides the landing's video section (and no player loads until a click). */
-export const VIDEO_ID = 'uzPa375gpYU'
+export const VIDEO_ID = 'tb1EZ1d2VSk'
 
 /** A product screenshot in public/shots (light and dark, 720 and 1280 wide). */
 export interface Shot { name: string, alt: string }
