@@ -50,7 +50,7 @@ await Promise.all(Array.from({ length: concurrency }, async () => {
     for (let attempt = 1; ; attempt++) {
       const t = Date.now()
       try {
-        out[file] = await extractCandidates(doc)
+        out[file] = (await extractCandidates(doc)).candidates
         console.log(`ok   ${file}: ${calls.at(-1).summary} in ${((Date.now() - t) / 1000).toFixed(1)} s`)
         break
       } catch (e) {

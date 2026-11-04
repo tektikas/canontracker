@@ -145,6 +145,7 @@ export default [
           'Pick Markdown, text or Word (.docx) files up to 1 MB, or audio recordings up to 30 minutes.',
           'Open a folder first to upload straight into it.',
           'Follow each file under **Uploads**: a new file is added, a changed file with the same name becomes its next version, and the same text is skipped.',
+          'A whole book can go in as one file: it is split into one document per chapter in a folder named after the book, and its row shows how many chapters the AI has read so far. Tick **Keep as one document** to import it unsplit.',
           'The AI then reads each new version in the background. Its row (and its line in the table) says “Waiting”, “The AI is reading” with a timer, “AI critic checking”, then how many facts it found. You can keep working or leave the page meanwhile.',
           'Open Review to decide on the candidates the AI proposed. If a run didn’t finish, the row says why; press Try again.',
         ],
@@ -172,6 +173,9 @@ export default [
         title: 'What happens to an upload',
         points: [
           'Sources are stored exactly as uploaded and never edited. Folders, tags, kind and title are labels on top: changing them never touches the text.',
+          'A whole book in one file (a manuscript, a Project Gutenberg text, a Word file with heading styles) is split at its chapter headings: “Chapter 7”, “CHAPTER IV.”, “Chapter One”, Prologue, Epilogue, Part headings, Markdown or Word headings, or numbered headings. A table of contents is not mistaken for chapters. Everything before the first chapter (title page, dedication, contents) becomes one “Front matter” document. A long text with no headings at all is cut at paragraph breaks into parts of about 5,000 words. Only a Project Gutenberg header and licence are left out; the chapters’ words are kept exactly.',
+          'Uploading the same book again matches each chapter by its place in the book: an unchanged chapter is skipped, an edited one gets a new version (canon citing it is flagged to re-check), and new chapters at the end are added. A chapter inserted in the middle moves every chapter after it up one place, so each of those gets a new version. Word comments go to the chapter they are in; the .docx of a split book is not kept.',
+          'Kind: **Chapter** (a novel) or **Scene** (a game or screen project) is the story’s own text; impact lists the chapters or scenes a change touches. The AI decides it when it reads a document (story text or reference such as lore, notes or an outline). Until then, a file whose name says lore, notes, characters, bible, outline, worldbuilding, glossary, wiki or readme is **Lore** and everything else story text. A kind set in the Library is never changed by the AI.',
           'A Word file is converted to text once: headings, lists, tables and footnotes are kept, tracked changes are taken as accepted, images are dropped. Word comments become notes on the commented passage. The .docx itself stays available from the reader.',
           'Macro-enabled, encrypted or old .doc Word files are refused.',
           'Audio (MP3, WAV, M4A, OGG, WebM, FLAC) is transcribed by AI into a read-only transcript with timed passages. Recordings count towards an hourly audio limit per person and per project.',
@@ -185,7 +189,7 @@ export default [
       { role: 'Editor, admin, owner', can: 'Upload files and recordings, write documents, and manage folders, tags, kinds and titles.' },
     ],
     related: ['reader', 'history', 'write', 'script-vs-recording', 'review', 'versions-and-recheck'],
-    keywords: ['upload', 'import', 'docx', 'word', 'markdown', 'audio', 'recording', 'folder', 'tag', 'kind', 'rename', 'sources'],
+    keywords: ['upload', 'import', 'docx', 'word', 'markdown', 'audio', 'recording', 'folder', 'tag', 'kind', 'rename', 'sources', 'manuscript', 'book', 'chapters', 'split'],
   },
   {
     slug: 'reader',

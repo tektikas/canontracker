@@ -4,6 +4,7 @@ useHead({ title: 'Tasks · CanonTracker' })
 const route = useRoute()
 const router = useRouter()
 const me = useMe()
+const { scene: sw } = useDocKinds()
 const { data: tasks, refresh } = await useFetch('/api/tasks', { default: () => [] })
 const { data: team } = await useFetch('/api/team')
 const members = computed(() => team.value?.members ?? [])
@@ -48,12 +49,12 @@ async function changed() {
 
 <template>
   <UiPageHeader title="Tasks">
-    When a canon change is applied, every scene it may affect becomes a re-review task here. Tasks are for your team; they never become canon.
+    When a canon change is applied, every {{ sw.one }} it may affect becomes a re-review task here. Tasks are for your team; they never become canon.
   </UiPageHeader>
 
   <UiPanel v-if="!tasks.length">
     <UiEmptyState title="No re-review tasks yet" icon="tasks">
-      Apply a canon change that has scenes in its impact list and each of those scenes lands here.
+      Apply a canon change that has {{ sw.many }} in its impact list and each of those {{ sw.many }} lands here.
       <template #actions><UiButton to="/changes" icon="changes">Open changes</UiButton></template>
     </UiEmptyState>
   </UiPanel>

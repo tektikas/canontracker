@@ -25,7 +25,7 @@ export default defineEventHandler(async (event) => {
   if (body.kind !== undefined) {
     if (!DOCUMENT_KINDS.includes(body.kind as typeof DOCUMENT_KINDS[number]))
       throw createError({ statusCode: 400, statusMessage: 'BAD_KIND', message: `kind must be one of ${DOCUMENT_KINDS.join(', ')}.` })
-    sets.push('kind = ?')
+    sets.push('kind = ?', `kind_source = 'person'`) // a person's choice: the AI never changes it afterwards
     args.push(body.kind as string)
     detail.kind = { to: body.kind, from: [...new Set(docs.map(d => d.kind))] }
   }

@@ -133,7 +133,7 @@ function organise(manifest: Manifest, entities: SampleEntity[]) {
       if (!doc) return
       const key = (db.prepare('select filename from documents where id = ?').get(documentId) as { filename: string }).filename
       tx(() => {
-        db.prepare('update documents set kind = ? where project_id = ? and filename = ?').run(doc.kind, pid(), key)
+        db.prepare(`update documents set kind = ?, kind_source = 'person' where project_id = ? and filename = ?`).run(doc.kind, pid(), key)
         const tagged = db.prepare('insert or ignore into document_tags (project_id, filename, tag_id) values (?, ?, ?)')
         for (const t of doc.tags) tagged.run(pid(), key, tags.get(t)!)
       })

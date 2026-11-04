@@ -280,7 +280,9 @@ export function useDb() {
       ['api_tokens', 'level', `text not null default 'propose'`], ['facts', 'decided_token', 'text'], ['conflicts', 'decided_token', 'text'],
       ['changes', 'decided_token', 'text'], ['changes', 'reverted_token', 'text'],
       // facts.subject_type/object_type: what extraction said each name is (NAME_TYPES in model.ts); null = not said (Add fact, MCP, older runs).
-      ['facts', 'subject_type', 'text'], ['facts', 'object_type', 'text']] as const) {
+      ['facts', 'subject_type', 'text'], ['facts', 'object_type', 'text'],
+      // documents.kind_source: who set the kind (person | manuscript | ai | name, see importer.ts); null on older rows = guessed from the name.
+      ['documents', 'kind_source', 'text']] as const) {
       if (!(conn.prepare(`pragma table_info(${table})`).all() as { name: string }[]).some(r => r.name === column))
         conn.exec(`alter table ${table} add column ${column} ${type}`)
     }
@@ -454,7 +456,7 @@ export interface Fact {
 
 export interface DocumentRow {
   id: string, title: string, filename: string, name: string, kind: string, sha256: string, version: number, content: string, imported_at: string
-  origin: string, created_by: string | null, folder_id: string | null
+  origin: string, created_by: string | null, folder_id: string | null, kind_source?: string | null
 }
 export interface PassageRow { id: string, document_id: string, ordinal: number, start_line: number, end_line: number, text: string, start_ms?: number | null, end_ms?: number | null, speaker?: string | null }
 export interface EvidenceRow {

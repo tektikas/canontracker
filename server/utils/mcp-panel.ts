@@ -233,7 +233,7 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
 
   // ---------------------------------------------------------------- Sources
   tool('sb_document', 'Import, write and inspect documents',
-    'Source documents are read-only once imported; a change is a new version. import (full, editor+): text (.md/.txt) or a Word file as docx_base64 (max 1 MB); same file name = next version, same text = skipped; extraction runs on import. '
+    'Source documents are read-only once imported; a change is a new version. import (full, editor+): text (.md/.txt) or a Word file as docx_base64 (max 1 MB); same file name = next version, same text = skipped; extraction runs on import. With split: true a whole book becomes one document per chapter in a folder named after it (extraction then runs in the background). '
     + 'write (full): save new text as a new version of a document (or a new document without one), like Save to story. extract (propose): run extraction again (pending candidates only). '
     + 'history / diff (read): versions, and what changed from one version to another with the canon citing changed passages. transcribe (full): a recording\'s stored audio again. script (read) / script_link (full): a recording vs its script. '
     + 'Read the text with sb_read_document. Example: {"action": "import", "filename": "S29-the-ferry.md", "text": "# The ferry\\n\\nOdo waits at the Salt Gate."}',
@@ -244,6 +244,7 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
       title: z.string().max(120).optional(), kind: z.enum(DOCUMENT_KINDS).optional(), content: z.string().max(1_000_000).optional().describe('write: the full new text'),
       from_version: z.number().int().min(1).optional().describe('diff: the older version (default: the one before the latest)'), version: z.number().int().min(1).optional().describe('diff: the newer version (default latest)'),
       include_unchanged: z.boolean().optional().describe('diff: also list passages that read the same'),
+      split: z.boolean().optional().describe('import: split a whole book into one document per chapter (default: one document)'),
       script_document: z.string().max(200).nullable().optional().describe('script_link: the script document (id or file name), null to unlink'),
     }, {
       import: { level: 'full', run: async (a) => {
@@ -251,6 +252,7 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
         if ((a.text == null) === (a.docx_base64 == null)) throw new McpToolError('BAD_INPUT', 'import needs exactly one of text or docx_base64.')
         const form = new FormData()
         if (a.folder_id) form.append('folder_id', a.folder_id)
+        if (!a.split) form.append('keep_whole', '1')
         form.append('files', a.text != null ? new Blob([a.text], { type: 'text/markdown' }) : new Blob([b64(a.docx_base64, 'docx_base64')], { type: DOCX_MIME }), a.filename)
         const { results } = await panelCall('POST', '/api/documents', { form }) as { results: Record<string, any>[] }
         const r = results[0]!

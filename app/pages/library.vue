@@ -4,6 +4,8 @@
 useHead({ title: 'Library · CanonTracker' })
 const me = useMe()
 const editor = computed(() => canEdit(me.value))
+const { docKind, kinds: kindOptions } = useDocKinds()
+const keepWhole = useKeepWhole()
 const route = useRoute()
 const router = useRouter()
 const { data: docs, refresh: refreshDocs } = await useFetch('/api/documents', { key: 'library-docs', default: () => [] })
@@ -64,7 +66,9 @@ const shown = computed(() => {
     title: d => d.title.toLowerCase(), updated: d => d.imported_at, citations: d => d.canon_facts, stale: d => d.stale_facts,
   }
   const k = key[sortKey.value]
-  return [...list].sort((a, b) => (k(a) < k(b) ? -1 : k(a) > k(b) ? 1 : a.title.localeCompare(b.title)) * (desc.value ? -1 : 1))
+  // Titles sort with numbers in order, and a book split on upload by its chapters' order (byReadingOrder).
+  const byTitle = (a: Doc, b: Doc) => byReadingOrder({ folder: null, title: a.title, filename: a.filename }, { folder: null, title: b.title, filename: b.filename })
+  return [...list].sort((a, b) => (sortKey.value === 'title' ? byTitle(a, b) : k(a) < k(b) ? -1 : k(a) > k(b) ? 1 : byTitle(a, b)) * (desc.value ? -1 : 1))
 })
 const filtered = computed(() => !!(folderSel.value || tagSel.value || kindSel.value || staleOnly.value || q.value.trim()))
 function clearFilters() {
@@ -201,6 +205,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
       <template v-else>Your team’s lore, scenes and character sheets. Sources stay read-only: folders, tags and kinds are labels on top of them.</template>
       <template v-if="editor" #actions>
         <UiButton icon="review" to="/write">Write a document</UiButton>
+        <label class="keep-whole small" title="A whole book in one file is split into one document per chapter unless this is ticked."><input v-model="keepWhole" type="checkbox"> Keep a book as one document</label>
         <UiButton variant="primary" icon="upload" @click="uploader?.pick()">Upload files</UiButton>
       </template>
     </UiPageHeader>
@@ -314,7 +319,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
           </select>
           <select v-model="kindSel" aria-label="Kind">
             <option value="">All kinds</option>
-            <option v-for="k in DOC_KINDS" :key="k.value" :value="k.value">{{ k.label }}</option>
+            <option v-for="k in kindOptions" :key="k.value" :value="k.value">{{ k.label }}</option>
           </select>
           <select v-if="tags.length" v-model="tagSel" class="only-sm" aria-label="Tag">
             <option value="">All tags</option>
@@ -349,7 +354,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
           <UiMenu label="Set kind" class="bar-menu">
             <template #trigger><UiIcon name="file" :size="16" />Kind</template>
             <template #default="{ close }">
-              <button v-for="k in DOC_KINDS" :key="k.value" type="button" class="menu-item" @click="close(); setKind(k.value)"><UiIcon :name="k.icon" :size="16" />{{ k.label }}</button>
+              <button v-for="k in kindOptions" :key="k.value" type="button" class="menu-item" @click="close(); setKind(k.value)"><UiIcon :name="k.icon" :size="16" />{{ k.label }}</button>
             </template>
           </UiMenu>
           <UiButton size="sm" variant="ghost" @click="selected = new Set()">Clear</UiButton>
@@ -362,7 +367,8 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
           <template v-if="editor">Drag Markdown, text or Word (.docx) files anywhere on this page, or pick them. A file with a name you already have becomes its next version.</template>
           <template v-else>An editor on your team adds lore and scenes. They show up here as soon as they do.</template>
           <template v-if="editor" #actions>
-            <UiButton variant="primary" icon="upload" @click="uploader?.pick()">Upload files</UiButton>
+            <label class="keep-whole small" title="A whole book in one file is split into one document per chapter unless this is ticked."><input v-model="keepWhole" type="checkbox"> Keep a book as one document</label>
+        <UiButton variant="primary" icon="upload" @click="uploader?.pick()">Upload files</UiButton>
             <UiButton icon="review" to="/write">Write a document</UiButton>
           </template>
         </UiEmptyState>
@@ -508,6 +514,7 @@ th.sel, td.sel { width: 36px; padding-right: 0; }
 .sel input { width: 16px; height: 16px; margin: 2px 0 0; accent-color: var(--accent); cursor: pointer; }
 th.act, td.act { width: 40px; padding: 6px 8px; }
 .sel-hit { display: inline-grid; place-items: center; cursor: pointer; }
+.keep-whole { display: inline-flex; gap: 6px; align-items: center; color: var(--muted); cursor: pointer; }
 .sort { display: inline-flex; align-items: center; gap: 4px; padding: 0; border: 0; background: none; color: inherit; font: inherit; cursor: pointer; }
 .sort:hover { color: var(--ink); }
 th[aria-sort] { color: var(--ink); }

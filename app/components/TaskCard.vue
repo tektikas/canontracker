@@ -15,7 +15,8 @@ const meta = computed(() => (closed.value ? { label: 'Not needed', tone: 'neutra
 const today = new Date().toISOString().slice(0, 10)
 const overdue = computed(() => !!props.task.due_date && props.task.due_date < today && ['open', 'in_progress'].includes(props.task.status))
 const line = computed(() => (props.task.start_line ? `, line ${props.task.start_line}` : ''))
-const kinds = computed(() => props.task.path.map((_: string, n: number) => (n === 0 ? 'Changed fact' : n === props.task.path.length - 1 ? 'Scene' : 'Dependent fact')))
+const { scene: sw } = useDocKinds()
+const kinds = computed(() => props.task.path.map((_: string, n: number) => (n === 0 ? 'Changed fact' : n === props.task.path.length - 1 ? sw.value.One : 'Dependent fact')))
 
 const busy = ref(false)
 const error = ref('')

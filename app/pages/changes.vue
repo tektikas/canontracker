@@ -87,6 +87,7 @@ const isShown = (c: Record<string, any>) => shown[c.id] ?? c.status === 'ready_f
 // --- Impact, read as story consequences: by hop, path as names, sources folded away.
 interface Item { target_type: 'fact' | 'scene', target_id: string, label: string, path: string[], via: string | null, evidence_ids: string[], rationale: string, confidence: number, hop_count: 1 | 2 }
 const items = (c: Record<string, any>) => c.impact as Item[]
+const { scene: sw } = useDocKinds() // "chapter(s)" in a prose project, "scene(s)" elsewhere
 const scenes = (c: Record<string, any>) => items(c).filter(i => i.target_type === 'scene')
 const facts = (c: Record<string, any>) => items(c).filter(i => i.target_type === 'fact')
 const HOP_TITLE = { 1: '1 hop · tied directly to this fact', 2: '2 hops · through a related fact' }
@@ -100,7 +101,7 @@ function summary(c: Record<string, any>) {
   const s = scenes(c).length
   const f = facts(c).length
   if (!s && !f) return 'No impact found within 2 hops'
-  return `May touch ${[s && plural(s, 'scene'), f && plural(f, 'related fact')].filter(Boolean).join(' and ')}`
+  return `May touch ${[s && plural(s, sw.value.one, sw.value.many), f && plural(f, 'related fact')].filter(Boolean).join(' and ')}`
 }
 // Path items are ids; name them: the changed fact (shown above, so only named), the related fact, the scene. Each arrow says how the next one is tied in.
 function chain(c: Record<string, any>, i: Item) {
@@ -111,7 +112,7 @@ function chain(c: Record<string, any>, i: Item) {
     return {
       id,
       label: names.get(id) ?? 'Unknown',
-      kind: n === 0 ? 'Changed fact' : scene ? 'Scene' : 'Related fact',
+      kind: n === 0 ? 'Changed fact' : scene ? sw.value.One : 'Related fact',
       link: scene ? `/documents/${id}` : undefined,
       via: !n ? '' : scene ? 'quoted in' : `shares “${i.via ?? 'a name'}”`,
     }
@@ -167,7 +168,7 @@ async function reanalyze(id: string) {
 </script>
 
 <template>
-  <UiPageHeader title="Changes &amp; impact" description="Rewrite one canon fact and see which facts and scenes it may touch, up to 2 hops away, before anything changes. Canon only changes when someone accepts the proposal." />
+  <UiPageHeader title="Changes &amp; impact" :description="`Rewrite one canon fact and see which facts and ${sw.many} it may touch, up to 2 hops away, before anything changes. Canon only changes when someone accepts the proposal.`" />
 
   <UiPanel v-if="!canon?.length && !changes?.length">
     <UiEmptyState title="No canon to change yet" icon="changes">
@@ -269,7 +270,7 @@ async function reanalyze(id: string) {
           <div v-if="c.impact_stale && c.status === 'ready_for_review'" class="notice warn stale-note" role="status">
             <UiIcon name="merge" :size="16" />
             <span>
-              <b>Impact out of date.</b> {{ c.impact_stale.from }} was merged into {{ c.impact_stale.into }} after this analysis ran, so it may now touch other facts and scenes.
+              <b>Impact out of date.</b> {{ c.impact_stale.from }} was merged into {{ c.impact_stale.into }} after this analysis ran, so it may now touch other facts and {{ sw.many }}.
               <NuxtLink :to="`/audit#${c.impact_stale.audit_id}`">See the merge</NuxtLink>
             </span>
             <UiButton v-if="editor" size="sm" :loading="state(c.id).busy" @click="reanalyze(c.id)">Re-run analysis</UiButton>
@@ -278,7 +279,7 @@ async function reanalyze(id: string) {
           <div v-if="isShown(c)" :id="`impact-${c.id}`" class="impact-body">
             <p v-if="!items(c).length" class="small muted">No impact found within 2 hops of accepted canon. That is not a guarantee that nothing else is affected.</p>
             <template v-else>
-              <p v-if="!scenes(c).length" class="small muted">No scene impact found within 2 hops. That is not a guarantee that no scene is affected.</p>
+              <p v-if="!scenes(c).length" class="small muted">No {{ sw.one }} impact found within 2 hops. That is not a guarantee that no {{ sw.one }} is affected.</p>
               <section v-for="g in hops(c)" :key="g.hop" class="hop">
                 <h3><span class="hop-n">{{ g.hop }}</span>{{ HOP_TITLE[g.hop] }}</h3>
                 <ul class="items">
@@ -329,7 +330,7 @@ async function reanalyze(id: string) {
         <section v-if="tasksOf(c.id).length" class="tasks" :aria-label="`Re-review tasks for change ${c.id}`">
           <header class="spread">
             <div class="row"><UiBadge tone="pencil">Re-review tasks</UiBadge>
-              <span v-if="live(c.id).length" class="small muted">{{ reviewed(c.id) }} of {{ live(c.id).length }} {{ live(c.id).length === 1 ? 'scene' : 'scenes' }} re-reviewed</span>
+              <span v-if="live(c.id).length" class="small muted">{{ reviewed(c.id) }} of {{ live(c.id).length }} {{ live(c.id).length === 1 ? sw.one : sw.many }} re-reviewed</span>
               <span v-else class="small muted">Not needed — change reverted</span>
             </div>
             <NuxtLink :to="`/tasks?show=all&change=${c.id}`" class="small">Open in Tasks</NuxtLink>
@@ -347,7 +348,7 @@ async function reanalyze(id: string) {
         <p v-if="c.status === 'ready_for_review' && !editor" class="decide small muted">Waiting for an editor to accept or reject.</p>
         <div v-else-if="c.status === 'ready_for_review'" class="decide">
           <h3>Decide</h3>
-          <p class="small muted">Accept &amp; apply writes the new version to canon and keeps the old one as superseded<template v-if="scenes(c).length">, and opens a re-review task for each scene above</template>. Reject leaves canon as it is.</p>
+          <p class="small muted">Accept &amp; apply writes the new version to canon and keeps the old one as superseded<template v-if="scenes(c).length">, and opens a re-review task for each {{ sw.one }} above</template>. Reject leaves canon as it is.</p>
           <UiField label="Why (required)" :error="state(c.id).error"><input v-model="state(c.id).rationale" type="text" placeholder="e.g. Impact list reviewed with the writers"></UiField>
           <div class="row">
             <UiButton variant="primary" :disabled="state(c.id).busy || !state(c.id).rationale.trim() || !!c.impact_stale" :title="c.impact_stale ? 'Re-run the impact analysis first' : undefined" @click="decide(c.id, 'accept')">Accept &amp; apply</UiButton>

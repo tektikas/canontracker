@@ -11,7 +11,23 @@ export const DOC_KINDS: { value: string, label: string, icon: IconName }[] = [
   { value: 'recording', label: 'Recording', icon: 'mic' },
   { value: 'other', label: 'Other', icon: 'file' },
 ]
-export const docKind = (k: string) => DOC_KINDS.find(x => x.value === k) ?? { value: k, label: k, icon: 'file' as IconName }
+// Kind 'scene' is the story's own text: shown as "Chapter" in a prose project, "Scene" in a game or screen project.
+export const docKind = (k: string, medium?: string | null) => {
+  const d = DOC_KINDS.find(x => x.value === k) ?? { value: k, label: k, icon: 'file' as IconName }
+  return k === 'scene' && medium === 'prose' ? { ...d, label: 'Chapter' } : d
+}
+export const docKinds = (medium?: string | null) => DOC_KINDS.map(k => docKind(k.value, medium))
+/** The current project's labels: docKind(k) and the word for its story text ("chapter" / "scene", one and many). */
+export function useDocKinds() {
+  const me = useMe()
+  const medium = computed(() => me.value?.current?.project.medium)
+  const prose = computed(() => medium.value === 'prose')
+  return {
+    docKind: (k: string) => docKind(k, medium.value),
+    kinds: computed(() => docKinds(medium.value)),
+    scene: computed(() => (prose.value ? { one: 'chapter', many: 'chapters', One: 'Chapter', Many: 'Chapters' } : { one: 'scene', many: 'scenes', One: 'Scene', Many: 'Scenes' })),
+  }
+}
 
 // Tag colours are design-token tones (DESIGN.md); the names are what a person picks from.
 export const TAG_TONES: { value: 'accent' | 'good' | 'warn' | 'bad' | 'pencil', label: string }[] = [
@@ -19,6 +35,9 @@ export const TAG_TONES: { value: 'accent' | 'good' | 'warn' | 'bad' | 'pencil', 
   { value: 'bad', label: 'Vermilion' }, { value: 'pencil', label: 'Graphite' },
 ]
 export type TagTone = typeof TAG_TONES[number]['value']
+
+// "Keep as one document": the uploader sends a whole book as one document instead of splitting it into chapters. Per tab.
+export const useKeepWhole = () => useState('upload-keep-whole', () => false)
 
 // Same limits the server applies (server/api/documents/index.post.ts), checked first so a person hears at once.
 export const UPLOAD_MAX_BYTES = 1_000_000
