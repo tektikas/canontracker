@@ -111,6 +111,9 @@ export function dryRunRules(proposed: Fact[]) {
   return { canon, hits }
 }
 
+// conflicts.pair_hash (unique across the database): one conflict per fact pair and rule. Also re-derived for a copied project (guest.ts).
+export const conflictPairHash = (a: string, b: string, rule: string) => createHash('sha256').update([a, b].sort().join('|') + rule).digest('hex').slice(0, 24)
+
 // Facts per world-rule call. A rule with more context than this is checked in several calls, so every fact is read once.
 export const RULE_BATCH = 120
 export const RULE_PARALLEL = 4 // world-rule calls in flight at once during a scan
@@ -124,7 +127,7 @@ export async function scanConflicts() {
   const severityOf = severityFor(access().project.severity_defaults)
   let created = 0
   const add = (a: Fact, b: Fact, rule: string, rationale: string, confidence: number, modelId: string | null = null, near = false) => {
-    const pairHash = createHash('sha256').update([a.id, b.id].sort().join('|') + rule).digest('hex').slice(0, 24)
+    const pairHash = conflictPairHash(a.id, b.id, rule)
     const id = newId('conf')
     const severity = severityOf(rule, near)
     if (ins.run(id, a.id, b.id, rule, modelId ? 'model' : 'rule', modelId, rationale, confidence, pairHash, now(), pid(), severity).changes) {

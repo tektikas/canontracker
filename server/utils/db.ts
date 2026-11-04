@@ -1,4 +1,5 @@
 import { DatabaseSync } from 'node:sqlite'
+import { Worker } from 'node:worker_threads'
 import { copyFileSync, existsSync, mkdirSync, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
 import { randomUUID } from 'node:crypto'
@@ -250,6 +251,19 @@ create index if not exists critic_fact on critic_opinions(project_id, fact_id);
 `
 
 let db: DatabaseSync | undefined
+let checkpointer: Worker | undefined
+// 0 idle, 1 the checkpointer is running, 2 a bulk write is running: the two never overlap.
+const checkpointLock = new Int32Array(new SharedArrayBuffer(4))
+// A large write (the guest demo's copy, megabytes in one commit) waits for a running checkpoint instead of stalling inside its
+// commit, and no checkpoint starts during it. Waiting is async, so other requests run meanwhile.
+export async function bulkWrite<T>(fn: () => T): Promise<T> {
+  while (Atomics.compareExchange(checkpointLock, 0, 0, 2) !== 0) await new Promise(r => setTimeout(r, 5))
+  try {
+    return fn()
+  } finally {
+    Atomics.store(checkpointLock, 0, 0)
+  }
+}
 
 // The connection is shared only once it is fully set up: if the upgrade fails, it is closed and the next request tries again.
 export function useDb() {
@@ -260,7 +274,19 @@ export function useDb() {
     // WAL + synchronous NORMAL: a commit appends to the log instead of syncing the database file several times. With the default
     // rollback journal, a sample load (hundreds of commits) took ~25 s on a real disk and blocked every other request meanwhile.
     // Durable across app crashes; only a power loss can drop the last commits.
-    conn.exec('pragma journal_mode = wal; pragma synchronous = normal')
+    // Checkpoints (copying the log into the database file, with fsyncs that took 0.1–0.8 s each on a real disk) run on a worker
+    // thread with its own connection, not inside a request's commit; passive, so they never make a writer wait for them (on btrfs,
+    // whose fsync holds the file's lock, a commit can still wait for one: see bulkWrite). The log is reused once a checkpoint has
+    // caught up, and cut back to 64 MB then. The automatic checkpoint stays on at ~100 MB of log as a backstop: it only runs
+    // inside a commit if the worker has stopped (it normally keeps the log far below that).
+    conn.exec('pragma journal_mode = wal; pragma synchronous = normal; pragma wal_autocheckpoint = 25000; pragma journal_size_limit = 67108864')
+    checkpointer ??= new Worker(`const { workerData: { file, lock } } = require('node:worker_threads')
+      const db = new (require('node:sqlite').DatabaseSync)(file)
+      setInterval(() => {
+        if (Atomics.compareExchange(lock, 0, 0, 1) !== 0) return
+        try { db.exec('pragma wal_checkpoint(passive)') } catch {} finally { Atomics.store(lock, 0, 0) }
+      }, 1000)`, { eval: true, workerData: { file: '.data/storybible.db', lock: checkpointLock } })
+    checkpointer.unref()
     const user_version = schemaVersion(conn)
     if (user_version >= 12 && user_version < SCHEMA_VERSION) {
       if (user_version === 12) migrate12(conn)
@@ -412,6 +438,11 @@ function migrate15(db: DatabaseSync) {
 
 export const newId = (prefix: string) => `${prefix}_${randomUUID().replaceAll('-', '').slice(0, 16)}`
 export const now = () => new Date().toISOString()
+
+// Waits for the next turn of the event loop, one waiter per turn: long synchronous work (a sample load, the guest demo's copy)
+// pauses here between steps so other requests run in between, however many such jobs are running.
+let turn: Promise<unknown> = Promise.resolve()
+export const nextTurn = () => (turn = turn.then(() => new Promise(r => setTimeout(r, 0))))
 
 // `begin immediate` takes the write lock before fn reads anything, so what fn checks (a type exists, which pages use it) still
 // holds when it writes, even with another server process on the same file. Every tx writes, so nothing is serialised needlessly.

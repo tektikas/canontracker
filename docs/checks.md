@@ -35,6 +35,7 @@ Against your own disposable production instance, replace `<url>`, `<cwd>` and `<
 ```sh
 node scripts/samples-probe.mjs <url>
 node scripts/guest-probe.mjs <url>
+node scripts/guest-clone-probe.mjs <url> <db>
 node scripts/isolation-probe.mjs <url> <cwd>/.data
 node scripts/ashbell-probe.mjs <url> <db>
 node scripts/sherlock-probe.mjs <url> <db>

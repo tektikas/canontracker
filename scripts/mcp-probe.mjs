@@ -392,7 +392,7 @@ assert.ok(text.includes(pf.evidence[0].quote))
 ok('padded quote stored without padding, verbatim in passage')
 if (process.argv[3]) {
   // Injected bad evidence rows -> accept 422.
-  const db = new DatabaseSync(process.argv[3])
+  const db = new DatabaseSync(process.argv[3], { timeout: 5000 })
   for (const bad of [` ${quote} `, 'never written in this passage at all']) {
     db.prepare('update evidence set quote = ? where fact_id = ?').run(bad, pf.id)
     assert.equal((await ada(`/api/facts/${pf.id}/review`, { method: 'POST', body: { decision: 'accept' } })).status, 422)
