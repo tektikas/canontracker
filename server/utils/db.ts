@@ -257,6 +257,10 @@ export function useDb() {
   mkdirSync('.data', { recursive: true })
   const conn = new DatabaseSync('.data/storybible.db', { timeout: 5000 }) // another process's write: wait for it, don't fail
   try {
+    // WAL + synchronous NORMAL: a commit appends to the log instead of syncing the database file several times. With the default
+    // rollback journal, a sample load (hundreds of commits) took ~25 s on a real disk and blocked every other request meanwhile.
+    // Durable across app crashes; only a power loss can drop the last commits.
+    conn.exec('pragma journal_mode = wal; pragma synchronous = normal')
     const user_version = schemaVersion(conn)
     if (user_version >= 12 && user_version < SCHEMA_VERSION) {
       if (user_version === 12) migrate12(conn)
