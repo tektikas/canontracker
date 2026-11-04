@@ -6,6 +6,12 @@ const { data: pending, refresh } = await useFetch('/api/facts', { query: { statu
 const { data: rejected, refresh: refreshRejected } = await useFetch('/api/facts', { query: { status: 'rejected' } })
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
 const fill = useFillAction()
+// Documents the AI is still reading in the background: their candidates are added to the queue when each run ends. The
+// candidate on screen stays the one on screen (pinned by id before the queue reloads).
+const { active: reading } = useExtractions(async () => {
+  if (current.value) selectedId.value = current.value.id
+  await refresh()
+})
 
 // Decisions made on this visit. They leave the queue at once; the refresh that follows confirms it from the server.
 const decided = reactive<Record<string, 'accepted' | 'rejected'>>({})
@@ -320,6 +326,10 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
     </template>
   </p>
 
+  <p v-if="reading.length" class="notice info reading" role="status">
+    <span class="spinner" aria-hidden="true" />{{ counted(reading.length, 'document') }} still being read; new candidates appear here.
+  </p>
+
   <UiPanel v-if="!current">
     <UiEmptyState :title="reviewed ? 'Queue done' : 'Nothing waiting for review'" :icon="reviewed ? 'check' : 'review'">
       <template v-if="decidedNow.length">You decided {{ decidedNow.length }} {{ decidedNow.length === 1 ? 'candidate' : 'candidates' }} on this visit: {{ decidedNow.filter(d => d === 'accepted').length }} accepted, {{ decidedNow.filter(d => d === 'rejected').length }} rejected.</template>
@@ -584,6 +594,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 .cand-pos { font-weight: 600; font-size: var(--text-sm); }
 .model { margin: -6px 0 0; }
 .evidence { display: grid; gap: var(--s-3); }
+.notice.reading { margin-bottom: var(--s-4); align-items: center; }
 .notice.refused { border-color: var(--bad); box-shadow: inset 3px 0 0 var(--bad); }
 .decision { padding-top: var(--s-3); border-top: 1px solid var(--line); }
 .triple-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: var(--s-3); }

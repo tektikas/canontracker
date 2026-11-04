@@ -225,6 +225,14 @@ create table if not exists continuity_runs (
   id text primary key, source text not null, document_id text, passage_id text, text text not null, report text not null,
   model_id text not null, prompt_version text not null, created_by text not null, created_at text not null, project_id text not null
 );
+-- Background extraction of a document version (server/utils/extractions.ts): queued → reading → critic → done | failed. Only
+-- versions uploaded with background extraction (or retried) have a row; created/unverified/skipped once done, error once failed.
+-- A new table only (no version bump). Rows left unfinished by an earlier process are marked failed when the database opens.
+create table if not exists extractions (
+  document_id text primary key, project_id text not null, status text not null, queued_at text not null, started_at text, ended_at text,
+  created integer, unverified integer, skipped integer, error text
+);
+create index if not exists extractions_project on extractions(project_id);
 create index if not exists conversations_project on conversations(project_id, updated_at);
 create index if not exists messages_conversation on messages(conversation_id);
 create index if not exists facts_project on facts(project_id, status);
@@ -276,6 +284,8 @@ export function useDb() {
       if (!(conn.prepare(`pragma table_info(${table})`).all() as { name: string }[]).some(r => r.name === column))
         conn.exec(`alter table ${table} add column ${column} ${type}`)
     }
+    // A background extraction runs in the process that queued it: one still unfinished now was cut off by a restart.
+    conn.prepare(`update extractions set status = 'failed', error = ?, ended_at = ? where status in ('queued', 'reading', 'critic')`).run(INTERRUPTED, now())
   } catch (e) {
     conn.close()
     throw e
@@ -414,7 +424,7 @@ export const agentToken = () => access().agent?.token_id ?? null
 // the caller appends a project.reset event, and events before it whose target was cleared read as removed (listAudit).
 export function resetData() {
   tx(() => {
-    for (const t of ['continuity_runs', 'critic_opinions', 'research_notes', 'messages', 'conversations', 'document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'recordings', 'passages', 'documents', 'entities', 'entity_merges'])
+    for (const t of ['extractions', 'continuity_runs', 'critic_opinions', 'research_notes', 'messages', 'conversations', 'document_tags', 'tags', 'folders', 'notes', 'tasks', 'drafts', 'images', 'model_calls', 'eval_runs', 'changes', 'conflicts', 'evidence', 'facts', 'recordings', 'passages', 'documents', 'entities', 'entity_merges'])
       useDb().prepare(`delete from ${t} where project_id = ?`).run(pid())
   })
   rmSync(portraitDir(), { recursive: true, force: true })

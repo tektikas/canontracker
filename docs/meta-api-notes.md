@@ -70,6 +70,7 @@ What Muse missed, and what we changed:
 - Name identity: "Oz" and "the Wizard" filed as two people, three different Queens as one. CanonTracker now suggests "Possibly the same" pages for a person to merge; it never merges on its own.
 - A big project's world-rule scan (34 rules) took 17 minutes one call at a time; rule checks now run four at a time.
 - A model sometimes reports the same finding twice; the continuity report now keeps it once.
+- One chapter's extraction plus the AI critic takes about a minute live, more than a page should wait and close to the 100 s a proxy such as Cloudflare allows a request. Uploads from the web app now store the file and answer at once; the AI reads it in the background. Live check, 4 Nov 2026, `muse-spark-1.3-contributor` via the Meta Model API: 4 Wizard of Oz chapters (1.2k–3.7k words) uploaded in one drop were answered in 80 ms; each run (extraction + critic) took 58–96 s, the fourth waited 58 s for a slot (3 at a time), all done 2 min 12 s after the drop with 65 candidates, 0 failed calls.
 
 ## Summary of suggestions
 

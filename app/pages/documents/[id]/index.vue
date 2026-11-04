@@ -151,6 +151,8 @@ async function removeCover() {
     coverBusy.value = false
   }
 }
+// A background extraction of this version (an upload, or Try again) shows its status in the header; its candidates appear when it ends.
+useExtractions(() => refresh())
 // Re-extract: runs extraction again on the latest version. It only ever adds pending candidates.
 const reextracting = ref(false)
 const reextracted = ref<{ tone: 'info' | 'warn' | 'bad', text: string, review?: boolean }>()
@@ -158,7 +160,8 @@ async function reextract() {
   reextracting.value = true
   reextracted.value = undefined
   try {
-    const r = await $fetch(`/api/documents/${doc.value!.id}/extract`, { method: 'POST' })
+    // Without { background: true } the route answers with the finished run (the background answer has none of these).
+    const r = await $fetch(`/api/documents/${doc.value!.id}/extract`, { method: 'POST' }) as { version: number, mode: string, recorded_covers: boolean | null, created: number, unverified: number, skipped: number, skipped_by_status: Record<string, number> }
     const skipped = Object.entries(r.skipped_by_status).map(([s, n]) => `${n} ${s === 'canon' ? 'in canon' : s}`).join(', ')
     const skipLine = r.skipped ? ` ${counted(r.skipped, 'reading')} already in the project ${r.skipped === 1 ? 'was' : 'were'} skipped (${skipped}).` : ''
     if (r.mode === 'mock' && !r.recorded_covers)
@@ -236,6 +239,7 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
         <UiBadge v-if="doc.recording" tone="good" title="The transcript is the source: quotes match it word for word. Transcribing again makes a new version; it is never edited.">Read-only transcript</UiBadge>
         <UiBadge v-else tone="good" :title="doc.origin === 'written' ? 'Each save is a new version; saved versions never change' : 'CanonTracker never edits imported sources; Edit saves your changes as a new version'">{{ doc.origin === 'written' ? 'Saved version' : 'Read-only source' }}</UiBadge>
         <span v-if="doc.origin === 'written'" class="small muted">Written in CanonTracker<template v-if="doc.created_by_name"> by {{ doc.created_by_name }}</template>, {{ shortDate(doc.imported_at) }}</span>
+        <ExtractionStatus :id="doc.id" />
         <span class="mono faint" :title="`sha256 ${doc.sha256}`">sha256 {{ String(doc.sha256).slice(0, 12) }}…</span>
       </span>
       <template #actions>

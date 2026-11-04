@@ -15,6 +15,8 @@ export default defineEventHandler(async (event) => {
   // Optional: the Library folder new documents land in (a new version stays where its document is).
   const folderField = form.find(p => !p.filename && p.name === 'folder_id')?.data.toString('utf8') || null
   const folderId = folderField ? getFolder(folderField).id : null
+  // background=1 (the web uploader): store each version and answer at once; extraction runs after (server/utils/extractions.ts).
+  const background = form.find(p => !p.filename && p.name === 'background')?.data.toString('utf8') === '1'
   if (!parts.length) throw createError({ statusCode: 400, statusMessage: 'NO_FILES', message: 'Attach at least one file.' })
   const results = []
   // One bad file never undoes the others.
@@ -34,8 +36,8 @@ export default defineEventHandler(async (event) => {
       if (/\.docx$/i.test(filename)) {
         if (p.type && ![DOCX_MIME, 'application/octet-stream', 'application/zip'].includes(p.type)) throw createError({ statusCode: 415, statusMessage: 'UNSUPPORTED_FILE', message: 'This is not a Word document (.docx).' })
         const { text, comments } = docxToText(p.data)
-        results.push(await importDocument(filename, text, undefined, folderId, undefined, { original: p.data, comments }))
-      } else results.push(await importDocument(filename, p.data.toString('utf8'), undefined, folderId))
+        results.push(await importDocument(filename, text, undefined, folderId, undefined, { original: p.data, comments }, undefined, background))
+      } else results.push(await importDocument(filename, p.data.toString('utf8'), undefined, folderId, undefined, undefined, undefined, background))
     } catch (e) {
       const code = (e as { statusCode?: number }).statusCode
       results.push({ filename, status: 'error', error: (e as Error).message, ...(code && { code }) })

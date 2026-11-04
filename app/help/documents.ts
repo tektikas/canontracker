@@ -145,7 +145,8 @@ export default [
           'Pick Markdown, text or Word (.docx) files up to 1 MB, or audio recordings up to 30 minutes.',
           'Open a folder first to upload straight into it.',
           'Follow each file under **Uploads**: a new file is added, a changed file with the same name becomes its next version, and the same text is skipped.',
-          'Open Review to decide on the candidates the AI proposed.',
+          'The AI then reads each new version in the background. Its row (and its line in the table) says “Waiting”, “The AI is reading” with a timer, “AI critic checking”, then how many facts it found. You can keep working or leave the page meanwhile.',
+          'Open Review to decide on the candidates the AI proposed. If a run didn’t finish, the row says why; press Try again.',
         ],
       },
       {
@@ -175,6 +176,7 @@ export default [
           'Macro-enabled, encrypted or old .doc Word files are refused.',
           'Audio (MP3, WAV, M4A, OGG, WebM, FLAC) is transcribed by AI into a read-only transcript with timed passages. Recordings count towards an hourly audio limit per person and per project.',
           'After import, the AI proposes candidate facts with a quote. Nothing becomes canon until a person accepts it in [Review](/help/review).',
+          'An upload only stores the file, so it is done in a moment; the AI reads it afterwards, up to three documents at a time, and new candidates appear in Review as each one finishes. A run cut off by a server restart shows as not finished, with Try again.',
         ],
       },
     ],
