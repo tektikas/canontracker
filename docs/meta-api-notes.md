@@ -72,6 +72,16 @@ What Muse missed, and what we changed:
 - A model sometimes reports the same finding twice; the continuity report now keeps it once.
 - One chapter's extraction plus the AI critic takes about a minute live, more than a page should wait and close to the 100 s a proxy such as Cloudflare allows a request. Uploads from the web app now store the file and answer at once; the AI reads it in the background. Live check, 4 Nov 2026, `muse-spark-1.3-contributor` via the Meta Model API: 4 Wizard of Oz chapters (1.2k–3.7k words) uploaded in one drop were answered in 80 ms; each run (extraction + critic) took 58–96 s, the fourth waited 58 s for a slot (3 at a time), all done 2 min 12 s after the drop with 65 candidates, 0 failed calls.
 
+## Sample recordings and book uploads, 3–4 Nov 2026
+
+The public-domain samples ship with recorded Muse runs, so a load replays them in seconds. Each `candidates.json` has a `_note` with how it was made. All runs below went through the Meta Model API at `reasoning_effort: low`.
+
+- **Sherlock Holmes** (3 Nov, `muse-spark-1.3`, prompt extract-v4): 418 candidates; after a sample load 409 are pending (repeats skipped) and 1 is blocked (a quote that is not verbatim).
+- **Oz** (4 Nov, `muse-spark-1.3-contributor`, extract-v5, 4 documents at a time, the sample's 36 wiki pages passed as the names the project uses): 69 calls in 539 s, 938 candidates; after a load 859 pending (79 repeats skipped), 3 blocked (two quotes with an added quotation mark, one one-word chant), 856 canon after "accept verified". Passing the known names fixed the earlier "Oz" vs "the Wizard" and "Nome King" vs "Roquat" splits. Live world-rule scan: 29 rules, 57 calls, 130 s, 2 soft violations: "The sands of the desert destroy life on contact" (Ozma of Oz, 1907) against the Griffin lying exhausted on the desert (Land of Oz, 1904), Baum's real retcon of the Deadly Desert; and "Oz can take on any form he wishes" (a character's belief, accepted as a rule) against "The Wizard of Oz is a humbug". Ozma's origin retcon is not found: canon has how the Wizard brought her to Mombi, but no Ozma of Oz fact on how she was lost.
+- **Alice** (4 Nov, same setup, 37 wiki pages): 261 candidates; after a load 245 pending (16 repeats skipped), 1 blocked ("Shan't," is in the text but shorter than the minimum quote), 244 canon. Live world-rule scan: 8 rules, 8 calls, 31 s, no violation. Muse filed the Red Queen's "all the running you can do to keep in the same place" under "Wonderland"; it is the Looking-glass country.
+- **A whole book in one file** (4 Nov, `muse-spark-1.3-contributor`, uploaded through the web app): Dracula (Gutenberg #345) as one `.txt` split into 27 chapters plus front matter, all 28 read in 699 s, 348 candidates, 0 failed calls. The same book as a `.docx` (heading styles): the same 28 parts, 675 s, 317 candidates, 0 failed. Re-uploading the `.txt` with one sentence of chapter 7 edited (and LF instead of CRLF line ends): 1 new version, 27 unchanged.
+- **Document kind detection** (4 Nov, same model): `harbour-notes.md` holding a scene was filed as a scene, not lore; `chapter-12.md` holding a glossary was filed as lore.
+
 ## Summary of suggestions
 
 1. Show credit and billing state clearly; name the missing step in a 402.
