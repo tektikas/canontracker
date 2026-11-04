@@ -32,12 +32,13 @@ const tab = computed<Tab>({
 })
 const facts = computed(() => e.value?.facts ?? [])
 const relCount = computed(() => facts.value.filter(f => f.object).length)
+// Timed facts by story time; with none, every fact is on the timeline in reading order.
 const timedCount = computed(() => facts.value.filter(f => f.t_from != null || f.t_to != null).length)
 const openNotes = computed(() => e.value?.text_notes.filter(n => n.status !== 'done').length ?? 0)
 const passageCount = computed(() => e.value?.appearances.reduce((n, d) => n + d.passages.length, 0) ?? 0)
 const tabs = computed(() => [
   { value: 'story' as Tab, label: 'Story' },
-  { value: 'timeline' as Tab, label: 'Timeline', count: timedCount.value },
+  { value: 'timeline' as Tab, label: 'Timeline', count: timedCount.value || facts.value.length },
   { value: 'relationships' as Tab, label: 'Relationships', count: relCount.value },
   { value: 'appearances' as Tab, label: 'Appearances', count: passageCount.value },
   { value: 'images' as Tab, label: 'Images', count: gallery.value?.images.length ?? 0 },
@@ -431,10 +432,10 @@ const ago = (iso: string) => {
     </div>
 
     <!-- Timeline -->
-    <UiPanel v-else-if="tab === 'timeline'" :title="`${e.name} on the story timeline`" description="Timed canon facts that name this entity, by story time. Day 1 starts at 00:00; earlier days are D0, D-1, ….">
-      <StoryTimeline v-if="timedCount" :facts="facts" />
-      <UiEmptyState v-else title="No timed facts yet" icon="event">
-        None of the accepted facts about {{ e.name }} has a story time.
+    <UiPanel v-else-if="tab === 'timeline'" :title="`${e.name} on the story timeline`" description="Canon facts that name this entity, by story time (Day 1 starts at 00:00; earlier days are D0, D-1, …) or in reading order.">
+      <StoryTimeline v-if="facts.length" :facts="facts" />
+      <UiEmptyState v-else title="No canon facts yet" icon="event">
+        No accepted fact names {{ e.name }} yet.
       </UiEmptyState>
     </UiPanel>
 

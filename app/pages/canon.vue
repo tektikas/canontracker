@@ -261,9 +261,8 @@ const successor = (id: string) => [...(canon.value ?? []), ...(superseded.value 
     <EntityGraph :facts="canon!" :selected="entity" />
   </UiPanel>
 
-  <UiPanel v-else-if="tab === 'timeline'" title="Story timeline" description="By story time, one lane per character. Day 1 starts at 00:00; earlier days are D0, D-1, ….">
-    <StoryTimeline v-if="timelineFacts.some(f => f.t_from != null || f.t_to != null)" :facts="timelineFacts" :all-facts="canon!" />
-    <p v-else class="muted">No timed canon facts{{ filter ? ' match this filter' : '' }}.</p>
+  <UiPanel v-else-if="tab === 'timeline'" title="Story timeline" description="One lane per character, by story time (Day 1 starts at 00:00; earlier days are D0, D-1, …) or in reading order.">
+    <StoryTimeline :facts="timelineFacts" :all-facts="canon!" />
   </UiPanel>
 
   <section v-else class="stack">

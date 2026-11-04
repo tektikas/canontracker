@@ -95,7 +95,7 @@ export default [
       { label: 'Filters', text: 'Search by name, place or word; filter by kind and document; **Needs re-check** shows only facts whose evidence went out of date.' },
       { label: 'Facts list', text: 'One line per fact, grouped by kind, entity or document (**Group by**). Open a line to see its story time, its verified quotes and its sources.' },
       { label: 'Graph', text: 'Who and what is linked to whom in canon, coloured by entity type, with a search box to find an entity and zoom buttons.' },
-      { label: 'Timeline', text: 'The **Story timeline**: timed facts by story time, one lane per character. Day 1 starts at 00:00; earlier days are D0, D-1 and so on.' },
+      { label: 'Timeline', text: 'The **Story timeline**, one lane per character (the 12 with most facts until **Show all**). **Story time** places timed facts by story time: Day 1 starts at 00:00; earlier days are D0, D-1 and so on. **Reading order** runs along your documents in manuscript order (folder, then title) and puts each fact at the first chapter that cites it: where it is told, not when it happens. A novel that never says “Day 3” still gets a timeline. Story time opens first when enough facts have a time; switch with the two buttons.' },
       { label: 'Superseded', text: 'Earlier versions of facts that an accepted change replaced, with the version that replaced them. They are kept, never deleted.' },
     ],
     tasks: [
@@ -207,7 +207,7 @@ export default [
     see: [
       { label: 'Header', text: 'Portrait, type, name, other names, the names it was merged from, how many canon facts name it and who edited it last. **Edit**, **Merge…** and **Delete** sit on the right.' },
       { label: 'Story', text: '**Summary**, **What canon says** (accepted facts that name it, grouped, each with its passage) and a details panel with fields for your project’s medium.' },
-      { label: 'Timeline', text: 'Timed canon facts that name it, by story time.' },
+      { label: 'Timeline', text: 'Canon facts that name it, by story time, or in **Reading order** (the first chapter that tells each one) when they have no story time.' },
       { label: 'Relationships', text: 'Every canon link to another character, place or item. Open one to see the facts behind it.' },
       { label: 'Appearances', text: 'Passages in the latest version of your sources that mention it or its other names; **Cited in canon** marks the ones canon cites.' },
       { label: 'Images', text: 'Concept art, references and generated images. Any of them can become the portrait.' },
