@@ -76,6 +76,6 @@ export async function guestPayoff(set: string) {
   audit('change.created', 'change', id, { target_fact_id: target.id, before: target.statement, proposed, sample: true })
   const impact = analyzeImpact(target.id)
   db.prepare(`update changes set status = 'ready_for_review', impact = ? where id = ?`).run(JSON.stringify(impact), id)
-  audit('impact.completed', 'change', id, { items: impact.length, scenes: impact.filter(i => i.target_type === 'scene').map(i => i.label), max_hops: 2 })
+  audit('impact.completed', 'change', id, { items: impact.length, documents: impact.filter(i => i.target_type === 'document').map(i => i.label), scenes: impact.filter(i => i.kind === 'scene').map(i => i.label), max_hops: 2 })
   return { scan, change: id }
 }

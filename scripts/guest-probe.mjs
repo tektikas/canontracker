@@ -79,7 +79,7 @@ for (const p of made.data.projects) {
   if (want.change) {
     const ch = changes[0]
     const docs = new Map((await g('/api/documents')).data.map(d => [d.id, d.name]))
-    const scenes = (ch?.impact ?? []).filter(i => i.target_type === 'scene').map(i => docs.get(i.target_id))
+    const scenes = (ch?.impact ?? []).filter(i => i.target_type === 'document' && i.kind === 'scene').map(i => docs.get(i.target_id))
     check(`${p.set}: one change proposed, pending a decision`, changes.length === 1 && ch.status === 'ready_for_review' && !ch.decided_by, changes.map(c => c.status))
     check(`${p.set}: its impact lists the expected scenes and none excluded`, gs.impact.expected_scenes.every(s => scenes.includes(s)) && !gs.impact.excluded_scenes.some(s => scenes.includes(s)), scenes)
   } else check(`${p.set}: no change proposed`, changes.length === 0)
