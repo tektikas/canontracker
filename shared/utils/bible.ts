@@ -66,6 +66,20 @@ export type BibleBook = 'bible' | 'manuscript'
 // The manuscript's order, also the timeline's Reading order: folder path (root first), then title with numbers in order (S2 before S10).
 export const byReadingOrder = (a: { folder: string | null, title: string }, b: { folder: string | null, title: string }) =>
   (a.folder ?? '').localeCompare(b.folder ?? '', 'en', { numeric: true }) || a.title.localeCompare(b.title, 'en', { numeric: true })
+// Books in order: a folder comes where its first document's file name sorts ("1900-the-wonderful-wizard…" before "1904-…",
+// "chapter-01" before "chapter-02"), not by the folder's own name; inside a folder, byReadingOrder. ranks: folder → first file name.
+type Ordered = { folder: string | null, title: string, key?: string, filename?: string }
+export function folderRanks(docs: Ordered[]) {
+  const first = new Map<string, string>()
+  for (const d of docs) {
+    const f = d.folder ?? '', n = d.filename ?? d.key ?? d.title
+    if (!first.has(f) || n.localeCompare(first.get(f)!, 'en', { numeric: true }) < 0) first.set(f, n)
+  }
+  return first
+}
+export const readingOrderBy = (ranks: Map<string, string>) => (a: Ordered, b: Ordered) =>
+  (ranks.get(a.folder ?? '') ?? '').localeCompare(ranks.get(b.folder ?? '') ?? '', 'en', { numeric: true }) || byReadingOrder(a, b)
+export const sortReadingOrder = <T extends Ordered>(docs: T[]) => [...docs].sort(readingOrderBy(folderRanks(docs)))
 export interface Manuscript {
   title: string, studio: string, generated_at: string, scope: { kind: BibleScope, label: string }, cover: string | null
   counts: { documents: number, words: number }

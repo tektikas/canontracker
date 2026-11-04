@@ -11,9 +11,11 @@ const editor = computed(() => canEdit(useMe().value))
 
 const isTimed = (f: Fact) => f.t_from != null || f.t_to != null
 const docOf = (e: Ev) => ({ key: e.document_key as string, folder: (e.document_folder ?? null) as string | null, title: e.document_title as string })
-const firstCite = (f: Fact): Ev | undefined => (f.evidence ?? []).filter((e: Ev) => e.verified).sort((x: Ev, y: Ev) => byReadingOrder(docOf(x), docOf(y)))[0]
 // The mode comes from the whole canon, so a search that hides every timed fact doesn't flip it.
 const all = computed(() => props.allFacts ?? props.facts)
+// Books in reading order across the whole canon (folderRanks: a folder sits where its first file name sorts).
+const order = computed(() => readingOrderBy(folderRanks(all.value.flatMap(f => (f.evidence ?? []).map((e: Ev) => docOf(e))))))
+const firstCite = (f: Fact): Ev | undefined => (f.evidence ?? []).filter((e: Ev) => e.verified).sort((x: Ev, y: Ev) => order.value(docOf(x), docOf(y)))[0]
 const hasTime = computed(() => all.value.some(isTimed))
 const hasRead = computed(() => all.value.some(f => firstCite(f)))
 type Mode = 'time' | 'read'
@@ -42,7 +44,7 @@ const row = computed(() => (reading.value ? 26 : 30)) // px per stacked item; a 
 const chapters = computed(() => {
   const m = new Map<string, { key: string, folder: string | null, title: string }>()
   for (const p of visible.value) if (p.doc) m.set(p.doc.key, p.doc)
-  return [...m.values()].sort(byReadingOrder).map((c) => {
+  return [...m.values()].sort(order.value).map((c) => {
     const book = c.folder?.split(' / ').at(-1)
     const short = book && c.title.startsWith(book) ? c.title.slice(book.length).replace(/^[\s,:;.–—-]+/, '') : ''
     return { ...c, short: short || c.title }

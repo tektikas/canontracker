@@ -51,11 +51,11 @@ function readingOrder(opts: BibleOptions) {
   const inFolder = new Set(folderTree(folder))
   const paths = new Map<string, string>()
   const path = (id: string | null) => (id ? paths.get(id) ?? (paths.set(id, folderPath(id) ?? ''), paths.get(id)!) : '')
-  return (db.prepare(`select d.id, d.title, d.filename, d.kind, d.version, d.content, d.folder_id from documents d where d.project_id = ?
+  return sortReadingOrder((db.prepare(`select d.id, d.title, d.filename, d.kind, d.version, d.content, d.folder_id from documents d where d.project_id = ?
     and d.version = (select max(x.version) from documents x where x.project_id = d.project_id and x.filename = d.filename)`).all(pid()) as { id: string, title: string, filename: string, kind: string, version: number, content: string, folder_id: string | null }[])
     .filter(d => opts.scope !== 'folder' || (!!d.folder_id && inFolder.has(d.folder_id)))
-    .map(d => ({ ...d, folder: d.folder_id ? path(d.folder_id) : null }))
-    .sort(byReadingOrder)
+    .map(d => ({ ...d, folder: d.folder_id ? path(d.folder_id) : null })))
+
 }
 
 export function buildManuscript(opts: BibleOptions, coverUrl: (imageId: string) => string): Manuscript {
