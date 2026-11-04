@@ -206,7 +206,7 @@ export default [
       {
         title: 'Run the evaluation',
         steps: [
-          'Load Broken Tide or The Ashbell Pass into a project of its own (the evaluation scores those samples and the Sherlock Holmes sample).',
+          'Load Broken Tide or The Ashbell Pass into a project of its own (the evaluation scores those samples and the Sherlock Holmes sample; the Oz books and Alice have none).',
           'Review candidates, scan conflicts and decide them as you would normally.',
           'On **Metrics**, choose **Run evaluation**.',
           'Read the score and the **Latest run** table; it scores the data as it is now.',

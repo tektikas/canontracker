@@ -34,7 +34,7 @@ Open http://localhost:3000, then:
 
 1. **Sign up** with a name, email and password of at least 8 characters; the data stays in a local SQLite file under `.data/`.
 2. Name your studio and first project.
-3. On the last onboarding step click **Load The Ashbell Pass** (28 documents), **Load Sherlock Holmes** (31 chapters/stories), or **Load demo and take the tour** (Broken Tide + Lantern Row).
+3. On the last onboarding step click **Load The Ashbell Pass** (28 documents), **Load Sherlock Holmes** (31 chapters/stories), **Load the Oz books** (69 chapters), **Load Alice** (24 chapters), or **Load demo and take the tour** (Broken Tide + Lantern Row).
 
 Run the `.env` creation command once on a fresh clone. Keep the password stable for your sessions. An empty `NUXT_SESSION_PASSWORD` prevents sign-in; production needs at least 32 characters. `.env` and `.data/` are ignored by Git. Stop dev before starting the production build:
 
@@ -43,7 +43,7 @@ pnpm build
 HOST=localhost PORT=3000 node --env-file=.env .output/server/index.mjs
 ```
 
-The production server does not load `.env` itself; Node's `--env-file` supplies it. Persist `.data/` when self-hosting. Other samples, including Sherlock Holmes, are available in **Settings → Projects → your project**; a sample load replaces that project's content, retaining its audit trail.
+The production server does not load `.env` itself; Node's `--env-file` supplies it. Persist `.data/` when self-hosting. Other samples, including Sherlock Holmes, the Oz books and Alice, are available in **Settings → Projects → your project**; a sample load replaces that project's content, retaining its audit trail.
 
 ## Recorded mode and live mode
 
@@ -92,9 +92,11 @@ The model adapter is `server/utils/model.ts`; multi-step Responses calls run in 
 - **The Ashbell Pass:** 28 documents (about 22.5k words) with folders, NPCs and quests, for a larger-scale run. To try voice in recorded mode, drop `public/samples/harl-crier-take.wav` (a synthetic text-to-speech take of the town crier's lines, with one ad-libbed line) on the Library, open it and choose **Compare with a script** → "Dialogue: The Town Crier". First accept the Review candidate “Captain Rourke stands watch at the Bell Gate from 21:00 to 22:00 on Day 2.” to see the ad-lib flagged against canon. In recorded mode only this file has a transcript.
 
 - **Sherlock Holmes:** 31 chapters/stories (about 127k words), public-domain Doyle texts, recorded candidates and known continuity slips. Text and illustration credits: [SOURCES.md](server/assets/sherlock-holmes/SOURCES.md).
+- **The Oz books:** L. Frank Baum's The Wonderful Wizard of Oz, The Marvelous Land of Oz and Ozma of Oz, 69 chapters (about 119k words), public domain, recorded candidates and wiki pages for the cast; no gold set. Credits: [SOURCES.md](server/assets/oz/SOURCES.md).
+- **Alice:** Lewis Carroll's Alice's Adventures in Wonderland and Through the Looking-Glass, 24 chapters (about 56k words), public domain, recorded candidates and wiki pages for the cast; no gold set. Credits: [SOURCES.md](server/assets/alice/SOURCES.md).
 
 
-Authenticated `POST /api/demo/load` takes `{ "set": "broken-tide" }`, `lantern-row`, `ashbell-pass` or `sherlock-holmes` and replaces the current project's data (admin and above). Sign up and select a project first; an unauthenticated curl is refused.
+Authenticated `POST /api/demo/load` takes `{ "set": "broken-tide" }`, `lantern-row`, `ashbell-pass`, `sherlock-holmes`, `oz` or `alice` and replaces the current project's data (admin and above). Sign up and select a project first; an unauthenticated curl is refused.
 
 ## Connect an agent over MCP
 

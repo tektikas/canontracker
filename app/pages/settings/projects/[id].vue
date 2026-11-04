@@ -78,6 +78,8 @@ const SAMPLES = [
   { set: 'lantern-row', label: 'Lantern Row sample', hint: 'Three short sources with five preloaded canon facts.' },
   { set: 'ashbell-pass', label: 'The Ashbell Pass demo', hint: 'A mountain-town game in 28 sources, in folders, with NPCs, quests and planted contradictions.' },
   { set: 'sherlock-holmes', label: 'Sherlock Holmes sample', hint: 'Doyle’s A Study in Scarlet, The Sign of the Four and five stories (public domain), with the famous slips readers found.' },
+  { set: 'oz', label: 'The Oz books sample', hint: 'Baum’s The Wonderful Wizard of Oz, The Marvelous Land of Oz and Ozma of Oz (public domain), 69 chapters.' },
+  { set: 'alice', label: 'Alice sample', hint: 'Carroll’s Alice’s Adventures in Wonderland and Through the Looking-Glass (public domain), 24 chapters.' },
 ]
 const sampleError = ref('')
 async function loadSample(s: typeof SAMPLES[number]) {

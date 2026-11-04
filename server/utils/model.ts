@@ -126,7 +126,7 @@ function identityNotes(facts: PromptFact[]) {
 // The demo sets with a recorded run. Recorded output is replayed only for a sample's own text: the sha256 of the imported
 // content must equal the sha256 of one of the set's source files (docs/ or v2/). A file that merely shares a sample's name
 // gets nothing, so an unrelated upload never receives another story's candidates.
-const RECORDED_SETS = ['broken-tide', 'ashbell-pass', 'sherlock-holmes']
+const RECORDED_SETS = ['broken-tide', 'ashbell-pass', 'sherlock-holmes', 'oz', 'alice']
 const sha = (text: string) => createHash('sha256').update(text).digest('hex')
 let sources: Promise<Map<string, { set: string, filename: string, candidates?: CandidateDraft[] }>> | undefined
 const recordedSources = () => sources ??= (async () => {

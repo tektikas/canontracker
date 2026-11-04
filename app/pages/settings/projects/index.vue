@@ -8,13 +8,15 @@ const currentId = computed(() => me.value?.current?.project.id)
 const creating = ref(route.query.new === '1')
 const newName = ref('')
 // A new project can start from one of the sample sets; loading one is the same admin action as Load demo set on Home.
-const SAMPLES = { empty: '', 'broken-tide': 'Broken Tide (demo)', 'lantern-row': 'Lantern Row (sample)', 'ashbell-pass': 'The Ashbell Pass (demo)', 'sherlock-holmes': 'Sherlock Holmes (sample)' } as const
+const SAMPLES = { empty: '', 'broken-tide': 'Broken Tide (demo)', 'lantern-row': 'Lantern Row (sample)', 'ashbell-pass': 'The Ashbell Pass (demo)', 'sherlock-holmes': 'Sherlock Holmes (sample)', 'oz': 'The Oz books (sample)', 'alice': 'Alice (sample)' } as const
 const HINTS: Record<keyof typeof SAMPLES, string> = {
   'empty': 'Add your own sources from Home.',
   'broken-tide': 'An island story in 13 sources with planted contradictions.',
   'lantern-row': 'Three short sources that come with five preloaded canon facts, each quoted from its source. Sample canon: no one reviewed it and no model proposed it.',
   'ashbell-pass': 'A mountain-town game story in 28 sources, filed in folders with tags, plus wiki pages for its cast, places, items and quests.',
   'sherlock-holmes': 'Arthur Conan Doyle, public domain: A Study in Scarlet, The Sign of the Four and five stories, one source per chapter or story. Holds famous slips, like the wound that moves from Watson’s shoulder to his leg.',
+  'oz': 'L. Frank Baum, public domain: The Wonderful Wizard of Oz, The Marvelous Land of Oz and Ozma of Oz, one source per chapter, with wiki pages for the cast.',
+  'alice': 'Lewis Carroll, public domain: Alice’s Adventures in Wonderland and Through the Looking-Glass, one source per chapter, with wiki pages for the cast.',
 }
 const startWith = ref<keyof typeof SAMPLES>('empty')
 watch(startWith, (v, old) => { if (!newName.value.trim() || newName.value === SAMPLES[old]) newName.value = SAMPLES[v] })
@@ -78,6 +80,8 @@ const ago = (iso: string | null) => {
             <option value="lantern-row">The Lantern Row sample (preloaded canon)</option>
             <option value="ashbell-pass">The Ashbell Pass demo (28 sources)</option>
             <option value="sherlock-holmes">Sherlock Holmes, a real classic (31 sources)</option>
+            <option value="oz">The Oz books, Baum’s first three (69 sources)</option>
+            <option value="alice">Alice, Carroll’s two books (24 sources)</option>
           </select>
         </UiField>
         <div class="row">

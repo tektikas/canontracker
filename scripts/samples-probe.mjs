@@ -7,6 +7,8 @@
 // - keeps the audit trail across a reset: older events stay, a project.reset event is appended, and events whose targets the
 //   reset removed are flagged target_removed (API, JSON and Markdown export); the conflict-scan tick restarts after a reset.
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
+import { candidateFingerprint } from '../shared/utils/review.ts'
 
 const base = process.argv[2] ?? 'http://localhost:3000'
 const run = Date.now().toString(36)
@@ -25,6 +27,7 @@ function client() {
   return call
 }
 const check = (label, actual, expected) => { assert.deepEqual(actual, expected, label); console.log(`ok  ${label} (${JSON.stringify(actual)})`) }
+const sorted = a => [...a].sort()
 const load = (c, body, raw) => c('/api/demo/load', { method: 'POST', body, raw })
 
 const a = client()
@@ -140,4 +143,42 @@ check('ashbell-pass wiki pages preloaded', (await a('/api/entities')).data.lengt
 check('ashbell-pass audit names the set', (await a('/api/audit')).data.find(e => e.event_type === 'sample.loaded').detail.set, 'ashbell-pass')
 const btRow = (await a('/api/projects')).data.projects.find(p => p.name === 'Broken Tide (demo)')
 check('Broken Tide project untouched', [btRow.documents, btRow.pending, btRow.canon], [13, bt.pending, 0])
+
+// The Oz books and Alice: public-domain chapters filed by their manifests, preloaded wiki pages, a cover, the recorded Muse
+// candidates (recorded mode); accept every verified one and scan. Expected counts come from the set's own files, and in
+// recorded mode the review queue and the scan's rule-based conflicts are fixed by the recording (OUTCOME).
+const asset = (set, f) => JSON.parse(readFileSync(new URL(`../server/assets/${set}/${f}`, import.meta.url), 'utf8'))
+const OUTCOME = { oz: { pending: 859, unverified: 3, conflicts: 0 }, alice: { pending: 245, unverified: 1, conflicts: 0 } }
+for (const [set, name] of [['oz', 'The Oz books (sample)'], ['alice', 'Alice (sample)']]) {
+  const manifest = asset(set, 'manifest.json')
+  const pages = asset(set, 'entities.json')
+  const drafts = Object.entries(asset(set, 'candidates.json')).filter(([k]) => k !== '_note').reduce((n, [, l]) => n + l.length, 0)
+  check(`create ${set} project`, (await a('/api/projects', { method: 'POST', body: { name, studio_id: studio.id } })).status, 200)
+  const t = Date.now()
+  check(`load ${set}`, (await load(a, { set })).status, 200)
+  console.log(`--  ${set} load took ${Date.now() - t} ms`)
+  const s = (await a('/api/stats')).data
+  check(`${set}: documents as in the manifest, no canon`, [s.documents, s.canon], [Object.keys(manifest.docs).length, 0])
+  check(`${set}: medium prose`, (await a('/api/me')).data.current.project.medium, 'prose')
+  const docs = (await a('/api/documents')).data
+  const lib = (await a('/api/library')).data
+  check(`${set}: one folder per book, every chapter a scene`, [sorted(lib.folders.map(f => f.name)), docs.every(d => d.kind === 'scene')], [sorted(new Set(Object.values(manifest.docs).map(d => d.folder))), true])
+  check(`${set}: wiki pages preloaded`, sorted((await a('/api/entities')).data.filter(e => e.origin === 'manual').map(e => e.name)), sorted(pages.map(p => p.name)))
+  const cover = (await a('/api/export/bible?book=manuscript')).data.cover
+  check(`${set}: the cover is served`, !!cover && (await a(cover)).status, 200)
+  const calls = (await a('/api/model-calls')).data
+  check(`${set}: the load replays the recording (no live model call)`, [...new Set(calls.filter(c => c.purpose === 'extract').map(c => c.model_id))], ['mock:recorded-fixtures'])
+  const pending = (await a('/api/facts?status=pending')).data
+  const unverified = pending.filter(f => !f.evidence.some(e => e.verified))
+  console.log(`--  ${set}: ${drafts} recorded candidates, ${pending.length} pending, ${unverified.length} with a quote not found verbatim`)
+  check(`${set}: recorded candidates wait for review`, [pending.length, unverified.length], [OUTCOME[set].pending, OUTCOME[set].unverified])
+  for (let i = 0; i < pending.length; i += 500)
+    await a('/api/facts/accept-verified', { method: 'POST', body: { items: pending.slice(i, i + 500).map(f => ({ id: f.id, fingerprint: candidateFingerprint(f) })) } })
+  check(`${set}: canon = pending − unverified`, (await a('/api/stats')).data.canon, pending.length - unverified.length)
+  const scan = await a('/api/conflicts/scan', { method: 'POST' })
+  check(`${set}: scan`, [scan.status, scan.data.model_error ?? null], [200, null])
+  const conflicts = (await a('/api/conflicts')).data
+  for (const c of conflicts) console.log(`--  ${c.rule} (${c.severity}): ${c.left.statement} / ${c.right.statement}`)
+  if (recorded) check(`${set}: conflicts the scan raises`, conflicts.length, OUTCOME[set].conflicts)
+}
 console.log('samples probe passed')

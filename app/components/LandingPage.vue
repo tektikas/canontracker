@@ -230,7 +230,7 @@ const MCP_SNIPPET = JSON.stringify({ schema_version: 1, mcp_servers: { canontrac
 
       <MarketingCta
         title="Start with a story world that already breaks"
-        text="Load Sherlock Holmes, The Ashbell Pass or Broken Tide: real documents, AI candidates to review and contradictions to find. Then import your own, or run CanonTracker on your own server."
+        text="Load Sherlock Holmes, the Oz books, Alice, The Ashbell Pass or Broken Tide: real documents, AI candidates to review and contradictions to find. Then import your own, or run CanonTracker on your own server."
       />
     </div>
   </NuxtLayout>

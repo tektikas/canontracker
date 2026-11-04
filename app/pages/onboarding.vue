@@ -17,7 +17,7 @@ const stepIndex = computed(() => STEPS.findIndex(s => s.key === step.value))
 const studioName = ref(`${firstName.value}’s studio`)
 const projectName = ref('')
 const error = ref('')
-const busy = ref<'' | 'studio' | 'project' | 'demo' | 'ashbell' | 'sherlock'>('')
+const busy = ref<'' | 'studio' | 'project' | 'demo' | 'ashbell' | 'sherlock-holmes' | 'oz' | 'alice'>('')
 
 async function run(kind: typeof busy.value, fn: () => Promise<void>) {
   error.value = ''
@@ -61,10 +61,11 @@ const tryAshbell = () => run('ashbell', async () => {
   await $fetch('/api/demo/load', { method: 'POST', body: { set: 'ashbell-pass' } })
   reloadNuxtApp({ path: '/', force: true })
 })
-// A real classic: Doyle's first Sherlock Holmes novels and stories (public domain), in a project of its own.
-const trySherlock = () => run('sherlock', async () => {
-  await $fetch('/api/projects', { method: 'POST', body: { name: 'Sherlock Holmes (sample)', studio_id: me.value?.current?.studio.id ?? adminStudio.value?.id } })
-  await $fetch('/api/demo/load', { method: 'POST', body: { set: 'sherlock-holmes' } })
+// A real classic (public domain: Doyle's first Sherlock Holmes novels and stories, Baum's first three Oz books, Carroll's two
+// Alice books), in a project of its own.
+const tryClassic = (set: 'sherlock-holmes' | 'oz' | 'alice', name: string) => run(set, async () => {
+  await $fetch('/api/projects', { method: 'POST', body: { name: `${name} (sample)`, studio_id: me.value?.current?.studio.id ?? adminStudio.value?.id } })
+  await $fetch('/api/demo/load', { method: 'POST', body: { set } })
   reloadNuxtApp({ path: '/', force: true })
 })
 </script>
@@ -132,8 +133,11 @@ const trySherlock = () => run('sherlock', async () => {
       <p class="small muted center">
         Want a bigger story? <button type="button" class="linkish" :disabled="!!busy" @click="tryAshbell">{{ busy === 'ashbell' ? 'Loading The Ashbell Pass…' : 'Load The Ashbell Pass' }}</button>,
         a mountain-town game story with NPC schedules, quests and items, in its own project.
-        Or a real classic: <button type="button" class="linkish" :disabled="!!busy" @click="trySherlock">{{ busy === 'sherlock' ? 'Loading Sherlock Holmes…' : 'Load Sherlock Holmes' }}</button>,
-        two novels and five stories by Arthur Conan Doyle (public domain).
+        Or a real classic (public domain): <button type="button" class="linkish" :disabled="!!busy" @click="tryClassic('sherlock-holmes', 'Sherlock Holmes')">{{ busy === 'sherlock-holmes' ? 'Loading Sherlock Holmes…' : 'Load Sherlock Holmes' }}</button>,
+        two novels and five stories by Arthur Conan Doyle;
+        <button type="button" class="linkish" :disabled="!!busy" @click="tryClassic('oz', 'The Oz books')">{{ busy === 'oz' ? 'Loading the Oz books…' : 'Load the Oz books' }}</button>,
+        L. Frank Baum’s first three; or <button type="button" class="linkish" :disabled="!!busy" @click="tryClassic('alice', 'Alice')">{{ busy === 'alice' ? 'Loading Alice…' : 'Load Alice' }}</button>,
+        Lewis Carroll’s Wonderland and Looking-Glass.
       </p>
       <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
       <p class="small muted center"><NuxtLink to="/">Skip for now</NuxtLink> · you can load the demo, import files or write a document any time from Home.</p>
