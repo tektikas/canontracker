@@ -52,7 +52,9 @@ const derivedTitle = (filename: string, content: string) => content.match(/^#\s+
 export interface RecordingImport { turns: Turn[], audio_sha256: string, bytes: number, duration_ms: number, original_name: string, model_id: string, mode: string, session_ids: string[], script_key: string | null }
 // `storeAfter`: extraction's model call starts at once, but its candidates are stored only after that promise settles (a batch
 // import runs several documents at a time and keeps the order in which candidates are stored, so duplicates resolve the same way).
-export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }, folderId?: string | null, recording?: RecordingImport, word?: { original: Buffer, comments: WordComment[] }, storeAfter?: Promise<unknown>) {
+// `background`: the version is stored and the result returned at once; extraction and the critic run after the response
+// (server/utils/extractions.ts) and the result carries `extraction` (status queued) instead of candidate counts.
+export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }, folderId?: string | null, recording?: RecordingImport, word?: { original: Buffer, comments: WordComment[] }, storeAfter?: Promise<unknown>, background = false) {
   const db = useDb()
   const projectId = pid()
   const sha256 = createHash('sha256').update(content).digest('hex')
@@ -146,6 +148,12 @@ export async function importDocument(filename: string, content: string, written?
     throw e
   }
 
+  const stored = {
+    filename, title, status: 'imported' as const, document_id: documentId, version, folder: where, same_name_in: sameNameIn, passages: passages.length, stale_facts: staleFacts, outdated_facts: outdatedFacts, evidence_moved: evidenceMoved,
+    word_notes: wordNotes,
+  }
+  if (background) return { ...stored, extraction: queueExtraction({ id: documentId, filename: key, title, content, name, version, folder: where }) }
+
   // Extraction failing must not lose the import.
   let extraction: Awaited<ReturnType<typeof extractInto>> | null = null
   let extractionError: string | null = null
@@ -157,8 +165,7 @@ export async function importDocument(filename: string, content: string, written?
   }
 
   return {
-    filename, title, status: 'imported' as const, document_id: documentId, version, folder: where, same_name_in: sameNameIn, passages: passages.length, stale_facts: staleFacts, outdated_facts: outdatedFacts, evidence_moved: evidenceMoved,
-    word_notes: wordNotes, candidates: extraction?.created ?? 0, unverified: extraction?.unverified ?? 0, skipped: extraction?.skipped ?? 0, extraction_error: extractionError,
+    ...stored, candidates: extraction?.created ?? 0, unverified: extraction?.unverified ?? 0, skipped: extraction?.skipped ?? 0, extraction_error: extractionError,
   }
 }
 
@@ -248,11 +255,14 @@ function knownNames(max = 150) {
 // A recording's transcript that restates a pending candidate cites that candidate too (a verified quote in the
 // transcript, like movePendingEvidence adds one for a new version), so the take's script comparison still sees what the line
 // says and can flag it against canon; no second candidate is made. Canon and decided candidates are never touched.
-export async function extractInto(doc: { id: string, filename: string, title: string, content: string }, passages: { id: string, text: string }[], storeAfter?: Promise<unknown>) {
+// `onCritic`: called when the critic starts reading the new candidates (a background run shows that step).
+export async function extractInto(doc: { id: string, filename: string, title: string, content: string }, passages: { id: string, text: string }[], storeAfter?: Promise<unknown>, onCritic?: () => void) {
   const db = useDb()
   const projectId = pid()
   const drafts = await extractCandidates({ id: doc.id, filename: doc.filename, title: doc.title, text: doc.content, names: knownNames() })
   await storeAfter?.catch(() => {})
+  // The model call can take a minute: a project reset (demo load) in the meantime removes the document it read.
+  if (!db.prepare('select 1 from documents where id = ? and project_id = ?').get(doc.id, projectId)) throw new Error('The document was removed while the AI was reading it.')
   const model = modelInfo()
   const existing = db.prepare('select id, statement, kind, subject, predicate, object, value, t_from, t_to, precision, status from facts where project_id = ?').all(projectId) as { id: string, statement: string, kind: string, subject: string, predicate: string, object: string | null, value: string | null, t_from: number | null, t_to: number | null, precision: string | null, status: string }[]
   const seen = new Map<string, { id: string, status: string }>()
@@ -301,6 +311,7 @@ export async function extractInto(doc: { id: string, filename: string, title: st
   let critic: Awaited<ReturnType<typeof runCritic>> | null = null
   let criticError: string | null = null
   try {
+    if (created.length) onCritic?.()
     critic = await runCritic(created)
   } catch (e) {
     criticError = (e as Error).message

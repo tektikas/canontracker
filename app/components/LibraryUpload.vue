@@ -3,6 +3,8 @@
 // shows its own progress and result; one bad file never stops the others. Editors only: the parent leaves it out for viewers.
 // `folder`: where the files land (null: the Library root). A file is a new version of the document with its exact name in that
 // folder, and only there: a file with the same name elsewhere stays a separate document.
+// Each request asks for background extraction: the file is stored and answered at once, and the row then follows the AI
+// reading it (ExtractionStatus, polled while it runs), so a long chapter never holds a request open.
 const props = defineProps<{ folder?: { id: string, label: string } | null }>()
 const emit = defineEmits<{ uploaded: [] }>()
 const { data: stats } = useNuxtData<{ model: { mode: string } }>('stats')
@@ -10,9 +12,14 @@ const { data: stats } = useNuxtData<{ model: { mode: string } }>('stats')
 interface Item {
   key: number, name: string, size: number, state: 'queued' | 'uploading' | 'done' | 'error', error?: string
   audio?: boolean
-  result?: { status: string, duration_ms?: number, document_id?: string, version?: number, folder?: string | null, same_name_in?: { folder: string | null } | null, passages?: number, candidates?: number, skipped?: number, stale_facts?: number, outdated_facts?: number, evidence_moved?: number, word_notes?: number, extraction_error?: string | null, same_as?: { filename: string, title: string, version: number }, error?: string }
+  result?: { status: string, duration_ms?: number, document_id?: string, version?: number, folder?: string | null, same_name_in?: { folder: string | null } | null, passages?: number, candidates?: number, skipped?: number, stale_facts?: number, outdated_facts?: number, evidence_moved?: number, word_notes?: number, extraction_error?: string | null, extraction?: { status: string, queued_at: string }, title?: string, same_as?: { filename: string, title: string, version: number }, error?: string }
 }
 const items = ref<Item[]>([])
+const { byId: runs, track } = useExtractions()
+const runOf = (i: Item) => (i.result?.extraction && i.result.document_id ? runs.value.get(i.result.document_id) : undefined)
+// The bar keeps moving while the AI reads the stored file, and turns red if that run fails.
+const barOf = (i: Item) => (extractionActive(runOf(i)) ? 'uploading' : runOf(i)?.status === 'failed' ? 'error' : i.state)
+const reading = computed(() => items.value.filter(i => extractionActive(runOf(i))).length)
 const busy = computed(() => items.value.some(i => i.state === 'queued' || i.state === 'uploading'))
 let seq = 0
 
@@ -46,9 +53,11 @@ async function drain() {
     // Audio goes to /api/recordings: transcribed there, and the transcript is the document.
     form.append(it.audio ? 'file' : 'files', file, file.name)
     if (folderId) form.append('folder_id', folderId)
+    form.append('background', '1')
     try {
       const r = (await $fetch<{ results: Item['result'][] }>(it.audio ? '/api/recordings' : '/api/documents', { method: 'POST', body: form })).results[0]!
       it.result = r
+      if (r.extraction && r.document_id) track(r.document_id, r.extraction, { filename: it.name, title: r.title, version: r.version })
       it.state = r.status === 'error' ? 'error' : 'done'
       if (r.status === 'error') it.error = r.error
       if (r.status === 'imported') any = true
@@ -118,10 +127,10 @@ const summary = computed(() => {
   const failed = items.value.filter(i => i.state === 'error').length
   return [added && `${added} added`, versions && counted(versions, 'new version'), skipped && `${skipped} unchanged`, failed && `${failed} failed`].filter(Boolean).join(' · ')
 })
-const candidates = computed(() => items.value.reduce((n, i) => n + (i.result?.candidates ?? 0), 0))
+const candidates = computed(() => items.value.reduce((n, i) => n + (i.result?.candidates ?? runOf(i)?.created ?? 0), 0))
 // While a batch runs every file shows; afterwards the list folds to the failures, the rest behind "Show all".
 const expanded = ref(false)
-const rows = computed(() => (busy.value || expanded.value ? items.value : items.value.filter(i => i.state === 'error')))
+const rows = computed(() => (busy.value || reading.value || expanded.value ? items.value : items.value.filter(i => i.state === 'error' || runOf(i)?.status === 'failed')))
 const clear = () => { items.value = items.value.filter(i => i.state === 'queued' || i.state === 'uploading') }
 </script>
 
@@ -142,7 +151,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
     <header class="up-head">
       <div>
         <h2>Uploads</h2>
-        <p class="small muted" role="status">{{ busy ? `Uploading ${Math.min(done + 1, items.length)} of ${items.length}…` : [summary, candidates && `${counted(candidates, 'candidate')} sent to Review`].filter(Boolean).join(' · ') }}</p>
+        <p class="small muted" role="status">{{ busy ? `Uploading ${Math.min(done + 1, items.length)} of ${items.length}…` : [summary, reading && `the AI is reading ${reading === 1 ? '1 file' : `${reading} files`}`, candidates && `${counted(candidates, 'candidate')} sent to Review`].filter(Boolean).join(' · ') }}</p>
         <p class="small faint">Files are stored read-only, as they are. The AI proposes candidates; nothing becomes canon until a person accepts it in Review.</p>
       </div>
       <div class="row">
@@ -152,18 +161,18 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
       </div>
     </header>
     <ul v-if="rows.length" class="up-list">
-      <li v-for="i in rows" :key="i.key" :class="i.state">
-        <UiIcon :name="i.state === 'error' ? 'conflicts' : i.state === 'done' ? 'check' : 'file'" :size="16" class="up-icon" />
+      <li v-for="i in rows" :key="i.key" :class="barOf(i)">
+        <UiIcon :name="barOf(i) === 'error' ? 'conflicts' : barOf(i) === 'done' ? 'check' : 'file'" :size="16" class="up-icon" />
         <div class="up-main">
           <div class="up-name">
             <NuxtLink v-if="i.result?.document_id && i.result.status !== 'error'" :to="`/documents/${i.result.document_id}`">{{ i.name }}</NuxtLink>
             <span v-else>{{ i.name }}</span>
             <span class="faint small">{{ kb(i.size) }}</span>
           </div>
-          <div class="bar" :class="i.state" role="progressbar" :aria-label="`${i.name}: ${i.state}`" :aria-busy="i.state === 'uploading' || undefined"><span /></div>
+          <div class="bar" :class="barOf(i)" role="progressbar" :aria-label="`${i.name}: ${barOf(i)}`" :aria-busy="barOf(i) === 'uploading' || undefined"><span /></div>
           <p class="up-result small">
             <template v-if="i.state === 'queued'">Waiting…</template>
-            <template v-else-if="i.state === 'uploading'">{{ i.audio ? 'Transcribing the audio, then extracting candidates…' : 'Importing and extracting candidates…' }}</template>
+            <template v-else-if="i.state === 'uploading'">{{ i.audio ? 'Transcribing the audio…' : 'Uploading…' }}</template>
             <span v-else-if="i.state === 'error'" class="bad-text">{{ i.error }}</span>
             <template v-else-if="i.result?.status === 'duplicate'">
               Same text as {{ i.result.same_as?.filename === i.name ? '' : `${i.result.same_as?.title} ` }}v{{ i.result.same_as?.version }}, skipped.
@@ -173,7 +182,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
               <template v-if="i.result.same_name_in"> · a separate document: the {{ i.name }} {{ i.result.same_name_in.folder ? `in ${i.result.same_name_in.folder}` : 'in the Library root' }} is unchanged</template>
               <template v-if="i.result.duration_ms != null"> · {{ clockMs(i.result.duration_ms) }} transcribed</template>
               · {{ counted(i.result.passages ?? 0, i.result.duration_ms != null ? 'timed passage' : 'passage') }}
-              · {{ counted(i.result.candidates ?? 0, 'candidate') }}{{ i.result.candidates ? ' sent to Review' : '' }}<template v-if="i.result.skipped"> ({{ i.result.skipped }} already in the project)</template>
+              <template v-if="!i.result.extraction">· {{ counted(i.result.candidates ?? 0, 'candidate') }}{{ i.result.candidates ? ' sent to Review' : '' }}<template v-if="i.result.skipped"> ({{ i.result.skipped }} already in the project)</template></template>
               <template v-if="i.result.word_notes"> · {{ counted(i.result.word_notes, 'Word comment') }} added as {{ i.result.word_notes === 1 ? 'a note' : 'notes' }}</template>
               <template v-if="i.result.evidence_moved"> · {{ counted(i.result.evidence_moved, 'pending candidate') }} now {{ i.result.evidence_moved === 1 ? 'cites' : 'cite' }} v{{ i.result.version }}</template>
               <template v-if="i.result.stale_facts">
@@ -182,6 +191,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
               <span v-if="i.result.extraction_error" class="bad-text"> · Extraction failed: {{ i.result.extraction_error }}</span>
             </template>
           </p>
+          <ExtractionStatus v-if="i.result?.extraction && i.result.document_id" :id="i.result.document_id" />
         </div>
       </li>
     </ul>

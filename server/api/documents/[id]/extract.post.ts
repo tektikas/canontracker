@@ -6,6 +6,9 @@ export default defineEventHandler(async (event) => {
   if (!doc) throw createError({ statusCode: 404, statusMessage: 'NOT_FOUND', message: 'Document not found.' })
   requireRole('editor')
   const latest = latestDocument(doc.filename)!
+  // { background: true } ("Try again" after a background run failed): queued like an upload's extraction; answers at once.
+  if ((await readObject(event)).background === true)
+    return { document_id: latest.id, version: latest.version, extraction: queueExtraction({ ...latest, folder: folderPath(latest.folder_id) }, true) }
   const model = modelInfo()
   // Recorded mode replays output recorded for the demo files' own text only; say so instead of pretending to read this one.
   const recordedCovers = model.mode === 'mock' ? await hasRecordedExtraction(latest.content) : null

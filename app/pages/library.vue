@@ -10,6 +10,8 @@ const { data: docs, refresh: refreshDocs } = await useFetch('/api/documents', { 
 const { data: lib, refresh: refreshLib } = await useFetch('/api/library', { default: () => ({ folders: [], tags: [], colors: [], kinds: [] }) })
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
 const refreshAll = () => Promise.all([refreshDocs(), refreshLib(), refreshNuxtData('stats')])
+// A background extraction finishing changes a row's candidate counts.
+useExtractions(() => refreshDocs())
 
 // Filters live in the URL so a filtered view can be linked and survives a reload.
 const param = (k: string) => computed<string>({
@@ -399,6 +401,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                     <span v-else-if="/\.docx$/i.test(d.name)" class="small faint">· converted from Word</span>
                     <button v-for="t in d.tags.map(id => tagById.get(id)).filter(Boolean)" :key="t!.id" type="button" class="tag-btn" :title="`Show only “${t!.name}”`" @click="pickTag(t!.id)"><UiBadge :tone="t!.color" class="tag">{{ t!.name }}</UiBadge></button>
                   </div>
+                  <ExtractionStatus :id="d.id" class="x-line" />
                   <div class="only-sm small faint meta-sm">
                     v{{ d.version }} · {{ shortDate(d.imported_at) }}<template v-if="d.folder_id"> · {{ folderPath(d.folder_id) }}</template> · {{ d.canon_facts }} cited
                     <NuxtLink v-if="d.stale_facts" :to="`/documents/${d.id}/history`" class="warn-link">· {{ d.stale_facts }} to re-check<template v-if="d.outdated_facts"> ({{ d.outdated_facts }} outdated)</template></NuxtLink>
@@ -524,6 +527,7 @@ tbody tr.picked { background: var(--accent-soft); }
 .tag-btn { padding: 0; border: 0; background: none; cursor: pointer; }
 .tag-btn:hover .tag { text-decoration: underline; }
 .meta-sm { margin: 4px 0 0 34px; }
+.x-line { display: flex; margin: 4px 0 0 34px; }
 .warn-link, .stale-link { color: var(--warn); text-decoration: none; }
 .folder-cell { white-space: nowrap; max-width: 180px; overflow: hidden; text-overflow: ellipsis; }
 .folder-link { padding: 0; border: 0; background: none; color: var(--muted); font: inherit; text-align: left; cursor: pointer; }
@@ -544,7 +548,7 @@ tbody tr.picked { background: var(--accent-soft); }
   .toolbar { padding: var(--s-3); }
   .toolbar select { flex: 1 1 40%; }
   .title-cell { min-width: 0; }
-  .sub-line, .meta-sm { margin-left: 0; }
+  .sub-line, .meta-sm, .x-line { margin-left: 0; }
   .selbar { padding: var(--s-2) var(--s-3); }
   .icon-btn.sm { width: 44px; height: 44px; }
   .side-item, .check, .sort { min-height: 44px; }

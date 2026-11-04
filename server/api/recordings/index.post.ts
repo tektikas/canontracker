@@ -19,5 +19,6 @@ export default defineEventHandler(async (event) => {
   const scriptKey = scriptKeyOf(field('script_document_id'))
   const name = file.filename!.replace(/^.*[\\/]/, '').slice(0, 200)
   const wav = await toMuseWav(file.data, name)
-  return { results: [await importRecording(name, wav, { folderId, scriptKey, target: { type: 'recording', id: wav.sha256 } })] }
+  // background=1 (the web uploader): the transcript is stored when transcription returns; extraction runs after the response.
+  return { results: [await importRecording(name, wav, { folderId, scriptKey, target: { type: 'recording', id: wav.sha256 }, background: field('background') === '1' })] }
 })

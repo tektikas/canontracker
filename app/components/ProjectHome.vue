@@ -47,6 +47,8 @@ async function uploaded() {
   scanned.value = false
   await Promise.all([refreshDocs(), refreshConflicts(), refreshNuxtData('stats'), refreshEntities()])
 }
+// Their extraction runs in the background; each one that finishes changes the counts here.
+useExtractions(uploaded)
 
 const plural = (n: number, word: string) => `${word}${n === 1 ? '' : 's'}`
 // "3 sources, 1 of them a scene" / "2 sources, both scenes" / "1 source, a scene"

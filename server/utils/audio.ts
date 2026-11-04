@@ -169,7 +169,7 @@ export const getRecording = (documentId: string) =>
 /** Transcribe a recording and add the transcript as a document version (importDocument: hash, versions, passages with the
  * turns' times, extraction). `name`/`folderId` pick the document like an upload does: the same name in the same folder is
  * its next version. Nothing is stored when transcription fails. */
-export async function importRecording(name: string, wav: Wav & { file: Buffer, sha256: string }, opts: { folderId: string | null, scriptKey: string | null, target: { type: string, id: string } }) {
+export async function importRecording(name: string, wav: Wav & { file: Buffer, sha256: string }, opts: { folderId: string | null, scriptKey: string | null, target: { type: string, id: string }, background?: boolean }) {
   const t = await transcribeAudio(wav, opts.target)
   const { content, turns } = transcriptOf(t.turns)
   storeAudio(wav.sha256, wav.file)
@@ -177,7 +177,7 @@ export async function importRecording(name: string, wav: Wav & { file: Buffer, s
     const r = await importDocument(name, content, undefined, opts.folderId, {
       turns, audio_sha256: wav.sha256, bytes: wav.file.length, duration_ms: wav.duration_ms, original_name: name,
       model_id: transcribeModelInfo().id, mode: t.mode, session_ids: t.session_ids, script_key: opts.scriptKey,
-    })
+    }, undefined, undefined, opts.background)
     return { ...r, duration_ms: wav.duration_ms }
   } finally {
     removeAudioIfUnused(wav.sha256) // a duplicate transcript or a failed import leaves no audio behind
