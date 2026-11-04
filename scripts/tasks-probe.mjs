@@ -1,5 +1,5 @@
 // Re-review tasks probe against a running server: node scripts/tasks-probe.mjs [baseUrl]
-// Applying the Broken Tide chord-stone change (D1) creates one open task per impacted scene (S04, S07, S09, S10; not S01, S03,
+// Applying the Broken Tide chord-stone change (D1) creates one open task per impacted document (S04, S07, S09, S10 and the chord-stone lore page; not S01, S03,
 // not dependent facts) carrying the manifest's path, evidence and rationale; tasks can be assigned (studio members only),
 // dated and commented; reverting the change marks the unfinished ones "not_needed" and keeps them; another project sees
 // nothing and cannot touch them; a viewer reads but cannot write.
@@ -50,32 +50,33 @@ check('accept & apply', (await a(`/api/changes/${ch.id}/decision`, { method: 'PO
 const tasks = (await a('/api/tasks')).data
 const titles = tasks.map(t => t.document_title)
 console.log('scenes with tasks:', titles.join(' | '))
-const manifest = (await a(`/api/changes/${ch.id}/export?format=json`)).data.items.filter(i => i.target_type === 'scene')
-check('one task per impacted scene, same documents', tasks.map(t => t.document_id).sort(), manifest.map(i => i.target_id).sort())
-check('four scenes, none of S01 or S03', [tasks.length, tasks.some(t => /^S0[13]\b|Scene 0?[13]\b/.test(t.document_title))], [4, false])
+const manifest = (await a(`/api/changes/${ch.id}/export?format=json`)).data.items.filter(i => i.target_type === 'document')
+check('one task per impacted document, same documents', tasks.map(t => t.document_id).sort(), manifest.map(i => i.target_id).sort())
+// Every document kind counts: the four scenes and the chord-stone lore page that is the rule's own source.
+check('four scenes and the lore source, none of S01 or S03', [tasks.length, tasks.filter(t => t.document_kind === 'scene').length, tasks.some(t => /^S0[13]\b|Scene 0?[13]\b/.test(t.document_title))], [5, 4, false])
 check('all open, unassigned, linked to the change', [...new Set(tasks.map(t => `${t.status}/${t.assignee_id}/${t.change_id === ch.id}`))], [`open/null/true`])
 for (const t of tasks) {
   const i = manifest.find(m => m.target_id === t.document_id)
   check(`task ${t.document_title}: path, evidence and rationale copied`, [t.path, t.evidence_ids, t.rationale, !!t.passage_id, !!t.quote], [i.path, i.evidence_ids, i.rationale, true, true])
 }
-check('stats counts open tasks', (await a('/api/stats')).data.open_tasks, 4)
+check('stats counts open tasks', (await a('/api/stats')).data.open_tasks, 5)
 
 // Edit: status, assignee (members only), due date, comment.
 const t0 = tasks[0]
 const me = (await a('/api/me')).data.user
 let r = await a(`/api/tasks/${t0.id}`, { method: 'PATCH', body: { status: 'in_progress', assignee_id: me.id, due_date: '2026-11-03', comment: 'Checking the rule wording' } })
 check('editor sets status, assignee, due date, comment', [r.status, r.data.status, r.data.assignee_id, r.data.due_date, r.data.comment], [200, 'in_progress', me.id, '2026-11-03', 'Checking the rule wording'])
-check('in progress still counts as open', (await a('/api/stats')).data.open_tasks, 4)
+check('in progress still counts as open', (await a('/api/stats')).data.open_tasks, 5)
 check('bad status 400', (await a(`/api/tasks/${t0.id}`, { method: 'PATCH', body: { status: 'not_needed' } })).status, 400)
 check('stranger as assignee 400', (await a(`/api/tasks/${t0.id}`, { method: 'PATCH', body: { assignee_id: 'usr_nobody' } })).status, 400)
 check('bad date 400', (await a(`/api/tasks/${t0.id}`, { method: 'PATCH', body: { due_date: '3 Nov' } })).status, 400)
 check('unknown task 404', (await a('/api/tasks/task_nope', { method: 'PATCH', body: { status: 'done' } })).status, 404)
 assert.equal((await a(`/api/tasks/${tasks[1].id}`, { method: 'PATCH', body: { status: 'done' } })).status, 200)
 assert.equal((await a(`/api/tasks/${tasks[2].id}`, { method: 'PATCH', body: { status: 'wont_fix' } })).status, 200)
-check('stats open tasks after one done, one won’t fix', (await a('/api/stats')).data.open_tasks, 2)
+check('stats open tasks after one done, one won’t fix', (await a('/api/stats')).data.open_tasks, 3)
 
 // Viewer.
-check('viewer reads the tasks', [(await v('/api/tasks')).status, (await v('/api/tasks')).data.length], [200, 4])
+check('viewer reads the tasks', [(await v('/api/tasks')).status, (await v('/api/tasks')).data.length], [200, 5])
 check('viewer cannot change a task: 403', (await v(`/api/tasks/${t0.id}`, { method: 'PATCH', body: { status: 'done' } })).status, 403)
 
 // Isolation: another project has none and cannot reach these.
@@ -93,8 +94,8 @@ check('former member flagged', (await a('/api/tasks')).data.find(t => t.id === t
 // Revert closes the unfinished tasks, keeps the finished ones and every row.
 check('revert', (await a(`/api/changes/${ch.id}/revert`, { method: 'POST', body: { rationale: 'Playtest preferred the old rule' } })).data.status, 'reverted')
 const after = (await a('/api/tasks')).data
-check('revert keeps every task', after.length, 4)
-check('unfinished became not_needed; done and won’t fix stayed', after.map(t => [t.id, t.status]).sort(), [[t0.id, 'not_needed'], [tasks[1].id, 'done'], [tasks[2].id, 'wont_fix'], [tasks[3].id, 'not_needed']].sort())
+check('revert keeps every task', after.length, 5)
+check('unfinished became not_needed; done and won’t fix stayed', after.map(t => [t.id, t.status]).sort(), [[t0.id, 'not_needed'], [tasks[1].id, 'done'], [tasks[2].id, 'wont_fix'], [tasks[3].id, 'not_needed'], [tasks[4].id, 'not_needed']].sort())
 check('the in-progress task keeps its assignee and comment', [after.find(t => t.id === t0.id).assignee_id, after.find(t => t.id === t0.id).comment], [me.id, 'Checking the rule wording'])
 check('a closed task can’t be edited: 409', (await a(`/api/tasks/${t0.id}`, { method: 'PATCH', body: { status: 'open' } })).status, 409)
 check('a done task of a reverted change can’t be reopened: 409', (await a(`/api/tasks/${tasks[1].id}`, { method: 'PATCH', body: { status: 'open' } })).status, 409)

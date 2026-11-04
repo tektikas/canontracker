@@ -151,7 +151,7 @@ ok('prompts', prompts.join(', '))
 const proj = await call(c, 'sb_list_projects')
 assert.equal(proj.data.projects[0].your_role, 'owner')
 assert.equal(proj.data.projects[0].documents, 28)
-assert.equal(proj.data.projects[0].open_tasks, 4)
+assert.equal(proj.data.projects[0].open_tasks, 5) // 4 scenes + the bell lore page (every document kind counts)
 ok('sb_list_projects', `${proj.data.projects[0].name}: ${proj.data.projects[0].canon_facts} canon, ${proj.data.projects[0].open_tasks} open tasks`)
 
 // --- Documents
@@ -237,6 +237,20 @@ assert.ok(ysolde.data.open_conflicts.some(x => x.rule === 'RELATIONSHIP_AFTER_EN
 assert.equal((await call(c, 'sb_get_entity', { entity: odo.data.id })).data.name, 'Odo')
 refused(await call(c, 'sb_get_entity', { entity: 'Nobody Atall' }), 'NOT_FOUND', 'unknown entity')
 ok('sb_list_entities / sb_get_entity: canon with quotes, relationships, conflicts, editorial marked not canon', `Odo: ${odo.data.canon.total_facts} facts, ${odo.data.appearances.documents} documents`)
+// Canon facts come in pages (cursor / next_cursor): the first page has the whole brief, later pages only the next facts, and
+// the pages together hold every fact once.
+const odoFirst = (await call(c, 'sb_get_entity', { entity: 'Odo', facts_limit: 3 })).data
+assert.ok(odo.data.canon.total_facts > 3 && odoFirst.canon.facts.length === 3 && odoFirst.canon.next_cursor && odoFirst.appearances, 'first page')
+const paged = odoFirst.canon.facts.map(f => f.id)
+for (let at = odoFirst.canon.next_cursor; at;) {
+  const p = (await call(c, 'sb_get_entity', { entity: 'Odo', facts_limit: 3, cursor: at })).data
+  assert.ok(p.canon.facts.length && !p.appearances && !p.editorial && p.canon.facts.every(f => f.evidence.length), 'a later page is facts only')
+  paged.push(...p.canon.facts.map(f => f.id))
+  at = p.canon.next_cursor
+}
+assert.deepEqual([paged.length, new Set(paged).size], [odo.data.canon.total_facts, odo.data.canon.total_facts])
+assert.equal(odo.data.canon.next_cursor, odo.data.canon.total_facts > 40 ? '40' : null)
+ok('sb_get_entity pages canon facts with a cursor', `${odo.data.canon.total_facts} facts in pages of 3`)
 
 // --- Timeline: pre-story days, day-only, windows, entity filter
 const tl = await call(c, 'sb_get_timeline', { limit: 200 })
@@ -273,6 +287,14 @@ assert.ok(!check.data.would_raise.some(h => [h.left.proposed_index, h.right.prop
 assert.equal(check.data.stored, false)
 const quiet = await call(c, 'sb_check_facts', { facts: [{ kind: 'event', subject: 'Odo', predicate: 'located_at', object: 'Saltgate', time_from: 'D40 10:00' }] })
 assert.ok(quiet.data.would_raise.length === 0 && quiet.data.note.includes('not proof'))
+// Acts after death: someone who dies on D3 greets someone on D5 (flagged), and on D2 (not).
+const death = await call(c, 'sb_check_facts', { facts: [
+  { kind: 'event', subject: 'Probe Varek', predicate: 'dies', time_from: 'D3', statement: 'Probe Varek dies.' },
+  { kind: 'event', subject: 'Probe Varek', predicate: 'greets', object: 'Odo', time_from: 'D5', statement: 'Probe Varek greets Odo.' },
+  { kind: 'event', subject: 'Probe Varek', predicate: 'greets', object: 'Ves', time_from: 'D2', statement: 'Probe Varek greets Ves.' },
+] })
+assert.deepEqual(death.data.would_raise.map(h => [h.rule, h.left.proposed_index, h.right.proposed_index, h.severity]), [['ACTS_AFTER_DEATH', 0, 1, 'hard']])
+ok('sb_check_facts: acts after death', death.data.would_raise[0].rationale)
 refused(await call(c, 'sb_check_facts', { facts: [{ subject: 'x', predicate: 'located_at', time_from: 'noon' }] }), 'BAD_INPUT', 'bad time in check')
 refused(await call(c, 'sb_check_facts', { facts: [{ subject: 'x', predicate: 'located_at', time_from: 'D2 10:00', time_to: 'D1 10:00' }] }), 'BAD_INPUT', 'reversed range')
 refused(await call(c, 'sb_check_facts', { facts: Array.from({ length: 21 }, () => ({ subject: 'x', predicate: 'y' })) }), 'BAD_INPUT', '21 facts')
@@ -288,8 +310,8 @@ assert.equal(rc.data.facts.find(f => f.statement === gold.recheck.outdated_twice
 assert.ok(rc.data.facts.find(f => f.statement === gold.recheck.unchanged[0]).citations[0].now_at_line > 0)
 assert.equal((await call(c, 'sb_list_recheck', { state: 'outdated' })).data.total, 2)
 const tasks = await call(c, 'sb_list_tasks')
-assert.equal(tasks.data.total, 4)
-assert.ok(tasks.data.tasks.every(t => t.status === 'open' && t.change.id === ch.id && t.path.length >= 2 && t.why && t.scene.title))
+assert.equal(tasks.data.total, 5) // 4 scenes + the bell lore page
+assert.ok(tasks.data.tasks.every(t => t.status === 'open' && t.change.id === ch.id && t.path.length >= 2 && t.why && t.document.title && t.document.kind))
 assert.equal((await call(c, 'sb_list_tasks', { status: 'done' })).data.total, 0)
 ok('sb_list_recheck / sb_list_tasks', `${rc.data.total} facts to re-check, ${tasks.data.total} open tasks`)
 
@@ -299,6 +321,10 @@ assert.equal(pack.data.status, 'ok')
 const withQuote = pack.data.facts.find(f => f.evidence[0]?.quote)
 assert.ok(withQuote && withQuote.evidence[0].file && withQuote.evidence[0].lines, 'quote + source')
 assert.equal((await call(c, 'sb_get_context_pack', { topic: 'zzzxqv qqwwxy' })).data.status, 'unknown')
+// A capped pack says so: how many facts matched and that some were left out.
+const smallPack = (await call(c, 'sb_get_context_pack', { topic: 'Odo', limit: 2 })).data
+assert.ok(smallPack.facts.length === 2 && smallPack.truncated === true && smallPack.total > 2 && smallPack.note.includes(`of ${smallPack.total}`), JSON.stringify({ total: smallPack.total, truncated: smallPack.truncated }))
+assert.ok(pack.data.total >= pack.data.facts.length && pack.data.truncated === pack.data.total > pack.data.facts.length)
 assert.equal((await call(c, 'sb_search_facts', { query: 'zzzxqv' })).data.status, 'unknown')
 assert.ok((await call(c, 'sb_get_fact', { fact_id: withQuote.id })).data.evidence.length > 0)
 const impact = await call(c, 'sb_get_impact', { fact_id: withQuote.id })

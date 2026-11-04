@@ -258,7 +258,7 @@ export function bibleMarkdown(b: Bible, imageFile: (e: BibleEntity) => string | 
     out.push('')
   }
   if (on.has('conflicts')) {
-    out.push('## Open conflicts', '', b.conflicts.length ? 'Flagged as possible clashes; nobody has judged them yet.' : 'No open conflicts in this scope.', '')
+    out.push('## Open conflicts (not canon)', '', b.conflicts.length ? 'Flagged as possible clashes; nobody has judged them yet. Not canon: a conflict is a question for the team, not a decision.' : 'No open conflicts in this scope.', '')
     for (const c of b.conflicts) out.push(`- **${c.rule}**${c.model ? ' (model-suggested)' : ''}: ${c.facts.join(' and ')}. ${c.rationale}`)
     if (b.conflicts.length) out.push('')
   }

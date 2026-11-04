@@ -85,36 +85,38 @@ const shown = reactive<Record<string, boolean>>({})
 const isShown = (c: Record<string, any>) => shown[c.id] ?? c.status === 'ready_for_review'
 
 // --- Impact, read as story consequences: by hop, path as names, sources folded away.
-interface Item { target_type: 'fact' | 'scene', target_id: string, label: string, path: string[], via: string | null, evidence_ids: string[], rationale: string, confidence: number, hop_count: 1 | 2 }
+// Documents of every kind (scenes, lore, quests, dialogue, recordings…), grouped by kind in the order the server gives them.
+interface Item { target_type: 'fact' | 'document', target_id: string, label: string, kind?: string, path: string[], via: string | null, evidence_ids: string[], rationale: string, confidence: number, hop_count: 1 | 2 }
 const items = (c: Record<string, any>) => c.impact as Item[]
-const { scene: sw } = useDocKinds() // "chapter(s)" in a prose project, "scene(s)" elsewhere
-const scenes = (c: Record<string, any>) => items(c).filter(i => i.target_type === 'scene')
+const { scene: sw, docKind } = useDocKinds() // "chapter(s)" in a prose project, "scene(s)" elsewhere
+const docs = (c: Record<string, any>) => items(c).filter(i => i.target_type === 'document')
 const facts = (c: Record<string, any>) => items(c).filter(i => i.target_type === 'fact')
+const byKind = (list: Item[]) => [...new Set(list.map(i => i.kind ?? 'scene'))].map(kind => ({ kind, ...docKind(kind), items: list.filter(i => (i.kind ?? 'scene') === kind) }))
 const HOP_TITLE = { 1: '1 hop · tied directly to this fact', 2: '2 hops · through a related fact' }
 const hops = (c: Record<string, any>) => ([1, 2] as const).map(hop => ({
   hop,
-  scenes: scenes(c).filter(i => i.hop_count === hop),
+  docs: docs(c).filter(i => i.hop_count === hop),
   facts: facts(c).filter(i => i.hop_count === hop),
-})).filter(g => g.scenes.length || g.facts.length)
+})).filter(g => g.docs.length || g.facts.length)
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`
+const kindCount = (g: { kind: string, label: string, items: Item[] }) => (g.kind === 'scene' ? plural(g.items.length, sw.value.one, sw.value.many) : plural(g.items.length, `${g.label.toLowerCase()} document`))
 function summary(c: Record<string, any>) {
-  const s = scenes(c).length
-  const f = facts(c).length
-  if (!s && !f) return 'No impact found within 2 hops'
-  return `May touch ${[s && plural(s, sw.value.one, sw.value.many), f && plural(f, 'related fact')].filter(Boolean).join(' and ')}`
+  const parts = [...byKind(docs(c)).map(kindCount), facts(c).length && plural(facts(c).length, 'related fact')].filter(Boolean)
+  if (!parts.length) return 'No impact found within 2 hops'
+  return `May touch ${parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts.at(-1)}` : parts[0]}`
 }
-// Path items are ids; name them: the changed fact (shown above, so only named), the related fact, the scene. Each arrow says how the next one is tied in.
+// Path items are ids; name them: the changed fact (shown above, so only named), the related fact, the document. Each arrow says how the next one is tied in.
 function chain(c: Record<string, any>, i: Item) {
   const names = new Map<string, string>([[c.target_fact_id, c.before_statement]])
   for (const x of items(c)) names.set(x.target_id, x.label)
   return i.path.map((id, n) => {
-    const scene = n === i.path.length - 1 && i.target_type === 'scene'
+    const doc = n === i.path.length - 1 && i.target_type === 'document'
     return {
       id,
       label: names.get(id) ?? 'Unknown',
-      kind: n === 0 ? 'Changed fact' : scene ? sw.value.One : 'Related fact',
-      link: scene ? `/documents/${id}` : undefined,
-      via: !n ? '' : scene ? 'quoted in' : `shares “${i.via ?? 'a name'}”`,
+      kind: n === 0 ? 'Changed fact' : doc ? docKind(i.kind ?? 'scene').label : 'Related fact',
+      link: doc ? `/documents/${id}` : undefined,
+      via: !n ? '' : doc ? 'quoted in' : `shares “${i.via ?? 'a name'}”`,
     }
   })
 }
@@ -168,7 +170,7 @@ async function reanalyze(id: string) {
 </script>
 
 <template>
-  <UiPageHeader title="Changes &amp; impact" :description="`Rewrite one canon fact and see which facts and ${sw.many} it may touch, up to 2 hops away, before anything changes. Canon only changes when someone accepts the proposal.`" />
+  <UiPageHeader title="Changes &amp; impact" :description="`Rewrite one canon fact and see which facts, ${sw.many} and other documents it may touch, up to 2 hops away, before anything changes. Canon only changes when someone accepts the proposal.`" />
 
   <UiPanel v-if="!canon?.length && !changes?.length">
     <UiEmptyState title="No canon to change yet" icon="changes">
@@ -270,7 +272,7 @@ async function reanalyze(id: string) {
           <div v-if="c.impact_stale && c.status === 'ready_for_review'" class="notice warn stale-note" role="status">
             <UiIcon name="merge" :size="16" />
             <span>
-              <b>Impact out of date.</b> {{ c.impact_stale.from }} was merged into {{ c.impact_stale.into }} after this analysis ran, so it may now touch other facts and {{ sw.many }}.
+              <b>Impact out of date.</b> {{ c.impact_stale.from }} was merged into {{ c.impact_stale.into }} after this analysis ran, so it may now touch other facts and documents.
               <NuxtLink :to="`/audit#${c.impact_stale.audit_id}`">See the merge</NuxtLink>
             </span>
             <UiButton v-if="editor" size="sm" :loading="state(c.id).busy" @click="reanalyze(c.id)">Re-run analysis</UiButton>
@@ -279,13 +281,15 @@ async function reanalyze(id: string) {
           <div v-if="isShown(c)" :id="`impact-${c.id}`" class="impact-body">
             <p v-if="!items(c).length" class="small muted">No impact found within 2 hops of accepted canon. That is not a guarantee that nothing else is affected.</p>
             <template v-else>
-              <p v-if="!scenes(c).length" class="small muted">No {{ sw.one }} impact found within 2 hops. That is not a guarantee that no {{ sw.one }} is affected.</p>
+              <p v-if="!docs(c).length" class="small muted">No document impact found within 2 hops. That is not a guarantee that no document is affected.</p>
               <section v-for="g in hops(c)" :key="g.hop" class="hop">
                 <h3><span class="hop-n">{{ g.hop }}</span>{{ HOP_TITLE[g.hop] }}</h3>
+                <template v-for="k in byKind(g.docs)" :key="k.kind">
+                <h4 class="kind-head small"><UiIcon :name="k.icon" :size="14" />{{ k.label }} <span class="faint">({{ k.items.length }})</span></h4>
                 <ul class="items">
-                  <li v-for="i in g.scenes" :key="i.target_id" class="item">
+                  <li v-for="i in k.items" :key="i.target_id" class="item">
                     <div class="spread">
-                      <div class="row"><UiIcon name="scene" :size="16" /><NuxtLink :to="`/documents/${i.target_id}`" class="name">{{ i.label }}</NuxtLink></div>
+                      <div class="row"><UiIcon :name="k.icon" :size="16" /><NuxtLink :to="`/documents/${i.target_id}`" class="name">{{ i.label }}</NuxtLink></div>
                       <span class="small faint">confidence {{ percent(i.confidence) }}</span>
                     </div>
                     <p class="small muted why">{{ i.rationale }}</p>
@@ -306,7 +310,8 @@ async function reanalyze(id: string) {
                     </details>
                   </li>
                 </ul>
-                <details v-if="g.facts.length" class="deps" :open="!g.scenes.length || g.facts.length <= 3">
+                </template>
+                <details v-if="g.facts.length" class="deps" :open="!g.docs.length || g.facts.length <= 3">
                   <summary class="expand">Related canon facts to re-check ({{ g.facts.length }})</summary>
                   <ul class="items">
                     <li v-for="i in g.facts" :key="i.target_id" class="item fact-item">
@@ -330,7 +335,7 @@ async function reanalyze(id: string) {
         <section v-if="tasksOf(c.id).length" class="tasks" :aria-label="`Re-review tasks for change ${c.id}`">
           <header class="spread">
             <div class="row"><UiBadge tone="pencil">Re-review tasks</UiBadge>
-              <span v-if="live(c.id).length" class="small muted">{{ reviewed(c.id) }} of {{ live(c.id).length }} {{ live(c.id).length === 1 ? sw.one : sw.many }} re-reviewed</span>
+              <span v-if="live(c.id).length" class="small muted">{{ reviewed(c.id) }} of {{ live(c.id).length }} {{ live(c.id).length === 1 ? 'document' : 'documents' }} re-reviewed</span>
               <span v-else class="small muted">Not needed — change reverted</span>
             </div>
             <NuxtLink :to="`/tasks?show=all&change=${c.id}`" class="small">Open in Tasks</NuxtLink>
@@ -348,7 +353,7 @@ async function reanalyze(id: string) {
         <p v-if="c.status === 'ready_for_review' && !editor" class="decide small muted">Waiting for an editor to accept or reject.</p>
         <div v-else-if="c.status === 'ready_for_review'" class="decide">
           <h3>Decide</h3>
-          <p class="small muted">Accept &amp; apply writes the new version to canon and keeps the old one as superseded<template v-if="scenes(c).length">, and opens a re-review task for each {{ sw.one }} above</template>. Reject leaves canon as it is.</p>
+          <p class="small muted">Accept &amp; apply writes the new version to canon and keeps the old one as superseded<template v-if="docs(c).length">, and opens a re-review task for each document above</template>. Reject leaves canon as it is.</p>
           <UiField label="Why (required)" :error="state(c.id).error"><input v-model="state(c.id).rationale" type="text" placeholder="e.g. Impact list reviewed with the writers"></UiField>
           <div class="row">
             <UiButton variant="primary" :disabled="state(c.id).busy || !state(c.id).rationale.trim() || !!c.impact_stale" :title="c.impact_stale ? 'Re-run the impact analysis first' : undefined" @click="decide(c.id, 'accept')">Accept &amp; apply</UiButton>
@@ -414,6 +419,7 @@ h3 { margin: 0; font-size: var(--text-base); font-weight: 600; }
 .impact-body > p { margin: 0; }
 .hop { display: grid; gap: var(--s-2); min-width: 0; }
 .hop h3 { display: flex; align-items: center; gap: var(--s-2); font-size: var(--text-sm); color: var(--muted); }
+.kind-head { display: flex; align-items: center; gap: 6px; margin: var(--s-1) 0 0; font-size: var(--text-sm); font-weight: 600; color: var(--ink); }
 .hop-n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; border: 1px dashed var(--pencil); color: var(--ink); font-size: var(--text-xs); }
 .items { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--s-2); }
 .item { background: var(--raised); border: 1px solid var(--line); border-radius: var(--r-md); padding: var(--s-3); display: grid; gap: var(--s-2); min-width: 0; }

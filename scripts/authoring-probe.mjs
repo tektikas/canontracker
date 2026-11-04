@@ -105,7 +105,7 @@ const both = conflicts.find(c => [c.left_fact_id, c.right_fact_id].sort().join()
 check('conflict scan flags the authored facts', both?.rule, 'EXACT_TIME_LOCATION_OVERLAP')
 const change = (await a('/api/changes', { method: 'POST', body: { target_fact_id: atHarbor.data.id, proposed_statement: 'Arin is on the Harbor wall from D1 09:00 to D1 09:45.', rationale: 'probe' } })).data
 check('impact reaches the other authored fact', change.impact.some(i => i.target_id === atLighthouse.id), true)
-check('impact reaches the scene it was written in', change.impact.some(i => i.target_type === 'scene' && i.target_id === doc.id), true)
+check('impact reaches the scene it was written in', change.impact.some(i => i.target_type === 'document' && i.target_id === doc.id), true)
 const ask = (await a('/api/qa', { method: 'POST', body: { question: 'Where is Arin at the Harbor wall?' } })).data
 check('Ask cites the authored fact', ask.cited.some(f => f.id === atHarbor.data.id), true)
 const arin = (await a('/api/entities')).data.find(e => e.name === 'Arin')

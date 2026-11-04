@@ -53,7 +53,7 @@ export const PILLARS: Pillar[] = [
     sections: [
       {
         title: 'Conflicts with the rule that found them',
-        text: 'Deterministic rules flag a character in two places at the same time, an approximate overlap, a trip that is faster than the known travel time, and a relationship used after it ended. The AI can also suggest world-rule violations; those are labelled as AI suggestions.',
+        text: 'Deterministic rules flag a character in two places at the same time, an approximate overlap, a trip that is faster than the known travel time, a relationship used after it ended, and a character acting after their death. The AI can also suggest world-rule violations; those are labelled as AI suggestions.',
         points: ['Hard and soft severity, so the real breaks come first', 'Decide each one: confirm, false positive or uncertain, with a reason', 'Both facts and both sources side by side'],
         shot: { name: 'conflicts', alt: 'Conflict candidates in The Ashbell Pass, a relationship used after it ended, with both cited facts.' },
       },

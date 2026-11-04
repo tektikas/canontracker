@@ -161,19 +161,23 @@ const r1 = fact('Whoever rings the Ashbell loses their voice until the next sunr
 const v2Rule = gold.after_change[0].rule_statement
 const ch = (await a('/api/changes', { method: 'POST', body: { target_fact_id: r1.id, proposed_statement: v2Rule, rationale: 'Design wants the bell usable mid-quest; a day without a voice breaks the dialogue system.' } })).data
 const fileOf = new Map(docs.map(d => [d.id, d.name]))
-const scenes = ch.impact.filter(i => i.target_type === 'scene').map(i => fileOf.get(i.target_id))
+const scenes = ch.impact.filter(i => i.kind === 'scene').map(i => fileOf.get(i.target_id))
 check('impact scenes = expected', sorted(scenes), sorted(gold.impact.expected_scenes))
 check('no excluded scene listed', gold.impact.excluded_scenes.filter(s => scenes.includes(s)), [])
 check('every item has path, evidence, rationale and ≤ 2 hops', ch.impact.every(i => i.path.length >= 2 && i.evidence_ids.length > 0 && i.rationale && i.hop_count <= 2), true)
 check('the pre-story Aldous fact is listed', ch.impact.some(i => i.target_type === 'fact' && i.label === 'Aldous Ashdown died ringing the Ashbell on the Night of Ash.'), true)
 const exported = (await a(`/api/changes/${ch.id}/export?format=json`)).data
 check('impact manifest exports', exported.items.length, ch.impact.length)
+// Every document kind counts: the bell lore page is the rule's direct source (1 hop), in its own group after the scenes.
+const nonScenes = ch.impact.filter(i => i.target_type === 'document' && i.kind !== 'scene').map(i => [i.kind, fileOf.get(i.target_id), i.hop_count])
+check('the lore source of the rule is listed, as lore', nonScenes, [['lore', 'lore-the-ashbell.md', 1]])
+check('manifest groups documents by kind', exported.documents_by_kind, { scene: 4, lore: 1 })
 
 // 7. Accept: 4 re-review tasks; the re-scan adds C6 and the Corin fact against v2.
 step(7)
 check('accept & apply', (await a(`/api/changes/${ch.id}/decision`, { method: 'POST', body: { decision: 'accept', rationale: 'Agreed with design' } })).data.status, 'applied')
 const tasks = (await a('/api/tasks')).data
-check('4 open tasks, one per impacted scene', sorted(tasks.map(t => `${fileOf.get(t.document_id)}/${t.status}`)), sorted(gold.impact.expected_scenes.map(s => `${s}/open`)))
+check('5 open tasks, one per impacted document (4 scenes + the lore page)', sorted(tasks.map(t => `${fileOf.get(t.document_id)}/${t.status}`)), sorted([...gold.impact.expected_scenes, 'lore-the-ashbell.md'].map(s => `${s}/open`)))
 canon = (await a('/api/facts?status=canon')).data
 check('R1 v2 is canon, v1 superseded and kept', [byStatement(canon, v2Rule)?.status, (await a('/api/facts?status=superseded')).data.some(f => f.id === r1.id)], ['canon', true])
 await a('/api/conflicts/scan', { method: 'POST' })

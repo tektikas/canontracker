@@ -166,7 +166,7 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
 
   server.registerTool('sb_get_context_pack', {
     title: 'Canon briefing on a topic',
-    description: 'Compact briefing on an entity (character, place, faction, rule) or topic: the accepted canon facts about it, each with verbatim source quotes and document ids/lines, plus open conflicts touching them. Use before writing or editing lore. Returns status "unknown" when canon has nothing. Example: {"topic": "Odo", "limit": 15}',
+    description: 'Compact briefing on an entity (character, place, faction, rule) or topic: the accepted canon facts about it, each with verbatim source quotes and document ids/lines, plus open conflicts touching them. Use before writing or editing lore. Returns status "unknown" when canon has nothing. Capped at limit: total says how many facts matched and truncated is true when some were left out. Example: {"topic": "Odo", "limit": 15}',
     inputSchema: { topic: z.string().min(1).max(200).describe('Entity name or topic, e.g. "Mara Venn" or "tide bell rules"'), limit: z.number().int().min(1).max(40).default(15).optional() },
     annotations: read,
   }, ({ topic, limit }) => {
@@ -174,11 +174,16 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
     const page = listEntities().find(e => namesOf(e).some(n => normName(n) === normName(topic)))
     const idn = page ? new Set([analysisName(page), ...mergedFrom(page)].map(normName)) : null
     const byIdentity = idn ? listFacts('status = ?', 'canon').filter(f => idn.has(normName(f.subject)) || (f.object != null && idn.has(normName(f.object)))) : []
-    const facts = [...new Map([...byIdentity, ...searchCanon(topic, limit ?? 15)].map(f => [f.id, f])).values()].slice(0, limit ?? 15)
+    const matching = [...new Map([...byIdentity, ...searchCanon(topic, Infinity)].map(f => [f.id, f])).values()]
+    const facts = matching.slice(0, limit ?? 15)
     if (!facts.length) return reply({ status: 'unknown', topic, message: UNKNOWN, facts: [] })
+    // A pack is capped at `limit`: it says how many facts matched, so a capped briefing is never read as all of canon.
+    const truncated = matching.length > facts.length
     const ids = new Set(facts.map(f => f.id))
     const conflicts = openConflicts().filter(c => ids.has(c.left_fact_id) || ids.has(c.right_fact_id))
-    return reply({ status: 'ok', topic, ...(page && { entity: { id: page.id, name: page.name, analysis_name: analysisName(page), merged_names: mergedFrom(page) } }), scope: 'accepted canon only', facts: facts.map(present), open_conflicts_touching_these: conflicts })
+    return reply({ status: 'ok', topic, ...(page && { entity: { id: page.id, name: page.name, analysis_name: analysisName(page), merged_names: mergedFrom(page) } }), scope: 'accepted canon only', total: matching.length, truncated,
+      ...(truncated && { note: `Showing ${facts.length} of ${matching.length} matching facts. Raise limit (up to 40), or page through sb_get_entity (cursor) or sb_search_facts for the rest.` }),
+      facts: facts.map(present), open_conflicts_touching_these: conflicts })
   })
 
   server.registerTool('sb_search_facts', {
@@ -326,15 +331,20 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
 
   server.registerTool('sb_get_entity', {
     title: 'Brief on one entity',
-    description: 'Everything about one entity page: canon facts naming it (with quotes and sources), its relationships and timeline from canon, open conflicts touching it, pending candidates, where it appears in the sources, and the team\'s editorial wiki text (summary, aliases, typed fields, notes) clearly marked not canon. canon.status is "unknown" when no accepted fact names it. Example: {"entity": "Odo"}',
+    description: 'Everything about one entity page: canon facts naming it (with quotes and sources), its relationships and timeline from canon, open conflicts touching it, pending candidates, where it appears in the sources, and the team\'s editorial wiki text (summary, aliases, typed fields, notes) clearly marked not canon. canon.status is "unknown" when no accepted fact names it. Canon facts are paged: canon.next_cursor gives the next page. Example: {"entity": "Odo"}',
     inputSchema: {
       entity: z.string().min(1).max(200).describe('Entity id, name or alias'),
-      facts_limit: z.number().int().min(1).max(100).default(40).optional().describe('Max canon facts with full evidence'),
+      facts_limit: z.number().int().min(1).max(100).default(40).optional().describe('Canon facts with full evidence per page'),
+      cursor: cursor.describe('canon.next_cursor from the previous page; omit for the first page. Later pages return only the next canon facts'),
     },
     annotations: read,
-  }, ({ entity, facts_limit }) => {
+  }, ({ entity, facts_limit, cursor: at }) => {
     const e = findEntity(entity)
     const facts = factsAbout(e)
+    // Canon facts with full evidence come a page at a time (an entity with a hundred facts would not fit one reply). The first
+    // page carries the whole brief; a later page (cursor) only the next facts.
+    const page = paginate(facts, at, facts_limit ?? 40)
+    if (at) return reply({ id: e.id, name: e.name, canon: { total_facts: page.total, next_cursor: page.next_cursor, facts: page.items.map(present) } })
     const self = new Set(namesOf(e).map(normName))
     const ids = new Set(facts.map(f => f.id))
     const timed = facts.filter(f => f.t_from != null || f.t_to != null).sort((a, b) => (a.t_from ?? a.t_to!) - (b.t_from ?? b.t_to!))
@@ -355,7 +365,7 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
       id: e.id, name: e.name, type: e.kind, analysis_name: analysisName(e), names: namesOf(e), merged_names: mergedFrom(e),
       canon: {
         status: facts.length ? 'ok' : 'unknown', ...(facts.length ? {} : { message: UNKNOWN }), total_facts: facts.length,
-        facts: facts.slice(0, facts_limit ?? 40).map(present),
+        next_cursor: page.next_cursor, facts: page.items.map(present),
         relationships: facts.filter(f => f.kind === 'relationship').map(f => {
           const outgoing = self.has(normName(f.subject))
           return { fact_id: f.id, predicate: f.predicate, direction: outgoing ? 'outgoing' : 'incoming', other: outgoing ? f.object : f.subject, time: f.time_label, statement: f.statement }
@@ -411,7 +421,7 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
     title: 'Continuity check (nothing stored)',
     description: 'Dry-run continuity check: pass the facts a scene or draft would add and get the rule-based conflicts they would raise against accepted canon, and among themselves. Nothing is stored. Deterministic, no model. Rules: '
       + 'EXACT/APPROX_TIME_LOCATION_OVERLAP (same subject, predicate "located_at", object = the place, overlapping clock times), TRAVEL_TIME_TOO_SHORT (two located_at facts closer than a canon "travel_time" fact allows; travel_time: subject and object are the two places, value = minutes), '
-      + 'RELATIONSHIP_AFTER_END (kind "relationship", same predicate and object, used after a canon relationship ended at time_to), ATTRIBUTE_MISMATCH (same subject, the same single-valued detail as predicate "<detail>_is" such as "wound_location_is", value = the answer; two answers where neither contains the other, at overlapping times; no time = always). Day-only times never clash on place. World-rule checks need a model and are not run. '
+      + 'RELATIONSHIP_AFTER_END (kind "relationship", same predicate and object, used after a canon relationship ended at time_to), ACTS_AFTER_DEATH (a fact timed after canon says its subject died: "dies", "died_*", "is_dead", "alive_is"/"status_is" dead, or the object of "killed"; buried, mourned, mentioned, rules and details do not count), ATTRIBUTE_MISMATCH (same subject, the same single-valued detail as predicate "<detail>_is" such as "wound_location_is", value = the answer; two answers where neither contains the other, at overlapping times; no time = always). Day-only times never clash on place. World-rule checks need a model and are not run. '
       + `No hits is not proof of consistency. ${STORY_TIME}. Example: {"facts": [{"kind": "event", "subject": "Odo", "predicate": "located_at", "object": "Saltgate", "time_from": "D1 21:00", "time_to": "D1 22:00"}]}`,
     inputSchema: {
       facts: z.array(z.object({
@@ -473,7 +483,7 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
 
   server.registerTool('sb_get_impact', {
     title: 'Impact of a change',
-    description: 'What a change would touch: accepted facts and scenes within max 2 hops of a canon fact (fact_id), or the stored impact of an existing change proposal (change_id). Pass exactly one. Each item has path, evidence ids and rationale. An empty list means "no impact found within accepted canon, max 2 hops", not a guarantee of none. Example: {"fact_id": "fact_0123abcd4567ef89"}',
+    description: 'What a change would touch: accepted facts, and the documents of every kind citing them (each with its kind: scene, lore, quest, dialogue, recording…; grouped by kind), within max 2 hops of a canon fact (fact_id), or the stored impact of an existing change proposal (change_id). Pass exactly one. Each item has path, evidence ids and rationale. An empty list means "no impact found within accepted canon, max 2 hops", not a guarantee of none. Example: {"fact_id": "fact_0123abcd4567ef89"}',
     inputSchema: { fact_id: z.string().max(64).optional(), change_id: z.string().max(64).optional() },
     annotations: read,
   }, ({ fact_id, change_id }) => {
@@ -488,7 +498,7 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
     }
     const c = useDb().prepare('select * from changes where id = ? and project_id = ?').get(change_id!, pid()) as unknown as ChangeRow | undefined
     if (!c) return refuse('NOT_FOUND', `No change ${change_id} in this project.`)
-    const items = JSON.parse(c.impact ?? '[]') as ImpactItem[]
+    const items = parseImpact(c.impact)
     return reply({ change_id, status: c.status, before: c.before_statement, proposed: c.proposed_statement, scope, items,
       ...(c.impact_stale ? { impact_stale: 'A merge changed this impact; a person must re-run the analysis before accepting.' } : {}),
       ...(items.length ? {} : { note: 'No impact found within accepted canon, max 2 hops.' }) })
@@ -521,7 +531,7 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
 
   server.registerTool('sb_list_tasks', {
     title: 'Re-review tasks',
-    description: 'Re-review tasks: one per scene in an applied change\'s impact, with the passage to re-read, the change that caused it, the dependency path and who it is assigned to. Default: active (open and in progress). Read-only. Paginated. Example: {"status": "active"}',
+    description: 'Re-review tasks: one per document (any kind) in an applied change\'s impact, with the passage to re-read, the change that caused it, the dependency path and who it is assigned to. Default: active (open and in progress). Read-only. Paginated. Example: {"status": "active"}',
     inputSchema: { status: z.enum(TASK_FILTERS).default('active').optional(), limit: z.number().int().min(1).max(100).default(50).optional(), cursor },
     annotations: read,
   }, ({ status, limit, cursor: at }) => {
@@ -529,7 +539,7 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
     const rows = s === 'all' ? listTasks() : s === 'active' ? listTasks(`t.status in ('open', 'in_progress')`) : listTasks('t.status = ?', s)
     const page = paginate(rows, at, limit ?? 50)
     return reply({ status_filter: s, total: page.total, next_cursor: page.next_cursor, tasks: page.items.map(t => ({
-      id: t.id, status: t.status, scene: { document_id: t.document_id, title: t.document_title, version: t.document_version },
+      id: t.id, status: t.status, document: { document_id: t.document_id, title: t.document_title, kind: t.document_kind, version: t.document_version },
       passage_id: t.passage_id, line: t.start_line, quote: t.quote,
       change: { id: t.change_id, statement: t.change_statement, status: t.change_status }, why: t.rationale, path: t.path_labels, hops: t.hop_count,
       assignee: t.assignee_name, due_date: t.due_date, comment: t.comment || null, updated_at: t.updated_at,

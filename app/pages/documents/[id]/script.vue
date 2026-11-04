@@ -34,7 +34,7 @@ const TONE = { kept: 'good', changed: 'warn', added: 'accent', missing: 'pencil'
 const flagged = (r: Row, w: 'canon' | 'take') => r.facts.some(f => f.flags.some(x => x.with === w))
 const RULE: Record<string, string> = {
   EXACT_TIME_LOCATION_OVERLAP: 'Two places at once', APPROX_TIME_LOCATION_OVERLAP: 'Maybe two places at once',
-  TRAVEL_TIME_TOO_SHORT: 'Too little travel time', RELATIONSHIP_AFTER_END: 'Relationship after it ended',
+  TRAVEL_TIME_TOO_SHORT: 'Too little travel time', RELATIONSHIP_AFTER_END: 'Relationship after it ended', ACTS_AFTER_DEATH: 'Acts after death',
   ATTRIBUTE_MISMATCH: 'Same detail, two answers',
 }
 </script>

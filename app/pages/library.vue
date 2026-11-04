@@ -405,6 +405,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                     <span class="mono faint">{{ d.name }}</span>
                     <span v-if="d.origin === 'written'" class="small faint">· latest saved here</span>
                     <span v-else-if="/\.docx$/i.test(d.name)" class="small faint">· converted from Word</span>
+                    <NuxtLink v-if="d.pending_facts" :to="`/review?doc=${d.id}`" class="small" data-test="review-doc">· Review {{ d.pending_facts }} from this document</NuxtLink>
                     <button v-for="t in d.tags.map(id => tagById.get(id)).filter(Boolean)" :key="t!.id" type="button" class="tag-btn" :title="`Show only “${t!.name}”`" @click="pickTag(t!.id)"><UiBadge :tone="t!.color" class="tag">{{ t!.name }}</UiBadge></button>
                   </div>
                   <ExtractionStatus :id="d.id" class="x-line" />

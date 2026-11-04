@@ -19,7 +19,7 @@ const contents = computed(() => [
   showFacts.value && { id: 'canon', label: 'Canon by entity' },
   b.value.rules.length && { id: 'rules', label: 'World rules' },
   b.value.timeline.length && { id: 'timeline', label: 'Timeline' },
-  on.value.has('conflicts') && { id: 'conflicts', label: 'Open conflicts' },
+  on.value.has('conflicts') && { id: 'conflicts', label: 'Open conflicts (not canon)' },
   extra.value.length && { id: 'referenced', label: 'Facts referenced above' },
   b.value.sources.length && { id: 'sources', label: 'Sources' },
 ].filter(Boolean) as { id: string, label: string }[])
@@ -113,8 +113,8 @@ const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? o
     </section>
 
     <section v-if="on.has('conflicts')" id="conflicts" class="sec">
-      <h2>Open conflicts</h2>
-      <p class="small muted">{{ b.conflicts.length ? 'Flagged as possible clashes in canon. Nobody has judged them yet.' : 'No open conflicts in this scope.' }}</p>
+      <h2>Open conflicts <UiBadge tone="pencil">Not canon</UiBadge></h2>
+      <p class="small muted">{{ b.conflicts.length ? 'Flagged as possible clashes in canon. Nobody has judged them yet; they are questions for the team, not canon.' : 'No open conflicts in this scope.' }}</p>
       <ul class="conflicts">
         <li v-for="(c, i) in b.conflicts" :key="i">
           <div class="row"><strong>{{ c.rule }}</strong><UiBadge v-if="c.model" tone="warn">Model-suggested</UiBadge></div>

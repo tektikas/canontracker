@@ -74,12 +74,12 @@ function sentence(e: { event_type: string, actor_name: string, target_id: string
     case 'conflict.severity': return [`${who} changed a conflict from ${d.from} to ${d.to}`, because(d)]
     case 'conflict.uncertain': return [`${who} marked a conflict as uncertain`, because(d)]
     case 'change.created': return [`${who} proposed a canon change: ${q(d.proposed)}`, d.before ? `Replaces ${q(d.before)}` : '']
-    case 'impact.completed': return [`${d.rerun ? `${who} re-ran impact analysis: ` : 'Impact analysis '}found ${d.items} item(s) to review`, d.scenes?.length ? `Scenes: ${d.scenes.join(', ')}` : d.items ? 'Scenes: none within 2 hops' : 'No impact found within 2 hops']
+    case 'impact.completed': return [`${d.rerun ? `${who} re-ran impact analysis: ` : 'Impact analysis '}found ${d.items} item(s) to review`, (d.documents ?? d.scenes)?.length ? `${d.documents ? 'Documents' : 'Scenes'}: ${(d.documents ?? d.scenes).join(', ')}` : d.items ? `${d.documents ? 'Documents' : 'Scenes'}: none within 2 hops` : 'No impact found within 2 hops']
     case 'change.accepted': return [`${who} accepted a change proposal`, because(d)]
     case 'change.rejected': return [`${who} rejected a change proposal`, because(d)]
     case 'change.applied': return [`Canon updated: ${q(d.after)}`, d.before ? `Superseded ${q(d.before)}, kept in history` : '']
     case 'change.reverted': return [`${who} reverted a change, restoring ${q(d.restored)}`, because(d)]
-    case 'task.created': return [`Applying the change created ${counted(d.count, 're-review task')}`, `Scenes: ${(d.scenes ?? []).join(', ')}`]
+    case 'task.created': return [`Applying the change created ${counted(d.count, 're-review task')}`, `${d.documents ? 'Documents' : 'Scenes'}: ${(d.documents ?? d.scenes ?? []).join(', ')}`]
     case 'task.closed': return [`Reverting the change closed ${counted(d.count, 'unfinished re-review task')} as not needed`, 'Kept in the task list with their history']
     case 'task.updated': return [d.status ? `${who} marked the re-review of ${d.document} ${TASK_LABEL[d.status.to] ?? d.status.to}` : `${who} updated the re-review of ${d.document}`, [
       d.status ? `Was ${TASK_LABEL[d.status.from] ?? d.status.from}` : '', d.assignee ? (d.assignee.to ? `Assigned to ${d.assignee.to}` : 'Unassigned') : '',

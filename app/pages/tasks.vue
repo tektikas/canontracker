@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// Re-review tasks: the scenes an applied change may have affected, as work someone owns. Editorial; never canon.
+// Re-review tasks: the documents an applied change may have affected, as work someone owns. Editorial; never canon.
 useHead({ title: 'Tasks · CanonTracker' })
 const route = useRoute()
 const router = useRouter()
@@ -49,12 +49,12 @@ async function changed() {
 
 <template>
   <UiPageHeader title="Tasks">
-    When a canon change is applied, every {{ sw.one }} it may affect becomes a re-review task here. Tasks are for your team; they never become canon.
+    When a canon change is applied, every document it may affect ({{ sw.many }}, lore, quests, dialogue…) becomes a re-review task here. Tasks are for your team; they never become canon.
   </UiPageHeader>
 
   <UiPanel v-if="!tasks.length">
     <UiEmptyState title="No re-review tasks yet" icon="tasks">
-      Apply a canon change that has {{ sw.many }} in its impact list and each of those {{ sw.many }} lands here.
+      Apply a canon change that has documents in its impact list and each of those documents lands here.
       <template #actions><UiButton to="/changes" icon="changes">Open changes</UiButton></template>
     </UiEmptyState>
   </UiPanel>
