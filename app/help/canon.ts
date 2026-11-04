@@ -312,7 +312,7 @@ export default [
       {
         title: 'What it checks',
         points: [
-          'In code: one person in two places at overlapping exact or approximate times, too little time to travel between places, a relationship used after it ended, and one detail with two answers.',
+          'In code: one person in two places at overlapping exact or approximate times, too little time to travel between places, a relationship used after it ended, someone acting after canon says they died, and one detail with two answers.',
           'With the AI: facts that break a world rule. These are marked **AI-suggested**.',
           'Facts with a day but no clock time are skipped by the overlap and travel checks. See [Conflict rules](/help/conflict-rules).',
           'Hard conflicts break canon; soft ones are worth a look.',
@@ -334,15 +334,15 @@ export default [
     slug: 'changes',
     group: 'canon',
     title: 'Changes',
-    summary: 'Rewrite one canon fact and see which facts and scenes it may touch, up to 2 hops away, before anything in canon changes.',
+    summary: 'Rewrite one canon fact and see which facts and documents it may touch, up to 2 hops away, before anything in canon changes.',
     where: 'Sidebar → **Changes**, or **Propose change…** on a fact in Canon',
     shot: { name: 'impact', alt: 'A change proposal in The Ashbell Pass sample: the bell rule now and as proposed, with its possible review impact listing related canon facts to re-check.' },
     see: [
       { label: 'Propose a change', text: 'Three steps: pick a fact, write the new version, check the impact.' },
       { label: 'Proposals', text: 'Tabs **To decide**, **Applied**, **Rejected or reverted** and **All**.' },
       { label: 'Proposal card', text: 'The fact now and as proposed, and why.' },
-      { label: 'Possible review impact', text: 'Scenes and related canon facts the change may touch, by hop, each with its path, source quotes and rationale. Export it as JSON, CSV or Markdown.' },
-      { label: 'Re-review tasks', text: 'After a change is applied: one task per affected scene, with progress. **Open in Tasks** shows them.' },
+      { label: 'Possible review impact', text: 'Documents of every kind (scenes or chapters, lore, quests, dialogue, recordings; grouped by kind) and related canon facts the change may touch, by hop, each with its path, source quotes and rationale. Export it as JSON, CSV or Markdown.' },
+      { label: 'Re-review tasks', text: 'After a change is applied: one task per affected document, with progress. **Open in Tasks** shows them.' },
     ],
     tasks: [
       {
@@ -357,7 +357,7 @@ export default [
       {
         title: 'Accept or reject a proposal',
         steps: [
-          'Select **Show impact** and read the scenes and facts it may touch.',
+          'Select **Show impact** and read the documents and facts it may touch.',
           'Fill in **Why (required)** under **Decide**.',
           'Select **Accept & apply** to write the new version to canon and keep the old one as superseded, or **Reject** to leave canon as it is.',
         ],
@@ -397,13 +397,13 @@ export default [
     slug: 'tasks',
     group: 'canon',
     title: 'Tasks',
-    summary: 'Re-review the scenes an applied canon change may have affected: assign them, set due dates, track status and leave comments.',
+    summary: 'Re-review the documents an applied canon change may have affected: assign them, set due dates, track status and leave comments.',
     where: 'Sidebar → **Tasks**, or **Open in Tasks** on an applied change',
     shot: { name: 'tasks', alt: 'The Tasks page in The Ashbell Pass sample: re-review tasks with status, assignee and the change they came from.' },
     see: [
       { label: 'Tabs', text: '**Open**, **Mine** (open tasks assigned to you), **Closed** and **All**.' },
       { label: 'Filters', text: '**All changes** and **All documents** narrow the list to one change or one document.' },
-      { label: 'Task card', text: 'Status, due date or **Overdue**, the assignee, the scene, the change it came from, why it may be affected, the quote and its path from the changed fact.' },
+      { label: 'Task card', text: 'Status, due date or **Overdue**, the assignee, the document, the change it came from, why it may be affected, the quote and its path from the changed fact.' },
       { label: 'Controls', text: '**Status**, **Assignee**, **Due date** and **Comment**.' },
     ],
     tasks: [
@@ -428,7 +428,7 @@ export default [
       {
         title: 'Where tasks come from',
         points: [
-          'When a change proposal is accepted and applied, every scene in its impact list becomes a task.',
+          'When a change proposal is accepted and applied, every document in its impact list becomes a task.',
           'If the change is reverted, its tasks close as **Not needed** and can’t be reopened. They are kept for the record.',
           'Tasks are for your team; they never become canon.',
         ],

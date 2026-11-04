@@ -2,7 +2,25 @@
 // Viewers read only; the server refuses their writes too (server/middleware/access.ts).
 const editor = computed(() => canEdit(useMe().value))
 const route = useRoute()
-const { data: pending, refresh } = await useFetch('/api/facts', { query: { status: 'pending' } })
+// ?doc=<document id> / ?folder=<folder id> narrow the queue to candidates citing that document (any version) or a document in
+// that Library folder (and the folders inside it). The server filters; the URL keeps the choice.
+const qs = (k: string) => (typeof route.query[k] === 'string' && route.query[k] ? route.query[k] as string : undefined)
+const docFilter = computed(() => qs('doc'))
+const folderFilter = computed(() => qs('folder'))
+const filtered = computed(() => !!docFilter.value || !!folderFilter.value)
+const { data: pending, refresh } = await useFetch('/api/facts', { query: computed(() => ({ status: 'pending', doc: docFilter.value, folder: folderFilter.value })) })
+// What the filters offer: documents and folders with candidates waiting (pending_facts is per document, every version).
+const { data: libDocs } = useFetch('/api/documents', { key: 'review-docs', lazy: true, default: () => [] })
+const { data: library } = useFetch('/api/library', { key: 'review-library', lazy: true })
+const docOptions = computed(() => (libDocs.value ?? []).filter(d => d.pending_facts > 0 || d.id === docFilter.value))
+const folderOptions = computed(() => (library.value?.folders ?? []).map((f) => {
+  const ids = new Set([f.id, ...(library.value?.folders ?? []).filter(c => c.parent_id === f.id).map(c => c.id)])
+  const parent = library.value?.folders.find(p => p.id === f.parent_id)
+  return { id: f.id, path: parent ? `${parent.name} / ${f.name}` : f.name, pending: (libDocs.value ?? []).filter(d => d.folder_id && ids.has(d.folder_id)).reduce((n, d) => n + d.pending_facts, 0) }
+}).filter(f => f.pending > 0 || f.id === folderFilter.value))
+const filterLabel = computed(() => [docFilter.value && `“${docOptions.value.find(d => d.id === docFilter.value)?.title ?? 'this document'}”`,
+  folderFilter.value && `the folder ${folderOptions.value.find(f => f.id === folderFilter.value)?.path ?? ''}`].filter(Boolean).join(' in '))
+const setFilter = (k: 'doc' | 'folder', v: string) => navigateTo({ query: { ...route.query, [k]: v || undefined, fact: undefined } }, { replace: true })
 const { data: rejected, refresh: refreshRejected } = await useFetch('/api/facts', { query: { status: 'rejected' } })
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
 const fill = useFillAction()
@@ -308,7 +326,7 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 <template>
   <UiPageHeader title="Review queue">
     The AI proposes; you decide. Nothing becomes canon until you accept it, and a quote that isn't in the source word for word can't be accepted.
-    <template v-if="total" #actions>
+    <template v-if="total && !filtered" #actions>
       <div class="progress" role="status">
         <div class="progress-label">
           <b>{{ reviewed }} of {{ total }} reviewed</b>
@@ -330,7 +348,17 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
     <span class="spinner" aria-hidden="true" />{{ counted(reading.length, 'document') }} still being read; new candidates appear here.
   </p>
 
-  <UiPanel v-if="!current">
+  <p v-if="filtered" class="notice info filter-note" role="status">
+    <UiIcon name="review" :size="16" />
+    <span>{{ counted(all.length, 'candidate') }} from {{ filterLabel }}. <NuxtLink to="/review">Show the whole queue</NuxtLink></span>
+  </p>
+
+  <UiPanel v-if="!current && filtered">
+    <UiEmptyState title="Nothing waiting from here" icon="review">No candidates from {{ filterLabel }} are waiting for review.
+      <template #actions><UiButton variant="primary" to="/review" icon="review">Show the whole queue</UiButton></template>
+    </UiEmptyState>
+  </UiPanel>
+  <UiPanel v-else-if="!current">
     <UiEmptyState :title="reviewed ? 'Queue done' : 'Nothing waiting for review'" :icon="reviewed ? 'check' : 'review'">
       <template v-if="decidedNow.length">You decided {{ decidedNow.length }} {{ decidedNow.length === 1 ? 'candidate' : 'candidates' }} on this visit: {{ decidedNow.filter(d => d === 'accepted').length }} accepted, {{ decidedNow.filter(d => d === 'rejected').length }} rejected.</template>
       <template v-else-if="reviewed">All {{ reviewed }} candidates have a decision.</template>
@@ -501,6 +529,20 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
         <UiButton v-if="editor && unread.length" size="sm" variant="ghost" :loading="criticBusy" @click="askCritic(unread.map(f => f.id))">Ask the AI critic ({{ unread.length }})</UiButton>
         <span v-if="criticNote" class="muted" role="status">{{ criticNote }}</span>
       </div>
+      <div class="criticbar small">
+        <label>Document
+          <select :value="docFilter ?? ''" aria-label="Filter by document" @change="setFilter('doc', ($event.target as HTMLSelectElement).value)">
+            <option value="">All documents</option>
+            <option v-for="d in docOptions" :key="d.id" :value="d.id">{{ d.title }} ({{ d.pending_facts }})</option>
+          </select>
+        </label>
+        <label v-if="folderOptions.length || folderFilter">Folder
+          <select :value="folderFilter ?? ''" aria-label="Filter by folder" @change="setFilter('folder', ($event.target as HTMLSelectElement).value)">
+            <option value="">All folders</option>
+            <option v-for="f in folderOptions" :key="f.id" :value="f.id">{{ f.path }} ({{ f.pending }})</option>
+          </select>
+        </label>
+      </div>
       <ol ref="list" class="queue-list">
         <TransitionGroup name="q">
           <li v-for="(f, i) in queue" :key="f.id">
@@ -622,7 +664,8 @@ const docReady = computed(() => doc.value && doc.value.id === docId.value ? doc.
 .criticbar { display: flex; flex-wrap: wrap; align-items: center; gap: var(--s-2) var(--s-3); padding: var(--s-2) var(--s-5); border-bottom: 1px solid var(--line); }
 .criticbar label { display: flex; align-items: center; gap: 6px; }
 .criticbar input[type=checkbox] { width: auto; }
-.criticbar select { width: auto; }
+.criticbar select { width: auto; max-width: 16rem; }
+.filter-note { margin: 0 0 var(--s-3); }
 .critic { display: grid; gap: 6px; padding: var(--s-2) var(--s-3); border: 1px solid var(--line); border-radius: var(--r-md); box-shadow: inset 3px 0 0 var(--faint); }
 .critic.good { box-shadow: inset 3px 0 0 var(--good); }
 .critic.bad { box-shadow: inset 3px 0 0 var(--bad); }

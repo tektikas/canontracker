@@ -3,14 +3,14 @@ export const TASK_STATUSES = ['open', 'in_progress', 'done', 'wont_fix'] as cons
 export interface TaskItem {
   id: string, change_id: string, document_id: string, passage_id: string | null, status: string, assignee_id: string | null, assignee_name: string | null
   due_date: string | null, comment: string, path: string[], evidence_ids: string[], rationale: string, hop_count: number, created_at: string, updated_at: string
-  updated_by_name: string | null, document_title: string, filename: string, document_version: number, start_line: number | null, quote: string | null, assignee_former: number
+  updated_by_name: string | null, document_title: string, document_kind: string, filename: string, document_version: number, start_line: number | null, quote: string | null, assignee_former: number
   change_statement: string, change_status: string, path_labels: string[]
 }
 
-// Tasks with the scene they point at, the passage to open, and the change that caused them.
+// Tasks with the document they point at, the passage to open, and the change that caused them.
 export function listTasks(where = '1 = 1', ...params: (string | number)[]) {
   const db = useDb()
-  const rows = db.prepare(`select t.*, au.name assignee_name, uu.name updated_by_name, d.title document_title, d.filename, d.version document_version,
+  const rows = db.prepare(`select t.*, au.name assignee_name, uu.name updated_by_name, d.title document_title, d.kind document_kind, d.filename, d.version document_version,
       p.start_line, c.proposed_statement change_statement, c.status change_status, c.before_statement,
       (select e.quote from evidence e where e.id = json_extract(t.evidence_ids, '$[0]')) quote,
       -- an assignee who has since left the studio
@@ -34,10 +34,10 @@ export function getTask(id: string) {
   return t
 }
 
-// Called inside the apply transaction: every scene in the impact manifest becomes one open task, copying its path,
+// Called inside the apply transaction: every document (any kind) in the impact manifest becomes one open task, copying its path,
 // evidence and rationale. Dependent facts are not tasks; they are only read in the manifest.
 export function createTasks(changeId: string, impact: string | null) {
-  const items = (JSON.parse(impact ?? '[]') as ImpactItem[]).filter(i => i.target_type === 'scene')
+  const items = parseImpact(impact).filter(i => i.target_type === 'document')
   if (!items.length) return
   const db = useDb()
   const passage = db.prepare('select passage_id from evidence where id = ? and project_id = ?')
@@ -47,7 +47,7 @@ export function createTasks(changeId: string, impact: string | null) {
     const p = (passage.get(i.evidence_ids[0] ?? '', pid()) as { passage_id: string | null } | undefined)?.passage_id ?? null
     insert.run(newId('task'), changeId, i.target_id, p, JSON.stringify(i.path), JSON.stringify(i.evidence_ids), i.rationale, i.hop_count, now(), now(), pid())
   }
-  audit('task.created', 'change', changeId, { count: items.length, scenes: items.map(i => i.label) })
+  audit('task.created', 'change', changeId, { count: items.length, documents: items.map(i => i.label) })
 }
 
 // Called inside the revert transaction: unfinished tasks are no longer needed. They stay, with their history.

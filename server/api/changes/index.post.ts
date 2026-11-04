@@ -16,6 +16,6 @@ export default defineEventHandler(async (event) => {
 
   const impact = analyzeImpact(target.id)
   db.prepare(`update changes set status = 'ready_for_review', impact = ? where id = ?`).run(JSON.stringify(impact), id)
-  audit('impact.completed', 'change', id, { items: impact.length, scenes: impact.filter(i => i.target_type === 'scene').map(i => i.label), max_hops: 2 })
+  audit('impact.completed', 'change', id, { items: impact.length, documents: impact.filter(i => i.target_type === 'document').map(i => i.label), scenes: impact.filter(i => i.kind === 'scene').map(i => i.label), max_hops: 2 })
   return { id, status: 'ready_for_review', impact }
 })

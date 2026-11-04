@@ -76,7 +76,7 @@ export function bibleBook(b: Bible): Book {
     c.sections.push(section('timeline-body', '', { facts: b.timeline.map(n => bookFact(c, n, false)) }))
   }
   if (on.has('conflicts')) {
-    const c = chapter('conflicts', 'Open conflicts', b.conflicts.length ? 'Flagged as possible clashes in canon. Nobody has judged them yet.' : 'No open conflicts in this scope.')
+    const c = chapter('conflicts', 'Open conflicts (not canon)', b.conflicts.length ? 'Flagged as possible clashes in canon. Nobody has judged them yet; they are questions for the team, not canon.' : 'No open conflicts in this scope.')
     for (const [i, x] of b.conflicts.entries())
       c.sections.push(section(`conflict-${i}`, `${x.rule}${x.model ? ' (model-suggested)' : ''}`, { paras: [{ text: x.rationale }, { text: `Between ${x.facts.join(' and ')}`, kind: 'small' }] }))
   }

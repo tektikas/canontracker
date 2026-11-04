@@ -137,7 +137,7 @@ export async function runEval() {
       timings.push(performance.now() - t)
     }
     const fileOf = db.prepare('select filename from documents where id = ?')
-    const scenes = items.filter(i => i.target_type === 'scene').map(i => (fileOf.get(i.target_id) as { filename: string }).filename)
+    const scenes = items.filter(i => i.kind === 'scene').map(i => (fileOf.get(i.target_id) as { filename: string }).filename)
     const hit = gold.impact.expected_scenes.filter(s => scenes.includes(s))
     const leaked = gold.impact.excluded_scenes.filter(s => scenes.includes(s))
     results.push(ratio('impact_recall', `${gold.impact.id} impact recall (scenes)`, allOf(gold.impact.expected_scenes.length), hit.length, gold.impact.expected_scenes.length, (n, d) => n === d))

@@ -9,7 +9,7 @@ export const SEVERITIES = ['hard', 'soft'] as const
 export type Severity = typeof SEVERITIES[number]
 // hard = breaks canon, soft = worth a look. A project can override a rule's default (projects.severity_defaults, JSON).
 export const RULE_SEVERITY: Record<string, Severity> = {
-  EXACT_TIME_LOCATION_OVERLAP: 'hard', RELATIONSHIP_AFTER_END: 'hard', TRAVEL_TIME_TOO_SHORT: 'hard', ATTRIBUTE_MISMATCH: 'hard',
+  EXACT_TIME_LOCATION_OVERLAP: 'hard', RELATIONSHIP_AFTER_END: 'hard', TRAVEL_TIME_TOO_SHORT: 'hard', ATTRIBUTE_MISMATCH: 'hard', ACTS_AFTER_DEATH: 'hard',
   APPROX_TIME_LOCATION_OVERLAP: 'soft', WORLD_RULE_VIOLATION: 'soft',
 }
 export function projectSeverities(raw: string): Record<string, Severity> {
@@ -28,6 +28,15 @@ export function severityFor(raw: string) {
 // which open conflicts still hold.
 export function ruleHits(a: Fact, b: Fact, travel: Fact[]) {
   const hits: { a: Fact, b: Fact, rule: string, rationale: string, confidence: number, near?: boolean }[] = []
+  // Acts after death: canon says someone dies (shared/utils/detail.ts diesIn) and a fact timed after that death has them, as
+  // subject, doing something (actsAlive). Both need a time; a day-only death ("D3") ends with that day, so only a later day counts.
+  for (const [death, act] of [[a, b], [b, a]] as const) {
+    const dead = diesIn(death)
+    if (dead && death.t_from != null && act.t_from != null && normEntity(dead) === normEntity(act.subject) && act.t_from > end(death) && actsAlive(act))
+      hits.push({ a: death, b: act, rule: 'ACTS_AFTER_DEATH',
+        rationale: `${dead} dies at ${death.time_label} ("${death.statement}"), but acts at ${act.time_label}: "${act.statement}".`,
+        confidence: 0.85 })
+  }
   if (normEntity(a.subject) !== normEntity(b.subject)) return hits
   const travelMinutes = (x: string | null, y: string | null) => travel.find(t =>
     (normEntity(t.subject) === normEntity(x) && normEntity(t.object) === normEntity(y))
@@ -174,28 +183,39 @@ export async function scanConflicts() {
 }
 
 export interface ImpactItem {
-  target_type: 'fact' | 'scene', target_id: string, label: string, dependency_type: string
+  // 'document': a source of any kind citing an affected fact, `kind` its kind. Impacts stored before every kind counted say
+  // 'scene' with no kind: read stored lists through parseImpact.
+  target_type: 'fact' | 'document', target_id: string, label: string, kind?: string, dependency_type: string
   path: string[], via: string | null, evidence_ids: string[], rationale: string, confidence: number, hop_count: 1 | 2
 }
 
-// Bounded impact: accepted canon only, max 2 hops (changed fact -> fact sharing an entity -> scene citing it).
+/** A stored impact list, older 'scene' items read as documents of kind scene. */
+export function parseImpact(raw: string | null): ImpactItem[] {
+  return (JSON.parse(raw ?? '[]') as (Omit<ImpactItem, 'target_type'> & { target_type: string })[])
+    .map(i => (i.target_type === 'scene' ? { ...i, target_type: 'document' as const, kind: i.kind ?? 'scene' } : i as ImpactItem))
+}
+
+// Bounded impact: accepted canon only, max 2 hops (changed fact -> fact sharing an entity -> document citing it). Every
+// document kind counts (scenes, lore, quests, dialogue, recordings…), one item per document (by file, not per version).
+// Documents come first, grouped by kind in DOCUMENT_KINDS order (story text first), then the related facts.
 export function analyzeImpact(targetId: string): ImpactItem[] {
   const db = useDb()
   const target = getFact(targetId)
   const canon = db.prepare(`select * from facts where project_id = ? and status = 'canon' and id != ?`).all(pid(), targetId) as unknown as Fact[]
-  const scenesCiting = db.prepare(`select distinct d.id, d.title, e.id evidence_id from evidence e
-    join documents d on d.id = e.document_id where e.fact_id = ? and d.kind = 'scene' and e.verified = 1`)
+  const docsCiting = db.prepare(`select d.id, d.title, d.kind, d.filename, e.id evidence_id from evidence e
+    join documents d on d.id = e.document_id where e.fact_id = ? and e.verified = 1 order by e.rowid`)
+  type Cite = { id: string, title: string, kind: string, filename: string, evidence_id: string }
   const items: ImpactItem[] = []
-  const seenScenes = new Set<string>()
-  const addScene = (s: { id: string, title: string, evidence_id: string }, item: Omit<ImpactItem, 'target_type' | 'target_id' | 'label' | 'evidence_ids'>) => {
-    if (seenScenes.has(s.id)) return
-    seenScenes.add(s.id)
-    items.push({ target_type: 'scene', target_id: s.id, label: s.title, evidence_ids: [s.evidence_id], ...item })
+  const seenDocs = new Set<string>()
+  const addDoc = (s: Cite, item: Omit<ImpactItem, 'target_type' | 'target_id' | 'label' | 'kind' | 'evidence_ids'>) => {
+    if (seenDocs.has(s.filename)) return
+    seenDocs.add(s.filename)
+    items.push({ target_type: 'document', target_id: s.id, label: s.title, kind: s.kind, evidence_ids: [s.evidence_id], ...item })
   }
 
-  for (const s of scenesCiting.all(targetId) as { id: string, title: string, evidence_id: string }[])
-    addScene(s, { dependency_type: 'scene_cites_fact', path: [targetId, s.id], via: null, hop_count: 1, confidence: 0.95,
-      rationale: 'This scene is a direct source of the changed fact.' })
+  for (const s of docsCiting.all(targetId) as Cite[])
+    addDoc(s, { dependency_type: 'document_cites_fact', path: [targetId, s.id], via: null, hop_count: 1, confidence: 0.95,
+      rationale: 'This document is a direct source of the changed fact.' })
 
   // A detail's answer counts as a name when canon uses it as one ("spouse_is Mary" reaches facts about Mary; "shoulder" doesn't).
   const used = new Set([target, ...canon].flatMap(f => [normEntity(f.subject), normEntity(f.object)]))
@@ -208,9 +228,12 @@ export function analyzeImpact(targetId: string): ImpactItem[] {
     items.push({ target_type: 'fact', target_id: f.id, label: f.statement, dependency_type: 'shared_entity', path: [targetId, f.id],
       via: shared, evidence_ids: ev.map(e => e.id), hop_count: 1, confidence: 0.85,
       rationale: `Shares "${shared}" with the changed fact; re-check that this still holds.` })
-    for (const s of scenesCiting.all(f.id) as { id: string, title: string, evidence_id: string }[])
-      addScene(s, { dependency_type: 'scene_cites_dependent_fact', path: [targetId, f.id, s.id], via: shared, hop_count: 2, confidence: 0.75,
-        rationale: `Scene is the source of "${f.statement}", which depends on "${shared}".` })
+    for (const s of docsCiting.all(f.id) as Cite[])
+      addDoc(s, { dependency_type: 'document_cites_dependent_fact', path: [targetId, f.id, s.id], via: shared, hop_count: 2, confidence: 0.75,
+        rationale: `This document is the source of "${f.statement}", which depends on "${shared}".` })
   }
-  return items
+  const kinds: readonly string[] = DOCUMENT_KINDS
+  const rank = (i: ImpactItem) => (i.target_type === 'fact' ? kinds.length + 1 : kinds.includes(i.kind!) ? kinds.indexOf(i.kind!) : kinds.length)
+  return items.map((i, n) => ({ i, n })).sort((x, y) => rank(x.i) - rank(y.i) || x.n - y.n).map(x => x.i)
 }
+

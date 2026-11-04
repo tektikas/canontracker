@@ -59,3 +59,26 @@ export function detailClash(a: DetailFact, b: DetailFact) {
     && !isVagueAnswer(a.value!) && !isVagueAnswer(b.value!) && !sameDetailValue(a.value!, b.value!) && holdTogether(a, b)
     && (!AGE.test(a.predicate) || (a.t_from != null && b.t_from != null))
 }
+
+// Death (ACTS_AFTER_DEATH, server/utils/analysis.ts). The name a fact says dies: the subject of a death predicate ("dies",
+// "died_ringing", "dies_at", "is_dead", "death", "cause_of_death_is", "killed_by"), the subject of a state detail answered
+// dead ("alive_is dead", "status_is deceased"), or the object of a killing ("Small · killed · the convict-guard").
+const DIES = /^(?:die|dies|died|dead|is_dead|death|perishes|perished|drowned|was_killed|was_murdered|was_slain|killed_by|murdered_by|slain_by)(?:_|$)|^(?:cause_of_death|death_date|date_of_death)_is$/
+const KILLS = /^(?:kill|kills|killed|murder|murders|murdered|slays|slew|executes|executed|assassinates|assassinated)$/
+const STATE = /^(?:alive|status|state|life_status|vital_status|condition)_is$/
+const deadAnswer = (v: string | null | undefined) => /^(?:dead|deceased|killed|slain|died|murdered)$/.test((v ?? '').toLowerCase().replace(/[^\p{L}\s]+/gu, '').trim())
+type LifeFact = { kind?: string, subject: string, predicate: string, object: string | null, value?: string | null }
+export function diesIn(f: LifeFact): string | null {
+  if (DIES.test(f.predicate) || (STATE.test(f.predicate) && deadAnswer(f.value))) return f.subject
+  if (KILLS.test(f.predicate) && f.object?.trim()) return f.object
+  return null
+}
+// Whether a fact has its subject doing or being something only the living do. Buried, mourned, remembered, mentioned or named
+// after, a ghost or a body, a world rule, an identity ("is the old king") or a detail (other than "alive_is alive") are not
+// acts: a dead character keeps those.
+const PASSIVE = /(?:^|_)(?:buried|burial|funeral|grave|tomb|corpse|body|remains|mourned|remembered|memorial|mentioned|named|legacy|ghost|spirit|haunts|haunted|posthumous|ancestor|inherited|honoured|honored|avenged|statue|portrait)(?:_|$)/
+export function actsAlive(f: LifeFact) {
+  if (f.kind === 'rule' || diesIn(f) || PASSIVE.test(f.predicate) || f.predicate === 'is') return false
+  if (isDetailPredicate(f.predicate)) return STATE.test(f.predicate) && !!f.value?.trim()
+  return true
+}

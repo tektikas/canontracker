@@ -7,13 +7,14 @@ export const BIBLE_SECTIONS = {
   facts: { label: 'Canon by entity', hint: 'Every accepted fact with its source quote' },
   timeline: { label: 'Timeline', hint: 'Timed canon in story order' },
   rules: { label: 'World rules', hint: 'Rules of the world, with sources' },
-  conflicts: { label: 'Open conflicts', hint: 'Flagged clashes nobody has judged yet' },
+  conflicts: { label: 'Open conflicts (not canon)', hint: 'Flagged clashes nobody has judged yet, labelled as not canon. Clear it for a bible without them' },
   sources: { label: 'Sources appendix', hint: 'Every cited document, version and line' },
   editorial: { label: 'Editorial notes', hint: 'Wiki summaries, fields and notes, marked as not canon' },
 } as const
 export type BibleSection = keyof typeof BIBLE_SECTIONS
 export const SECTION_KEYS = Object.keys(BIBLE_SECTIONS) as BibleSection[]
-export const DEFAULT_SECTIONS: BibleSection[] = ['overview', 'entities', 'facts', 'timeline', 'rules', 'sources']
+// Open conflicts are in by default (labelled not canon), so a reader of the bible sees what is still unjudged.
+export const DEFAULT_SECTIONS: BibleSection[] = ['overview', 'entities', 'facts', 'timeline', 'rules', 'conflicts', 'sources']
 
 export type BibleScope = 'project' | 'entities' | 'folder'
 export interface BibleOptions { scope: BibleScope, entity_ids: string[], folder_id: string | null, sections: BibleSection[], images: boolean }
@@ -25,6 +26,7 @@ export const CONFLICT_RULE_LABEL: Record<string, string> = {
   EXACT_TIME_LOCATION_OVERLAP: 'Same person, two places, overlapping exact times',
   APPROX_TIME_LOCATION_OVERLAP: 'Same person, two places, overlapping approximate times',
   RELATIONSHIP_AFTER_END: 'Relationship used after it ended',
+  ACTS_AFTER_DEATH: 'Acts after death',
   TRAVEL_TIME_TOO_SHORT: 'Not enough time to travel between places',
   ATTRIBUTE_MISMATCH: 'Same detail, two answers',
   WORLD_RULE_VIOLATION: 'Fact breaks a world rule',

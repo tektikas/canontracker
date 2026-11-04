@@ -290,7 +290,7 @@ export default [
         title: 'Download the story bible',
         steps: [
           'Under **Format**, keep **Report** for facts with their source quotes.',
-          'Pick a **Scope** and tick the sections you want; editorial notes are marked "not canon" and are off by default.',
+          'Pick a **Scope** and tick the sections you want. **Open conflicts (not canon)** is on by default and labelled as not canon; clear it to leave them out. Editorial notes are marked "not canon" and are off by default.',
           'Choose **Download Markdown** for a .md file (a .zip with an images folder when portraits are included).',
           'Or choose **Save as PDF**, then pick "Save as PDF" as the printer in the print dialog.',
         ],

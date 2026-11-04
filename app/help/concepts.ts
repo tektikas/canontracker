@@ -97,7 +97,7 @@ export default [
     sections: [
       {
         title: 'How conflicts work',
-        text: '**Scan canon** on [Conflicts](/help/conflicts) runs the checks below over accepted canon. Each hit is a conflict candidate: a possible problem for a person to judge, not a verdict. Five rules run in code and are marked **Rule-based**. The world-rule check uses the AI and is marked **AI-suggested**. Deciding a conflict never edits canon; to fix one, propose a change.',
+        text: '**Scan canon** on [Conflicts](/help/conflicts) runs the checks below over accepted canon. Each hit is a conflict candidate: a possible problem for a person to judge, not a verdict. Six rules run in code and are marked **Rule-based**. The world-rule check uses the AI and is marked **AI-suggested**. Deciding a conflict never edits canon; to fix one, propose a change.',
       },
       {
         title: 'Same person, two places, overlapping exact times',
@@ -116,6 +116,10 @@ export default [
         text: 'A relationship has an end time, and a later fact uses the same relationship as still active. Example: an apprenticeship ended on `D10`, but a fact on `D12` still calls them master and apprentice. Hard by default.',
       },
       {
+        title: 'Acts after death',
+        text: 'Canon says a character dies (or is dead, or is killed) at a story time, and a fact timed later has them doing something. Example: Varek dies on `D3`, but on `D5` he greets the party. Being buried, mourned, remembered or mentioned is not acting. Both facts need a time; a day-only death counts as the whole day, so only a later day is flagged. Hard by default.',
+      },
+      {
         title: 'Same detail, two answers',
         text: 'One subject has a single-valued detail, such as eye colour or where a wound is, with two answers that disagree at the same time. Example: the wound is in the shoulder in one source and in the leg in another. An answer that only adds words ("left shoulder" for "shoulder") agrees; a "not" on one side never does. Hard by default.',
       },
@@ -128,7 +132,7 @@ export default [
         points: [
           'Story time is a day and an optional clock time: `D3 14:00`, or day-only `D3`. Days may be 0 or negative (`D0`, `D-3650`) for backstory.',
           'Day-only means "some time that day". The two-places and travel rules skip any pair where either fact is day-only, because they need clock times on both sides.',
-          'A day-only time still counts as the whole day for the timeline and for relationships after they ended.',
+          'A day-only time still counts as the whole day for the timeline, for relationships after they ended and for acts after death.',
         ],
       },
       {
@@ -157,7 +161,7 @@ export default [
     slug: 'change-impact',
     group: 'concepts',
     title: 'Change impact',
-    summary: 'Before a canon fact changes, see which facts and scenes it may touch, up to 2 hops away, with the path and evidence for each.',
+    summary: 'Before a canon fact changes, see which facts and documents (scenes, lore, quests, dialogue, recordings) it may touch, up to 2 hops away, with the path and evidence for each.',
     sections: [
       {
         title: 'Three different things',
@@ -165,14 +169,14 @@ export default [
         points: [
           '**Change proposal**: someone wants a canon fact to say something else. Made on [Changes](/help/changes).',
           'Conflict candidate: two canon facts may clash. Found on [Conflicts](/help/conflicts).',
-          '**Possible review impact**: facts and scenes a proposal may affect, for a person to read. Not a conflict and not a change.',
+          '**Possible review impact**: facts and documents a proposal may affect, for a person to read. Not a conflict and not a change.',
         ],
       },
       {
         title: 'How far impact reaches',
         text: 'Impact stays inside accepted canon and stops at 2 hops.',
         points: [
-          '1 hop: scenes that cite the changed fact, and canon facts that share a name with it.',
+          '1 hop: documents of any kind that cite the changed fact, and canon facts that share a name with it. Documents are grouped by kind.',
           '2 hops: scenes that cite one of those related facts.',
           'Every item shows its path from the changed fact, the evidence it rests on and why it is listed.',
           'An empty result reads "No impact found within 2 hops". That is not a promise that nothing else is affected.',
@@ -182,7 +186,7 @@ export default [
         title: 'From proposal to canon',
         points: [
           'Pick a canon fact (or use **Propose change…** on it), write the new version and a reason, then **Analyze impact**. Canon doesn\'t change yet.',
-          '**Accept & apply** makes the new wording canon. The old fact is kept as **Superseded**, and each scene in the impact list becomes a **Re-review tasks** item on [Tasks](/help/tasks).',
+          '**Accept & apply** makes the new wording canon. The old fact is kept as **Superseded**, and each document in the impact list becomes a **Re-review tasks** item on [Tasks](/help/tasks).',
           '**Reject** closes the proposal; canon stays as it was.',
           '**Revert this change…** then **Revert to original** makes the original wording canon again as a new version. Unfinished re-review tasks close as not needed.',
           'Every step needs a reason and is saved to the audit log.',
@@ -296,7 +300,7 @@ export default [
         title: 'H to R',
         points: [
           'Hop: one step from a changed fact to something it touches. Impact stops at 2 hops.',
-          'Impact: the canon facts and scenes a change proposal may affect, each with a path, evidence and reason.',
+          'Impact: the canon facts and documents a change proposal may affect, each with a path, evidence and reason.',
           'Note: an editorial comment pinned to a passage, moved from open to ready to done. Never canon.',
           'Passage: one paragraph of a document, the unit a quote must sit in.',
           'Re-check: confirming or keeping canon citations after their source got a new version. See [Versions and re-check](/help/versions-and-recheck).',
@@ -311,7 +315,7 @@ export default [
           'Story time: when something happens in the story, as `D3 14:00` or day-only `D3`. Days can be 0 or negative for backstory.',
           'Superseded: an older version of a canon fact that an applied change replaced. Kept, never deleted.',
           'Tag: a coloured Library label on documents. It never changes a document\'s text.',
-          'Task: a scene to re-read after a change was applied, with an owner and a status.',
+          'Task: a document to re-read after a change was applied, with an owner and a status.',
           'Verified: a quote found word for word in its passage, shown as **Verbatim match**.',
           'Version: one saved state of a document. A new upload or save adds a version; old ones are kept.',
         ],

@@ -44,6 +44,15 @@ export default defineEventHandler(async (event) => {
   // "Arin → is" says nothing on its own: who or what they are is the object.
   if (predicate === 'is' && !names.object) throw fail(400, 'OBJECT_REQUIRED', 'Say what they are in Object, for example “keeper of the lighthouse”.')
   const value = detail.value || null
+  // What each name is, picked by the person from the project's entity types (stored like extraction's typing, so a new name's
+  // wiki page gets that type). Empty = not said. An object type only goes with an object name.
+  const typeKeys = new Set(entityTypes().map(t => t.key))
+  const nameType = (role: 'subject' | 'object') => {
+    const t = str(b[`${role}_type`])
+    if (t && !typeKeys.has(t)) throw fail(400, 'BAD_TYPE', `${role}_type must be one of this project's entity types: ${[...typeKeys].join(', ')}.`)
+    return t || null
+  }
+  const types = { subject: nameType('subject'), object: names.object ? nameType('object') : null }
   if (predicate === 'travel_time' && (!value || !Number.isFinite(Number(value)))) throw fail(400, 'VALUE_REQUIRED', 'Travel time needs the minutes as a number.')
 
   const range = parseStoryRange(str(b.time_from), str(b.time_to))
@@ -72,13 +81,13 @@ export default defineEventHandler(async (event) => {
   const id = newId('fact')
   tx(() => {
     db.prepare(`insert into facts (id, kind, subject, predicate, object, value, statement, t_from, t_to, time_label, precision, status, confidence,
-      origin, model_id, created_at, decided_at, decided_by, decided_token, created_by, project_id) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?, null, ?, ?, ?, ?, ?, ?)`)
+      origin, model_id, created_at, decided_at, decided_by, decided_token, created_by, project_id, subject_type, object_type) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, null, ?, null, ?, ?, ?, ?, ?, ?, ?, ?)`)
       .run(id, kind, names.subject, predicate, names.object, value, statement, tFrom, tTo, timeLabel(tFrom, tTo, precision, day), precision,
-        to === 'canon' ? 'canon' : 'pending', continuity ? `continuity:${continuity}` : 'human', now(), to === 'canon' ? now() : null, to === 'canon' ? user : null, to === 'canon' ? agentToken() : null, user, pid())
+        to === 'canon' ? 'canon' : 'pending', continuity ? `continuity:${continuity}` : 'human', now(), to === 'canon' ? now() : null, to === 'canon' ? user : null, to === 'canon' ? agentToken() : null, user, pid(), types.subject, types.object)
     db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, 1, ?)')
       .run(newId('ev'), id, doc.id, passage.id, match.quote, pid())
     audit('fact.authored', 'fact', id, {
-      to, statement, subject: names.subject, predicate, object: names.object, document_id: doc.id, passage_id: passage.id, quote: match.quote,
+      to, statement, subject: names.subject, predicate, object: names.object, ...(types.subject && { subject_type: types.subject }), ...(types.object && { object_type: types.object }), document_id: doc.id, passage_id: passage.id, quote: match.quote,
       ...(linked.length && { linked }), ...(continuity && { continuity_id: continuity }),
       ...(identity.length && { identity: identity.map(i => ({ role: i.role, from: i.from, to: i.to, merge_audit_id: i.audit_id })) }),
     })

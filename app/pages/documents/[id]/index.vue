@@ -35,6 +35,8 @@ async function setTag(id: string, on: boolean) {
   } catch (e) { tagError.value = errorMessage(e) }
 }
 const latest = computed(() => !doc.value || doc.value.latest.id === doc.value.id)
+// Candidates citing any version of this document, waiting in Review (opened filtered to this document).
+const pendingHere = computed(() => doc.value?.facts.filter((f: { status: string }) => f.status === 'pending').length ?? 0)
 // Facts and notes are only added to the latest version: an older one is already superseded.
 const annotate = computed(() => editor.value && latest.value)
 
@@ -234,6 +236,7 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
         <UiBadge v-else tone="good" :title="doc.origin === 'written' ? 'Each save is a new version; saved versions never change' : 'CanonTracker never edits imported sources; Edit saves your changes as a new version'">{{ doc.origin === 'written' ? 'Saved version' : 'Read-only source' }}</UiBadge>
         <span v-if="doc.origin === 'written'" class="small muted">Written in CanonTracker<template v-if="doc.created_by_name"> by {{ doc.created_by_name }}</template>, {{ shortDate(doc.imported_at) }}</span>
         <ExtractionStatus :id="doc.id" />
+        <NuxtLink v-if="pendingHere" :to="`/review?doc=${doc.latest.id}`" class="small" data-test="review-doc">Review {{ pendingHere }} from this document</NuxtLink>
         <span class="mono faint" :title="`sha256 ${doc.sha256}`">sha256 {{ String(doc.sha256).slice(0, 12) }}…</span>
       </span>
       <template #actions>

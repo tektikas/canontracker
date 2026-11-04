@@ -66,6 +66,7 @@ const RULE_LABEL: Record<string, string> = {
   EXACT_TIME_LOCATION_OVERLAP: 'Same person, two places, exact times overlap',
   APPROX_TIME_LOCATION_OVERLAP: 'Same person, two places, approximate times overlap',
   RELATIONSHIP_AFTER_END: 'Relationship used after it ended',
+  ACTS_AFTER_DEATH: 'Acts after death (someone does something after canon says they died)',
   TRAVEL_TIME_TOO_SHORT: 'Not enough time to travel (near-limit trips are soft unless you change this)',
   ATTRIBUTE_MISMATCH: 'Same detail, two answers (a wound in the shoulder, then in the leg)',
   WORLD_RULE_VIOLATION: 'Fact breaks a world rule (model-suggested)',

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-// One re-review task: a scene a change may have affected, with the path, evidence and rationale from the impact manifest.
+// One re-review task: a document (any kind) a change may have affected, with the path, evidence and rationale from the impact manifest.
 // Editors set status, assignee, due date and a comment; viewers read. A task whose change was reverted is closed.
 const props = defineProps<{ task: Record<string, any>, members: { id: string, name: string }[] }>()
 const emit = defineEmits<{ changed: [task: Record<string, any>] }>()
@@ -15,8 +15,8 @@ const meta = computed(() => (closed.value ? { label: 'Not needed', tone: 'neutra
 const today = new Date().toISOString().slice(0, 10)
 const overdue = computed(() => !!props.task.due_date && props.task.due_date < today && ['open', 'in_progress'].includes(props.task.status))
 const line = computed(() => (props.task.start_line ? `, line ${props.task.start_line}` : ''))
-const { scene: sw } = useDocKinds()
-const kinds = computed(() => props.task.path.map((_: string, n: number) => (n === 0 ? 'Changed fact' : n === props.task.path.length - 1 ? sw.value.One : 'Dependent fact')))
+const { docKind } = useDocKinds()
+const kinds = computed(() => props.task.path.map((_: string, n: number) => (n === 0 ? 'Changed fact' : n === props.task.path.length - 1 ? docKind(props.task.document_kind ?? 'scene').label : 'Dependent fact')))
 
 const busy = ref(false)
 const error = ref('')

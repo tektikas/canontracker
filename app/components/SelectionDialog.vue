@@ -71,6 +71,17 @@ for (const role of ROLES) {
     link[role] = entities.value?.find(e => normName(e.name) === normName(v)) ?? null
   }, { immediate: true })
 }
+// What each name is, from the project's entity types, so a new name's page isn't filed as "other". It starts as the type of
+// the page the name has (linked, or a page by that name or alias), else not said; a type the person picks stays.
+const nameType = reactive<Record<Role, string>>({ subject: '', object: '' })
+const typePicked = reactive(new Set<Role>())
+for (const role of ROLES) {
+  watch(() => (link[role] ?? lookup.value.byName.get(normName(f[role])))?.kind, (k) => {
+    if (!typePicked.has(role)) nameType[role] = k && types.value.some(t => t.key === k) ? k : ''
+  }, { immediate: true })
+}
+// An object is a name only for relations that point at one: not a detail's answer, not what someone "is".
+const objectNamed = computed(() => !!f.object.trim() && !isDetailPredicate(pred.value) && pred.value !== 'is')
 function pick(role: Role, e: EntityListItem) {
   f[role] = e.name
   typed.add(role)
@@ -140,6 +151,7 @@ async function submit(to: 'canon' | 'review' | 'note' | 'entity') {
           to, document_id: props.selection.doc.id, passage_id: props.selection.passage.id, quote: props.selection.quote,
           kind: kindForPredicate(pred.value), subject: f.subject, predicate: pred.value, object: f.object, value: f.value, statement: f.statement,
           subject_entity_id: link.subject?.id, object_entity_id: link.object?.id,
+          subject_type: nameType.subject, object_type: objectNamed.value ? nameType.object : '',
           time_from: storyTime(f.time_from) ?? '', time_to: storyTime(f.time_to) ?? '', precision: f.approximate ? 'approximate' : 'exact',
         },
       })
@@ -222,6 +234,20 @@ const TITLE = { fact: 'Add a fact', entity: 'Add an entity', note: 'Add a note' 
                   <button type="button" class="linkish" @click="pick(role, suggestion(role)!)">Select it to link</button></span>
               </template>
             </div>
+            <div class="type-fields">
+              <UiField label="Subject type" hint="What the who or what is; a new name's page gets this type.">
+                <select v-model="nameType.subject" @change="typePicked.add('subject')">
+                  <option value="">Not said</option>
+                  <option v-for="t in types" :key="t.key" :value="t.key">{{ t.one }}</option>
+                </select>
+              </UiField>
+              <UiField v-if="objectNamed" label="Object type">
+                <select v-model="nameType.object" @change="typePicked.add('object')">
+                  <option value="">Not said</option>
+                  <option v-for="t in types" :key="t.key" :value="t.key">{{ t.one }}</option>
+                </select>
+              </UiField>
+            </div>
             <datalist id="sel-entities"><option v-for="e in entities" :key="e.id" :value="e.name" /></datalist>
             <datalist id="sel-relations"><option v-for="p in PREDICATES" :key="p.value" :value="p.label" /></datalist>
 
@@ -279,6 +305,7 @@ const TITLE = { fact: 'Add a fact', entity: 'Add an entity', note: 'Add a note' 
 .parts-sum.missing { color: var(--warn); }
 .parts-body { padding: 0 12px 12px; }
 .triple-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); grid-template-areas: "s p o" "sl . ol"; gap: 4px var(--s-3); align-items: start; }
+.type-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--s-3); align-items: start; }
 .tf-s { grid-area: s; } .tf-p { grid-area: p; } .tf-o { grid-area: o; } .tf-sl { grid-area: sl; } .tf-ol { grid-area: ol; }
 .when { display: grid; grid-template-columns: 1fr 1fr auto; gap: var(--s-3); align-items: end; margin: 0; padding: 0; border: 0; min-width: 0; }
 .when legend { grid-column: 1 / -1; padding: 0; margin-bottom: 6px; font-size: var(--text-sm); font-weight: 600; }
@@ -295,6 +322,7 @@ const TITLE = { fact: 'Add a fact', entity: 'Add an entity', note: 'Add a note' 
 @media (max-width: 720px) {
   .sel-dialog { width: calc(100vw - 16px); max-height: calc(100dvh - 16px); padding: var(--s-4); }
   .triple-fields { grid-template-columns: 1fr; grid-template-areas: "s" "sl" "p" "o" "ol"; }
+  .type-fields { grid-template-columns: 1fr; }
   .when { grid-template-columns: 1fr 1fr; }
   .when .check { grid-column: 1 / -1; min-height: 28px; }
   .entity-fields { grid-template-columns: 1fr; }
