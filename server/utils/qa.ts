@@ -25,6 +25,17 @@ const nameWords = () => new Set(listEntities().flatMap(namesOf).flatMap(n => n.m
 // Story-time tokens ("day", "13", "00") appear everywhere: they rank results but can't qualify a match on their own.
 const isTimeToken = (t: string) => t === 'day' || /^\d+$/.test(t)
 
+// Words that put someone or something in a place (in a fact's predicate or statement).
+const PLACE = /(?<![\p{L}])(aboard|located|locat\w+|lives?|living|stationed|stays?|staying|arriv\w*|returns? to|moves? to|board\w*|serves? (?:aboard|on|at|in)|is (?:at|in|on))(?![\p{L}])/iu
+// Each canon fact's place in reading order (the timeline's: its first verified citation, manuscript order); later = told later.
+function readingPositions(facts: ReturnType<typeof listFacts>) {
+  const doc = (e: (typeof facts)[number]['evidence'][number]) => ({ key: e.document_key, folder: e.document_folder ?? null, title: e.document_title })
+  const order = readingOrderBy(folderRanks(facts.flatMap(f => f.evidence.map(doc))))
+  const first = facts.flatMap(f => f.evidence.filter(e => e.verified).map(doc).sort(order).slice(0, 1).map(d => ({ id: f.id, d })))
+  first.sort((a, b) => order(a.d, b.d))
+  return new Map(first.map((x, i) => [x.id, i]))
+}
+
 // Accepted canon only. No supporting facts -> unknown. Model offline -> sources only, never an invented answer.
 // limit: how many matching facts are kept (the answer reads the top 5; the follow-up check looks wider).
 export async function askCanon(question: string, opts: { audit: boolean, retrievalOnly?: boolean, limit?: number } = { audit: true }) {
@@ -36,16 +47,23 @@ export async function askCanon(question: string, opts: { audit: boolean, retriev
   // A fact qualifies only through a word of the question it contains exactly (case aside: a name or any content word); word
   // forms (stem) then count towards the match and the ranking, never on their own ("Lens?" doesn't find "Len", nor
   // "Evening?" "even").
-  const scored = listFacts(`status = 'canon'`)
+  const canon = listFacts(`status = 'canon'`)
+  // "Where is Maia?" names only Maia, so every fact about her ties. A where-question gives facts that place someone a point,
+  // and ties go to the fact told latest in reading order (the timeline's): that is where the story last left them. Other
+  // questions keep canon order on a tie.
+  const where = /(?<![\p{L}\p{N}])where(?![\p{L}\p{N}])/iu.test(question)
+  const told = where ? readingPositions(canon) : null
+  const scored = canon
     .map((f) => {
       const text = `${f.statement} ${f.subject} ${f.object ?? ''} ${f.evidence.map(e => e.quote).join(' ')}`
       const hay = new Set(terms(text, names))
       const exact = new Set(exactTerms(text))
       const words = qWords.filter(t => hay.has(t)).length
-      return { fact: f, words, anchored: qExact.some(t => exact.has(t)), score: words + qTerms.filter(t => isTimeToken(t) && hay.has(t)).length * 0.5 }
+      const place = where && PLACE.test(`${f.predicate.replaceAll('_', ' ')} ${f.statement}`) ? 1 : 0
+      return { fact: f, words, anchored: qExact.some(t => exact.has(t)), score: words + place + qTerms.filter(t => isTimeToken(t) && hay.has(t)).length * 0.5 }
     })
     .filter(s => s.anchored && s.words >= Math.min(2, qWords.length))
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => b.score - a.score || (told ? (told.get(b.fact.id) ?? -1) - (told.get(a.fact.id) ?? -1) : 0))
     .slice(0, opts.limit ?? 5)
   const model = modelInfo()
   const traceId = newId('trc')
