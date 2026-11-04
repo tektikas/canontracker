@@ -46,6 +46,7 @@ Branching canon conditioned on player choices, project-specific membership withi
 ## Links
 
 - Demo video: https://youtu.be/tb1EZ1d2VSk
+- X post: https://x.com/ugorur/status/2118009201008275642
 - Live app: https://canontracker.trythis.work (no account needed: press **Try the demo**)
 - Source: https://github.com/tektikas/canontracker
 - Pitch deck: [pitch-deck.pdf](pitch-deck.pdf), also `/pitch` on a running app
