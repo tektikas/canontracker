@@ -152,25 +152,18 @@ async function removeCover() {
   }
 }
 // A background extraction of this version (an upload, or Try again) shows its status in the header; its candidates appear when it ends.
-useExtractions(() => refresh())
-// Re-extract: runs extraction again on the latest version. It only ever adds pending candidates.
+const extractions = useExtractions(() => refresh())
+// Re-extract: runs extraction again on the latest version in the background (a long chapter can take over a minute, past
+// what a proxy waits for one request); the header's status follows it and its candidates appear when it ends.
+// It only ever adds pending candidates.
 const reextracting = ref(false)
 const reextracted = ref<{ tone: 'info' | 'warn' | 'bad', text: string, review?: boolean }>()
 async function reextract() {
   reextracting.value = true
   reextracted.value = undefined
   try {
-    // Without { background: true } the route answers with the finished run (the background answer has none of these).
-    const r = await $fetch(`/api/documents/${doc.value!.id}/extract`, { method: 'POST' }) as { version: number, mode: string, recorded_covers: boolean | null, created: number, unverified: number, skipped: number, skipped_by_status: Record<string, number> }
-    const skipped = Object.entries(r.skipped_by_status).map(([s, n]) => `${n} ${s === 'canon' ? 'in canon' : s}`).join(', ')
-    const skipLine = r.skipped ? ` ${counted(r.skipped, 'reading')} already in the project ${r.skipped === 1 ? 'was' : 'were'} skipped (${skipped}).` : ''
-    if (r.mode === 'mock' && !r.recorded_covers)
-      reextracted.value = { tone: 'warn', text: 'Nothing was proposed for this document. Connect a model key to extract from it, or select words in the text to add a fact.' }
-    else if (r.created)
-      reextracted.value = { tone: 'info', text: `${counted(r.created, 'new candidate')} sent to review from v${r.version}${r.unverified ? `, ${r.unverified} with a quote not found in the text` : ''}.${skipLine}`, review: true }
-    else
-      reextracted.value = { tone: 'info', text: `Nothing new in v${r.version}.${skipLine || ' The AI proposed nothing.'}` }
-    await Promise.all([refresh(), refreshNuxtData('stats')])
+    await extractions.retry(doc.value!.id)
+    reextracted.value = { tone: 'info', text: 'The AI is reading the latest version. New candidates go to review when it finishes.', review: true }
   } catch (e) {
     reextracted.value = { tone: 'bad', text: errorMessage(e) }
   } finally {
