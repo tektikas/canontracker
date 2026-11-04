@@ -43,11 +43,11 @@ Branching canon conditioned on player choices, project-specific membership withi
 
 **Umurcan (Umur) Görür — solo builder. TekTık, [tektik.ai](https://tektik.ai).** Built during 27 Oct–4 Nov 2026. The spec and first build from 27–30 Oct were committed as the **MVP baseline** on 30 Oct; repository history starts that day. The only pre-existing piece was a reused generic CI/CD deployment pipeline. The application, samples and integrations were built for this hackathon entry. Nuxt 4, Nitro, Node 24, SQLite and the MCP SDK are dependencies, not claimed as original work. Public-domain Doyle texts and illustration credits are retained in the sample's source notices.
 
-## Links to fill at submission
+## Links
 
 - Demo video: https://youtu.be/tb1EZ1d2VSk
-- Public live app: `LIVE_URL` (current staging is LAN/VPN-only)
-- Source: https://github.com/tektikas/canontracker (mirror to be made public by the owner at submission)
+- Live app: https://canontracker.trythis.work (no account needed: press **Try the demo**)
+- Source: https://github.com/tektikas/canontracker
 - Pitch deck: [pitch-deck.pdf](pitch-deck.pdf), also `/pitch` on a running app
 - Local quick start and checks: [README.md](../README.md)
 - License: [AGPL-3.0-or-later](../LICENSE)

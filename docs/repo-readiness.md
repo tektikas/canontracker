@@ -34,6 +34,6 @@ Sizes in bytes, from tracked files on 3 Nov. All have an application, sample or 
 
 ## Submission actions
 
-The owner must fill `VIDEO_URL` and `LIVE_URL`, push master to GitHub, make it public, re-run the secret scan on what was pushed, and verify public access. The GitHub mirror's current contents and public access are not verified here. The draft is [submission.md](submission.md).
+The video (https://youtu.be/tb1EZ1d2VSk) and live app (https://canontracker.trythis.work) links are filled, and the filtered GitHub copy is public. Re-run the secret scan on what was pushed before the final submission. The draft is [submission.md](submission.md).
 
 Live Meta availability, current billing/credits and the final published app/video are not verified by the offline gate. See [meta-api-notes.md](meta-api-notes.md) for dated live observations and [checks.md](checks.md) for reproducible local verification.
