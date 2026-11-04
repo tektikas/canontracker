@@ -255,6 +255,8 @@ export const ROADMAP: RoadmapStage[] = [
     title: 'Shipped recently',
     lead: 'In CanonTracker today. Every change is on the changelog.',
     items: [
+      { title: 'Try it without an account', text: 'Try the demo opens a demo studio in one click: three sample projects, most of their canon in place as labelled sample canon, conflicts found, a change waiting, and a short review queue to try.' },
+      { title: 'A fuller first tour', text: 'The guided tour covers review, conflicts and impact, then optionally the wiki, the timeline, Ask, the reader, export and agents.' },
       { title: 'A new version from any file name', text: 'On a document’s page, upload “ch3-final-v2.docx” as its next version instead of starting a new one.' },
       { title: 'Archive documents', text: 'Put a retired document out of the way without losing its history or the canon that cites it.' },
       { title: 'Revert to an earlier draft', text: 'Upload an earlier draft again and it becomes the newest version; the versions in between stay readable.' },
@@ -275,15 +277,6 @@ export const ROADMAP: RoadmapStage[] = [
       { title: 'Six samples to explore', text: 'Three original stories, one of them a game, and three public-domain classics: Sherlock Holmes, the Oz books and Alice.' },
       { title: 'A timeline in reading order', text: 'A novel without clock times still gets a timeline: each fact sits in the chapter that tells it.', for: ['novelists'] },
       { title: 'Same detail, two answers', text: 'Flags one character with two answers for a detail that can only have one, like a wound in the shoulder and in the leg, with both quotes.' },
-    ],
-  },
-  {
-    id: 'building',
-    title: 'Building now',
-    lead: 'In progress this week. Each item moves to the changelog when it ships.',
-    items: [
-      { title: 'Try it without an account', text: 'One click opens a demo studio with three sample projects, most of their canon already in place and a short review queue to try.' },
-      { title: 'A fuller first tour', text: 'The guided tour goes past review, conflicts and impact to the wiki, the timeline, Ask, the reader and agents, and stops when you want.' },
     ],
   },
   {

@@ -6,6 +6,9 @@ useMarketingSeo({ title: 'Changelog', description: 'What shipped in CanonTracker
 // One line per shipped change, newest first. 1 Nov had no commits.
 const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
   { date: '2026-11-04', label: 'Day 9 · 4 Nov 2026', entries: [
+    ['Try the demo', 'One click, no account: a demo studio with Broken Tide, The Ashbell Pass and Sherlock Holmes. Most of their canon is in place as labelled sample canon, the conflicts are found, a rule change waits with its impact, and a short review queue is left to try.'],
+    ['A fuller guided tour', 'Review, a conflict and a change’s impact first; then, if you want, the wiki, the timeline, Ask, the reader, export and agents. Progress, Back, Skip and Esc on every step.'],
+    ['Roadmap', 'A public roadmap: what shipped recently, what comes next and later.'],
     ['Upload new version', 'Send any file as the next version of a document from its page, whatever its name.'],
     ['Revert and whitespace', 'Uploading an earlier draft again makes it the newest version; a save that only changes line endings or trailing spaces is not a new version.'],
     ['Archive documents', 'Retired documents leave the Library, reading order and book exports; their history and the canon citing them stay. Unarchive any time.'],

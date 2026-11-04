@@ -5,7 +5,7 @@ useMarketingSeo({ title: 'Roadmap', description: 'What CanonTracker shipped rece
 
 <template>
   <div>
-    <MarketingHero title="Roadmap" lead="What just shipped, what we are building now and what comes after. There are no dates: an item moves up when it is ready, and lands on the changelog when it ships." />
+    <MarketingHero title="Roadmap" lead="What just shipped and what comes next. There are no dates: an item moves up when it is ready, and lands on the changelog when it ships." />
     <div class="body">
       <nav class="toc" aria-label="On this page">
         <a v-for="s in ROADMAP" :key="s.id" :href="`#${s.id}`">{{ s.title }}<span>{{ s.items.length }}</span></a>
