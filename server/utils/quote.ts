@@ -93,7 +93,7 @@ function widen(text: string, t: Folded, s: number, e: number, q: string): readon
 
 /** quoteMatches one hit at a time, for a caller that stops at the first it can use (repetitive text has a hit per word). */
 export function* quoteHits(text: string, quote: string, t: Folded = folded(text), edges?: { start?: boolean, end?: boolean }): Generator<string> {
-  const q = foldQuoteText(quote).str
+  const q = folded(quote).str // once per quote, not once per passage tried (extraction: candidates × passages)
   if (!q) return
   for (let i = t.str.indexOf(q); i !== -1; i = t.str.indexOf(q, i + 1)) {
     const s0 = t.start[i]!
