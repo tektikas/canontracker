@@ -68,6 +68,7 @@ const MCP_SNIPPET = JSON.stringify({ schema_version: 1, mcp_servers: { canontrac
           <div class="cta">
             <UiButton v-if="me?.user" to="/" variant="primary" size="lg">Open the app</UiButton>
             <UiButton v-else to="/signup" variant="primary" size="lg">Start free</UiButton>
+            <TryDemoButton v-if="!me?.user" />
             <UiButton v-if="VIDEO_ID" to="#demo" size="lg" icon="play">Watch the 3-minute demo</UiButton>
             <UiButton v-else to="/features" size="lg">See every feature</UiButton>
           </div>

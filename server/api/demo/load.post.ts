@@ -44,11 +44,18 @@ export default defineEventHandler(async (event) => {
   const set = SETS.find(s => s === asked)
   if (!set) throw createError({ statusCode: 400, statusMessage: 'BAD_SET', message: `set must be one of ${SETS.join(', ')}.` })
 
-  const project = pid()
   // expect_project: the page that sends it names the project it showed; a switch from another tab in between refuses the reset.
   const expected = (body as { expect_project?: unknown }).expect_project
-  if (expected !== undefined && expected !== project)
+  if (expected !== undefined && expected !== pid())
     throw createError({ statusCode: 409, statusMessage: 'PROJECT_CHANGED', message: 'Another tab switched projects; nothing was changed. Try again.' })
+  return loadSample(set)
+})
+
+export type SampleSet = typeof SETS[number]
+// The load itself, in the current project (access()). The guest demo (server/api/auth/guest.post.ts) calls it directly for each
+// of its projects, with event.context.access and sampleReplay set the way the guard and this route set them.
+export async function loadSample(set: SampleSet) {
+  const project = pid()
   if (loading.has(project)) throw createError({ statusCode: 409, statusMessage: 'LOAD_IN_PROGRESS', message: 'A sample is already loading into this project. Wait for it to finish.' })
   loading.add(project)
   try {
@@ -96,7 +103,7 @@ export default defineEventHandler(async (event) => {
   } finally {
     loading.delete(project)
   }
-})
+}
 
 function sampleMedium(medium: string) {
   const db = useDb()

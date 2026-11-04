@@ -287,7 +287,9 @@ export function useDb() {
       ['documents', 'kind_source', 'text'],
       // documents.archived_at/archived_by: hidden from the Library, reading order and book exports (set on every version row of a
       // document); null = not archived. Canon citing an archived document stays canon.
-      ['documents', 'archived_at', 'text'], ['documents', 'archived_by', 'text']] as const) {
+      ['documents', 'archived_at', 'text'], ['documents', 'archived_by', 'text'],
+      // users.guest: 1 = a "Try the demo" account (server/api/auth/guest.post.ts): no email of its own, no usable password.
+      ['users', 'guest', 'integer not null default 0']] as const) {
       if (!(conn.prepare(`pragma table_info(${table})`).all() as { name: string }[]).some(r => r.name === column))
         conn.exec(`alter table ${table} add column ${column} ${type}`)
     }

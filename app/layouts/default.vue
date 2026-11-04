@@ -194,6 +194,10 @@ onBeforeUnmount(() => window.removeEventListener('keydown', chatKey))
         <UiIcon name="lock" :size="16" />
         <span><b>View only.</b> You can read everything in {{ current.project.name }} and ask canon questions. Ask a studio owner or admin if you need to review or change canon.</span>
       </p>
+      <p v-if="me?.user?.guest" class="notice info viewer-note guest-note">
+        <UiIcon name="demo" :size="16" />
+        <span>You’re exploring a demo account. It isn’t saved to an email; <NuxtLink to="/signup">sign up</NuxtLink> to keep your own work.</span>
+      </p>
       <slot />
     </main>
 
