@@ -24,7 +24,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
 const FOOTER = [
   { title: 'Product', links: [{ to: '/features', label: 'Features' }, ...PILLARS.map(p => ({ to: `/features/${p.slug}`, label: p.title }))] },
   { title: 'Use cases', links: USE_CASES.map(u => ({ to: `/use-cases/${u.slug}`, label: u.nav })) },
-  { title: 'CanonTracker', links: [{ to: '/agents', label: 'AI agents and MCP' }, { to: '/security', label: 'Security' }, { to: '/pricing', label: 'Pricing' }, { to: '/help', label: 'Help' }, { to: '/changelog', label: 'Changelog' }, { to: '/about', label: 'About' }] },
+  { title: 'CanonTracker', links: [{ to: '/agents', label: 'AI agents and MCP' }, { to: '/security', label: 'Security' }, { to: '/pricing', label: 'Pricing' }, { to: '/help', label: 'Help' }, { to: '/changelog', label: 'Changelog' }, { to: '/roadmap', label: 'Roadmap' }, { to: '/about', label: 'About' }] },
 ]
 </script>
 

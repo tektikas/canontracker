@@ -60,6 +60,7 @@ export const HELP_ROUTES: Record<string, HelpSlug | null> = {
   'features': null,
   'features-pillar': null,
   'pricing': null,
+  'roadmap': null,
   'pitch': null,
   'security': null,
   'use-cases-kind': null,
