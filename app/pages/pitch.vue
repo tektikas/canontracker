@@ -120,7 +120,7 @@ const MAP = [
   { name: 'Kanka', x: 0.36, y: 0.04, src: 'kanka' },
 ]
 const COMPARE = [
-  { name: 'CanonTracker', cite: 'Every fact, verbatim, checked', rules: 'Yes: time and place, travel, relationships, same detail', gate: 'Yes, always', api: 'MCP (38 tools) + API', price: 'Free self-host; cloud: ask' },
+  { name: 'CanonTracker', cite: 'Every fact, verbatim, checked', rules: 'Yes: time and place, travel, relationships, same detail', gate: 'Yes, always', api: 'MCP (37 tools) + API', price: 'Free self-host; cloud: ask' },
   { name: 'Arcweave', cite: '—', rules: '—', gate: '—', api: 'REST API + MCP (Team tier)', price: 'Free; $15–$30 per member/mo', src: 'arcweave' },
   { name: 'Book Check Genie', cite: 'Each finding quoted, with chapter references', rules: 'AI “flags possible slips”', gate: 'Yes: “the final call is always yours”', api: '—', price: '£19/check; £22–£49/mo', src: 'bcg' },
   { name: 'Sudowrite', cite: '—', rules: '—', gate: '—', api: '—', price: '$10–$44/mo', src: 'sudowrite' },
@@ -462,7 +462,7 @@ const print = () => window.print()
           <li><b>9</b><span>days, 27 Oct–4 Nov 2026, solo, 260+ commits</span></li>
           <li><b>4</b><span>sample worlds, up to 31 documents and 126,658 words</span></li>
           <li><b>40</b><span>scripted probes and checks that drive the real app</span></li>
-          <li><b>38</b><span>MCP tools, under the same roles as people</span></li>
+          <li><b>37</b><span>MCP tools that read, check and propose; people decide</span></li>
         </ul>
         <ul class="notes">
           <li>Sherlock Holmes gold set: all 4 planted contradictions found (4/4), 62 AI candidates blocked because their quote isn’t in the text, every target met.<R id="repo" /></li>

@@ -1,5 +1,6 @@
 // A person can change a conflict's severity, with a reason. Recorded in the audit trail; the rule's default is untouched.
 export default defineEventHandler(async (event) => {
+  requireHuman(event)
   const id = getRouterParam(event, 'id')!
   const body = await readObject<{ severity: string, rationale: string }>(event)
   const severity = body.severity as string | undefined

@@ -72,6 +72,14 @@ export function access(): Access {
 }
 export const pid = () => access().project.id
 
+// Canon and identity decisions (accept / reject a candidate, add straight to canon, re-check citations, decide or revert a change,
+// decide a conflict or change its severity, merge entity pages) are made by a person in the web app. MCP offers none of them
+// (server/utils/mcp-panel.ts HUMAN_ONLY refuses them first); each decision route also refuses an in-process MCP call itself.
+export const HUMAN_DECISION = 'Canon decisions are made by a person in CanonTracker, not through an agent.'
+export function requireHuman(event: H3Event) {
+  if (event.context.mcpAccess) throw fail(403, 'FORBIDDEN', HUMAN_DECISION)
+}
+
 export function requireRole(min: Role) {
   const a = access()
   if (!atLeast(a.role, min)) throw fail(403, 'FORBIDDEN', `Your role (${a.role}) can't do this. Ask a studio owner or admin.`)

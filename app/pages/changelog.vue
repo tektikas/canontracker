@@ -5,6 +5,9 @@ useMarketingSeo({ title: 'Changelog', description: 'What shipped in CanonTracker
 // From day one (27 Oct). From 30 Oct: the merge commits on master (git log --merges); before that, the project notes (no repo yet).
 // One line per shipped change, newest first. 1 Nov had no commits.
 const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
+  { date: '2026-11-04', label: 'Day 9 · 4 Nov 2026', entries: [
+    ['Canon decisions are human-only', 'Agents read canon, check facts and propose; a person decides in CanonTracker. Accepting, rejecting, changes, conflicts, citation re-checks and merges are no longer offered over MCP and are refused for every token. Full access now means editorial edits as you. 37 tools.'],
+  ] },
   { date: '2026-11-03', label: 'Day 8 · 3 Nov 2026', entries: [
     ['Renamed to CanonTracker', 'A graphite and signal-orange palette and a canon-track mark. The product was then called Story Bible in earlier releases.'],
     ['Same detail, two answers', 'A new conflict rule: one character, two different answers for a detail that can only have one (Watson’s wound: shoulder or leg). Deterministic, with both quotes.'],

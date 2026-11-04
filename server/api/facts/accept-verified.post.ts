@@ -12,6 +12,7 @@
 const MAX = BULK_MAX
 
 export default defineEventHandler(async (event) => {
+  requireHuman(event)
   requireRole('editor')
   const body = await readObject<{ items?: unknown }>(event)
   const items = body?.items as { id: string, fingerprint: string }[] | undefined

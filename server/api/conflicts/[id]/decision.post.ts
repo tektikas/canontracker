@@ -2,6 +2,7 @@ const DECISIONS = ['confirmed', 'false_positive', 'uncertain']
 
 // A decision is recorded; it never edits canon. Fixing canon goes through a change proposal.
 export default defineEventHandler(async (event) => {
+  requireHuman(event)
   const id = getRouterParam(event, 'id')!
   const body = await readObject<{ decision: string, rationale: string }>(event)
   const decision = body.decision as string | undefined

@@ -13,7 +13,7 @@ const MAY = [
   'Draw portraits and covers when you ask',
 ]
 const NEVER = [
-  'Accept, reject or edit a fact: a person does, in the app or through their own full-access agent (marked “via agent”)',
+  'Accept, reject or edit a fact, apply a change, judge a conflict or merge pages: a person does, in the app. No agent token can',
   'Make a fact canon without a quote found in its source',
   'Edit an imported document or a transcript',
   'Invent a source, a quote or a canon id; findings that cite one are dropped',
@@ -38,14 +38,13 @@ const TOOLS = [
   ['sb_list_tasks', 'Re-review tasks'],
   ['sb_propose_candidate', 'A pending candidate with a verbatim quote, for Review (editors and up)'],
 ]
-// One tool per area of the app, with an action; each action has a level (server/utils/mcp-panel.ts).
+// One tool per area of the app, with an action; each action has a level (server/utils/mcp-panel.ts). Canon decisions are in none.
 const PANEL: [string, string, string, string][] = [
-  ['sb_review', 'Review queue', 'list · add to review · critic', 'add to canon · accept · edit_accept · reject · accept_verified'],
-  ['sb_recheck', 'Citations after a new version', '', 'confirm · keep'],
-  ['sb_change', 'Change proposals and impact', 'list · export · propose · analyze', 'decide · revert'],
-  ['sb_conflict', 'Possible conflicts', 'scan', 'decide · severity'],
+  ['sb_review', 'Review queue', 'list · add to review · critic', ''],
+  ['sb_change', 'Change proposals and impact', 'list · export · propose · analyze', ''],
+  ['sb_conflict', 'Possible conflicts', 'scan', ''],
   ['sb_task', 'Re-review tasks', '', 'update'],
-  ['sb_entity', 'Wiki pages', 'merge preview', 'create · update · merge · delete · portrait_set · portrait_remove'],
+  ['sb_entity', 'Wiki pages', 'merge_preview', 'create · update · delete · portrait_set · portrait_remove'],
   ['sb_project', 'Project settings, research profile, entity types', 'get · types', 'update · type_create · type_update · type_delete'],
   ['sb_team', 'Studio members', 'list (invite links are never returned)', ''],
   ['sb_document', 'Import, write and inspect documents', 'history · diff · script · extract', 'import · write · transcribe · script_link'],
@@ -64,6 +63,7 @@ const PANEL: [string, string, string, string][] = [
   ['sb_search', 'Search canon, pages, documents and notes', 'search', ''],
 ]
 const EXCLUDED = [
+  'Canon decisions: accepting, editing or rejecting candidates, adding straight to canon, applying or reverting changes, judging conflicts or their severity, re-checking citations and merging pages',
   'Accounts, studios and API tokens: an agent never creates a token',
   'Team changes: roles, removals and invites (members can be listed; invite links are never returned)',
   'Accepting an invite and loading a sample',
@@ -141,9 +141,10 @@ async function copy() {
     <section id="mcp" class="block mcp">
       <div class="mcp-copy">
         <h2>Connect your own agents with MCP</h2>
-        <p>CanonTracker is an MCP server (Streamable HTTP) with 38 tools: an agent can do almost everything you do in a project (the exceptions are listed below). Create a token in Settings, under Agents &amp; API. It works in one project, as you, within your current role, and is stored as a hash, shown once and revocable.</p>
+        <p>CanonTracker is an MCP server (Streamable HTTP) with 37 tools: an agent can read, check, propose and do your editorial work in a project, but never decide canon (the exceptions are listed below). Create a token in Settings, under Agents &amp; API. It works in one project, as you, within your current role, and is stored as a hash, shown once and revocable.</p>
         <ul>
           <li>Every action goes through the app’s own checks and limits, and every change is audited, so an agent can never do more than its person</li>
+          <li>Accepting, rejecting and every other canon decision stays with a person in the app</li>
           <li>Every change made through a token is in the audit log with <i>via MCP</i> and the token’s name</li>
           <li>Prompts: <code>brief-entity</code> and <code>continuity-check-scene</code></li>
           <li>120 tool calls a minute per token; large results are paged</li>
@@ -161,15 +162,15 @@ async function copy() {
 
     <section class="block">
       <h2>Two levels of access</h2>
-      <p class="intro">You pick the level when you create a token. It never changes; to change it, make a new token. A call the token or your role doesn’t allow is refused with a message that says what is needed.</p>
+      <p class="intro">Agents read canon, check facts and propose; a person decides in CanonTracker. No level can make a canon decision. You pick the level when you create a token. It never changes; to change it, make a new token. A call the token or your role doesn’t allow is refused with a message that says what is needed.</p>
       <div class="levels">
         <div class="level">
           <h3>Propose <span class="tag">default</span></h3>
           <p>Reads everything, proposes candidates and changes, promotes research notes, and runs the AI checks: extraction, critic, continuity, research, conflict scan and measurements. It can post in Ask like any member. Nothing it does becomes canon.</p>
         </div>
         <div class="level full">
-          <h3>Full access <span class="tag">acts as you</span></h3>
-          <p>Everything your role allows, canon decisions included: accept and reject candidates, apply changes, edit pages, notes and the Library. Each decision is shown as “by you via agent” with the token’s name in Review, Canon, Conflicts, Changes and the audit log.</p>
+          <h3>Full access <span class="tag">edits as you</span></h3>
+          <p>Also the editorial work your role allows: import and write documents, edit wiki pages, notes, the Library and images, tasks and share links. Never canon decisions. Each edit is in the audit log as yours, “via agent” with the token’s name.</p>
         </div>
       </div>
       <h3 class="excl-h">Not available to agents</h3>
@@ -187,8 +188,8 @@ async function copy() {
           </tbody>
         </table>
       </div>
-      <h3 class="table-h">The app, area by area: 22 tools</h3>
-      <p class="small muted">One tool per area, with an <code>action</code>. Read and propose actions work with any token; the last column needs a full-access token, and your role still applies.</p>
+      <h3 class="table-h">The app, area by area: 21 tools</h3>
+      <p class="small muted">One tool per area, with an <code>action</code>. Read and propose actions work with any token; the last column needs a full-access token, and your role still applies. No action decides canon.</p>
       <div class="table-wrap">
         <table class="tools panel">
           <thead><tr><th scope="col">Tool</th><th scope="col">Area</th><th scope="col">Read and propose</th><th scope="col">Full access</th></tr></thead>

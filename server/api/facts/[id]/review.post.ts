@@ -7,6 +7,7 @@ interface Body {
 }
 
 export default defineEventHandler(async (event) => {
+  requireHuman(event)
   const id = getRouterParam(event, 'id')!
   const body = await readObject<Body>(event)
   const fact = getFact(id)

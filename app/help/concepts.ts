@@ -40,8 +40,8 @@ export default [
         text: 'Some sample projects come with facts already in canon. They carry a **Sample canon (preloaded)** badge: their quotes are verified against the sources, but no person reviewed or decided them. On Canon you can filter them apart with the origin filter.',
       },
       {
-        title: 'Agents that decide',
-        text: 'An agent token is either **Propose only** or **Full access**. A propose-only token can read, check and propose; nothing it does becomes canon. A full-access token acts as the person who made it, within their role, so it can accept and reject. Each such decision is shown as that person\'s, marked "via agent" with the token\'s name, in Review, Canon, Conflicts, Changes and the audit log.',
+        title: 'Agents propose, people decide',
+        text: 'An agent token is either **Propose only** or **Full access**. A propose-only token can read, check and propose; nothing it does becomes canon. A full-access token can also make editorial edits as the person who made it (documents, pages, notes, the Library), marked "via agent" in the audit log. Neither can accept, reject or edit a candidate, apply a change, judge a conflict or merge pages: a person decides in CanonTracker. Decisions made through an agent before this rule still show "via agent".',
       },
     ],
     related: ['review', 'canon', 'reader', 'evidence', 'agents-api', 'glossary'],
@@ -277,7 +277,7 @@ export default [
       {
         title: 'A to F',
         points: [
-          'Agent token: a key (`sb_…`) that lets an AI agent work in one project over MCP, made under **Agents & API**. **Propose only** proposes; **Full access** acts as you, marked "via agent".',
+          'Agent token: a key (`sb_…`) that lets an AI agent work in one project over MCP, made under **Agents & API**. **Propose only** proposes; **Full access** also edits as you, marked "via agent". Neither decides canon.',
           'Alias: another name for an entity page. Mentions of an alias link to the page.',
           'Blocked: a candidate whose quote isn\'t in the source word for word. It can\'t be accepted. See [Evidence](/help/evidence).',
           'Candidate: a proposed fact waiting for a person\'s decision in Review. Drawn in pencil.',

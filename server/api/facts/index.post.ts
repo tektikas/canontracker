@@ -12,6 +12,7 @@ export default defineEventHandler(async (event) => {
   const str = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim() : '')
   const to = b.to === 'review' ? 'review' : b.to === 'canon' ? 'canon' : null
   if (!to) throw fail(400, 'BAD_TARGET', 'to must be canon or review.')
+  if (to === 'canon') requireHuman(event)
   const db = useDb()
   const run = b.continuity_id == null ? null : getContinuityRun(idOf(b.continuity_id))
   const continuity = run?.id ?? null

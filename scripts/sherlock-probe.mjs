@@ -283,7 +283,7 @@ const mary = (await a('/api/entities')).data.find(e => e.names.includes('Mary'))
 check('Mary\'s wiki page lists the spouse fact', (await a(`/api/entities/${mary.id}`)).data.facts.some(f => f.id === spouse.id), true)
 check('reject the probe change', (await a(`/api/changes/${change.id}/decision`, { method: 'POST', body: { decision: 'reject', rationale: 'probe' } })).status, 200)
 
-// 12. Edit & accept: the edited answer replaces the candidate's, and conflicts check the edited one (Review form and MCP).
+// 12. Edit & accept: the edited answer replaces the candidate's, and conflicts check the edited one (Review form; MCP refuses the decision).
 step(12)
 const proposeKnee = async (statement) => {
   const r = await a('/api/facts', { method: 'POST', body: { to: 'review', document_id: docId.get('1890-the-sign-of-the-four-01-the-science-of-deduction.md'),
@@ -301,10 +301,12 @@ const mcp2 = new Client({ name: 'sherlock-probe-full', version: '1.0.0' })
 await mcp2.connect(new StreamableHTTPClientTransport(new URL(`${base}/mcp`), { requestInit: { headers: { authorization: `Bearer ${full.secret}` } } }))
 const mcpId = await proposeKnee('Watson was shot in the knee (agent).')
 const r12 = await mcp2.callTool({ name: 'sb_review', arguments: { action: 'edit_accept', fact_id: mcpId, corrected: { value: 'left arm' }, rationale: 'Holmes reads the left arm.' } })
-check('MCP sb_review edit_accept with a new answer', r12.isError ?? false, false)
+check('MCP sb_review edit_accept is refused: a person decides', [r12.isError ?? false, JSON.parse(r12.content[0].text).error?.code], [true, 'FORBIDDEN'])
 await mcp2.close()
+// A person edits the answer and accepts it in Review instead.
+check('Review form: edit the second candidate knee → left arm', (await a(`/api/facts/${mcpId}/review`, { method: 'POST', body: { decision: 'correct_and_accept', corrected: { value: 'left arm' }, rationale: 'Holmes reads the left arm.' } })).status, 200)
 canon = (await a('/api/facts?status=canon')).data
-check('agent-edited answer stored', fact('Watson was shot in the knee (agent).').value, 'left arm')
+check('edited answer stored', fact('Watson was shot in the knee (agent).').value, 'left arm')
 await a('/api/conflicts/scan', { method: 'POST' })
 conflicts = (await a('/api/conflicts')).data
 const about = s => conflicts.filter(c => [c.left.statement, c.right.statement].includes(s)).map(c => c.rationale)

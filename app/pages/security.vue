@@ -8,7 +8,7 @@ const GROUPS = [
     items: [
       'The AI only creates candidates. A fact becomes canon only through an explicit decision by a person, recorded with their name.',
       'Bulk accept works on the list you can see: if a candidate changed since you loaded it, it is skipped.',
-      'Agents connected through MCP use a token with a level fixed at creation. Propose (the default) reads, proposes and runs AI checks; nothing it does becomes canon. Full access acts as its owner within their role, and every decision it makes is shown as “via agent” with the token’s name.',
+      'Agents connected through MCP use a token with a level fixed at creation. Propose (the default) reads, proposes and runs AI checks; nothing it does becomes canon. Full access also makes editorial edits as its owner within their role (documents, pages, notes, the Library), logged “via agent” with the token’s name. No token level can make a canon decision: accepting, rejecting, changes, conflicts, re-checks and merges are refused for agents, at the tool and again at the route.',
       'An agent can never create a token, change the team or see invite links, and goes through the same checks and limits as the app.',
     ],
   },
