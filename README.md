@@ -4,6 +4,25 @@ CanonTracker helps writers and narrative teams keep a story world consistent. Im
 
 Meta AI Developer Hackathon · Startup track. **Demo video:** [youtu.be/tb1EZ1d2VSk](https://youtu.be/tb1EZ1d2VSk) · **Live app:** `LIVE_URL` (filled at submission). Use the local quick start to try it now.
 
+## What's in it
+
+- A multi-user SaaS: sign-up, studios, owner/admin/editor/viewer roles, invite links and separate projects.
+- Import Markdown, text, Word, screenplays (Fountain), game dialogue (Yarn, Ink), CSV/JSON and audio; a whole manuscript splits into chapters.
+- Versioned sources that are never changed: new versions flag the citations that need a re-check.
+- AI-proposed facts with a quote checked word for word against the source, a second AI critic, and a person deciding every canon fact.
+- Conflict checks: two places at once, travel too fast, relationships after they end, acts after death, one detail with two answers, and AI-suggested world-rule breaks.
+- Change impact: what a proposed change touches, two hops deep, with path and evidence, before it is applied; apply and revert.
+- An entity wiki that files itself from canon, with merges, a relationship graph and a story-time or reading-order timeline.
+- Ask (team conversations grounded in canon), Research (web sources and calculators, never canon) and Continuity checks of a draft.
+- Voice: recordings become timed transcripts, script vs recording flags lines that contradict canon, and dictation in Write and Ask.
+- Export the story bible as Markdown, print PDF or EPUB, the manuscript as a book, and read-only share links.
+- A 37-tool MCP server for agents with propose and full tokens; canon decisions stay human-only.
+- An append-only audit log, Agent activity for every AI run, and Metrics against gold sets.
+- Six samples, including three public-domain classics, and a one-click **Try the demo** guest account.
+- One serial quality gate, `pnpm check`: typecheck, build, self-checks and HTTP probes against isolated production servers.
+
+Full list: [docs/FEATURES.md](docs/FEATURES.md)
+
 ## Built during the hackathon (27 Oct–4 Nov 2026)
 
 Built by **Umurcan (Umur) Görür**, solo, at [TekTık](https://tektik.ai). The spec and first build from 27–30 Oct were committed as the **MVP baseline** on 30 Oct; repository history starts that day. The only pre-existing component is the generic CI/CD deployment pipeline reused for staging. The application, sample workflows and Meta integrations were built for this entry. See the [submission draft](docs/submission.md).
@@ -82,11 +101,13 @@ The model adapter is `server/utils/model.ts`; multi-step Responses calls run in 
 
 - **Human gate:** the model and connected agents only propose candidates. Canon decisions are explicit, made by a person in the app, and attributed to them; MCP refuses every decision for every token.
 - **Verbatim citations:** every canon fact has at least one evidence row whose quote appears word for word in a passage of an imported document. Hallucinated quotes are blocked.
-- **Whole books in one upload:** a manuscript (.txt, .md or .docx, up to 1 MB of text) is split at its chapter headings into one document per chapter in a folder named after the book; uploading it again adds versions only for the chapters that changed. The AI sorts each document into story text (a chapter or scene) or reference (lore, notes, outlines).
+- **Whole books in one upload:** a manuscript (.txt, .md or .docx, up to 4 MB of text) is split at its chapter headings into one document per chapter in a folder named after the book; uploading it again adds versions only for the chapters that changed. The AI sorts each document into story text (a chapter or scene) or reference (lore, notes, outlines).
 - **Versions stay intact:** uploads and edits create new versions; earlier source text stays unchanged and affected citations need re-checking. Uploaded and written documents can be edited in the app as new versions. Recording transcripts cannot. Word `.docx` is converted on upload and the original file kept.
 - **No evidence, no answer:** the answer is `unknown`. Change proposals, conflict candidates and possible review impact are three separate things; impact stays inside accepted canon, at most 2 hops, with path, evidence and rationale.
 
 ## Samples
+
+The fastest way in is **Try the demo** on the landing, sign-up or log-in page: one click creates a guest account with a demo studio and three sample projects (Broken Tide, The Ashbell Pass and Sherlock Holmes), most of their canon preloaded as labelled sample canon, the conflict scan run, a rule change waiting with its impact, and a short review queue left to decide.
 
 - **Broken Tide:** original island story, 2 lore documents and 11 scenes, with planted contradictions and a guided tour.
 - **Lantern Row:** three short documents with five preloaded sample canon facts and one planted conflict.
@@ -140,7 +161,7 @@ Browser QA is separate, using `playwright-cli` at desktop and mobile sizes. Reco
 
 ## More
 
-[ROADMAP.md](ROADMAP.md) lists what is not built yet. The pitch deck (market, business model, go-to-market, team) is [docs/pitch-deck.pdf](docs/pitch-deck.pdf), also on the site at `/pitch`; every number on it has a numbered source in its appendix. [docs/meta-api-notes.md](docs/meta-api-notes.md) is what we ran into building on the Meta Model API, with the recorded responses that show it and our suggestions. [AGENTS.md](AGENTS.md) describes the data model and invariants in detail.
+[ROADMAP.md](ROADMAP.md) lists what is not built yet. The pitch deck (market, business model, go-to-market, team) is [docs/pitch-deck.pdf](docs/pitch-deck.pdf), also on the site at `/pitch`; every number on it has a numbered source in its appendix. [docs/meta-api-notes.md](docs/meta-api-notes.md) is what we ran into building on the Meta Model API, with the recorded responses that show it and our suggestions. [docs/FEATURES.md](docs/FEATURES.md) is the complete feature list, and [docs/checks.md](docs/checks.md) explains the quality gate.
 
 ## License
 
