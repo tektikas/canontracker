@@ -261,7 +261,7 @@ export default [
         title: 'What it records',
         points: [
           'Every event is kept; nothing is changed or removed, and superseded facts stay in history.',
-          'Actions done through an agent token are still the person’s own, marked with "via agent" and the token’s name.',
+          'Actions done through an agent token are still the person’s own, marked with "via agent" and the token’s name. Agents never make canon decisions; older decisions made through an agent keep their mark.',
           'Loading a sample clears the project but keeps its trail; links to things the reset removed say "(removed by reset)".',
           'Conflicts and Changes link straight to their events here.',
         ],

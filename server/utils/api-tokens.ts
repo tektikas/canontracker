@@ -4,8 +4,9 @@ import type { H3Event } from 'h3'
 export const TOKEN_PREFIX = 'sb_'
 export const hashToken = (secret: string) => createHash('sha256').update(secret).digest('hex')
 
-// level: propose = reads, proposals and model runs (research, continuity, critic, extraction); full = everything its owner's live
-// role allows, canon decisions included, marked "via agent <name>". Fixed at creation.
+// level: propose = reads, proposals and model runs (research, continuity, critic, extraction); full = also editorial writes its
+// owner's live role allows (documents, drafts, notes, entity pages, library, images), marked "via agent <name>". No level makes
+// a canon or identity decision: those are a person's, in the web app (requireHuman). Fixed at creation.
 export interface TokenRow { id: string, user_id: string, project_id: string, name: string, token_hash: string, prefix: string, created_at: string, last_used_at: string | null, revoked_at: string | null, level: TokenLevel }
 
 // The secret is returned once; only its sha256 is stored.

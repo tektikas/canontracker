@@ -1,5 +1,6 @@
 // Accept applies atomically: a new canon version supersedes the old fact (kept, never deleted).
 export default defineEventHandler(async (event) => {
+  requireHuman(event)
   const id = getRouterParam(event, 'id')!
   const body = await readObject<{ decision: string, rationale: string }>(event)
   const decision = body.decision

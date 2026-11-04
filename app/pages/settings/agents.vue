@@ -7,11 +7,11 @@ const active = computed(() => (data.value?.tokens ?? []).filter(t => !t.revoked_
 const revoked = computed(() => (data.value?.tokens ?? []).filter(t => t.revoked_at))
 
 const name = ref('')
-// What the token may do, fixed at creation: propose (the default) or full ("acts as you", canon decisions included).
+// What the token may do, fixed at creation: propose (the default) or full (also editorial edits as you). Neither decides canon.
 const level = ref<'propose' | 'full'>('propose')
 const LEVELS = [
   { value: 'propose', label: 'Propose only', hint: 'Reads canon and sources, runs checks, proposes candidates and changes. People decide in the app.' },
-  { value: 'full', label: 'Full access: acts as you', hint: 'Everything your role allows, canon decisions included. Marked “via agent” wherever it decides.' },
+  { value: 'full', label: 'Full access: edits as you', hint: 'Also imports and writes documents and edits pages, notes, the Library and images, as you. Never decides canon. Marked “via agent”.' },
 ] as const
 const busy = ref(false)
 const error = ref('')
@@ -106,7 +106,7 @@ const snippets = computed(() => ({
 }))
 
 const when = (iso: string | null) => (iso ? dateTime(iso) : '')
-// Grouped as a narrative lead would hand out the work. Read and propose work with any token; the last group needs full access.
+// Grouped as a narrative lead would hand out the work. Read and propose work with any token; edits need full access. No group decides canon.
 const TOOLS: [string, [string, string][]][] = [
   ['Read canon', [
     ['sb_get_entity', 'Brief on a character, place or item: canon facts with quotes, relationships, timeline, where it appears. Wiki text is marked “not canon”'],
@@ -145,12 +145,10 @@ const TOOLS: [string, [string, string][]][] = [
     ['sb_continuity, sb_research, sb_review critic', 'AI checks and research; advice and notes, never canon'],
     ['sb_conversation start / post', 'Ask in a team conversation, like any member'],
   ]],
-  ['Decide and edit (full access only)', [
-    ['sb_review accept / reject', 'Canon decisions in Review, as you, marked “via agent”'],
-    ['sb_change decide / revert, sb_conflict decide', 'Apply or reject changes, judge conflicts'],
+  ['Edit (full access only)', [
     ['sb_document import / write, sb_draft', 'Import files (text or Word), save new versions'],
-    ['sb_entity, sb_note, sb_library, sb_images', 'Pages, merges, notes, folders and tags, images'],
-    ['sb_recheck, sb_task, sb_share', 'Re-check citations, tasks, share links'],
+    ['sb_entity, sb_note, sb_library, sb_images', 'Wiki pages, notes, folders and tags, images (never canon)'],
+    ['sb_task, sb_share', 'Re-review tasks, share links'],
     ['sb_project update', 'Project settings (admins and owners only)'],
   ]],
 ]
@@ -160,13 +158,13 @@ const ASKS = [
   'If she reaches the harbour at 21:15 on Day 2, does that clash with anything?',
   'Which canon facts need a re-check after the last import?',
   'Propose the rule stated in that scene as a candidate, quoting it exactly.',
-  'With a full-access token: file the new character from this scene, accept it, and tell me what the change touches.',
+  'Propose the new character from this scene and tell me what accepting it would touch. I’ll decide in Review.',
 ]
 </script>
 
 <template>
   <div v-if="data" class="stack" style="gap: var(--s-5)">
-    <p class="muted intro">Connect your AI agent (Muse Code, Muse Spark, Claude Code, Cursor, any MCP client) to <b>{{ data.project.name }}</b>. It can read approved canon and the source documents with citations, run continuity checks, and propose candidates. <b>Nothing an agent proposes becomes canon until a person accepts it.</b> A full-access token can also decide, as you, and is marked “via agent” wherever it does.</p>
+    <p class="muted intro">Connect your AI agent (Muse Code, Muse Spark, Claude Code, Cursor, any MCP client) to <b>{{ data.project.name }}</b>. It can read approved canon and the source documents with citations, run continuity checks, and propose candidates. <b>Agents read canon, check facts and propose; a person decides in CanonTracker.</b> No token can accept or reject candidates, apply changes, judge conflicts or merge pages. A full-access token can also make editorial edits as you, marked “via agent”.</p>
 
     <UiPanel title="API tokens" description="A token belongs to you, works for this project only and has your role. Revoke it any time.">
       <form class="token-form" novalidate @submit.prevent="create">
@@ -180,13 +178,13 @@ const ASKS = [
             <span><b>{{ l.label }}</b><span class="small muted">{{ l.hint }}</span></span>
           </label>
         </fieldset>
-        <p v-if="level === 'full'" class="notice warn" role="note">This agent can accept and reject candidates, apply changes, edit pages, notes and the Library, and post for you: anything your role allows. Every change it makes is logged as yours, via this token. Only give it to an agent you trust; you can revoke it any time.</p>
+        <p v-if="level === 'full'" class="notice warn" role="note">This agent can import and write documents, edit wiki pages, notes, the Library and images, manage tasks and share links, and post for you, within your role. It can’t decide canon: accepting, rejecting, changes, conflicts, re-checks and merges stay with people in the app. Every change it makes is logged as yours, via this token. Only give it to an agent you trust; you can revoke it any time.</p>
         <UiButton type="submit" variant="primary" icon="plus" :loading="busy" :disabled="!name.trim()">Create token</UiButton>
       </form>
-      <p v-if="data.role === 'viewer'" class="notice info token-note">You are a viewer: a token can read canon but can’t propose or decide, whatever its access.</p>
+      <p v-if="data.role === 'viewer'" class="notice info token-note">You are a viewer: a token can read canon but can’t propose or edit, whatever its access.</p>
 
       <div v-if="created" class="created" role="status">
-        <div class="small"><b>Copy “{{ created.name }}” now.</b> It is shown once and stored hashed; we can’t show it again. Access: {{ created.level === 'full' ? 'full, acts as you' : 'propose only' }}.</div>
+        <div class="small"><b>Copy “{{ created.name }}” now.</b> It is shown once and stored hashed; we can’t show it again. Access: {{ created.level === 'full' ? 'full, edits as you' : 'propose only' }}.</div>
         <div class="link-row">
           <input :value="created.secret" type="text" readonly class="mono" aria-label="New API token" @focus="($event.target as HTMLInputElement).select()">
           <UiButton :variant="copied === 'token' ? 'good' : 'primary'" :icon="copied === 'token' ? 'check' : 'copy'" @click="copy(created.secret, 'token')">{{ copied === 'token' ? 'Copied' : 'Copy token' }}</UiButton>
@@ -254,8 +252,8 @@ const ASKS = [
         <li v-for="q in ASKS" :key="q">“{{ q }}”</li>
       </ul>
       <p class="small muted">Clients that support MCP prompts also get two ready-made tasks: <b>Brief me on an entity</b> and <b>Continuity-check a scene</b>.</p>
-      <p class="small muted">If canon has nothing, the agent is told “unknown” and never invents sources. Candidates it proposes must quote an imported document word for word, and show up in Review marked “Agent proposal”. What a full-access token decides shows “by you via agent” in Review, Canon, Conflicts, Changes and the audit trail. Each token can make 120 tool calls a minute; AI tools also count toward your own hourly limits.</p>
-      <p class="small faint">Not available to agents: your account, studios, team changes (roles, removing members, invites), API tokens, accepting invites, loading a demo (it replaces the project), audio uploads and dictation, and file downloads (portraits, images, audio, EPUB). Use the app for those.</p>
+      <p class="small muted">If canon has nothing, the agent is told “unknown” and never invents sources. Candidates it proposes must quote an imported document word for word, and show up in Review marked “Agent proposal”. Accepting them, and every other canon decision, is yours in the app. What a full-access token edits is logged “via agent” in the audit trail. Each token can make 120 tool calls a minute; AI tools also count toward your own hourly limits.</p>
+      <p class="small faint">Not available to agents: canon decisions (accept, reject, edit & accept, changes, conflicts, re-checks, merges), your account, studios, team changes (roles, removing members, invites), API tokens, accepting invites, loading a demo (it replaces the project), audio uploads and dictation, and file downloads (portraits, images, audio, EPUB). Use the app for those.</p>
     </UiPanel>
   </div>
 </template>

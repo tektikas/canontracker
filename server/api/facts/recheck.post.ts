@@ -10,6 +10,7 @@
 const MAX = 500
 
 export default defineEventHandler(async (event) => {
+  requireHuman(event)
   requireRole('editor')
   const body = await readObject<{ action?: unknown, fact_ids?: unknown, evidence_ids?: unknown }>(event)
   const action = body?.action

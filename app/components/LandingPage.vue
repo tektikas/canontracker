@@ -34,7 +34,7 @@ const MEDIA = [
 ]
 
 const TRUST = [
-  { title: 'A person decides', text: 'The AI only proposes. Nothing becomes canon until someone accepts it, and their name stays on the decision, with “via agent” when their own agent made it.' },
+  { title: 'A person decides', text: 'The AI only proposes. Agents read, check and propose too. Nothing becomes canon until a person accepts it in CanonTracker, and their name stays on the decision.' },
   { title: 'Word for word', text: 'Every canon fact cites a passage that contains its quote exactly. No quote, no canon; no evidence, “unknown”.' },
   { title: 'Nothing is rewritten', text: 'Imported files stay read-only, old facts are kept when canon changes, and the audit log is append-only.' },
   { title: 'Projects stay apart', text: 'One guard checks membership and role on every request. Viewers read; editors decide; admins manage.' },
@@ -180,11 +180,11 @@ const MCP_SNIPPET = JSON.stringify({ schema_version: 1, mcp_servers: { canontrac
           <div class="mcp-copy">
             <p class="kicker">Canon for your AI tools</p>
             <h2 id="mcp-title">Your agents read the same canon your team does</h2>
-            <p>CanonTracker is an MCP server. An agent in Muse Code, or any MCP client, can search canon, read sources, check proposed facts against the rules and propose new ones.</p>
+            <p>CanonTracker is an MCP server. An agent in Muse Code, or any MCP client, can search canon, read sources, check proposed facts against the rules and propose new ones. A person decides what becomes canon, in CanonTracker.</p>
             <dl class="mcp-facts">
-              <div><dt>38 tools</dt><dd>Almost everything you do in a project, with the same checks and limits as the app.</dd></div>
-              <div><dt>Propose or full</dt><dd>A propose token reads and proposes; nothing it does becomes canon. A full token acts as you.</dd></div>
-              <div><dt>“via agent”</dt><dd>Every agent action is in the audit log with its token’s name, and on every decision it made.</dd></div>
+              <div><dt>37 tools</dt><dd>Read, check, propose and editorial work, with the same checks and limits as the app.</dd></div>
+              <div><dt>Agents propose</dt><dd>No token can accept, reject or apply anything. Proposals wait in Review for a person.</dd></div>
+              <div><dt>“via agent”</dt><dd>Every agent action is in the audit log with its token’s name.</dd></div>
             </dl>
             <NuxtLink to="/agents" class="more">How agents work with CanonTracker<UiIcon name="arrow" :size="16" /></NuxtLink>
           </div>

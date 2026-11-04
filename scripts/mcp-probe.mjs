@@ -1,7 +1,8 @@
 // MCP probe against a running server: node scripts/mcp-probe.mjs <baseUrl> [<server cwd>/.data/storybible.db]
 // Drives the real /mcp endpoint with the official SDK client on the Ashbell Pass demo: every tool and prompt, auth (401, revoked),
 // roles (viewer reads, cannot propose), scope (another project's token sees nothing), input errors (JSON error codes), the
-// size caps (413 body, paging) and the per-token rate limit. Creates throwaway accounts (unique emails per run).
+// size caps (413 body, paging), the per-token rate limit, and that no token level can make a canon decision (FORBIDDEN; a person
+// decides through the web API). Creates throwaway accounts (unique emails per run).
 // With the db path it also checks that injected non-verbatim evidence can't be accepted.
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
@@ -126,7 +127,7 @@ const TOOL_NAMES = ['sb_ask', 'sb_check_facts', 'sb_get_context_pack', 'sb_get_e
   'sb_list_documents', 'sb_list_entities', 'sb_list_projects', 'sb_list_recheck', 'sb_list_tasks', 'sb_propose_candidate', 'sb_read_document', 'sb_search_facts']
 // The panel tools (server/utils/mcp-panel.ts): one per area, an `action` enum each.
 const PANEL_TOOLS = ['sb_agent_runs', 'sb_audit', 'sb_change', 'sb_conflict', 'sb_continuity', 'sb_conversation', 'sb_document', 'sb_draft', 'sb_entity', 'sb_export',
-  'sb_images', 'sb_library', 'sb_metrics', 'sb_note', 'sb_project', 'sb_recheck', 'sb_research', 'sb_review', 'sb_search', 'sb_share', 'sb_task', 'sb_team']
+  'sb_images', 'sb_library', 'sb_metrics', 'sb_note', 'sb_project', 'sb_research', 'sb_review', 'sb_search', 'sb_share', 'sb_task', 'sb_team']
 assert.deepEqual(tools.map(t => t.name).sort(), [...TOOL_NAMES, ...PANEL_TOOLS].sort())
 for (const t of tools) {
   assert.ok(/Example: \{/.test(t.description), `${t.name} has an example`)
@@ -379,8 +380,8 @@ refused(await call(c, 'sb_get_fact', { fact_id: made.id }), 'NOT_CANON', 'pendin
 ok('sb_get_fact refuses a pending fact')
 await c.close()
 
-// ===================== Panel tools: everything the web app does, by token level and live role =====================
-// adaTok is a "propose" token (the default); adaFull "acts as" Ada. Bo (viewer) has a full token: his live role still refuses
+// ===================== Panel tools: the project's work by token level and live role; canon decisions by no token =====================
+// adaTok is a "propose" token (the default); adaFull edits as Ada (editorial only). Bo (viewer) has a full token: his live role still refuses
 // writes. Cy's full token belongs to another studio: ids from this project are NOT_FOUND there.
 const adaFullTok = (await ada('/api/agent-tokens', { method: 'POST', body: { name: 'Agent full (Ada)', level: 'full' } })).data
 assert.equal(adaFullTok.level, 'full')
@@ -417,8 +418,23 @@ const levelRefusal = async (name, args) => {
   assert.ok(r.data.error.message.includes('full-access token') && r.data.error.needed_level === 'full')
   mark(name, 'refused')
 }
-assert.deepEqual([(await callR(P, 'sb_list_projects')).data.token.level, (await call(F, 'sb_list_projects')).data.can_decide, (await call(V, 'sb_list_projects')).data.can_decide], ['propose', true, false])
-ok('sb_list_projects says the token level and whether it can decide')
+assert.deepEqual([(await callR(P, 'sb_list_projects')).data.token.level, (await call(F, 'sb_list_projects')).data.can_edit, (await call(V, 'sb_list_projects')).data.can_edit, (await call(F, 'sb_list_projects')).data.can_decide],
+  ['propose', true, false, undefined])
+ok('sb_list_projects says the token level and whether it can edit; no token can decide')
+// No token level sees a decision: even a full token's tools list no decision tool, action or "to canon".
+const fullTools = (await F.listTools()).tools
+const actionsOf = Object.fromEntries(fullTools.map(t => [t.name, t.inputSchema.properties?.action?.enum]))
+assert.deepEqual([actionsOf.sb_review, actionsOf.sb_change, actionsOf.sb_conflict, 'sb_recheck' in actionsOf], [['list', 'add', 'critic'], ['list', 'propose', 'analyze', 'export'], ['scan'], false])
+assert.ok(!actionsOf.sb_entity.includes('merge') && actionsOf.sb_entity.includes('merge_preview'))
+assert.deepEqual(fullTools.find(t => t.name === 'sb_review').inputSchema.properties.to.enum, ['review'])
+ok('no decision tool or action is listed, even for a full token')
+const HUMAN = 'Canon decisions are made by a person in CanonTracker, not through an agent.'
+const humanOnly = async (client, name, args) => {
+  const r = await callR(client, name, args)
+  refused(r, 'FORBIDDEN', `${name} ${args.action} through an agent`)
+  assert.ok(r.data.error.message.startsWith(HUMAN) && r.data.error.human_only === true, JSON.stringify(r.data))
+  mark(name, 'refused')
+}
 
 // --- sb_review: five fresh candidates from a lore document (add to review works with a propose token)
 const lorePs = full.passages.filter(p => p.text.length > 60 && !p.text.startsWith('#'))
@@ -428,45 +444,38 @@ for (let i = 0; i < 5; i++) {
     statement: `Panel probe ${i} ${run}.`, kind: 'claim', subject: `Probe${i}`, predicate: 'is_probed' }))
 }
 assert.ok(added.every(a => a.status === 'pending'))
-await levelRefusal('sb_review', { action: 'add', to: 'canon', document: lore.id, quote: lorePs[0].text.split('\n')[0].slice(0, 45), statement: `Straight to canon ${run}.`, subject: 'P', predicate: 'x' })
+await humanOnly(F, 'sb_review', { action: 'add', to: 'canon', document: lore.id, quote: lorePs[0].text.split('\n')[0].slice(0, 45), statement: `Straight to canon ${run}.`, subject: 'P', predicate: 'x' })
 const queue = await yes(P, 'sb_review', { action: 'list', limit: 100 })
-assert.ok(queue.facts.every(f => f.fingerprint && f.critic_fingerprint && f.evidence.length), JSON.stringify(queue).slice(0, 300))
+assert.ok(queue.facts.every(f => f.evidence.length && !('fingerprint' in f)), JSON.stringify(queue).slice(0, 300)) // fingerprints only served bulk accept, which agents don't do
 const mineQ = added.map(a => queue.facts.find(f => f.id === a.id))
 assert.ok(mineQ.every(Boolean), 'the added candidates are listed')
 const [c1, c2, c3] = mineQ
 const canonList = await yes(P, 'sb_review', { action: 'list', status: 'canon', limit: 2 })
 assert.ok(canonList.total > 200 && canonList.next_cursor === '2')
-await levelRefusal('sb_review', { action: 'accept', fact_id: c1.id })
-await no(V, 'sb_review', { action: 'accept', fact_id: c1.id }, 'FORBIDDEN', 'viewer role accept')
-await no(X, 'sb_review', { action: 'accept', fact_id: c1.id }, 'NOT_FOUND', 'other project accept')
-await no(F, 'sb_review', { action: 'reject', fact_id: c2.id }, 'BAD_INPUT', 'reject without a reason')
-await no(F, 'sb_review', { action: 'accept', fact_id: 'not a fact id!' }, 'BAD_INPUT', 'malformed id')
-await yes(F, 'sb_review', { action: 'accept', fact_id: c1.id, rationale: 'Checked against the source.' })
-await yes(F, 'sb_review', { action: 'reject', fact_id: c2.id, rationale: 'Figurative, not a fact.' })
-await yes(F, 'sb_review', { action: 'edit_accept', fact_id: c3.id, corrected: { statement: `${c3.statement.replace(/\.$/, '')} (edited ${run}).` }, rationale: 'Tightened wording.' })
-await no(F, 'sb_review', { action: 'accept', fact_id: c1.id }, 'BAD_INPUT', 'accept twice (409)')
-const bulk = await yes(F, 'sb_review', { action: 'accept_verified', items: mineQ.slice(3).map(f => ({ id: f.id, fingerprint: f.fingerprint })) })
-assert.deepEqual(bulk.accepted.sort(), mineQ.slice(3).map(f => f.id).sort())
-const stale = made
-const changed = await callR(F, 'sb_review', { action: 'accept_verified', items: [{ id: stale.id, fingerprint: 'changed' }] })
-refused(changed, 'BAD_INPUT', 'stale fingerprint')
-assert.deepEqual([changed.data.error.reason, changed.data.error.details.changed], ['CHANGED_SINCE_SHOWN', [stale.id]])
-const advice = await callR(P, 'sb_review', { action: 'critic', ids: [stale.id] })
+// Canon decisions: refused for every token level, role and project before anything runs; the candidates stay pending.
+for (const cl of [P, F, V, X]) {
+  await humanOnly(cl, 'sb_review', { action: 'accept', fact_id: c1.id, rationale: 'x' })
+  await humanOnly(cl, 'sb_review', { action: 'reject', fact_id: c2.id, rationale: 'x' })
+}
+await humanOnly(F, 'sb_review', { action: 'edit_accept', fact_id: c3.id, corrected: { statement: 'x' }, rationale: 'x' })
+await humanOnly(F, 'sb_review', { action: 'accept_verified', items: mineQ.slice(3).map(f => ({ id: f.id, fingerprint: 'x' })) })
+const stillPending = (await ada('/api/facts?status=pending')).data
+assert.ok(mineQ.every(f => stillPending.some(x => x.id === f.id)), 'nothing an agent asked to decide was decided')
+const advice = await callR(P, 'sb_review', { action: 'critic', ids: [made.id] })
 assert.ok(!advice.isError || ['BAD_INPUT', 'INTERNAL'].includes(advice.data.error.code), JSON.stringify(advice.data).slice(0, 200))
+// A person decides in the app.
+assert.equal((await ada(`/api/facts/${c1.id}/review`, { method: 'POST', body: { decision: 'accept', rationale: 'Checked against the source.' } })).status, 200)
+assert.equal((await ada(`/api/facts/${c2.id}/review`, { method: 'POST', body: { decision: 'reject', rationale: 'Figurative, not a fact.' } })).status, 200)
 const decided = (await ada('/api/facts?status=canon')).data.find(f => f.id === c1.id)
-assert.deepEqual([decided.decided_by_name, decided.decided_via], ['Ada', 'Agent full (Ada)'])
-const rejected = (await ada('/api/facts?status=rejected')).data.find(f => f.id === c2.id)
-assert.equal(rejected.decided_via, 'Agent full (Ada)')
-ok('sb_review: list with fingerprints; accept / edit_accept / reject / accept_verified as Ada via agent; propose token, viewer, other project refused')
+assert.deepEqual([decided.decided_by_name, decided.decided_via ?? null], ['Ada', null])
+ok('sb_review: list, add, critic; accept / edit_accept / reject / accept_verified / add to canon FORBIDDEN for every token; a person decides in the app')
 
-// --- sb_recheck
-await levelRefusal('sb_recheck', { action: 'confirm', fact_ids: [fact(gold.recheck.unchanged[0]).id] })
-const confirmed = await yes(F, 'sb_recheck', { action: 'confirm', fact_ids: [fact(gold.recheck.unchanged[0]).id] })
-assert.deepEqual(confirmed.done, [fact(gold.recheck.unchanged[0]).id])
+// --- Re-check: confirming or keeping a citation is a person's call (sb_list_recheck reads; no tool settles one).
 const outdated = (await callR(P, 'sb_list_recheck', { state: 'outdated' })).data.facts[0].citations[0].evidence_id
-assert.deepEqual((await yes(F, 'sb_recheck', { action: 'keep', evidence_ids: [outdated] })).done, [outdated])
-await no(F, 'sb_recheck', { action: 'keep' }, 'BAD_INPUT', 'keep without ids')
-ok('sb_recheck: confirm and keep (full); propose token refused')
+await humanOnly(F, 'sb_recheck', { action: 'confirm', fact_ids: [fact(gold.recheck.unchanged[0]).id] })
+await humanOnly(F, 'sb_recheck', { action: 'keep', evidence_ids: [outdated] })
+assert.equal((await callR(P, 'sb_list_recheck', { state: 'outdated' })).data.total, 2)
+ok('sb_recheck: confirm and keep FORBIDDEN for a full token; citations unchanged')
 
 // --- sb_change
 const target = r1
@@ -475,31 +484,32 @@ const anyCanon = nowCanon.find(f => f.kind === 'claim' && f.evidence.length)
 const proposed = await yes(P, 'sb_change', { action: 'propose', fact_id: anyCanon.id, proposed_statement: `${anyCanon.statement} (changed ${run})`, rationale: 'Probe: a propose token may propose.' })
 assert.equal(proposed.status, 'ready_for_review')
 await yes(P, 'sb_change', { action: 'analyze', change_id: proposed.id })
-await levelRefusal('sb_change', { action: 'decide', change_id: proposed.id, decision: 'accept', rationale: 'x' })
 await no(V, 'sb_change', { action: 'propose', fact_id: anyCanon.id, proposed_statement: 'Viewer change', rationale: 'x' }, 'FORBIDDEN', 'viewer proposes a change')
-await no(F, 'sb_change', { action: 'decide', change_id: proposed.id, decision: 'accept' }, 'BAD_INPUT', 'decide without a reason')
-const applied = await yes(F, 'sb_change', { action: 'decide', change_id: proposed.id, decision: 'accept', rationale: 'Approved by Ada.' })
-assert.equal(applied.status, 'applied')
+// Accepting, rejecting or reverting a change is a person's call, in Changes.
+for (const args of [{ action: 'decide', change_id: proposed.id, decision: 'accept', rationale: 'x' }, { action: 'accept', change_id: proposed.id }, { action: 'revert', change_id: proposed.id, rationale: 'x' }])
+  await humanOnly(F, 'sb_change', args)
+assert.equal((await ada(`/api/changes/${proposed.id}/decision`, { method: 'POST', body: { decision: 'accept', rationale: 'Approved by Ada.' } })).data.status, 'applied')
 const md = await yes(P, 'sb_change', { action: 'export', change_id: proposed.id, format: 'md' })
 assert.ok(md.text.startsWith(`# Impact manifest ${proposed.id}`))
-await yes(F, 'sb_change', { action: 'revert', change_id: proposed.id, rationale: 'Back to the original.' })
+assert.equal((await ada(`/api/changes/${proposed.id}/revert`, { method: 'POST', body: { rationale: 'Back to the original.' } })).status, 200)
 await no(X, 'sb_change', { action: 'export', change_id: proposed.id }, 'NOT_FOUND', 'other project change')
 const changesNow = await yes(P, 'sb_change', { action: 'list', status: 'reverted' })
 const mine = changesNow.changes.find(x => x.id === proposed.id)
-assert.deepEqual([mine.decided_via_agent, mine.reverted_via_agent, mine.decided_by], ['Agent full (Ada)', 'Agent full (Ada)', 'Ada'])
-ok('sb_change: propose + analyze (propose token), decide + revert (full), export; stored decided_via / reverted_via', target.id)
+assert.deepEqual([mine.decided_via_agent ?? null, mine.reverted_via_agent ?? null, mine.decided_by], [null, null, 'Ada'])
+ok('sb_change: propose + analyze (propose token), export; decide / accept / revert FORBIDDEN for a full token; a person applies and reverts in the app', target.id)
 
 // --- sb_conflict
 const scan = await yes(P, 'sb_conflict', { action: 'scan' })
 assert.ok(typeof scan.created === 'number', JSON.stringify(scan).slice(0, 200))
 const openOnes = (await callR(P, 'sb_list_conflicts', { status: 'open' })).data.conflicts
-await levelRefusal('sb_conflict', { action: 'decide', conflict_id: openOnes[0].id, decision: 'confirmed', rationale: 'x' })
-await yes(F, 'sb_conflict', { action: 'decide', conflict_id: openOnes[0].id, decision: 'confirmed', rationale: 'Real clash; fix in S04.' })
-await no(F, 'sb_conflict', { action: 'decide', conflict_id: openOnes[0].id, decision: 'uncertain', rationale: 'again' }, 'BAD_INPUT', 'already decided')
-await yes(F, 'sb_conflict', { action: 'severity', conflict_id: openOnes[1].id, severity: openOnes[1].severity === 'hard' ? 'soft' : 'hard', rationale: 'Probe severity.' })
-await no(F, 'sb_conflict', { action: 'decide', conflict_id: openOnes[1].id, decision: 'maybe', rationale: 'x' }, 'BAD_INPUT', 'bad decision enum')
-assert.equal((await ada('/api/conflicts')).data.find(x => x.id === openOnes[0].id).decided_via, 'Agent full (Ada)')
-ok('sb_conflict: scan (propose), decide + severity (full)')
+// Deciding a conflict or changing its severity is a person's call, in Conflicts.
+for (const args of [{ action: 'decide', conflict_id: openOnes[0].id, decision: 'confirmed', rationale: 'x' }, { action: 'false_positive', conflict_id: openOnes[0].id },
+  { action: 'severity', conflict_id: openOnes[1].id, severity: openOnes[1].severity === 'hard' ? 'soft' : 'hard', rationale: 'x' }])
+  await humanOnly(F, 'sb_conflict', args)
+assert.equal((await ada(`/api/conflicts/${openOnes[0].id}/decision`, { method: 'POST', body: { decision: 'confirmed', rationale: 'Real clash; fix in S04.' } })).status, 200)
+const decidedConflict = (await ada('/api/conflicts')).data.find(x => x.id === openOnes[0].id)
+assert.deepEqual([decidedConflict.status, decidedConflict.decided_by_name, decidedConflict.decided_via ?? null], ['confirmed', 'Ada', null])
+ok('sb_conflict: scan (propose); decide / severity FORBIDDEN for a full token; a person decides in the app')
 
 // --- sb_task
 const task = (await callR(P, 'sb_list_tasks')).data.tasks[0]
@@ -514,15 +524,19 @@ await levelRefusal('sb_entity', { action: 'create', name: `Ferryman ${run}`, typ
 const ferry = await yes(F, 'sb_entity', { action: 'create', name: `Ferryman ${run}`, type: 'character', summary: 'Runs the night ferry.' })
 await yes(F, 'sb_entity', { action: 'update', entity: ferry.id, aliases: [`Old Ferry ${run}`], notes: 'Probe notes.' })
 const twin = await yes(F, 'sb_entity', { action: 'create', name: `Ferry Twin ${run}`, type: 'character' })
-const preview = await yes(P, 'sb_entity', { action: 'merge', entity: twin.id, into: `Old Ferry ${run}`, preview: true })
+const preview = await yes(P, 'sb_entity', { action: 'merge_preview', entity: twin.id, into: `Old Ferry ${run}` })
 assert.ok('facts' in preview)
+// A merge is an identity decision: a person makes it on the entity page.
+await humanOnly(F, 'sb_entity', { action: 'merge', entity: twin.id, into: ferry.id })
+await humanOnly(F, 'sb_entity', { action: 'merge', entity: twin.id, into: ferry.id, preview: false })
+assert.ok((await ada('/api/entities')).data.some(e => e.id === twin.id), 'the duplicate page is still there')
 await yes(F, 'sb_entity', { action: 'portrait_set', entity: ferry.id, image_base64: PNG, filename: 'ferry.png' })
 await yes(F, 'sb_entity', { action: 'portrait_remove', entity: ferry.id })
-await yes(F, 'sb_entity', { action: 'merge', entity: twin.id, into: ferry.id })
 await no(F, 'sb_entity', { action: 'delete', entity: 'Odo' }, 'BAD_INPUT', 'delete a page canon names (409)')
+await yes(F, 'sb_entity', { action: 'delete', entity: twin.id })
 await yes(F, 'sb_entity', { action: 'delete', entity: ferry.id })
 await no(F, 'sb_entity', { action: 'update', entity: 'Nobody Atall', name: 'x' }, 'NOT_FOUND', 'unknown entity')
-ok('sb_entity: create / update / merge preview (propose) / merge / portrait / delete (full)')
+ok('sb_entity: create / update / portrait / delete (full), merge_preview (read); merge FORBIDDEN for a full token')
 
 // --- sb_project
 const proj0 = await yes(P, 'sb_project', { action: 'get' })
@@ -679,9 +693,10 @@ const viaAgent = await yes(P, 'sb_audit', { action: 'list', via_mcp: true, limit
 const offAgent = viaAgent.events.filter(e => !(e.detail.via === 'mcp' && e.detail.token_id && e.detail.token_name && e.actor_name === (e.detail.token_name === 'Bo full' ? 'Bo' : 'Ada')))
 assert.ok(viaAgent.events.length > 20 && !offAgent.length, JSON.stringify(offAgent.slice(0, 3)))
 const types = new Set(viaAgent.events.map(e => e.event_type))
-for (const t of ['candidate.accepted', 'candidate.rejected', 'candidate.corrected_and_accepted', 'change.created', 'change.accepted', 'change.reverted', 'conflict.confirmed', 'note.created', 'document.imported', 'entity.merged', 'share.created'])
+for (const t of ['change.created', 'note.created', 'document.imported', 'entity.created', 'share.created'])
   assert.ok(types.has(t), `audited via mcp: ${t}`)
-assert.ok(viaAgent.events.filter(e => e.event_type === 'candidate.accepted').every(e => e.detail.token_name === 'Agent full (Ada)'))
+for (const t of ['candidate.accepted', 'candidate.corrected_and_accepted', 'candidate.rejected', 'candidate.bulk_accepted', 'change.accepted', 'change.applied', 'change.rejected', 'change.reverted', 'citation.confirmed', 'citation.kept', 'conflict.confirmed', 'conflict.false_positive', 'conflict.uncertain', 'conflict.severity', 'entity.merged'])
+  assert.ok(!types.has(t), `no canon decision via mcp: ${t}`)
 const exportedAudit = await yes(P, 'sb_audit', { action: 'export', format: 'md' })
 assert.ok(exportedAudit.text.startsWith('# CanonTracker audit log'))
 await no(P, 'sb_audit', { action: 'list', limit: 1000 }, 'BAD_INPUT', 'limit over the cap')
@@ -700,7 +715,7 @@ ok('sb_export (paged md, manuscript json), sb_share, sb_audit (via mcp + token o
 
 // Viewer with a full token: reads work; every write is refused by the live role (spot-check one per area above, plus these).
 for (const [name, args] of [['sb_note', { action: 'create', document: imported.document_id, quote: 'the night ferry', body: 'x' }], ['sb_entity', { action: 'create', name: 'Viewer page', type: 'character' }],
-  ['sb_library', { action: 'tag_create', name: 'v' }], ['sb_draft', { action: 'create', title: 'v' }], ['sb_conflict', { action: 'scan' }], ['sb_recheck', { action: 'confirm', fact_ids: [target.id] }]])
+  ['sb_library', { action: 'tag_create', name: 'v' }], ['sb_draft', { action: 'create', title: 'v' }], ['sb_conflict', { action: 'scan' }], ['sb_task', { action: 'update', task_id: task.id, status: 'open' }]])
   await no(V, name, args, 'FORBIDDEN', `viewer ${name} ${args.action}`)
 ok('viewer role refuses writes even with a full token')
 
@@ -716,54 +731,57 @@ for (const t of PANEL_TOOLS) assert.ok(tested.get(t)?.ok && tested.get(t)?.refus
 ok('every panel tool has at least one success and one refusal', PANEL_TOOLS.length)
 await P.close(); await F.close(); await V.close(); await X.close()
 
-// ===================== End to end on a fresh Ashbell Pass project, through MCP only =====================
+// ===================== End to end on a fresh Ashbell Pass project: agents read, check and propose; a person decides =====================
 const homeProject = (await ada('/api/me')).data.projects.find(p => p.name === 'The Ashbell Pass')
 const e2eProject = (await ada('/api/projects', { method: 'POST', body: { name: 'Ashbell E2E', studio_id: studio.id } })).data
 assert.equal((await ada('/api/demo/load', { method: 'POST', body: { set: 'ashbell-pass' } })).status, 200)
+// The demo's recorded candidates: a person accepts them in the app, one confirmation with the fingerprints Review showed.
+const e2ePending = (await ada('/api/facts?status=pending')).data
+assert.equal((await ada('/api/facts/accept-verified', { method: 'POST', body: { items: e2ePending.map(f => ({ id: f.id, fingerprint: candidateFingerprint(f) })) } })).status, 200)
 const e2eFull = (await ada('/api/agent-tokens', { method: 'POST', body: { name: 'E2E agent', level: 'full' } })).data
 const e2eProp = (await ada('/api/agent-tokens', { method: 'POST', body: { name: 'E2E proposer' } })).data
-await ada(`/api/projects/${homeProject.id}/switch`, { method: 'POST' })
 const E = await connect(e2eFull.secret)
 const EP = await connect(e2eProp.secret)
 assert.equal((await okCall(E, 'sb_list_projects', {})).projects[0].id, e2eProject.id)
 const scene = `# The night ferry\n\nThe ferryman Halvard rows travellers across the Ember Well channel every night.\n\nHalvard refuses to sail when the Ashbell has rung that day.\n`
 const e2eDoc = await okCall(E, 'sb_document', { action: 'import', filename: `S30-night-ferry-${run}.md`, text: scene })
-// The demo's recorded candidates, accepted through MCP after reading each page (fingerprints from the list).
-for (let at = 0; ;) {
-  const pg = await okCall(E, 'sb_review', { action: 'list', limit: 25, cursor: String(at) })
-  const r = await okCall(E, 'sb_review', { action: 'accept_verified', items: pg.facts.map(f => ({ id: f.id, fingerprint: f.fingerprint })) })
-  if (!pg.next_cursor) break
-  at += pg.facts.length - r.accepted.length // accepted ones left the queue; the skipped (unverified) stay ahead of the next page
-}
 const e2eEx = await okCall(EP, 'sb_document', { action: 'extract', document: e2eDoc.document_id })
 assert.equal(e2eEx.created, 0) // recorded mode has no output for a new text, and says so
-const cand = await okCall(EP, 'sb_review', { action: 'add', to: 'review', document: e2eDoc.filename, quote: 'The ferryman Halvard rows travellers across the Ember Well channel every night.',
+const cand = await okCall(EP, 'sb_review', { action: 'add', document: e2eDoc.filename, quote: 'The ferryman Halvard rows travellers across the Ember Well channel every night.',
   statement: 'Halvard rows travellers across the Ember Well channel every night.', kind: 'claim', subject: 'Halvard', predicate: 'rows_across', object: 'Ember Well channel' })
 assert.equal(cand.status, 'pending')
-refused(await callR(EP, 'sb_review', { action: 'accept', fact_id: cand.id }), 'FORBIDDEN', 'e2e: the same accept with a propose token')
-await okCall(E, 'sb_review', { action: 'accept', fact_id: cand.id, rationale: 'Stated in the new scene.' })
-const e2eChange = await okCall(EP, 'sb_change', { action: 'propose', fact_id: cand.id, proposed_statement: 'Halvard rows travellers across the Ember Well channel every second night.', rationale: 'Pacing.' })
+const e2eCanon = (await okCall(EP, 'sb_review', { action: 'list', status: 'canon', limit: 1 })).facts[0]
+const e2eChange = await okCall(EP, 'sb_change', { action: 'propose', fact_id: e2eCanon.id, proposed_statement: `${e2eCanon.statement.replace(/\.$/, '')} (revised ${run}).`, rationale: 'Pacing.' })
 const reanalysed = await okCall(E, 'sb_change', { action: 'analyze', change_id: e2eChange.id })
 assert.ok(Array.isArray(reanalysed.impact))
-assert.equal((await okCall(E, 'sb_change', { action: 'decide', change_id: e2eChange.id, decision: 'accept', rationale: 'Approved.' })).status, 'applied')
 await okCall(E, 'sb_conflict', { action: 'scan' })
 const e2eOpen = (await okCall(E, 'sb_list_conflicts', { status: 'open' })).conflicts[0]
-await okCall(E, 'sb_conflict', { action: 'decide', conflict_id: e2eOpen.id, decision: 'false_positive', rationale: 'Different evenings.' })
 await okCall(E, 'sb_note', { action: 'create', document: e2eDoc.document_id, quote: 'Halvard refuses to sail', body: 'Tie this to the Ashbell rule.' })
 const e2eBible = await okCall(E, 'sb_export', { action: 'bible', format: 'md', max_chars: 50000 })
 assert.ok(e2eBible.total_chars > 0 && e2eBible.text.includes('#'))
+// The agent stops at proposals: deciding is refused for both tokens, and nothing it proposed is canon.
+for (const [cl, name, args] of [[EP, 'sb_review', { action: 'accept', fact_id: cand.id }], [E, 'sb_review', { action: 'accept', fact_id: cand.id, rationale: 'Stated in the new scene.' }],
+  [E, 'sb_change', { action: 'decide', change_id: e2eChange.id, decision: 'accept', rationale: 'Approved.' }], [E, 'sb_conflict', { action: 'decide', conflict_id: e2eOpen.id, decision: 'false_positive', rationale: 'Different evenings.' }]])
+  refused(await callR(cl, name, args), 'FORBIDDEN', `e2e: ${name} ${args.action} through an agent`)
+refused(await callR(EP, 'sb_get_fact', { fact_id: cand.id }), 'NOT_CANON', 'e2e: the proposal is not canon yet')
+// A person accepts the pending proposal through the web API; the agent then reads it as canon, decided by that person.
+assert.equal((await ada(`/api/facts/${cand.id}/review`, { method: 'POST', body: { decision: 'accept', rationale: 'Stated in the new scene.' } })).status, 200)
+assert.equal((await okCall(EP, 'sb_get_fact', { fact_id: cand.id })).status, 'canon')
+const e2eAccepted = (await ada('/api/facts?status=canon')).data.find(f => f.id === cand.id)
+assert.deepEqual([e2eAccepted.decided_by_name, e2eAccepted.decided_via ?? null], ['Ada', null])
 const e2eAudit = []
 for (let at = '0'; at;) {
   const pg = await okCall(EP, 'sb_audit', { action: 'list', via_mcp: true, limit: 20, cursor: at })
   e2eAudit.push(...pg.events); at = pg.next_cursor
 }
 const e2eTypes = e2eAudit.map(e => `${e.event_type}:${e.detail.token_name}`)
-for (const t of ['document.imported:E2E agent', 'document.reextracted:E2E proposer', 'fact.authored:E2E proposer', 'candidate.accepted:E2E agent', 'change.created:E2E proposer',
-  'change.accepted:E2E agent', 'conflict.false_positive:E2E agent', 'note.created:E2E agent', 'bible.exported:E2E agent'])
+for (const t of ['document.imported:E2E agent', 'document.reextracted:E2E proposer', 'fact.authored:E2E proposer', 'change.created:E2E proposer', 'note.created:E2E agent', 'bible.exported:E2E agent'])
   assert.ok(e2eTypes.includes(t), `e2e audit has ${t}: ${e2eTypes.join(' ')}`)
 assert.ok(e2eAudit.every(e => e.detail.via === 'mcp' && e.detail.token_id && e.actor_name === 'Ada'))
+assert.ok(!e2eAudit.some(e => ['candidate.accepted', 'candidate.corrected_and_accepted', 'candidate.rejected', 'candidate.bulk_accepted', 'change.accepted', 'change.applied', 'change.rejected', 'change.reverted', 'citation.confirmed', 'citation.kept', 'conflict.confirmed', 'conflict.false_positive', 'conflict.uncertain', 'conflict.severity', 'entity.merged'].includes(e.event_type)), `no decision via mcp: ${e2eTypes.join(' ')}`)
 await E.close(); await EP.close()
-ok('end to end through MCP only: import, extract, propose, accept (full; propose token FORBIDDEN), change propose + analyze + apply, conflict decided, note, export; audit via mcp + token', `${e2eAudit.length} agent events`)
+await ada(`/api/projects/${homeProject.id}/switch`, { method: 'POST' })
+ok('end to end: an agent imports, extracts, proposes, scans, notes and exports through MCP; its decisions are FORBIDDEN; a person accepts the pending proposal in the app', `${e2eAudit.length} agent events`)
 
 // --- Viewer token: every read works, propose refused.
 const b = await connect(boTok.secret)

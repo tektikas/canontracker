@@ -1,5 +1,6 @@
 // Revert restores the original wording as a new canon version. Nothing is deleted; both earlier versions stay superseded.
 export default defineEventHandler(async (event) => {
+  requireHuman(event)
   const id = getRouterParam(event, 'id')!
   const rationale = optText((await readObject<{ rationale: string }>(event)).rationale, 'Rationale', 2000)
   if (!rationale) throw createError({ statusCode: 400, statusMessage: 'RATIONALE_REQUIRED', message: 'Say why the change is reverted.' })

@@ -232,14 +232,14 @@ export default [
     slug: 'agents-api',
     group: 'studio',
     title: 'Agents & API',
-    summary: 'Create API tokens and connect an AI agent or MCP client to this project, to read canon, run checks and propose candidates.',
+    summary: 'Create API tokens and connect an AI agent or MCP client to this project, to read canon, run checks and propose candidates. A person decides what becomes canon.',
     where: 'Account menu → **Studio settings** → **Agents & API**',
     shot: { name: 'mcp', alt: 'The Agents & API tab with the token name field and the Propose only and Full access choices.' },
     see: [
       { label: 'API tokens', text: 'Create a token, see your active tokens (name, prefix, access, created, last used) and revoke them.' },
-      { label: 'What it may do', text: '**Propose only** reads, proposes and runs AI checks; nothing it does becomes canon. **Full access: acts as you** can also decide and edit. Fixed when the token is made.' },
+      { label: 'What it may do', text: '**Propose only** reads, proposes and runs AI checks; nothing it does becomes canon. **Full access: edits as you** can also make editorial edits (documents, pages, notes, the Library). Neither decides canon. Fixed when the token is made.' },
       { label: 'Connect your agent', text: 'Ready-made setup for **Muse Code (Meta)**, **Claude Code**, **Cursor** and **Other client**, plus a small script for your own code on the Meta Model API. Your new token is filled in.' },
-      { label: 'What your agent can do', text: 'Every tool, grouped: read canon, read sources, check, read the rest of the project, propose and run checks, decide and edit.' },
+      { label: 'What your agent can do', text: 'Every tool, grouped: read canon, read sources, check, read the rest of the project, propose and run checks, edit.' },
       { label: 'Try asking', text: 'Example requests to paste into your agent.' },
     ],
     tasks: [
@@ -247,7 +247,7 @@ export default [
         title: 'Create a token',
         steps: [
           'Type a **Token name** that says which agent or machine uses it.',
-          'Under **What it may do**, choose **Propose only** or **Full access: acts as you**.',
+          'Under **What it may do**, choose **Propose only** or **Full access: edits as you**.',
           'Click **Create token**.',
           'Click **Copy token** now: it starts with `sb_`, is shown once and is stored only as a hash.',
         ],
@@ -275,7 +275,8 @@ export default [
           'Both levels read everything in the project: canon, sources and their history, entities, conflicts, changes, tasks, notes, research notes, conversations, the audit trail and metrics.',
           'Propose only adds proposals and AI runs, and nothing it does becomes canon: add a candidate to Review, propose a change and re-run its impact, promote a research note to a candidate, start and post in Ask conversations, ask the AI critic, re-extract a document, scan for conflicts, run a continuity check or research, and measure the gold set.',
           'A proposed candidate must quote an imported document word for word; it waits in Review marked "Agent proposal".',
-          'Full access adds everything else your role allows, made as you and shown "via agent" in Review, Canon, Conflicts, Changes and the audit trail: accept, edit or reject candidates, add a fact straight to canon, decide and revert changes, judge conflicts and set severity, confirm re-checks, edit and merge entities, import and write documents, drafts, notes, tasks, library folders and tags, images, project settings and entity types, share links, and renaming conversations.',
+          'Full access adds the editorial work your role allows, made as you and shown "via agent" in the audit trail: import and write documents, drafts, notes, tasks, entity pages (not merges), library folders and tags, images, project settings and entity types, share links, and renaming conversations.',
+          'No level decides canon. Agents read canon, check facts and propose; a person decides in CanonTracker: accepting, editing or rejecting candidates, adding a fact straight to canon, deciding and reverting changes, judging conflicts and their severity, re-checking citations and merging entities. An agent that asks for one is refused.',
           'If canon has nothing, the agent is told "unknown"; it never gets invented sources.',
         ],
       },
@@ -283,7 +284,7 @@ export default [
         title: 'Limits',
         points: [
           'A token belongs to you, works for one project (the one open when you made it) and always has your current role.',
-          'Your role still applies: a viewer’s token reads and posts in Ask conversations (as viewers can in the app), but can’t propose or decide, whatever its level.',
+          'Your role still applies: a viewer’s token reads and posts in Ask conversations (as viewers can in the app), but can’t propose or edit, whatever its level.',
           'Each token can make 120 tool calls a minute; AI tools also count toward your own hourly limits.',
           'Clients that support MCP prompts get two ready-made tasks: **Brief me on an entity** and **Continuity-check a scene**.',
           'Agent runs show in [Agent activity](/help/agent-activity) with the model id, like any AI run.',
@@ -291,13 +292,13 @@ export default [
       },
       {
         title: 'What agents can’t do',
-        text: 'Use the app for these: your account, studios, team changes (roles, removing members, invites), API tokens, accepting invites, loading a sample (it replaces the project), audio uploads and dictation, and file downloads (portraits, images, audio, EPUB).',
+        text: 'Use the app for these: every canon decision (Review, Conflicts, Changes, re-checks, merges), your account, studios, team changes (roles, removing members, invites), API tokens, accepting invites, loading a sample (it replaces the project), audio uploads and dictation, and file downloads (portraits, images, audio, EPUB).',
       },
     ],
     roles: [
       { role: 'Everyone', can: 'Create and revoke their own tokens. A token can do what its owner’s role allows, within its access level.' },
       { role: 'Viewer', can: 'Tokens read the project and post in Ask conversations, like a viewer in the app.' },
-      { role: 'Editor and up', can: 'Propose only tokens read, propose and run AI checks; full-access tokens also decide and edit, as you.' },
+      { role: 'Editor and up', can: 'Propose only tokens read, propose and run AI checks; full-access tokens also make editorial edits, as you. Canon decisions stay with people.' },
     ],
     related: ['agent-activity', 'review', 'candidates-and-canon', 'roles'],
     keywords: ['mcp', 'api', 'token', 'agent', 'integration', 'claude code', 'cursor', 'muse code', 'bearer', 'propose', 'full access', 'via agent'],
@@ -337,7 +338,7 @@ export default [
           'Decide conflicts, propose, apply and revert changes, and confirm re-checks.',
           'Edit and merge entity pages, edit the project’s entity types, write notes, organise the Library, and rename conversations.',
           'Run Research and continuity checks, run evaluations on Metrics, and create or turn off share links.',
-          'Agent tokens can propose; full-access tokens also decide.',
+          'Agent tokens can propose; full-access tokens also make editorial edits. Only people decide canon.',
         ],
       },
       {
@@ -361,7 +362,7 @@ export default [
       {
         title: 'What stays true for every role',
         points: [
-          'The AI only proposes. Nothing becomes canon without a person’s decision, or a person’s own full-access token, marked "via agent".',
+          'The AI and agents only propose. Nothing becomes canon without a person’s decision in CanonTracker; no agent token can make one.',
           'Every decision is logged under the person who made it. Removed members are never deleted, so their names stay in the audit log.',
         ],
       },

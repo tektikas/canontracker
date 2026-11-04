@@ -3,20 +3,33 @@ import { z } from 'zod'
 import { SECTION_KEYS } from '../../shared/utils/bible'
 import type { BibleSection } from '../../shared/utils/bible'
 import { TYPE_ICONS } from '../../shared/utils/entities'
-import { candidateFingerprint } from '../../shared/utils/review'
 
 // The panel over MCP: every project-level job a person does in the web app, as tools grouped by area with an `action`.
 // Each action calls the web app's own route in-process (panelCall), so the checks, limits, throttles, transactions and audit
 // events are the ones the panel runs, with the token owner's live role (the project guard blocks viewer writes as usual).
 // Level: read (any token), propose (any token: proposals and model runs, nothing becomes canon), full (a full-access token
-// only: decisions and editorial writes, made as its owner and audited via: 'mcp' with the token).
+// only: editorial writes that never touch canon, made as its owner and audited via: 'mcp' with the token).
+// Canon and identity decisions are not here at any level: a person makes them in the web app (HUMAN_ONLY below).
 // Not here, on purpose: account routes (sign-up, log-in, password, profile), studios, team changes (roles, removals, invites), API tokens (an agent never mints one),
 // invite accept, demo load (a destructive reset), audio uploads and dictation (audio does not fit a tool call), binary
 // downloads (portraits, images, audio, the original .docx, EPUB/zip) and OAuth.
 
+// Decisions agents never make, at any token level. No tool offers them; a call that asks for one anyway (an old client, a
+// guessed action) is refused FORBIDDEN before any tool runs (buildMcpServer), and the routes refuse in-process calls too
+// (requireHuman). Value: where in the app a person makes that decision.
+const HUMAN_ONLY: Record<string, (a: Args) => string | null> = {
+  sb_review: a => (['accept', 'edit_accept', 'reject', 'accept_verified'].includes(a.action) || (a.action === 'add' && a.to === 'canon') ? 'Review' : null),
+  sb_recheck: () => 'Canon > Re-check',
+  sb_change: a => (['decide', 'accept', 'reject', 'apply', 'revert'].includes(a.action) ? 'Changes' : null),
+  sb_conflict: a => (['decide', 'confirm', 'confirmed', 'false_positive', 'uncertain', 'severity'].includes(a.action) ? 'Conflicts' : null),
+  sb_entity: a => (a.action === 'merge' ? 'the entity page (Merge)' : null),
+}
+/** Where in the app a person makes this decision, when the call asks an agent to decide canon or identity; else null. */
+export const humanOnly = (tool: string, args: unknown) => HUMAN_ONLY[tool]?.(args && typeof args === 'object' ? args as Args : {}) ?? null
+
 type Level = 'read' | 'propose' | 'full'
 type Args = Record<string, any>
-interface Action { level: Level | ((a: Args) => Level), run: (a: Args) => unknown }
+interface Action { level: Level, run: (a: Args) => unknown }
 
 const id = z.string().regex(/^[\w-]{1,80}$/, 'an id like fact_0123abcd')
 const ids = z.array(id).min(1).max(500)
@@ -78,30 +91,23 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
       annotations: { readOnlyHint: levels.every(l => l === 'read'), destructiveHint: levels.includes('full'), idempotentHint: false, openWorldHint: false },
     } as never, (async (a: Args) => {
       const act = actions[a.action]!
-      const lvl = typeof act.level === 'function' ? act.level(a) : act.level
-      if (lvl === 'full' && token.level !== 'full') {
-        throw new McpToolError('FORBIDDEN', `${name} ${a.action} decides or edits as ${access().user.name}, so it needs a full-access token ("acts as you"). This token can read and propose only. A person can create a full-access token in Settings > Agents & API.`, { needed_level: 'full', token_level: token.level ?? 'propose' })
+      if (act.level === 'full' && token.level !== 'full') {
+        throw new McpToolError('FORBIDDEN', `${name} ${a.action} edits as ${access().user.name}, so it needs a full-access token ("edits as you"). This token can read, propose and run checks only. A person can create a full-access token in Settings > Agents & API.`, { needed_level: 'full', token_level: token.level ?? 'propose' })
       }
       return mcpReply(await act.run(a))
     }) as never)
   }
 
   // ---------------------------------------------------------------- Review
-  tool('sb_review', 'Review queue: decide candidates',
-    'The Review queue. list (read): candidates by status (pending by default) with verified quotes, the AI critic\'s advice, merge renames and, for pending ones, the fingerprint accept_verified needs. '
-    + 'add (to "review": propose; to "canon": full): a fact from a quote in the latest version of a document. critic (propose): ask the AI critic for advice on pending ids (advice only). '
-    + 'accept / edit_accept / reject / accept_verified (full token, editor+): a canon decision made as the token\'s owner, shown as "via agent" in the app; only decide what your person asked you to. '
-    + `Example: {"action": "accept", "fact_id": "fact_0123abcd4567ef89", "rationale": "Stated in S03, line 12."}`,
+  tool('sb_review', 'Review queue: read and propose candidates',
+    'The Review queue. list (read): candidates by status (pending by default) with verified quotes, the AI critic\'s advice and merge renames. '
+    + 'add (propose, editor+): a pending candidate from a quote in the latest version of a document. critic (propose): ask the AI critic for advice on pending ids (advice only). '
+    + 'Accepting, editing or rejecting a candidate is a person\'s decision in the app\'s Review, never an agent\'s. '
+    + `Example: {"action": "add", "document": "S03-the-kettle-and-coal.md", "quote": "the kettle never cools", "statement": "The kettle in S03 never cools.", "subject": "kettle", "predicate": "never_cools"}`,
     {
       status: z.enum(['pending', 'canon', 'rejected', 'superseded']).default('pending').optional().describe('list: which facts'),
-      fact_id: id.optional(), rationale: z.string().max(2000).optional().describe('Why (required to reject)'),
-      corrected: z.object({ statement: z.string().max(500).optional(), subject: z.string().max(80).optional(), predicate: z.string().max(60).optional(),
-        object: z.string().max(80).nullable().optional(), value: z.string().max(200).optional().describe('A detail\'s answer (predicate "<detail>_is"); the object is read the same way'), time_from: z.string().max(40).optional().describe(STORY_TIME), time_to: z.string().max(40).optional(),
-        precision: z.enum(['exact', 'approximate']).optional() }).optional().describe('edit_accept: the fields to change'),
-      items: z.array(z.object({ id, fingerprint: z.string().max(20_000) })).min(1).max(500).optional().describe('accept_verified: ids with the fingerprint list returned (critic_fingerprint when critic is true)'),
-      critic: z.boolean().optional().describe('accept_verified: accept only what the AI critic keeps'),
       ids: ids.optional().describe('critic: pending candidate ids'),
-      to: z.enum(['review', 'canon']).optional().describe('add: send to the review queue, or straight to canon (full)'),
+      to: z.enum(['review']).optional().describe('add: always the review queue, where a person decides'),
       document: z.string().max(200).optional().describe('add: document id or file name (its latest version is cited)'),
       quote: z.string().max(2000).optional().describe('add: exact words from one paragraph of the document'),
       passage_id: id.optional(), statement: z.string().max(500).optional(),
@@ -119,37 +125,24 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
           evidence: f.evidence.map(evidence),
           ...(f.agent_name && { proposed_by_agent: f.agent_name, proposed_for: f.proposed_by_name }),
           ...(f.decided_by_name && { decided_by: f.decided_by_name, ...(f.decided_via && { via_agent: f.decided_via }), rationale: f.rationale }),
-          ...(status === 'pending' && { renamed_on_accept: f.identity, ai_critic: f.critic, fingerprint: candidateFingerprint(f as never), critic_fingerprint: candidateFingerprint(f as never, true) }),
+          ...(status === 'pending' && { renamed_on_accept: f.identity, ai_critic: f.critic }),
         })) }
       } },
-      add: { level: a => (a.to === 'canon' ? 'full' : 'propose'), run: (a) => {
-        need(a, 'to', 'document', 'quote', 'statement', 'subject', 'predicate')
-        return panelCall('POST', '/api/facts', { body: { ...pick(a, 'to', 'quote', 'passage_id', 'statement', 'kind', 'subject', 'predicate', 'object', 'value', 'time_from', 'time_to', 'precision', 'continuity_id'), document_id: doc(a.document) } })
+      add: { level: 'propose', run: (a) => {
+        need(a, 'document', 'quote', 'statement', 'subject', 'predicate')
+        return panelCall('POST', '/api/facts', { body: { to: 'review', ...pick(a, 'quote', 'passage_id', 'statement', 'kind', 'subject', 'predicate', 'object', 'value', 'time_from', 'time_to', 'precision', 'continuity_id'), document_id: doc(a.document) } })
       } },
       critic: { level: 'propose', run: (a) => (need(a, 'ids'), panelCall('POST', '/api/facts/critic', { body: { ids: a.ids } })) },
-      accept: { level: 'full', run: (a) => (need(a, 'fact_id'), panelCall('POST', `/api/facts/${enc(a.fact_id)}/review`, { body: { decision: 'accept', rationale: a.rationale } })) },
-      edit_accept: { level: 'full', run: (a) => (need(a, 'fact_id', 'corrected'), panelCall('POST', `/api/facts/${enc(a.fact_id)}/review`, { body: { decision: 'correct_and_accept', corrected: a.corrected, rationale: a.rationale } })) },
-      reject: { level: 'full', run: (a) => (need(a, 'fact_id', 'rationale'), panelCall('POST', `/api/facts/${enc(a.fact_id)}/review`, { body: { decision: 'reject', rationale: a.rationale } })) },
-      accept_verified: { level: 'full', run: (a) => (need(a, 'items'), panelCall('POST', '/api/facts/accept-verified', { body: { items: a.items, critic: a.critic === true } })) },
-    })
-
-  tool('sb_recheck', 'Re-check citations after a new version',
-    'Settle canon citations that point at an older version of their source (sb_list_recheck lists them). confirm (full): facts whose quote reads the same, once, in the latest version now cite it. '
-    + 'keep (full): outdated citations stay on their old version, marked checked against the latest. Canon statements never change. Example: {"action": "confirm", "fact_ids": ["fact_0123abcd4567ef89"]}',
-    { fact_ids: ids.optional().describe('confirm'), evidence_ids: ids.optional().describe('keep: citation ids from sb_list_recheck') }, {
-      confirm: { level: 'full', run: (a) => (need(a, 'fact_ids'), panelCall('POST', '/api/facts/recheck', { body: { action: 'confirm', fact_ids: a.fact_ids } })) },
-      keep: { level: 'full', run: (a) => (need(a, 'evidence_ids'), panelCall('POST', '/api/facts/recheck', { body: { action: 'keep', evidence_ids: a.evidence_ids } })) },
     })
 
   // ---------------------------------------------------------------- Changes and conflicts
   tool('sb_change', 'Change proposals',
     'Proposals to change a canon fact, kept apart from conflicts and impact. list (read). propose (propose): new wording + why; impact (max 2 hops) is analysed at once, canon is untouched. '
-    + 'analyze (propose): re-run impact after a merge made it stale. decide (full, editor+): accept applies a new canon version (the old one is kept as superseded) and opens re-review tasks; reject closes it. '
-    + 'revert (full): restore the wording before an applied change. export (read): the impact manifest as json, csv or md. Example: {"action": "propose", "fact_id": "fact_0123abcd4567ef89", "proposed_statement": "…", "rationale": "…"}',
+    + 'analyze (propose): re-run impact after a merge made it stale. export (read): the impact manifest as json, csv or md. '
+    + 'Accepting, rejecting or reverting a change is a person\'s decision in the app\'s Changes, never an agent\'s. Example: {"action": "propose", "fact_id": "fact_0123abcd4567ef89", "proposed_statement": "…", "rationale": "…"}',
     {
       change_id: id.optional(), fact_id: id.optional().describe('propose: the canon fact to change'),
-      proposed_statement: z.string().max(500).optional(), rationale: z.string().max(2000).optional(),
-      decision: z.enum(['accept', 'reject']).optional(), format: z.enum(['json', 'csv', 'md']).default('json').optional(),
+      proposed_statement: z.string().max(500).optional(), rationale: z.string().max(2000).optional(), format: z.enum(['json', 'csv', 'md']).default('json').optional(),
       status: z.enum(['analyzing', 'ready_for_review', 'applied', 'rejected', 'reverted', 'all']).default('all').optional(), limit: limit(100, 20), cursor: mcpCursor,
     }, {
       list: { level: 'read', run: async (a) => {
@@ -162,8 +155,6 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
       } },
       propose: { level: 'propose', run: (a) => (need(a, 'fact_id', 'proposed_statement', 'rationale'), panelCall('POST', '/api/changes', { body: { target_fact_id: a.fact_id, proposed_statement: a.proposed_statement, rationale: a.rationale } })) },
       analyze: { level: 'propose', run: (a) => (need(a, 'change_id'), panelCall('POST', `/api/changes/${enc(a.change_id)}/analyze`)) },
-      decide: { level: 'full', run: (a) => (need(a, 'change_id', 'decision', 'rationale'), panelCall('POST', `/api/changes/${enc(a.change_id)}/decision`, { body: { decision: a.decision, rationale: a.rationale } })) },
-      revert: { level: 'full', run: (a) => (need(a, 'change_id', 'rationale'), panelCall('POST', `/api/changes/${enc(a.change_id)}/revert`, { body: { rationale: a.rationale } })) },
       export: { level: 'read', run: async (a) => {
         need(a, 'change_id')
         const out = await panelCall('GET', `/api/changes/${enc(a.change_id)}/export`, { query: { format: a.format ?? 'json' } })
@@ -171,14 +162,11 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
       } },
     })
 
-  tool('sb_conflict', 'Decide possible conflicts',
+  tool('sb_conflict', 'Scan for possible conflicts',
     'Possible conflicts (sb_list_conflicts lists them) are candidates for a person to judge, never verdicts. scan (propose): run the conflict rules over canon (and the AI world-rule check). '
-    + 'decide (full, editor+): confirmed / false_positive / uncertain with a reason; it never edits canon (use sb_change). severity (full): hard or soft, with a reason. '
-    + 'Example: {"action": "decide", "conflict_id": "cfl_0123abcd", "decision": "false_positive", "rationale": "Approximate times, different evenings."}',
-    { conflict_id: id.optional(), decision: z.enum(['confirmed', 'false_positive', 'uncertain']).optional(), severity: z.enum(['hard', 'soft']).optional(), rationale: z.string().max(2000).optional() }, {
+    + 'Confirming, dismissing or re-grading a conflict is a person\'s decision in the app\'s Conflicts, never an agent\'s. Example: {"action": "scan"}',
+    {}, {
       scan: { level: 'propose', run: () => panelCall('POST', '/api/conflicts/scan') },
-      decide: { level: 'full', run: (a) => (need(a, 'conflict_id', 'decision', 'rationale'), panelCall('POST', `/api/conflicts/${enc(a.conflict_id)}/decision`, { body: { decision: a.decision, rationale: a.rationale } })) },
-      severity: { level: 'full', run: (a) => (need(a, 'conflict_id', 'severity', 'rationale'), panelCall('POST', `/api/conflicts/${enc(a.conflict_id)}/severity`, { body: { severity: a.severity, rationale: a.rationale } })) },
     })
 
   tool('sb_task', 'Update a re-review task',
@@ -190,18 +178,19 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
 
   // ---------------------------------------------------------------- Entities and the project
   tool('sb_entity', 'Edit entity pages',
-    'Wiki pages (read them with sb_get_entity / sb_list_entities). The page text is editorial, never canon; a merge is an identity decision that re-points canon. All full-token, editor+, except merge with preview (read). '
-    + 'create: name, type (a key from sb_project types), summary. update: name, type, summary, aliases, fields, notes. merge: this page (the duplicate) into another; preview: true shows what would move without doing it. '
-    + 'delete: only when no canon or candidate names it. portrait_set: a PNG/JPEG/WebP as base64 (max 4 MB). portrait_remove. Example: {"action": "merge", "entity": "Salt Gate", "into": "Saltgate", "preview": true}',
+    'Wiki pages (read them with sb_get_entity / sb_list_entities). The page text is editorial, never canon. All full-token, editor+, except merge_preview (read). '
+    + 'create: name, type (a key from sb_project types), summary. update: name, type, summary, aliases, fields, notes. merge_preview: what merging this page (the duplicate) into another would move, without doing it; '
+    + 'the merge itself is an identity decision that re-points canon, made by a person on the entity page, never by an agent. '
+    + 'delete: only when no canon or candidate names it. portrait_set: a PNG/JPEG/WebP as base64 (max 4 MB). portrait_remove. Example: {"action": "merge_preview", "entity": "Salt Gate", "into": "Saltgate"}',
     {
-      entity: z.string().max(200).optional().describe('Entity id or name'), into: z.string().max(200).optional().describe('merge: the page to keep (id or name)'), preview: z.boolean().optional(),
+      entity: z.string().max(200).optional().describe('Entity id or name'), into: z.string().max(200).optional().describe('merge_preview: the page to keep (id or name)'),
       name: z.string().max(80).optional(), type: z.string().max(40).optional().describe('Entity type key, e.g. "character"'), summary: z.string().max(2000).optional(),
       aliases: z.array(z.string().max(80)).max(50).optional(), fields: z.record(z.string(), z.string().max(2000)).optional().describe('Medium fields by key'), notes: z.string().max(20000).optional(),
       image_base64: z.string().max(B64_MAX).optional(), filename: z.string().max(200).optional(),
     }, {
       create: { level: 'full', run: (a) => (need(a, 'name', 'type'), panelCall('POST', '/api/entities', { body: { name: a.name, kind: a.type, summary: a.summary } })) },
       update: { level: 'full', run: (a) => (need(a, 'entity'), panelCall('PATCH', `/api/entities/${ent(a.entity)}`, { body: { ...pick(a, 'name', 'summary', 'aliases', 'fields', 'notes'), ...(a.type && { kind: a.type }) } })) },
-      merge: { level: a => (a.preview ? 'read' : 'full'), run: (a) => (need(a, 'entity', 'into'), panelCall('POST', `/api/entities/${ent(a.entity)}/merge`, { body: { into: ent(a.into), preview: a.preview === true } })) },
+      merge_preview: { level: 'read', run: (a) => (need(a, 'entity', 'into'), panelCall('POST', `/api/entities/${ent(a.entity)}/merge`, { body: { into: ent(a.into), preview: true } })) },
       delete: { level: 'full', run: (a) => (need(a, 'entity'), panelCall('DELETE', `/api/entities/${ent(a.entity)}`)) },
       portrait_set: { level: 'full', run: (a) => {
         need(a, 'entity', 'image_base64', 'filename')

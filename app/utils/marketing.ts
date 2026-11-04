@@ -199,7 +199,7 @@ export const USE_CASES: UseCase[] = [
       { title: 'One canon for the whole team', text: 'Lore docs, quest scripts and dialogue in one Library. Entity types for NPCs, items, abilities and quests.' },
       { title: 'Check the recording against the script', text: 'Upload a voice take, link its script, and see changed lines and lines that contradict canon.' },
       { title: 'Change a world rule safely', text: 'Change the bell rule and see the four scenes to re-review, with re-review tasks for the team.' },
-      { title: 'Let your tools work with canon', text: 'Give an agent or a pipeline a token through MCP. A propose token’s proposals wait in Review; a full-access token acts as you, marked “via agent”.' },
+      { title: 'Let your tools work with canon', text: 'Give an agent or a pipeline a token through MCP. Agents read canon, check facts and propose; their proposals wait in Review, and a person decides in CanonTracker.' },
     ],
     shots: [
       { name: 'voice', alt: 'Script vs recording for a town crier’s take, one line contradicting canon.' },
