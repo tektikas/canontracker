@@ -25,8 +25,11 @@ export function fixedWindow(max: number, windowMs: number, maxKeys = 1000) {
   }
 }
 
-/** The client's IP: the last X-Forwarded-For hop (the one the proxy in front of the app saw; Traefik in deployment), else the
- * socket address. ponytail: without a proxy in front the header is the client's word; fine for throttling, not for auth. */
+/** The client's IP: Cloudflare's CF-Connecting-IP when the request came through Cloudflare (staging does: there the last
+ * X-Forwarded-For hop can be a Cloudflare edge address shared by every visitor in a region), else the last X-Forwarded-For hop
+ * (the one the proxy in front of the app saw; Traefik in deployment), else the socket address.
+ * ponytail: the headers are the client's word when nothing in front sets them (the origin is only reachable through Cloudflare
+ * or the LAN); fine for throttling, not for auth. */
 export function clientIp(event: H3Event) {
-  return getRequestHeader(event, 'x-forwarded-for')?.split(',').at(-1)?.trim() || getRequestIP(event) || 'unknown'
+  return getRequestHeader(event, 'cf-connecting-ip')?.trim() || getRequestHeader(event, 'x-forwarded-for')?.split(',').at(-1)?.trim() || getRequestIP(event) || 'unknown'
 }
