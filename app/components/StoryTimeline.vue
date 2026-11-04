@@ -163,7 +163,7 @@ const selected = computed(() => timed.value.find(f => f.id === selectedId.value)
 </template>
 
 <style scoped>
-.tl { --label-w: 84px; display: grid; gap: var(--s-3); min-width: 0; }
+.tl { --label-w: 108px; display: grid; gap: var(--s-3); min-width: 0; }
 .legend { display: flex; flex-wrap: wrap; gap: var(--s-2) var(--s-4); align-items: center; }
 .k { display: inline-block; vertical-align: middle; margin-right: 6px; }
 .k.exact { width: 9px; height: 9px; background: var(--accent); transform: rotate(45deg); }
