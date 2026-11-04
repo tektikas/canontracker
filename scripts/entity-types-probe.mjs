@@ -43,7 +43,7 @@ async function api(base) {
   const a = client(base)
   check('sign up', (await a('/api/auth/signup', { method: 'POST', body: { name: 'Ada', email: `types-${run}@probe.test`, password: 'correct horse' } })).status, 200)
   const studio = (await a('/api/studios', { method: 'POST', body: { name: 'Types Studio' } })).data
-  await a('/api/projects', { method: 'POST', body: { name: 'Types game', studio_id: studio.id } })
+  await a('/api/projects', { method: 'POST', body: { name: 'Types game', studio_id: studio.id, medium: 'game' } })
   const types = async () => (await a('/api/entity-types')).data
   check('a game project starts with the game defaults', (await types()).map(t => t.key), GAME)
 
@@ -110,8 +110,12 @@ async function api(base) {
   }
   const last = (await types())[0]
   check('the last type cannot be removed', (await a(`/api/entity-types/${last.key}`, { method: 'DELETE' })).status, 400)
-  // Projects are made as games; setting the medium before any page exists swaps the untouched defaults, keeps the team's own.
-  const p2 = (await a('/api/projects', { method: 'POST', body: { name: 'Types novel', studio_id: studio.id } })).data
+  // A project made as a game; setting the medium before any page exists swaps the untouched defaults, keeps the team's own.
+  // The app always asks for the medium; an API caller that sends none gets prose, an unknown one is refused.
+  check('new project without a medium: prose', (await a('/api/projects', { method: 'POST', body: { name: 'Types default', studio_id: studio.id } })).data.medium, 'prose')
+  check('…with prose defaults', (await types()).map(t => t.key), PROSE)
+  check('unknown medium refused', (await a('/api/projects', { method: 'POST', body: { name: 'Types bad', studio_id: studio.id, medium: 'opera' } })).status, 400)
+  const p2 = (await a('/api/projects', { method: 'POST', body: { name: 'Types novel', studio_id: studio.id, medium: 'game' } })).data
   check('new project: game defaults', (await types()).map(t => t.key), GAME)
   await a('/api/entity-types', { method: 'POST', body: { one: 'Motif' } })
   await a('/api/entity-types/npc', { method: 'PATCH', body: { one: 'Extra', many: 'Extras' } })

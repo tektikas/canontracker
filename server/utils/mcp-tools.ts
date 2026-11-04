@@ -233,7 +233,7 @@ export function buildMcpServer(token: { id: string, name: string, level?: TokenL
     return reply({ total: page.total, next_cursor: page.next_cursor, documents: page.items.map(({ d, folder: p, tags: ts }) => ({
       id: d.id, title: d.title, file: d.name, folder: p, kind: d.kind, tags: ts, version: d.version, passages: d.passages,
       canon_facts: d.canon_facts, pending_candidates: d.pending_facts, recheck: { facts: d.stale_facts, outdated: d.outdated_facts },
-      updated_at: d.imported_at, updated_by: d.created_by_name, origin: d.origin,
+      updated_at: d.imported_at, updated_by: d.created_by_name, origin: d.origin, ...(d.archived_at && { archived: true }),
     })) })
   })
 

@@ -1,7 +1,8 @@
 // Severity migration probe: node scripts/severity-probe.mjs migrate|explicit [port]   (default 3999; run `pnpm build` first)
 // Builds a schema-13 database (the shape on master, read from git) with conflicts of every rule, starts the built server
 // on it in a temp folder, and checks the in-place v13→14 upgrade: every conflict gets its rule's severity, nothing is lost.
-// Then v14 → 15 (evidence.checked_version, c32) from a v14 database: rows and severities kept.
+// Then v14 → 15 (evidence.checked_version, c32) and 15 → 16 (documents lose unique (project_id, sha256), so a reverted draft can be
+// a new version) from a v14 database: rows and severities kept.
 // An upgrade failure is injected with a trigger on conflicts: the DB must stay v13 and the next request must retry.
 import assert from 'node:assert/strict'
 import { execFileSync, spawn } from 'node:child_process'
@@ -77,7 +78,7 @@ try {
   fix.exec('drop trigger boom')
   fix.close()
   const h = await fetch(`${base}/api/health`)
-  check('fixed: next request upgrades without restart; health reports 15', [h.status, (await h.json()).schema, version()], [200, 15, 15])
+  check('fixed: next request upgrades without restart; health reports 16', [h.status, (await h.json()).schema, version()], [200, 16, 16])
   check('evidence gains checked_version (v15)', peek(d => d.prepare('pragma table_info(evidence)').all().some(c => c.name === 'checked_version')), true)
   const after = peek(d => d.prepare('select * from conflicts order by id').all())
   // decided_token is added in place (c68), always null here; everything else must be unchanged.
@@ -86,7 +87,7 @@ try {
   check('project has severity_defaults, empty', peek(d => d.prepare('select severity_defaults from projects').all().map(r => ({ ...r }))), [{ severity_defaults: '{}' }])
   check('user and project rows kept', peek(d => [d.prepare('select count(*) n from users').get().n, d.prepare('select count(*) n from projects').get().n]), [1, 1])
   await fetch(`${base}/api/health`)
-  check('later boots leave it at 15', version(), 15)
+  check('later boots leave it at 16', version(), 16)
 } finally {
   server?.kill()
   await new Promise(r => setTimeout(r, 300))
@@ -100,7 +101,8 @@ if (mode === 'migrate') {
   console.log('severity migration probe: all checks passed')
 } else await explicit()
 
-// v14 → v15 (c32): evidence gains checked_version, in place; every row and the rest of the schema are kept.
+// v14 → v15 (c32): evidence gains checked_version, in place; v15 → v16: documents rebuilt without unique (project_id, sha256).
+// Every row and the rest of the schema are kept.
 async function upgrade14() {
   console.log('-- upgrade from v14')
   const dir = mkdtempSync(join(tmpdir(), 'sb-sev-'))
@@ -114,6 +116,7 @@ async function upgrade14() {
     db.exec(old.slice(old.indexOf('const SCHEMA = `') + 16, old.indexOf('`\n\nlet db')))
     db.exec('pragma user_version = 14; pragma foreign_keys = off')
     db.prepare(`insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values ('ev_m', 'f_m', 'doc_m', 'psg_m', 'The lamp burns all night.', 1, 'prj_m')`).run()
+    db.prepare(`insert into documents (id, title, filename, name, kind, sha256, version, content, imported_at, project_id) values ('doc_m', 'Lamp', 'lamp.md', 'lamp.md', 'scene', 'h1', 1, 'The lamp burns all night.', '2026-10-30', 'prj_m')`).run()
     db.prepare(`insert into conflicts (id, left_fact_id, right_fact_id, rule, origin, rationale, confidence, status, pair_hash, created_at, project_id, severity)
       values ('c_m', 'f_l', 'f_r', 'WORLD_RULE_VIOLATION', 'model', 'x', 0.5, 'open', 'h_m', '2026-10-30', 'prj_m', 'hard')`).run()
     db.close()
@@ -127,7 +130,10 @@ async function upgrade14() {
     const h = await (await fetch(`http://localhost:${port}/api/health`)).json()
     const d = new DatabaseSync(file, { readOnly: true })
     try {
-      check('v14 upgrades in place to 15', [h.schema, d.prepare('pragma user_version').get().user_version], [15, 15])
+      check('v14 upgrades in place to 16', [h.schema, d.prepare('pragma user_version').get().user_version], [16, 16])
+      check('documents: row kept, no unique hash, passages still reference documents', [d.prepare('select id, sha256, content from documents').get().id,
+        /unique/i.test(d.prepare(`select sql from sqlite_master where name = 'documents'`).get().sql),
+        /references documents\(id\)/.test(d.prepare(`select sql from sqlite_master where name = 'passages'`).get().sql)], ['doc_m', false, true])
       check('evidence row kept, checked_version empty', { ...d.prepare('select id, quote, verified, checked_version from evidence').get() }, { id: 'ev_m', quote: 'The lamp burns all night.', verified: 1, checked_version: null })
       check('a person’s severity choice is kept (no v13 backfill)', d.prepare(`select severity from conflicts where id = 'c_m'`).get().severity, 'hard')
     } finally { d.close() }

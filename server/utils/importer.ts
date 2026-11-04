@@ -1,24 +1,29 @@
 import { createHash } from 'node:crypto'
-import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Turn } from './audio'
 import type { SplitBook } from '../../shared/utils/manuscript'
 
-// A passage is a heading line or a run of non-empty lines. Line numbers are 1-based.
+// A passage is a heading line or a run of non-empty lines. Line numbers are 1-based. A text with no blank line between its
+// lines (a barks file, a CSV, one paragraph per line) is one passage per line, so a quote cites its own row.
 export function splitPassages(content: string) {
   const out: { start: number, end: number, lines: string[] }[] = []
   let cur: typeof out[number] | null = null
-  content.split(/\r?\n/).forEach((line, i) => {
+  const all = content.split(/\r?\n/)
+  const filled = all.flatMap((l, i) => (l.trim() ? [i] : []))
+  const perLine = filled.length > 1 && filled.at(-1)! - filled[0]! + 1 === filled.length
+  all.forEach((line, i) => {
     if (!line.trim() || line.startsWith('#')) {
       if (cur) out.push(cur)
       cur = null
       if (line.startsWith('#')) out.push({ start: i + 1, end: i + 1, lines: [line.replace(/^#+\s*/, '')] })
       return
     }
-    if (cur) {
+    if (cur && !perLine) {
       cur.end = i + 1
       cur.lines.push(line)
     } else {
+      if (cur) out.push(cur)
       cur = { start: i + 1, end: i + 1, lines: [line] }
     }
   })
@@ -37,6 +42,10 @@ export const DOCUMENT_KINDS = ['scene', 'lore', 'character', 'location', 'quest'
 //   shared/utils/upload.ts), else scene. Only 'name' and 'ai' kinds follow a later AI reading.
 // - null: a document from before kind_source; nobody knows who set it, so it is left as it is.
 const AI_MAY_SET = ['name', 'ai']
+
+// Two texts that differ only in line endings (CRLF/LF) or trailing whitespace read the same.
+const plainText = (s: string) => s.replace(/\r\n?/g, '\n').replace(/[^\S\n]+$/gm, '').replace(/\n+$/, '')
+export const sameText = (a: string, b: string) => a === b || plainText(a) === plainText(b)
 
 // What an import would call a file on its own: its first heading, else the filename.
 const derivedTitle = (filename: string, content: string) => content.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? filename
@@ -62,12 +71,16 @@ export async function importDocument(filename: string, content: string, written?
   const db = useDb()
   const projectId = pid()
   const sha256 = createHash('sha256').update(content).digest('hex')
-  const dup = db.prepare('select id, name, title, version from documents where project_id = ? and sha256 = ?').get(projectId, sha256) as { id: string, name: string, title: string, version: number } | undefined
-  if (dup) return { filename, status: 'duplicate' as const, document_id: dup.id, same_as: { filename: dup.name, title: dup.title, version: dup.version } }
-
   const prev = (written
     ? db.prepare('select * from documents where project_id = ? and filename = ? order by version desc limit 1').get(projectId, filename)
     : db.prepare('select * from documents where project_id = ? and name = ? and folder_id is ? order by version desc limit 1').get(projectId, filename, folderId ?? null)) as unknown as DocumentRow | undefined
+  // Unchanged: a document's next version is compared with its own latest version only, ignoring line endings and trailing
+  // whitespace (so going back to an earlier draft is a new version). A new file is skipped when its text is already a document.
+  // The stored text and its sha256 stay exactly as given (recorded samples replay by that hash).
+  const dup = prev
+    ? (sameText(prev.content, content) ? prev : undefined)
+    : db.prepare('select id, name, title, version from documents where project_id = ? and sha256 = ? limit 1').get(projectId, sha256) as { id: string, name: string, title: string, version: number } | undefined
+  if (dup) return { filename, status: 'duplicate' as const, document_id: dup.id, same_as: { filename: dup.name, title: dup.title, version: dup.version } }
   const folder = prev ? prev.folder_id : (folderId ?? null)
   let key = prev?.filename ?? filename
   let sameNameIn: { folder: string | null } | null = null
@@ -105,6 +118,8 @@ export async function importDocument(filename: string, content: string, written?
   // The original .docx is written first (temp file, then rename), so a version is never committed without it. If the commit
   // then fails, the file goes too and a retry imports cleanly (its text is not yet a duplicate).
   const original = word?.original && originalPath(projectId, sha256)
+  // A reverted draft can share its hash with an earlier version's .docx: that file is never removed on a failed commit.
+  const hadOriginal = !!original && existsSync(original)
   if (word?.original) {
     const tmp = `${original}.${newId('tmp')}`
     try {
@@ -123,6 +138,11 @@ export async function importDocument(filename: string, content: string, written?
       // A written version (or a manuscript chapter) may carry a new title or kind: the labels are per document, so earlier versions follow.
       if (prev && (prev.title !== title || prev.kind !== kind || prevSource !== kindSource))
         db.prepare('update documents set title = ?, kind = ?, kind_source = ? where project_id = ? and filename = ?').run(title, kind, kindSource, projectId, key)
+      // A new version of an archived document brings it back: someone is working on it again.
+      if (prev?.archived_at) {
+        db.prepare('update documents set archived_at = null, archived_by = null where project_id = ? and filename = ?').run(projectId, key)
+        audit('document.unarchived', 'document', documentId, { filename: name, title, folder: where, version, via: 'new_version' })
+      }
       const ins = db.prepare('insert into passages (id, document_id, ordinal, start_line, end_line, text, project_id, start_ms, end_ms, speaker) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       passages.forEach((p, i) => {
         const t = recording?.turns[i]
@@ -152,7 +172,7 @@ export async function importDocument(filename: string, content: string, written?
       if (word) wordNotes = commentNotes(word.comments, key, documentId, passages)
     })
   } catch (e) {
-    if (original) rmSync(original, { force: true })
+    if (original && !hadOriginal) rmSync(original, { force: true })
     throw e
   }
 

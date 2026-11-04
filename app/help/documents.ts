@@ -21,7 +21,7 @@ export default [
         text: 'A new account walks through three steps: **Studio**, **First project** and **Get started**.',
         points: [
           '**Name your studio**: your team’s shared space. Type a **Studio name** and press **Continue**. You become its owner.',
-          '**What are you writing?**: a project holds one story world’s lore, scenes and canon. Type a **Story or project name** and press **Create project**.',
+          '**What are you writing?**: a project holds one story world’s lore, scenes and canon. Type a **Story or project name**, pick its **Medium** (novel or prose, film or series, or game) and press **Create project**.',
           '**How do you want to start?**: pick a sample story or your own files (see below).',
         ],
       },
@@ -134,17 +134,17 @@ export default [
       { label: 'Header', text: 'Document and version counts, a link to canon with outdated evidence when there is any, and **Write a document** and **Upload files** for editors.' },
       { label: 'Folders', text: '**All documents**, **Library root** and your folders, two levels deep, each with its count.' },
       { label: 'Tags', text: 'Coloured labels that cut across folders. Click one to show only its documents.' },
-      { label: 'Toolbar', text: 'Search titles and file names, filter by kind (**All kinds**), and **To re-check only**.' },
-      { label: 'Table', text: '**Title** with the kind icon, file name and tags; **Folder**; **Last change** (version, date and who); **Cited** (canon facts citing it); **Re-check** (canon citing an older version). Click a column to sort.' },
+      { label: 'Toolbar', text: 'Search titles and file names, filter by kind (**All kinds**), **To re-check only**, and **Archived** once a document is archived.' },
+      { label: 'Table', text: '**Title** with the kind icon, file name and tags; **Folder**; **Last change** (version, date and who); **Cited** (canon facts citing it); **Re-check** (canon citing an older version). Click a column to sort; titles sort with their numbers in order (Episode 2 before Episode 10).' },
     ],
     tasks: [
       {
         title: 'Upload documents',
         steps: [
           'Press **Upload files**, or drop files anywhere on the Library.',
-          'Pick Markdown, text or Word (.docx) files up to 1 MB, or audio recordings up to 30 minutes.',
+          'Pick Markdown, text, Fountain (.fountain), Yarn (.yarn), ink (.ink), CSV, TSV, JSON or Word (.docx) files up to 4 MB, or audio recordings up to 30 minutes. A file with no blank lines (a barks list, a CSV) becomes one passage per line.',
           'Open a folder first to upload straight into it.',
-          'Follow each file under **Uploads**: a new file is added, a changed file with the same name becomes its next version, and the same text is skipped.',
+          'Follow each file under **Uploads**: a new file is added, a changed file with the same name becomes its next version, and a file that reads the same as that document’s latest version is skipped (line endings and spaces at line ends don’t count). Going back to an earlier draft’s text makes a new version.',
           'A whole book can go in as one file: it is split into one document per chapter in a folder named after the book, and its row shows how many chapters the AI has read so far. Tick **Keep as one document** to import it unsplit.',
           'The AI then reads each new version in the background. Its row (and its line in the table) says “Waiting”, “The AI is reading” with a timer, “AI critic checking”, then how many facts it found. You can keep working or leave the page meanwhile.',
           'Open Review to decide on the candidates the AI proposed. If a run didn’t finish, the row says why; press Try again.',
@@ -157,6 +157,14 @@ export default [
           'Press **New tag** (the plus next to **Tags**), name it, pick a colour and press **Add tag**.',
           'Tick documents in the table, then use **Move to**, **Tag** or **Kind** in the bar that appears.',
           'Use a row’s menu to **Open** it, see its **History**, **Edit text** or **Rename** it.',
+        ],
+      },
+      {
+        title: 'Archive old documents',
+        steps: [
+          'Tick documents and press **Archive**, or use **Archive** in a row’s menu or on the document’s page.',
+          'Archived documents leave the Library list, reading order and book exports. Nothing is deleted: canon citing them stays canon and keeps its citations.',
+          'Tick **Archived** to see them; press **Unarchive** to bring them back. Uploading a new version of one brings it back too.',
         ],
       },
       {
@@ -186,7 +194,7 @@ export default [
     ],
     roles: [
       { role: 'Viewer', can: 'Browse, search, filter and sort, and open any document.' },
-      { role: 'Editor, admin, owner', can: 'Upload files and recordings, write documents, and manage folders, tags, kinds and titles.' },
+      { role: 'Editor, admin, owner', can: 'Upload files and recordings, write documents, archive and unarchive, and manage folders, tags, kinds and titles.' },
     ],
     related: ['reader', 'history', 'write', 'script-vs-recording', 'review', 'versions-and-recheck'],
     keywords: ['upload', 'import', 'docx', 'word', 'markdown', 'audio', 'recording', 'folder', 'tag', 'kind', 'rename', 'sources', 'manuscript', 'book', 'chapters', 'split'],
@@ -199,7 +207,7 @@ export default [
     where: 'Library → click a document title',
     shot: { name: 'reader', alt: 'A lore document open in the reader: line-numbered passages on the left, the Facts tab with canon facts and their lines on the right.' },
     see: [
-      { label: 'Header', text: 'Kind, version (a version picker when there are several), tags, a badge such as **Read-only source**, **Saved version** or **Read-only transcript**, and the text’s sha256. Buttons: **History**, and for editors **Re-extract** and **Edit**; **Original Word file** for a converted .docx.' },
+      { label: 'Header', text: 'Kind, version (a version picker when there are several), tags, a badge such as **Read-only source**, **Saved version** or **Read-only transcript**, and the text’s sha256. Buttons: **History**, and for editors **Re-extract**, **Edit**, **Upload new version** and **Archive**; **Original Word file** for a converted .docx.' },
       { label: 'Cover', text: 'An optional picture for the document. Editors can **Upload cover** or **Generate cover**.' },
       { label: 'Reader tools', text: '**Find** (`/` or `Ctrl F`), **Outline** to jump to a heading, and **Line** with **Go** to jump to a line number.' },
       { label: 'Text', text: 'One passage per paragraph, with its line numbers. Known names are underlined: hover or tap one for a short card. A note marker in the margin opens that passage’s notes.' },
@@ -237,6 +245,7 @@ export default [
         steps: [
           'Press **Re-extract** to ask the AI for candidates again; only new ones go to Review, anything already in the project is skipped.',
           'Press **Edit** to change the text; saving makes the next version and the old one stays as it was.',
+          'Press **Upload new version** to pick a file (any name, such as a revision called “Ep101_Blue”) and store it as this document’s next version; the AI reads it in the background.',
           'Press **History** to see every version and what changed between them.',
         ],
       },
@@ -316,7 +325,7 @@ export default [
     see: [
       { label: 'Script', text: 'The script this take was read from. Pick it from the list; **No script** unlinks it.' },
       { label: 'Summary', text: 'Counts of lines **As written**, changed, added and not said, how many lines contradict canon, and how many conflict within this take. **Only differences** hides the lines said as written.' },
-      { label: 'Lines', text: 'Each row shows the script line with its line number and speaker on the left, and what was said, with a play button, on the right. Words cut from the script are struck through; new words are marked.' },
+      { label: 'Lines', text: 'Each row shows the script line with its line number and speaker on the left, and what was said, with a play button, on the right. Words cut from the script are struck through; new words are marked. Dialogue is read from “NAME: line” lines (any case when the name is a wiki name or alias) and from screenplay cues: a character name on its own line, with (V.O.) or (CONT’D) if any, above the speech. Scene headings, action and (beat) lines are not counted as spoken.' },
       { label: 'Flags', text: 'Under a changed or added line, each fact it states: **Contradicts canon** (with the canon fact) or **Conflicts with another line in this take** (with the other line and its time), or a note that no canon conflict was found.' },
     ],
     tasks: [

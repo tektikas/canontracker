@@ -44,14 +44,14 @@ function coverImage(filenames: string[], only?: Set<string>) {
   return null
 }
 
-// Latest version of every document, in reading order: folder path (root first), then title with numbers in order (S2 before S10).
+// Latest version of every document not archived, in reading order: folder path (root first), then title with numbers in order (S2 before S10).
 function readingOrder(opts: BibleOptions) {
   const db = useDb()
   const folder = opts.scope === 'folder' ? db.prepare('select id, name, parent_id from folders where id = ? and project_id = ?').get(opts.folder_id, pid()) as FolderRow | undefined : undefined
   const inFolder = new Set(folderTree(folder))
   const paths = new Map<string, string>()
   const path = (id: string | null) => (id ? paths.get(id) ?? (paths.set(id, folderPath(id) ?? ''), paths.get(id)!) : '')
-  return sortReadingOrder((db.prepare(`select d.id, d.title, d.filename, d.kind, d.version, d.content, d.folder_id from documents d where d.project_id = ?
+  return sortReadingOrder((db.prepare(`select d.id, d.title, d.filename, d.kind, d.version, d.content, d.folder_id from documents d where d.project_id = ? and d.archived_at is null
     and d.version = (select max(x.version) from documents x where x.project_id = d.project_id and x.filename = d.filename)`).all(pid()) as { id: string, title: string, filename: string, kind: string, version: number, content: string, folder_id: string | null }[])
     .filter(d => opts.scope !== 'folder' || (!!d.folder_id && inFolder.has(d.folder_id)))
     .map(d => ({ ...d, folder: d.folder_id ? path(d.folder_id) : null })))
@@ -118,7 +118,7 @@ export function buildBible(opts: BibleOptions, portrait: (e: EntityRow) => strin
   const types = entityTypes()
   const order = (k: string) => { const i = types.findIndex(t => t.key === k); return i < 0 ? types.length : i }
   const shown = (chosen ?? [...new Map(scoped.flatMap(f => [entOf(f.subject), entOf(f.object)]).filter(e => !!e).map(e => [e!.id, e!])).values()])
-    .sort((a, b) => order(a.kind) - order(b.kind) || a.name.localeCompare(b.name))
+    .sort((a, b) => order(a.kind) - order(b.kind) || a.name.localeCompare(b.name, 'en', { numeric: true }))
   const keys = new Map<string, string>()
   for (const e of shown) {
     let k = `e-${slug(e.name)}`

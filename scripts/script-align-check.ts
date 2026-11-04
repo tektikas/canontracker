@@ -108,4 +108,38 @@ const woundOne = rowOf(one, 'My wound is in the left shoulder.')
 assert.equal(marked(woundOne.spoken?.pieces), 'leg.')
 assert.equal(marked(rowOf(one, 'I have my eye on rooms in Baker Street, which would suit us down to the ground.').spoken?.pieces), 'Berkshires,')
 
+// The table read's dialogue lines, speakers as written.
+assert.deepEqual(script.map(u => u.speaker), ['STAMFORD', 'HOLMES', 'WATSON', 'HOLMES', 'STAMFORD', 'WATSON', 'HOLMES', 'WATSON'])
+
+// Screenplay / Fountain: a cue line (capitals, extensions) above its speech; scene headings, action and parentheticals are not said.
+const FOUNTAIN = `INT. LIGHTHOUSE - NIGHT
+
+Mara climbs the stairs. The lamp is dark.
+
+MARA (V.O.)
+Somebody let the lamp go out.
+(beat)
+On purpose.
+
+TOM (CONT'D)
+It was me.
+
+Odo
+Then ring the bell.
+
+CUT TO:
+`
+const cues = scriptLines(passagesOf(FOUNTAIN, 'f'), FOUNTAIN, ['Odo'])
+assert.deepEqual(cues.map(u => [u.speaker, u.text, u.line]), [
+  ['MARA', 'Somebody let the lamp go out. On purpose.', 6],
+  ['TOM', 'It was me.', 11],
+  ['Odo', 'Then ring the bell.', 14],
+])
+// A mixed-case cue counts only when the project knows the name.
+assert.deepEqual(scriptLines(passagesOf(FOUNTAIN, 'f'), FOUNTAIN).map(u => u.speaker), ['MARA', 'TOM'])
+// "Name: line" in any case, when the name is known; unknown mixed-case names stay plain text.
+const NAMED = 'Harl: Ring the bell twice at dusk.\n\nsomeone: not a speaker here.\n'
+assert.deepEqual(scriptLines(passagesOf(NAMED, 'n'), NAMED, ['harl']).map(u => [u.speaker, u.text]), [['Harl', 'Ring the bell twice at dusk.']])
+assert.equal(scriptLines(passagesOf(NAMED, 'n'), NAMED).length, 2, 'no known speaker: every line is spoken')
+
 console.log('script-align-check: ok')

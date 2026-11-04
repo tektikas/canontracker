@@ -166,7 +166,7 @@ export default [
     shot: { name: 'projects', alt: 'The Projects tab listing the studio’s projects with medium, sources, canon, members and last activity.' },
     see: [
       { label: 'Project list', text: 'Each project with its medium, number of sources, canon facts, members and last activity. **Open now** marks the one you are in; a badge counts candidates to review.' },
-      { label: 'New project', text: 'A name and a **Start with** choice: an empty project or one of the samples. Owners and admins only.' },
+      { label: 'New project', text: 'A name, a **Start with** choice (an empty project or one of the samples) and, for an empty project, its **Medium**. Owners and admins only.' },
       { label: 'Project page', text: 'Click a project name. At the top: counts, and **Open project** (or **Go to home** if it is open now).' },
       { label: 'General', text: '**Project name**, **Medium** (decides the fields on entity pages) and **Art style** (added to every generated image).' },
       { label: 'Research profile', text: 'Field, **Period**, **Place**, **Legal system or procedure** and **Notes for research**, sent with every Research question in the project.' },
@@ -180,6 +180,7 @@ export default [
           'Click **New project**.',
           'Type a **Story or project name**.',
           'In **Start with**, keep **An empty project** or pick a sample: Broken Tide, Lantern Row, The Ashbell Pass, Sherlock Holmes, the Oz books or Alice.',
+          'For an empty project, pick its **Medium**: novel or prose, film or series, or game. A sample sets its own.',
           'Click **Create and open**; the new project opens on Home.',
         ],
       },

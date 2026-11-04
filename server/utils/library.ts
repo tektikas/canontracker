@@ -63,7 +63,7 @@ export function latestOf(ids: unknown) {
 
 interface LibraryDocument {
   id: string, title: string, filename: string, name: string, kind: string, version: number, sha256: string, imported_at: string, origin: string
-  folder_id: string | null, created_by_name: string | null, passages: number, canon_facts: number, pending_facts: number
+  folder_id: string | null, archived_at: string | null, created_by_name: string | null, passages: number, canon_facts: number, pending_facts: number
 }
 
 // One row per document: its latest version, its labels, how many versions it has, who saved the latest, the canon citing
@@ -71,7 +71,7 @@ interface LibraryDocument {
 // server/utils/recheck.ts), outdated_facts being the ones whose quote is gone from the latest version.
 export function latestDocuments() {
   const db = useDb()
-  const rows = db.prepare(`select d.id, d.title, d.filename, d.name, d.kind, d.version, d.sha256, d.imported_at, d.origin, d.folder_id,
+  const rows = db.prepare(`select d.id, d.title, d.filename, d.name, d.kind, d.version, d.sha256, d.imported_at, d.origin, d.folder_id, d.archived_at,
     (select name from users u where u.id = d.created_by) created_by_name,
     (select count(*) from passages p where p.document_id = d.id) passages,
     (select count(distinct f.id) from evidence e join facts f on f.id = e.fact_id join documents v on v.id = e.document_id

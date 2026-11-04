@@ -1,6 +1,8 @@
 // Move to a folder, add or remove tags, set the kind, rename: labels on top of the documents, for every version of each.
 // The text, hash and passages are never touched (the update below names its columns).
-interface Body { document_ids?: unknown, folder_id?: string | null, add_tags?: string[], remove_tags?: string[], kind?: string, title?: string }
+// archived: true hides the documents from the Library (its Archived filter shows them), reading order and book exports; false
+// brings them back. Never deletes: canon citing them stays canon. Audited per document (document.archived / document.unarchived).
+interface Body { document_ids?: unknown, folder_id?: string | null, add_tags?: string[], remove_tags?: string[], kind?: string, title?: string, archived?: unknown }
 
 export default defineEventHandler(async (event) => {
   const body = await readObject<Body>(event)
@@ -40,10 +42,24 @@ export default defineEventHandler(async (event) => {
   const remove = tagIds(body.remove_tags).map(id => getTag(id))
   if (add.length) detail.tags_added = add.map(t => t.name)
   if (remove.length) detail.tags_removed = remove.map(t => t.name)
-  if (!sets.length && !add.length && !remove.length)
-    throw createError({ statusCode: 400, statusMessage: 'NOTHING_TO_DO', message: 'Choose a folder, tag, kind or title.' })
+  if (body.archived !== undefined && typeof body.archived !== 'boolean') throw createError({ statusCode: 400, statusMessage: 'INVALID', message: 'archived must be true or false.' })
+  const archive = body.archived as boolean | undefined
+  const labels = !!(sets.length || add.length || remove.length)
+  if (!labels && archive === undefined)
+    throw createError({ statusCode: 400, statusMessage: 'NOTHING_TO_DO', message: 'Choose a folder, tag, kind, title or archive.' })
 
   tx(() => {
+    if (archive !== undefined) {
+      const at = archive ? now() : null
+      const by = archive ? access().user.id : null
+      const set = db.prepare('update documents set archived_at = ?, archived_by = ? where project_id = ? and filename = ?')
+      for (const d of docs) {
+        if (!!d.archived_at === archive) continue
+        set.run(at, by, pid(), d.filename)
+        audit(archive ? 'document.archived' : 'document.unarchived', 'document', d.id, { filename: d.name, title: d.title, folder: folderPath(d.folder_id), version: d.version })
+      }
+    }
+    if (!labels) return
     const update = db.prepare(`update documents set ${sets.join(', ') || 'id = id'} where project_id = ? and filename = ?`)
     const tagAdd = db.prepare('insert or ignore into document_tags (project_id, filename, tag_id) values (?, ?, ?)')
     const tagRemove = db.prepare('delete from document_tags where project_id = ? and filename = ? and tag_id = ?')

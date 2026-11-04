@@ -171,6 +171,47 @@ async function reextract() {
     reextracting.value = false
   }
 }
+// Upload new version: the file picked becomes this document's next version whatever its own name (the document keeps its name
+// and folder); the AI reads it in the background and the header's status follows it. Text that reads as the latest version is skipped.
+const versionInput = ref<HTMLInputElement>()
+const versionBusy = ref(false)
+const versioned = ref<{ tone: 'info' | 'bad', text: string }>()
+async function uploadVersion(ev: Event) {
+  const input = ev.target as HTMLInputElement
+  const file = input.files?.[0]
+  input.value = ''
+  if (!file) return
+  versioned.value = undefined
+  const problem = AUDIO_UPLOAD.test(file.name) ? 'Audio becomes a recording of its own: upload it in the Library.' : uploadProblem(file)
+  if (problem) return (versioned.value = { tone: 'bad', text: problem })
+  versionBusy.value = true
+  try {
+    const form = new FormData()
+    form.append('files', file, file.name)
+    form.append('document_id', doc.value!.latest.id)
+    form.append('background', '1')
+    const r = (await $fetch<{ results: Record<string, any>[] }>('/api/documents', { method: 'POST', body: form })).results[0]!
+    if (r.status === 'error') versioned.value = { tone: 'bad', text: r.error }
+    else if (r.status === 'duplicate') versioned.value = { tone: 'info', text: `${file.name} reads the same as v${r.same_as.version}, so no version was added.` }
+    else {
+      if (r.extraction) extractions.track(r.document_id, r.extraction, { filename: doc.value!.name, title: r.title, version: r.version })
+      await navigateTo(`/documents/${r.document_id}`)
+    }
+  } catch (e) {
+    versioned.value = { tone: 'bad', text: errorMessage(e) }
+  } finally {
+    versionBusy.value = false
+  }
+}
+// Archive hides the document from the Library, reading order and book exports; canon citing it stays canon. Unarchive brings it back.
+const archiveError = ref('')
+async function setArchived(on: boolean) {
+  archiveError.value = ''
+  try {
+    await $fetch('/api/library/organise', { method: 'POST', body: { document_ids: [doc.value!.latest.id], archived: on } })
+    await refresh()
+  } catch (e) { archiveError.value = errorMessage(e) }
+}
 // A recording: the full player shares the one audio element with the passages' play buttons.
 const clip = useClip()
 const audioEl = ref<HTMLAudioElement | null>(null)
@@ -242,12 +283,22 @@ const pickVersion = (id: string) => navigateTo(`/documents/${id}`)
         <template v-if="editor">
           <UiButton v-if="latest" icon="refresh" :loading="reextracting" :title="'Run extraction again; new candidates go to review'" @click="reextract">Re-extract</UiButton>
           <UiButton v-if="latest && !doc.recording" icon="review" :to="`/write?doc=${doc.latest.id}`">Edit</UiButton>
+          <UiButton v-if="!doc.recording" icon="upload" :loading="versionBusy" title="Pick a file to save as the next version of this document, whatever its name" @click="versionInput?.click()">Upload new version</UiButton>
+          <UiButton v-if="!doc.archived_at" icon="archive" variant="ghost" title="Hide from the Library, reading order and book exports. Canon citing it stays canon." @click="setArchived(true)">Archive</UiButton>
         </template>
       </template>
     </UiPageHeader>
     <ImageGenerator v-if="editor" :id="doc.id" ref="generator" type="document" @changed="coverChanged" />
     <UndoToast v-if="undo" message="Cover removed. It stays in Images." @undo="undoRemove" @close="undo = ''" />
     <input v-if="editor" ref="coverInput" type="file" :accept="IMAGE_UPLOAD_TYPES.join(',')" hidden @change="onCoverPick">
+    <input v-if="editor && !doc.recording" ref="versionInput" type="file" :accept="TEXT_ACCEPT" hidden aria-label="Upload new version" @change="uploadVersion">
+    <p v-if="versioned" class="notice gap" :class="versioned.tone" :role="versioned.tone === 'bad' ? 'alert' : 'status'"><UiIcon :name="versioned.tone === 'bad' ? 'conflicts' : 'upload'" :size="16" /><span>{{ versioned.text }}</span></p>
+    <p v-if="doc.archived_at" class="notice warn gap" role="status">
+      <UiIcon name="archive" :size="16" />
+      <span>Archived: hidden from the Library, reading order and book exports. Canon citing it stays canon.</span>
+      <UiButton v-if="editor" size="sm" @click="setArchived(false)">Unarchive</UiButton>
+    </p>
+    <p v-if="archiveError" class="field-error" role="alert">{{ archiveError }}</p>
 
     <figure v-if="doc.cover" class="cover panel" :class="{ over: overCover }" v-on="coverDrop">
       <img :src="doc.cover.url" :alt="doc.cover.caption || `Cover for ${doc.title}`">

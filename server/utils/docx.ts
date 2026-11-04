@@ -1,7 +1,7 @@
 import { crc32, inflateRawSync } from 'node:zlib'
 
 // Word (.docx) → the Markdown-ish text that becomes the document's source text. No dependency: a .docx is a zip of XML parts,
-// and only five or six of them matter. The zip is read defensively (a 1 MB upload can claim to unpack to gigabytes): entry
+// and only five or six of them matter. The zip is read defensively (a 4 MB upload can claim to unpack to gigabytes): entry
 // count, declared total size and every part we actually inflate are capped, encrypted / macro-enabled / non-zip files are
 // refused, and so is an archive that contradicts itself (duplicate names, a local header that disagrees with the central
 // directory, a wrong checksum). The XML reader refuses DOCTYPEs and any entity but the five built-ins and valid numeric ones. Deterministic: same bytes → same text → same hash.
@@ -16,7 +16,7 @@ const MAX_READ = 16_000_000 // every part we inflate, together
 const MAX_DEPTH = 256 // XML nesting
 const MAX_OPEN = 1000 // comment ranges open at once
 const MAX_QUOTE = 2000 // characters of commented text kept per comment
-const MAX_TEXT = 1_000_000 // converted text: the most a .md upload can hold
+const MAX_TEXT = 4_000_000 // converted text: the most a .md upload can hold
 
 export const DOCX_MIME = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
 
@@ -298,7 +298,7 @@ export function docxToText(buf: Buffer): { text: string, comments: WordComment[]
   }
   walk(body, blocks, true)
   if (notes.length) blocks.push('# Notes', ...notes)
-  if (blocks.reduce((n, b) => n + b.length + 2, 0) > MAX_TEXT) throw invalid('This Word file holds more than 1 MB of text; it is not imported. Split it into smaller files.')
+  if (blocks.reduce((n, b) => n + b.length + 2, 0) > MAX_TEXT) throw invalid('This Word file holds more than 4 MB of text; it is not imported. Split it into smaller files.')
 
   // Comments: where the commented words start (line of their paragraph) and the words themselves.
   const starts: number[] = []

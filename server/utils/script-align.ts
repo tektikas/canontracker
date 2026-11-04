@@ -18,17 +18,59 @@ interface SpokenUnit extends Unit { passage_id: string, start_ms: number | null,
 const tokens = (text: string, unit: number): Tok[] =>
   [...text.matchAll(WORD)].map(m => ({ key: m[0].toLowerCase().replace(/’/g, '\''), start: m.index!, end: m.index! + m[0].length, unit }))
 
-/** The lines a script expects to be spoken: its "NAME: line" lines, or every non-heading line when it has none. */
-export function scriptLines(passages: PassageRow[], content: string): ScriptUnit[] {
+// A screenplay / Fountain cue: a line holding only a character's name (capitals, or a name the project knows in any case),
+// optionally with extensions like "(V.O.)" or "(CONT'D)", right above the dialogue lines. Scene headings and transitions are not cues.
+const CUE = /^([\p{L}][\p{L}\p{N} .'’-]{0,40}?)\s*((?:\([^)]{1,20}\)\s*)*)\^?$/u
+const CAPS = /^[^\p{Ll}]*\p{Lu}[^\p{Ll}]*$/u
+const SLUG = /^(?:INT|EXT|EST|INT\.?\/EXT|I\/E)[. ]/i
+// "Name: line" with a name the project knows, in any case.
+const NAMED = /^([^:]{1,40}):\s+/u
+
+/**
+ * The lines a script expects to be spoken: its dialogue ("NAME: line", "Known Name: line", or a cue line above its speech), or
+ * every non-heading line when it has none. `names`: the project's entity names and aliases, so mixed-case speakers count too.
+ */
+export function scriptLines(passages: PassageRow[], content: string, names: string[] = []): ScriptUnit[] {
   const raw = content.split('\n')
+  const known = new Set(names.map(n => n.trim().toLowerCase()).filter(Boolean))
   const all = passages.flatMap(p => p.text.split('\n').map((line, i) => ({ p, line, n: p.start_line + i })))
     .filter(x => !/^#/.test(raw[x.n - 1] ?? '') && x.line.trim() && !/^\(.*\)$/s.test(x.line.trim()))
-  const dialogue = all.filter(x => SPEAKER.test(x.line))
-  return (dialogue.length ? dialogue : all).map((x) => {
-    const m = dialogue.length ? x.line.match(SPEAKER) : null
-    const text = m ? x.line.slice(m[0].length) : x.line
-    return { passage_id: x.p.id, line: x.n, speaker: m?.[1] ?? null, text, toks: [] as Tok[] }
-  }).filter(u => tokens(u.text, 0).length).map((u, i) => ({ ...u, toks: tokens(u.text, i) }))
+  const lines = passages.flatMap(p => p.text.split('\n').map((line, i) => ({ p, line, n: p.start_line + i })))
+  const at = new Map(lines.map(x => [x.n, x]))
+  const speakerOf = (line: string) => {
+    const m = line.match(SPEAKER) ?? line.match(NAMED)
+    return m && (SPEAKER.test(line) || known.has(m[1]!.trim().toLowerCase())) ? m : null
+  }
+  const cueOf = (x: { line: string, n: number }) => {
+    const t = x.line.trim()
+    const m = t.match(CUE)
+    if (!m || SLUG.test(t) || /\bTO:$/.test(t) || at.has(x.n - 1) || !at.has(x.n + 1)) return null
+    const name = m[1]!.trim()
+    return CAPS.test(name) || known.has(name.toLowerCase()) ? name : null
+  }
+  type Said = { passage_id: string, line: number, speaker: string | null, text: string, toks: Tok[] }
+  const dialogue: Said[] = []
+  for (let k = 0; k < all.length; k++) {
+    const x = all[k]!
+    const m = speakerOf(x.line)
+    if (m) {
+      dialogue.push({ passage_id: x.p.id, line: x.n, speaker: m[1]!.trim(), text: x.line.slice(m[0].length), toks: [] })
+      continue
+    }
+    const cue = cueOf(x)
+    if (!cue) continue
+    // The speech: the lines right under the cue, up to a blank line (parentheticals like "(beat)" are skipped, not spoken).
+    const speech: typeof all = []
+    for (let n = x.n + 1; at.has(n); n++) {
+      const y = at.get(n)!
+      if (y.line.trim() && !/^\(.*\)$/s.test(y.line.trim())) speech.push(y)
+    }
+    if (!speech.length) continue
+    dialogue.push({ passage_id: speech[0]!.p.id, line: speech[0]!.n, speaker: cue, text: speech.map(y => y.line.trim()).join(' '), toks: [] })
+    k = all.findIndex(y => y.n === speech.at(-1)!.n)
+  }
+  const units: Said[] = dialogue.length ? dialogue : all.map(x => ({ passage_id: x.p.id, line: x.n, speaker: null, text: x.line, toks: [] }))
+  return units.filter(u => tokens(u.text, 0).length).map((u, i) => ({ ...u, toks: tokens(u.text, i) }))
 }
 
 type Piece = { text: string, mark: boolean }
@@ -172,7 +214,7 @@ export function scriptComparison(transcriptId: string, scriptKey: string) {
   if (!scriptDoc) return null
   const passagesOf = (id: string) => db.prepare('select * from passages where document_id = ? order by ordinal').all(id) as unknown as PassageRow[]
   const transcript = passagesOf(transcriptId)
-  const rows = alignScript(scriptLines(passagesOf(scriptDoc.id), scriptDoc.content), transcript)
+  const rows = alignScript(scriptLines(passagesOf(scriptDoc.id), scriptDoc.content, listEntities().flatMap(namesOf)), transcript)
 
   // Facts the transcript states (pending candidates, including one made from another document that the take said again:
   // extractInto cites it here instead of making a duplicate, and canon citing this version), placed on the line whose words hold the quote.

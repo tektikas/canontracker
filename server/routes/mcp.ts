@@ -3,9 +3,9 @@ import { WebStandardStreamableHTTPServerTransport } from '@modelcontextprotocol/
 // MCP over Streamable HTTP, stateless: one server per request, authenticated by a per-user API token.
 // Tool handlers run inside this request, so access()/pid()/audit() behave exactly as in the web guard.
 const MAX_BODY = 256_000 // bytes per JSON-RPC request; the largest text input (20 facts to check, a 12,000-character text) is far below
-// Tools that carry a file or a whole document (base64 .docx or image up to 4 MB, document text up to 1 MB) may send more; a
+// Tools that carry a file or a whole document (base64 .docx or image up to 4 MB, document text up to 4 MB) may send more; a
 // request for any other tool over MAX_BODY is still a 413. Both caps are counted while the body streams in.
-const MAX_FILE_BODY = 6_000_000
+const MAX_FILE_BODY = 10_000_000
 const FILE_TOOLS = new Set(['sb_document', 'sb_draft', 'sb_entity', 'sb_images'])
 
 export default defineEventHandler(async (event) => {

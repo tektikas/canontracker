@@ -38,9 +38,11 @@ const createStudio = () => run('studio', async () => {
   step.value = 'project'
 })
 
+const projectMedium = ref('')
 const createProject = () => run('project', async () => {
   if (!projectName.value.trim()) throw new Error('Name the story or project you are writing.')
-  await $fetch('/api/projects', { method: 'POST', body: { name: projectName.value, studio_id: adminStudio.value?.id } })
+  if (!projectMedium.value) throw new Error('Pick the medium: a novel or prose, a film or series, or a game.')
+  await $fetch('/api/projects', { method: 'POST', body: { name: projectName.value, studio_id: adminStudio.value?.id, medium: projectMedium.value } })
   await loadMe()
   step.value = 'start'
 })
@@ -103,6 +105,7 @@ const tryClassic = (set: 'sherlock-holmes' | 'oz' | 'alice', name: string) => ru
         <UiField label="Story or project name" hint="For example the working title. You can rename it later.">
           <input v-model="projectName" type="text" maxlength="80" placeholder="e.g. Saltmarsh Chronicles" autofocus>
         </UiField>
+        <MediumPicker v-model="projectMedium" />
         <p v-if="error" class="notice bad" role="alert">{{ error }}</p>
         <UiButton type="submit" variant="primary" size="lg" :loading="busy === 'project'">Create project<UiIcon name="arrow" :size="16" /></UiButton>
       </div>
@@ -126,7 +129,7 @@ const tryClassic = (set: 'sherlock-holmes' | 'oz' | 'alice', name: string) => ru
         <NuxtLink to="/" class="option" :class="{ disabled: !!busy }">
           <span class="option-icon"><UiIcon name="upload" :size="20" /></span>
           <span class="option-title">Bring your own story</span>
-          <span class="option-text">Import Markdown, plain text or Word (.docx) lore docs and scene scripts (up to 1 MB each), or write and paste scenes in the app. The AI proposes facts with quotes for you to review. Saved sources are read-only and never changed.</span>
+          <span class="option-text">Import Markdown, plain text, Fountain, Yarn, ink, CSV or Word (.docx) lore docs and scene scripts (up to 4 MB each), or write and paste scenes in the app. The AI proposes facts with quotes for you to review. Saved sources are read-only and never changed.</span>
           <span class="option-cta">Go to {{ me?.current?.project.name }}<UiIcon name="arrow" :size="16" /></span>
         </NuxtLink>
       </div>

@@ -35,7 +35,7 @@ const id = z.string().regex(/^[\w-]{1,80}$/, 'an id like fact_0123abcd')
 const ids = z.array(id).min(1).max(500)
 const limit = (max: number, def: number) => z.number().int().min(1).max(max).default(def).optional()
 const STORY_TIME = 'Story time "D2 14:30" or a whole day "D2" (the day may be 0 or negative)'
-const B64_MAX = 5_600_000 // characters of base64: a 4 MB image, or a 1 MB .docx with room to spare (the route's own limits still apply)
+const B64_MAX = 5_600_000 // characters of base64: a 4 MB image, or a 4 MB .docx (the route's own limits still apply)
 
 /** Calls one of the web app's own API routes in-process as the token's owner. The route sees the same Access the MCP request
  * has (event.context.mcpAccess, read by resolveAccess/requireUser), so it runs exactly as for that person in the panel. */
@@ -233,15 +233,15 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
 
   // ---------------------------------------------------------------- Sources
   tool('sb_document', 'Import, write and inspect documents',
-    'Source documents are read-only once imported; a change is a new version. import (full, editor+): text (.md/.txt) or a Word file as docx_base64 (max 1 MB); same file name = next version, same text = skipped; extraction runs on import. With split: true a whole book becomes one document per chapter in a folder named after it (extraction then runs in the background). '
+    'Source documents are read-only once imported; a change is a new version. import (full, editor+): text (.md, .txt, .fountain, .yarn, .ink, .csv, .tsv, .json) or a Word file as docx_base64 (max 4 MB); same file name (or document: an existing document, whatever the file name) = next version; text that reads as its latest version (line endings and trailing spaces aside) = skipped; extraction runs on import. With split: true a whole book becomes one document per chapter in a folder named after it (extraction then runs in the background). '
     + 'write (full): save new text as a new version of a document (or a new document without one), like Save to story. extract (propose): run extraction again (pending candidates only). '
     + 'history / diff (read): versions, and what changed from one version to another with the canon citing changed passages. transcribe (full): a recording\'s stored audio again. script (read) / script_link (full): a recording vs its script. '
     + 'Read the text with sb_read_document. Example: {"action": "import", "filename": "S29-the-ferry.md", "text": "# The ferry\\n\\nOdo waits at the Salt Gate."}',
     {
       document: z.string().max(200).optional().describe('Document id or file name'),
-      filename: z.string().max(200).optional().describe('import: file name with .md, .txt or .docx'), text: z.string().max(1_000_000).optional(),
+      filename: z.string().max(200).optional().describe('import: file name with .md, .txt, .fountain, .yarn, .ink, .csv, .tsv, .json or .docx'), text: z.string().max(4_000_000).optional(),
       docx_base64: z.string().max(B64_MAX).optional(), folder_id: id.optional().describe('import: Library folder for a new document'),
-      title: z.string().max(120).optional(), kind: z.enum(DOCUMENT_KINDS).optional(), content: z.string().max(1_000_000).optional().describe('write: the full new text'),
+      title: z.string().max(120).optional(), kind: z.enum(DOCUMENT_KINDS).optional(), content: z.string().max(4_000_000).optional().describe('write: the full new text'),
       from_version: z.number().int().min(1).optional().describe('diff: the older version (default: the one before the latest)'), version: z.number().int().min(1).optional().describe('diff: the newer version (default latest)'),
       include_unchanged: z.boolean().optional().describe('diff: also list passages that read the same'),
       split: z.boolean().optional().describe('import: split a whole book into one document per chapter (default: one document)'),
@@ -252,6 +252,7 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
         if ((a.text == null) === (a.docx_base64 == null)) throw new McpToolError('BAD_INPUT', 'import needs exactly one of text or docx_base64.')
         const form = new FormData()
         if (a.folder_id) form.append('folder_id', a.folder_id)
+        if (a.document) form.append('document_id', doc(a.document))
         if (!a.split) form.append('keep_whole', '1')
         form.append('files', a.text != null ? new Blob([a.text], { type: 'text/markdown' }) : new Blob([b64(a.docx_base64, 'docx_base64')], { type: DOCX_MIME }), a.filename)
         const { results } = await panelCall('POST', '/api/documents', { form }) as { results: Record<string, any>[] }
@@ -299,7 +300,7 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
     + 'save (full): Save to story, a new read-only document version (overwrite_base: the latest version id, when the draft started from an older one). delete (full). Example: {"action": "create", "title": "The ferry", "content": "Odo waits at the Salt Gate."}',
     {
       draft_id: id.optional(), document: z.string().max(200).optional(), title: z.string().max(120).optional(), kind: z.enum(DOCUMENT_KINDS).optional(),
-      content: z.string().max(1_000_000).optional(), overwrite_base: id.optional(),
+      content: z.string().max(4_000_000).optional(), overwrite_base: id.optional(),
     }, {
       list: { level: 'read', run: () => panelCall('GET', '/api/drafts') },
       get: { level: 'read', run: (a) => (need(a, 'draft_id'), panelCall('GET', `/api/drafts/${enc(a.draft_id)}`)) },
@@ -328,12 +329,13 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
 
   tool('sb_library', 'Library folders, tags and labels',
     'Folders (two levels), tags and document labels: editorial, never the text or its hash. get (read): folders, tags, colours, kinds. folder_create / folder_rename / folder_delete (documents move up, nothing is deleted), '
-    + 'tag_create / tag_update / tag_delete, organise (move to a folder (null = root), add/remove tags, set kind, rename one document): all full, editor+. '
+    + 'tag_create / tag_update / tag_delete, organise (move to a folder (null = root), add/remove tags, set kind, rename one document, archived: true hides documents from the Library, reading order and book exports, false brings them back; canon citing them stays canon): all full, editor+. '
     + 'Example: {"action": "organise", "documents": ["S03-the-kettle-and-coal.md"], "folder_id": "fld_0123abcd", "add_tags": ["tag_0123abcd"]}',
     {
       folder_id: id.nullable().optional(), parent_id: id.optional(), tag_id: id.optional(), name: z.string().max(60).optional(), color: z.enum(['accent', 'good', 'warn', 'bad', 'pencil']).optional(),
       documents: z.array(z.string().max(200)).min(1).max(200).optional().describe('organise: document ids or file names'),
       add_tags: z.array(id).max(50).optional(), remove_tags: z.array(id).max(50).optional(), kind: z.enum(DOCUMENT_KINDS).optional(), title: z.string().max(120).optional(),
+      archived: z.boolean().optional().describe('organise: archive (true) or unarchive (false)'),
     }, {
       get: { level: 'read', run: () => panelCall('GET', '/api/library') },
       folder_create: { level: 'full', run: (a) => (need(a, 'name'), panelCall('POST', '/api/library/folders', { body: pick(a, 'name', 'parent_id') })) },
@@ -342,7 +344,7 @@ export function registerPanelTools(server: McpServer, token: { id: string, name:
       tag_create: { level: 'full', run: (a) => (need(a, 'name'), panelCall('POST', '/api/library/tags', { body: pick(a, 'name', 'color') })) },
       tag_update: { level: 'full', run: (a) => (need(a, 'tag_id'), panelCall('PATCH', `/api/library/tags/${enc(a.tag_id)}`, { body: pick(a, 'name', 'color') })) },
       tag_delete: { level: 'full', run: (a) => (need(a, 'tag_id'), panelCall('DELETE', `/api/library/tags/${enc(a.tag_id)}`)) },
-      organise: { level: 'full', run: (a) => (need(a, 'documents'), panelCall('POST', '/api/library/organise', { body: { document_ids: (a.documents as string[]).map(doc), ...pick(a, 'folder_id', 'add_tags', 'remove_tags', 'kind', 'title') } })) },
+      organise: { level: 'full', run: (a) => (need(a, 'documents'), panelCall('POST', '/api/library/organise', { body: { document_ids: (a.documents as string[]).map(doc), ...pick(a, 'folder_id', 'add_tags', 'remove_tags', 'kind', 'title', 'archived') } })) },
     })
 
   tool('sb_images', 'Images: portraits and covers',

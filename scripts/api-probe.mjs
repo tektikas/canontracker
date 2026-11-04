@@ -76,7 +76,7 @@ const routes = files.map((f) => {
 assert.ok(routes.length > 90, `${routes.length} routes`)
 
 // Size: oversized JSON bodies are refused before they are read.
-assert.equal((await ada('/api/qa', { method: 'POST', raw: JSON.stringify({ question: 'x'.repeat(5_000_000) }) })).status, 413)
+assert.equal((await ada('/api/qa', { method: 'POST', raw: JSON.stringify({ question: 'x'.repeat(10_500_000) }) })).status, 413)
 assert.equal((await ada('/api/qa', { method: 'POST', body: { question: 'x'.repeat(600) } })).status, 400)
 assert.equal((await ada('/api/changes', { method: 'POST', body: { target_fact_id: canon[2].id, proposed_statement: 'x'.repeat(600), rationale: 'r' } })).status, 400)
 assert.equal((await web()('/api/auth/signup', { method: 'POST', body: { name: 'Long', email: `${'x'.repeat(300)}@probe.test`, password: 'correct horse' } })).status, 400)
@@ -84,7 +84,7 @@ assert.equal((await web()('/api/auth/signup', { method: 'POST', body: { name: 'L
 const chunked = (path, text, headers = {}) => fetch(base + path, { method: 'POST', duplex: 'half', headers: { 'content-type': 'application/json', ...headers },
   body: new ReadableStream({ start(ctl) { const b = Buffer.from(text); for (let i = 0; i < b.length; i += 65536) ctl.enqueue(b.subarray(i, i + 65536)); ctl.close() } }) })
   .then(r => r.status, e => `error ${e.cause?.code ?? e.message}`)
-assert.equal(await chunked('/api/auth/login', JSON.stringify({ email: 'a@b.c', password: 'x'.repeat(4_100_000) })), 413)
+assert.equal(await chunked('/api/auth/login', JSON.stringify({ email: 'a@b.c', password: 'x'.repeat(10_100_000) })), 413)
 assert.equal(await chunked('/api/auth/login', JSON.stringify({ email: `nobody-${run}@probe.test`, password: 'x'.repeat(1000) })), 401)
 // The multipart media type is case-insensitive: a 4.1 MB five-file upload is the same request whatever its Content-Type's case.
 {
@@ -96,7 +96,7 @@ assert.equal(await chunked('/api/auth/login', JSON.stringify({ email: `nobody-${
     assert.equal(res.status, 200, `${ct}: ${res.status}`)
   }
 }
-ok('size caps: 413 over 4 MB (also chunked); long question / statement / email 400')
+ok('size caps: 413 over 10 MB (also chunked); long question / statement / email 400')
 
 // Log-in and sign-up throttles. Fake client IPs (X-Forwarded-For, as the proxy sets it) keep this probe's misses away from the
 // IP every other probe signs up from.

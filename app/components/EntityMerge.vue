@@ -8,7 +8,7 @@ const kindLabel = useKind()
 
 // Same kind first, then the rest, so the likely target is near the top.
 const options = computed(() => (list.value ?? []).filter(e => e.id !== props.entity.id)
-  .sort((a, b) => Number(b.kind === props.entity.kind) - Number(a.kind === props.entity.kind) || a.name.localeCompare(b.name)))
+  .sort((a, b) => Number(b.kind === props.entity.kind) - Number(a.kind === props.entity.kind) || a.name.localeCompare(b.name, 'en', { numeric: true })))
 const into = ref(props.into ?? '')
 const target = computed(() => options.value.find(e => e.id === into.value))
 

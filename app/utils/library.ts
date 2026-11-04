@@ -40,15 +40,15 @@ export type TagTone = typeof TAG_TONES[number]['value']
 export const useKeepWhole = () => useState('upload-keep-whole', () => false)
 
 // Same limits the server applies (server/api/documents/index.post.ts), checked first so a person hears at once.
-export const UPLOAD_MAX_BYTES = 1_000_000
+export const UPLOAD_MAX_BYTES = 4_000_000
 // Audio becomes a recording: transcribed, and the transcript is the document (server/api/recordings). Same list as the server.
 export const AUDIO_UPLOAD = /\.(wav|mp3|m4a|ogg|oga|opus|webm|flac|aac)$/i
 export const AUDIO_MAX_BYTES = 64 * 1024 * 1024
 export function uploadProblem(f: File) {
   if (AUDIO_UPLOAD.test(f.name)) return f.size > AUDIO_MAX_BYTES ? `Too big: ${(f.size / 1e6).toFixed(1)} MB, recordings can be up to 64 MB.` : f.size ? null : 'Empty file.'
-  const bad = uploadNameProblem(f.name, 'Not a text, Word or audio file: use .md, .txt, .docx, or MP3, WAV, M4A, OGG, WebM or FLAC audio.')
+  const bad = uploadNameProblem(f.name, 'Not a text, Word or audio file: use .md, .txt, .fountain, .yarn, .ink, .csv, .tsv, .json, .docx, or MP3, WAV, M4A, OGG, WebM or FLAC audio.')
   if (bad) return bad
-  if (f.size > UPLOAD_MAX_BYTES) return `Too big: ${(f.size / 1e6).toFixed(1)} MB, the limit is 1 MB per file.`
+  if (f.size > UPLOAD_MAX_BYTES) return `Too big: ${(f.size / 1e6).toFixed(1)} MB, the limit is 4 MB per file.`
   if (!f.size) return 'Empty file.'
   return null
 }
