@@ -277,8 +277,9 @@ export function useDb() {
     // Checkpoints (copying the log into the database file, with fsyncs that took 0.1–0.8 s each on a real disk) run on a worker
     // thread with its own connection, not inside a request's commit; passive, so they never make a writer wait for them (on btrfs,
     // whose fsync holds the file's lock, a commit can still wait for one: see bulkWrite). The log is reused once a checkpoint has
-    // caught up, and cut back to 64 MB then.
-    conn.exec('pragma journal_mode = wal; pragma synchronous = normal; pragma wal_autocheckpoint = 0; pragma journal_size_limit = 67108864')
+    // caught up, and cut back to 64 MB then. The automatic checkpoint stays on at ~100 MB of log as a backstop: it only runs
+    // inside a commit if the worker has stopped (it normally keeps the log far below that).
+    conn.exec('pragma journal_mode = wal; pragma synchronous = normal; pragma wal_autocheckpoint = 25000; pragma journal_size_limit = 67108864')
     checkpointer ??= new Worker(`const { workerData: { file, lock } } = require('node:worker_threads')
       const db = new (require('node:sqlite').DatabaseSync)(file)
       setInterval(() => {
