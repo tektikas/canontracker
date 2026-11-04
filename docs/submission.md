@@ -2,7 +2,7 @@
 
 **Tagline:** Human-approved story canon, with evidence and change impact.
 
-Meta AI Developer Hackathon · Startup track · Submission draft (3 Nov 2026).
+Meta AI Developer Hackathon · Startup track · Submitted 4 Nov 2026.
 
 ## The problem
 
@@ -10,9 +10,9 @@ Story worlds grow across chapters, scripts, lore documents and recordings. A wri
 
 ## What it does
 
-CanonTracker imports Markdown, text, Word documents and audio into versioned sources. AI proposes facts with source quotes. A person reviews them before they become canon. Deterministic checks flag narrow contradictions in time, location, travel, relationships and single-valued details; AI separately suggests world-rule violations. Change proposals show paths through accepted canon, bounded to two hops, before a person applies or rejects them.
+CanonTracker is the canon tracker for story worlds, a working multi-user SaaS for game studios, writers' rooms, novelists and worldbuilders. Teams import lore, scripts (Fountain), game dialogue (Yarn, Ink), Word files, whole manuscripts (split into chapters automatically) and table-read recordings. AI proposes facts, each tied to the exact sentence it came from, and a person decides what becomes canon; no AI or agent can decide for them. Deterministic rules flag contradictions in time, place, travel, relationships, single-valued details and characters acting after their death; AI separately suggests world-rule violations. Every proposed change shows the scenes, quests, lore and episodes it touches, bounded to two hops through accepted canon, before a person applies or rejects it.
 
-The app includes studio roles, projects, an entity wiki, canon timelines and graphs, team conversations, research notes, draft continuity checks, citation re-checking after source changes, and Markdown, print/PDF and EPUB export. Editorial notes, images and wiki summaries stay separate from canon. Four samples support local evaluation, including public-domain Sherlock Holmes texts and an original game story, The Ashbell Pass.
+Canon then flows out: an entity wiki, timelines and a graph, team conversations, research notes, continuity checks on drafts, script-vs-recording checks, citation re-checks after source changes, Markdown, print/PDF and EPUB books, share links, and a 37-tool MCP server. Editorial notes, images and wiki summaries stay separate from canon. Six samples, including public-domain Sherlock Holmes, the Oz books and Alice, and an original game story, The Ashbell Pass; **Try the demo** opens three of them in one click without an account. The full list is [FEATURES.md](FEATURES.md).
 
 ## How it uses Meta
 
