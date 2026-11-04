@@ -2,7 +2,7 @@
 
 CanonTracker helps writers and narrative teams keep a story world consistent. Import lore, chapters, scripts or recordings; review AI-proposed facts with their source quotes; then check accepted canon for contradictions and inspect the 1–2 hop impact of a proposed change. People decide what becomes canon. It works for novels, games, screen stories and worldbuilding, solo or in a studio.
 
-Meta AI Developer Hackathon · Startup track. **Demo video:** [youtu.be/tb1EZ1d2VSk](https://youtu.be/tb1EZ1d2VSk) · **Live app:** `LIVE_URL` (filled at submission). Use the local quick start to try it now.
+Meta AI Developer Hackathon · Startup track. **Demo video:** [youtu.be/tb1EZ1d2VSk](https://youtu.be/tb1EZ1d2VSk) · **Live app:** [canontracker.trythis.work](https://canontracker.trythis.work) (no account needed: press **Try the demo**).
 
 ## What's in it
 
