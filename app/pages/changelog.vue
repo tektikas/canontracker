@@ -6,6 +6,13 @@ useMarketingSeo({ title: 'Changelog', description: 'What shipped in CanonTracker
 // One line per shipped change, newest first. 1 Nov had no commits.
 const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
   { date: '2026-11-04', label: 'Day 9 · 4 Nov 2026', entries: [
+    ['Upload new version', 'Send any file as the next version of a document from its page, whatever its name.'],
+    ['Revert and whitespace', 'Uploading an earlier draft again makes it the newest version; a save that only changes line endings or trailing spaces is not a new version.'],
+    ['Archive documents', 'Retired documents leave the Library, reading order and book exports; their history and the canon citing them stay. Unarchive any time.'],
+    ['More formats as text', 'Fountain, Yarn, Ink, CSV, TSV and JSON import as sources; a file without blank lines gets one passage per line. Up to 4 MB of text per file.'],
+    ['Screenplay cues', 'Script vs recording reads screenplay cues (a name on its own line, V.O. and CONT’D) and names in any case when the project knows them.'],
+    ['The medium, asked up front', 'A new project asks whether it is prose, screen or a game, with nothing preselected.'],
+    ['Natural order', 'Episode 2 comes before Episode 10 in folders, tags, entity lists and exports.'],
     ['Impact across every kind of document', 'A proposed change lists every document citing what it touches, grouped by kind: scenes, lore, quests, episodes, recordings. Exports and tasks follow.'],
     ['Acts after death', 'A new hard conflict: a character does something at a story time after canon says they died. Burials, mourning and memories don’t count.'],
     ['Review by document or folder', 'Narrow the Review queue to one document or one Library folder; the document page and Library link to it.'],
