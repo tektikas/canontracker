@@ -6,6 +6,11 @@ useMarketingSeo({ title: 'Changelog', description: 'What shipped in CanonTracker
 // One line per shipped change, newest first. 1 Nov had no commits.
 const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
   { date: '2026-11-04', label: 'Day 9 · 4 Nov 2026', entries: [
+    ['Whole books split into chapters', 'Upload a manuscript as one file: it becomes one document per chapter, in reading order, in a folder named after the book. Uploading it again versions only the chapters that changed.'],
+    ['Reading in the background', 'Uploads answer at once while the AI reads them, with live status in the Library, on the document and in Review.'],
+    ['Story or reference', 'The AI says whether a document is story or reference notes as it reads it; labels say Chapter or Scene by medium.'],
+    ['Reading-order timeline', 'Novels without story times get a timeline too: each fact in the chapter that tells it.'],
+    ['The Oz books and Alice', 'Two more public-domain samples, bringing the total to six.'],
     ['Canon decisions are human-only', 'Agents read canon, check facts and propose; a person decides in CanonTracker. Accepting, rejecting, changes, conflicts, citation re-checks and merges are no longer offered over MCP and are refused for every token. Full access now means editorial edits as you. 37 tools.'],
   ] },
   { date: '2026-11-03', label: 'Day 8 · 3 Nov 2026', entries: [
@@ -82,7 +87,7 @@ const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
           <li v-for="[title, text] in d.entries" :key="title"><b>{{ title }}</b><span>{{ text }}</span></li>
         </ul>
       </section>
-      <p class="src">Full history: <a :href="`${GITHUB}/commits/master`">commits on GitHub</a>.</p>
+      <p class="src">Full history: <a :href="`${GITHUB}/commits/master`">commits on GitHub</a>. What comes next: the <NuxtLink to="/roadmap">roadmap</NuxtLink>.</p>
     </div>
   </div>
 </template>

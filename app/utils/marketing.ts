@@ -244,9 +244,78 @@ export const USE_CASES: UseCase[] = [
   },
 ]
 
+export const AUDIENCES = { novelists: 'Novelists', screen: 'TV & film', games: 'Games', worldbuilders: 'Worldbuilders' } as const
+export interface RoadmapItem { title: string, text: string, for?: (keyof typeof AUDIENCES)[] }
+export interface RoadmapStage { id: 'shipped' | 'building' | 'next' | 'later', title: string, lead: string, items: RoadmapItem[] }
+
+/** /roadmap. Shipped items must be true today (AGENTS.md, /changelog); the rest is planned, with no dates. */
+export const ROADMAP: RoadmapStage[] = [
+  {
+    id: 'shipped',
+    title: 'Shipped recently',
+    lead: 'In CanonTracker today. Every change is on the changelog.',
+    items: [
+      { title: 'Upload a whole manuscript', text: 'One file of a book splits into chapters, in reading order, in a folder of its own. Upload it again and only the chapters you changed get a new version.', for: ['novelists'] },
+      { title: 'Reading in the background', text: 'An upload answers at once while the AI reads it, with live status in the Library, on the document and in Review, and a plain reason and Try again if a run fails.' },
+      { title: 'Story or reference, told apart', text: 'The AI says whether a document is story or reference notes as it reads, so a glossary filed as “chapter 12” is still sorted as lore.', for: ['novelists', 'worldbuilders'] },
+      { title: 'Canon decisions stay human', text: 'Connected agents read, check and propose. Accepting, rejecting, merging and deciding conflicts happen only in the app, by a person, whatever the agent’s token allows.' },
+      { title: 'Six samples to explore', text: 'Three original stories, one of them a game, and three public-domain classics: Sherlock Holmes, the Oz books and Alice.' },
+      { title: 'A timeline in reading order', text: 'A novel without clock times still gets a timeline: each fact sits in the chapter that tells it.', for: ['novelists'] },
+      { title: 'Same detail, two answers', text: 'Flags one character with two answers for a detail that can only have one, like a wound in the shoulder and in the leg, with both quotes.' },
+    ],
+  },
+  {
+    id: 'building',
+    title: 'Building now',
+    lead: 'In progress this week. Each item moves to the changelog when it ships.',
+    items: [
+      { title: 'A new version from any file name', text: 'Upload “ch3-final-v2.docx” and choose the document it replaces, instead of starting a new one.' },
+      { title: 'Archive documents', text: 'Put a retired document out of the way without losing its history or the canon that cites it.' },
+      { title: 'Revert to an earlier draft', text: 'Bring an earlier version back as the newest one; the versions in between stay readable.' },
+      { title: 'More formats as text', text: 'Fountain screenplays, Yarn and Ink dialogue, CSV and JSON files import as sources like any document.', for: ['screen', 'games', 'worldbuilders'] },
+      { title: 'Screenplay cues in script vs recording', text: 'A table read lines up with a script in screenplay format, not only “NAME: line” scripts.', for: ['screen', 'games'] },
+      { title: 'The medium, asked up front', text: 'A new project asks whether it is prose, a game or for the screen, so labels and entity types fit from the start.' },
+      { title: 'Episodes in natural order', text: 'Episode 2 comes before Episode 10 in the Library and in reading order.', for: ['screen', 'novelists'] },
+      { title: 'Impact across every kind of document', text: 'A proposed change shows what it touches in quests, lore and episodes, not just scenes.', for: ['games', 'screen', 'worldbuilders'] },
+      { title: 'Acts after death', text: 'A conflict for a character who speaks or acts after canon says they died.' },
+      { title: 'Review by document or folder', text: 'Work through the candidates from one chapter or one folder at a time.' },
+      { title: 'Open conflicts in exports', text: 'The exported story bible lists the conflicts still open, so readers see what isn’t settled.' },
+      { title: 'Entity type when adding a fact', text: 'Say whether a new name is a character, a place, an item or something else when you add a fact by hand.' },
+      { title: 'Big wiki pages for agents', text: 'Connected agents read a large character or place page in parts instead of hitting a size limit.' },
+    ],
+  },
+  {
+    id: 'next',
+    title: 'Next',
+    lead: 'Planned after the current work. Not built yet.',
+    items: [
+      { title: 'In-world calendars', text: 'Your world’s own months, eras and years, instead of numbered days.', for: ['worldbuilders', 'games', 'novelists'] },
+      { title: 'Project roles and secret canon', text: 'Give someone a role in one project only, and keep GM-only facts that share links never show.', for: ['games', 'worldbuilders'] },
+      { title: 'One fact, many sources', text: 'A fact told in three chapters cites all three, so cutting one scene doesn’t leave it unsupported.' },
+      { title: 'Change sets', text: 'One proposed change that touches many facts, like a renamed city or a moved date, with its impact shown as a whole.' },
+      { title: 'More imports', text: 'PDF, Final Draft (.fdx), an Obsidian vault and a zip of many files.', for: ['screen', 'worldbuilders', 'novelists'] },
+      { title: 'Localisation glossary', text: 'Every name, alias and term as CSV or JSON, ready for translators.', for: ['games', 'screen'] },
+      { title: 'Word export with tracked changes', text: 'Export to Word with tracked changes kept, for editors who work there.', for: ['novelists', 'screen'] },
+      { title: 'Names that change over time', text: 'Dated aliases and titles: the princess who is crowned in book two stays one person, with the right name for each moment.', for: ['novelists', 'worldbuilders'] },
+      { title: 'Who knows what, when', text: 'A rule that flags a character acting on something they haven’t learned yet.', for: ['novelists', 'screen', 'games'] },
+    ],
+  },
+  {
+    id: 'later',
+    title: 'Later',
+    lead: 'On the list, further out.',
+    items: [
+      { title: 'A series across projects', text: 'Canon that carries from book 1 to book 3, or from season 1 to season 2.', for: ['novelists', 'screen'] },
+      { title: 'Maps and places within places', text: 'Pins on your own map, and a district inside a city inside a kingdom.', for: ['worldbuilders', 'games'] },
+      { title: 'Assign review work', text: 'Hand a teammate a batch of candidates or conflicts and see what is left.', for: ['screen', 'games'] },
+      { title: 'A commenter role', text: 'Editors and beta readers comment on documents without changing text or canon.', for: ['novelists'] },
+    ],
+  },
+]
+
 export const MARKETING_PAGES = [
   '/features', ...PILLARS.map(p => `/features/${p.slug}`), ...USE_CASES.map(u => `/use-cases/${u.slug}`),
-  '/agents', '/security', '/pricing', '/changelog', '/about', '/pitch',
+  '/agents', '/security', '/pricing', '/changelog', '/roadmap', '/about', '/pitch',
 ]
 /** Public pages that render the same for everyone (the middleware lets them through without a project). Help too. */
 export const isMarketingPath = (path: string) => {
