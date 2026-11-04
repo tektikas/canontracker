@@ -15,7 +15,7 @@ export default defineEventHandler(() => {
     model: modelInfo(),
     data_model_id: dataModelIds(),
     // Documents, not versions: a new version of a scene is still one scene.
-    documents: count('select count(distinct filename) n from documents where project_id = ?'),
+    documents: count('select count(distinct filename) n from documents where project_id = ? and archived_at is null'), // archived ones are hidden from the Library
     scenes: count(`select count(*) n from documents d where project_id = ? and kind = 'scene'
       and version = (select max(version) from documents d2 where d2.project_id = d.project_id and d2.filename = d.filename)`),
     pending: count(`select count(*) n from facts where project_id = ? and status = 'pending'`),

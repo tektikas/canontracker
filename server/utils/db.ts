@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
 import type { RecheckState, StaleCitation } from './recheck'
 
 // Bump when the schema changes; a mismatched local demo DB is rebuilt (it holds demo data only).
-export const SCHEMA_VERSION = 15
+export const SCHEMA_VERSION = 16
 
 const SCHEMA = `
 -- Accounts. A studio is the company workspace; memberships carry the role (owner | admin | editor | viewer) for all its projects.
@@ -52,9 +52,10 @@ create table if not exists share_links (
 create table if not exists documents (
   id text primary key, title text not null, filename text not null, name text not null, kind text not null,
   sha256 text not null, version integer not null, content text not null, imported_at text not null,
-  project_id text not null references projects(id), origin text not null default 'import', created_by text, folder_id text,
-  unique (project_id, sha256)
+  project_id text not null references projects(id), origin text not null default 'import', created_by text, folder_id text
 );
+-- Not unique: a document reverted to an earlier draft holds that draft's text (and hash) again, as its next version.
+create index if not exists documents_sha on documents(project_id, sha256);
 -- Library organisation. Editorial labels on a document (by filename, so every version shares them); never part of its text
 -- or hash. title, kind and folder_id live on every version row of a filename and change together; a new version inherits them.
 -- Folders nest at most two levels (a folder's parent has no parent). color: a design-token name (accent | good | warn | bad | pencil).
@@ -260,7 +261,8 @@ export function useDb() {
     if (user_version >= 12 && user_version < SCHEMA_VERSION) {
       if (user_version === 12) migrate12(conn)
       if (user_version <= 13) migrate13(conn)
-      migrate14(conn)
+      if (user_version <= 14) migrate14(conn)
+      migrate15(conn)
     } else if (user_version !== SCHEMA_VERSION) {
       const tables = conn.prepare(`select name from sqlite_master where type = 'table'`).all() as { name: string }[]
       conn.exec('pragma foreign_keys = off')
@@ -282,7 +284,10 @@ export function useDb() {
       // facts.subject_type/object_type: what extraction said each name is (NAME_TYPES in model.ts); null = not said (Add fact, MCP, older runs).
       ['facts', 'subject_type', 'text'], ['facts', 'object_type', 'text'],
       // documents.kind_source: who set the kind (person | manuscript | ai | name, see importer.ts); null on older rows = guessed from the name.
-      ['documents', 'kind_source', 'text']] as const) {
+      ['documents', 'kind_source', 'text'],
+      // documents.archived_at/archived_by: hidden from the Library, reading order and book exports (set on every version row of a
+      // document); null = not archived. Canon citing an archived document stays canon.
+      ['documents', 'archived_at', 'text'], ['documents', 'archived_by', 'text']] as const) {
       if (!(conn.prepare(`pragma table_info(${table})`).all() as { name: string }[]).some(r => r.name === column))
         conn.exec(`alter table ${table} add column ${column} ${type}`)
     }
@@ -374,6 +379,31 @@ function migrate14(db: DatabaseSync) {
   }
 }
 
+// v15 → v16: documents lose unique (project_id, sha256), so a reverted draft can be a document's next version. SQLite cannot drop
+// a table constraint: the table is rebuilt from its own stored definition (with the columns added in place since) and the rows
+// copied as they are. Foreign keys are off for the swap; passages reference documents by name and find the new table.
+function migrate15(db: DatabaseSync) {
+  const def = (db.prepare(`select sql from sqlite_master where type = 'table' and name = 'documents'`).get() as { sql: string } | undefined)?.sql
+  const unique = /,\s*unique\s*\(\s*project_id\s*,\s*sha256\s*\)/i
+  db.exec('pragma foreign_keys = off')
+  db.exec('begin')
+  try {
+    if (def && unique.test(def)) {
+      db.exec(def.replace(unique, '').replace(/^create table\s+(?:if not exists\s+)?["`]?documents["`]?/i, 'create table documents_v16'))
+      db.exec('insert into documents_v16 select * from documents')
+      db.exec('drop table documents')
+      db.exec('alter table documents_v16 rename to documents')
+    }
+    db.exec('pragma user_version = 16')
+    db.exec('commit')
+  } catch (err) {
+    db.exec('rollback')
+    throw err
+  } finally {
+    db.exec('pragma foreign_keys = on')
+  }
+}
+
 export const newId = (prefix: string) => `${prefix}_${randomUUID().replaceAll('-', '').slice(0, 16)}`
 export const now = () => new Date().toISOString()
 
@@ -456,7 +486,7 @@ export interface Fact {
 
 export interface DocumentRow {
   id: string, title: string, filename: string, name: string, kind: string, sha256: string, version: number, content: string, imported_at: string
-  origin: string, created_by: string | null, folder_id: string | null, kind_source?: string | null
+  origin: string, created_by: string | null, folder_id: string | null, kind_source?: string | null, archived_at?: string | null
 }
 export interface PassageRow { id: string, document_id: string, ordinal: number, start_line: number, end_line: number, text: string, start_ms?: number | null, end_ms?: number | null, speaker?: string | null }
 export interface EvidenceRow {

@@ -1,6 +1,6 @@
 export interface DraftRow { id: string, filename: string | null, title: string, kind: string, content: string, user_id: string, created_at: string, updated_at: string, base_document_id: string | null }
 
-export const MAX_DRAFT = 1_000_000
+export const MAX_DRAFT = 4_000_000
 
 // Drafts are private to their author: anyone else, in this studio or another, gets a 404.
 export function getDraft(id: string) {
@@ -24,7 +24,7 @@ export function draftFields(body: Record<string, unknown>) {
   }
   if (body.content !== undefined) {
     out.content = String(body.content ?? '').replace(/\r\n?/g, '\n')
-    if (Buffer.byteLength(out.content) > MAX_DRAFT) throw createError({ statusCode: 413, statusMessage: 'TOO_LARGE', message: 'Documents can be up to 1 MB.' })
+    if (Buffer.byteLength(out.content) > MAX_DRAFT) throw createError({ statusCode: 413, statusMessage: 'TOO_LARGE', message: 'Documents can be up to 4 MB.' })
   }
   return out
 }

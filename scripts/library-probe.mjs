@@ -51,11 +51,11 @@ check('demo has 13 documents', demoDocs.length, 13)
 // 1. Upload many at once, with the refusals a person can hit.
 const folder = (await a('/api/library/folders', { method: 'POST', body: { name: 'Notes' } })).data
 const many = [1, 2, 3, 4, 5].map(i => [`note-${i}.md`, `# Note ${i}\n\nThe tide turns on day ${i}.\n\nKeeper ${i} lights the lamp.`])
-const big = 'x'.repeat(1_000_001)
+const big = 'x'.repeat(4_000_001)
 const up = (await a('/api/documents', { method: 'POST', form: filesForm([...many, ['cover.pdf', '%PDF'], ['huge.md', big], ['empty.md', '\n\n']], folder.id) })).data.results
 check('five files import in one request', up.filter(r => r.status === 'imported').length, 5)
-check('a .pdf is refused with a plain reason', up.find(r => r.filename === 'cover.pdf').error, 'Not a supported file: use .md, .txt or .docx.')
-check('a file over 1 MB is refused', up.find(r => r.filename === 'huge.md').error, 'Too big: the limit is 1 MB per file.')
+check('a .pdf is refused with a plain reason', up.find(r => r.filename === 'cover.pdf').error, 'Not a supported file: use .md, .txt, .fountain, .yarn, .ink, .csv, .tsv, .json or .docx.')
+check('a file over 4 MB is refused', up.find(r => r.filename === 'huge.md').error, 'Too big: the limit is 4 MB per file.')
 check('an empty file is refused', up.find(r => r.filename === 'empty.md').status, 'error')
 let docs = (await a('/api/documents')).data
 check('uploaded files land in the chosen folder', docs.filter(d => d.filename.startsWith('note-')).every(d => d.folder_id === folder.id), true)
@@ -332,4 +332,85 @@ const whole = (await a('/api/documents', { method: 'POST', form: filesForm([['la
 check('keep_whole imports the book as one document', [whole.status, whole.version], ['imported', 1])
 check('a book upload is audited', (await a('/api/audit')).data.some(e => e.event_type === 'manuscript.split' && e.detail?.book === 'The Lamp Keeper'), true)
 check('a person can set a split chapter’s kind', (await a('/api/library/organise', { method: 'POST', body: { document_ids: [book1.parts[1].document_id], kind: 'lore' } })).status, 200)
+
+// 11. Versions compare with the document's own latest version: going back to an earlier draft is a new version, line endings and
+// trailing spaces alone are unchanged. "Upload new version" takes any file name. Archive hides, never deletes. Text formats.
+{
+  const df = (await a('/api/library/folders', { method: 'POST', body: { name: `Drafts ${run}` } })).data
+  const d1 = '# Draft\n\nThe lamp is red.\n\nThe bell rings twice.\n'
+  const d2 = '# Draft\n\nThe lamp is green.\n\nThe bell rings twice.\n'
+  const r1 = await upTo0('draft.md', d1, df.id)
+  const r2 = await upTo0('draft.md', d2, df.id)
+  check('draft v1, v2', [r1.version, r2.version], [1, 2])
+  const back = await upTo0('draft.md', d1, df.id)
+  check('reverting to the v1 text is v3, not skipped', [back.status, back.version], ['imported', 3])
+  check('v3 holds exactly the v1 text and hash', [(await a(`/api/documents/${back.document_id}`)).data.sha256], [(await a(`/api/documents/${r1.document_id}`)).data.sha256])
+  const crlf = await upTo0('draft.md', `${d1.replace(/\n/g, '\r\n').replace('red.', 'red.   ')}\r\n\r\n`, df.id)
+  check('CRLF and trailing spaces only: unchanged, names the latest', [crlf.status, crlf.same_as?.version], ['duplicate', 3])
+  check('a new file holding another document’s text is still skipped', (await upTo0('copy-of-draft.md', d2, df.id)).status, 'duplicate')
+  // Written in the app: a save that only changes line endings or trailing spaces is unchanged too.
+  const draft = (await a('/api/drafts', { method: 'POST', body: { document_id: back.document_id, content: `${d1.replace('twice.', 'twice.  ')}\n\n` } })).data
+  const saved = await a(`/api/drafts/${draft.id}/save`, { method: 'POST' })
+  check('a whitespace-only save is unchanged', [saved.status, saved.data.status, saved.data.version], [200, 'unchanged', 3])
+
+  // Upload new version: a file with any name becomes the next version of the document it is sent to (name and folder stay).
+  const nvForm = filesForm([['draft-BLUE-rev.txt', d2.replace('twice', 'three times')]])
+  nvForm.append('document_id', back.document_id)
+  const nv = (await a('/api/documents', { method: 'POST', form: nvForm })).data.results[0]
+  check('upload new version: another file name becomes v4', [nv.status, nv.version, nv.filename, nv.as], ['imported', 4, 'draft-BLUE-rev.txt', 'draft.md'])
+  check('it stays in the document’s folder', (await a(`/api/documents/${nv.document_id}`)).data.folder?.id, df.id)
+  check('no document is named after the uploaded file', (await a('/api/documents')).data.some(d => d.name === 'draft-BLUE-rev.txt'), false)
+  const same = filesForm([['other-name.md', d2.replace('twice', 'three times')]])
+  same.append('document_id', back.document_id)
+  check('the same text again is skipped', (await a('/api/documents', { method: 'POST', form: same })).data.results[0].status, 'duplicate')
+  const two = filesForm([['a.md', 'One two three four.'], ['b.md', 'Five six seven eight.']])
+  two.append('document_id', back.document_id)
+  check('upload new version takes one file', (await a('/api/documents', { method: 'POST', form: two })).status, 400)
+  const foreign = filesForm([['x.md', 'Nine ten eleven twelve.']])
+  foreign.append('document_id', 'doc_nope')
+  check('an unknown document is 404', (await a('/api/documents', { method: 'POST', form: foreign })).status, 404)
+
+  // Archive: hidden from the Library list, reading order and the manuscript; canon citing it stays canon; audited both ways.
+  const s04Title = (await a(`/api/documents/${s04v2.document_id}`)).data.title
+  const manuscript = async () => (await a('/api/export/bible?book=manuscript&format=json')).data.chapters.map(c => c.title)
+  check('S04 is in the manuscript', (await manuscript()).includes(s04Title), true)
+  check('viewer: archive 403', (await v('/api/library/organise', { method: 'POST', body: { document_ids: [s04.id], archived: true } })).status, 403)
+  check('archived must be a boolean', (await a('/api/library/organise', { method: 'POST', body: { document_ids: [s04.id], archived: 'yes' } })).status, 400)
+  check('archive S04', (await a('/api/library/organise', { method: 'POST', body: { document_ids: [s04.id], archived: true } })).status, 200)
+  check('the Library list hides it', (await a('/api/documents')).data.some(d => d.filename === 'S04.md'), false)
+  const arch = (await a('/api/documents?archived=1')).data.find(d => d.filename === 'S04.md')
+  check('the Archived filter shows it, at its latest version', [!!arch?.archived_at, arch?.version], [true, 2])
+  check('the manuscript leaves it out', (await manuscript()).includes(s04Title), false)
+  const kept = (await a('/api/facts?status=canon')).data.find(f => f.id === cand.id)
+  check('canon citing it stays canon with its citation', [kept?.status, kept?.evidence[0].document_id], ['canon', s04.id])
+  check('its page still opens and says archived', !!(await a(`/api/documents/${s04v2.document_id}`)).data.archived_at, true)
+  check('unarchive S04', (await a('/api/library/organise', { method: 'POST', body: { document_ids: [s04v2.document_id], archived: false } })).status, 200)
+  check('back in the list and the manuscript', [(await a('/api/documents')).data.some(d => d.filename === 'S04.md'), (await manuscript()).includes(s04Title)], [true, true])
+  const trail = (await a('/api/audit')).data.filter(e => ['document.archived', 'document.unarchived'].includes(e.event_type) && e.detail?.filename === 'S04.md').map(e => e.event_type)
+  check('both directions are audited', trail.sort(), ['document.archived', 'document.unarchived'])
+  // A new version of an archived document brings it back.
+  await a('/api/library/organise', { method: 'POST', body: { document_ids: [nv.document_id], archived: true } })
+  const v5 = await upTo0('draft.md', `${d2}\nA last line.\n`, df.id)
+  check('a new version of an archived document unarchives it', [v5.version, (await a('/api/documents')).data.some(d => d.id === v5.document_id)], [5, true])
+
+  // Text formats: Fountain, Yarn, ink, CSV, TSV, JSON are imported as plain text. A file with no blank lines is one passage per line.
+  const formats = [
+    ['pilot.fountain', 'INT. LIGHTHOUSE - NIGHT\n\nMARA\nSomebody let the lamp go out.\n'],
+    ['quest.yarn', 'title: Start\n---\nHarl: Ring the bell twice.\n===\n'],
+    ['story.ink', '=== start ===\nThe bell rings at dusk.\n-> END\n'],
+    ['barks.csv', 'id,speaker,line\nb1,Harl,The bell rings twice at dusk.\nb2,Harl,Nobody crosses after dark.\nb3,Odo,The lamp burns red tonight.\n'],
+    ['barks.tsv', 'id\tline\nt1\tThe pass closes at night.\n'],
+    ['dlg.json', '{\n  "id": "d1",\n  "line": "The gate stays shut."\n}\n'],
+  ]
+  const fr = (await a('/api/documents', { method: 'POST', form: filesForm(formats, df.id) })).data.results
+  check('every text format imports', fr.map(r => [r.filename, r.status]), formats.map(([n]) => [n, 'imported']))
+  const csv = (await a(`/api/documents/${fr[3].document_id}`)).data
+  check('a CSV is one passage per line', csv.passages.map(p => [p.start_line, p.text]), [[1, 'id,speaker,line'], [2, 'b1,Harl,The bell rings twice at dusk.'], [3, 'b2,Harl,Nobody crosses after dark.'], [4, 'b3,Odo,The lamp burns red tonight.']])
+  check('a file with blank lines keeps its paragraphs', (await a(`/api/documents/${fr[0].document_id}`)).data.passages.map(p => p.text), ['INT. LIGHTHOUSE - NIGHT', 'MARA\nSomebody let the lamp go out.'])
+  const q = await a('/api/facts', { method: 'POST', body: { to: 'review', document_id: csv.id, passage_id: csv.passages[2].id, quote: 'Nobody crosses after dark', kind: 'event', subject: 'Harl', predicate: 'says', statement: 'Harl says nobody crosses after dark.' } })
+  const qf = (await a('/api/facts?status=pending')).data.find(f => f.id === q.data.id)
+  check('a quote cites its own CSV row', [q.status, qf?.evidence[0].passage_id], [200, csv.passages[2].id])
+  const bigUp = (await a('/api/documents', { method: 'POST', form: filesForm([['big-wiki.txt', `${'word '.repeat(790_000)}\n`]], df.id, true) })).data.results[0]
+  check('a 4 MB text file is accepted', bigUp.status, 'imported')
+}
 console.log('\nlibrary probe: all checks passed')

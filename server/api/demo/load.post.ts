@@ -59,6 +59,8 @@ export default defineEventHandler(async (event) => {
       .sort((a, b) => Number(/^S\d/.test(a)) - Number(/^S\d/.test(b)) || a.localeCompare(b))
     const manifest = await assets.getItem<Manifest>(`${set}:manifest.json`)
     const entities = await assets.getItem<SampleEntity[]>(`${set}:entities.json`)
+    // Every sample sets its medium: its manifest's, else game (Broken Tide, Lantern Row), whatever the project was made as.
+    tx(() => sampleMedium(manifest?.medium ?? 'game'))
     const shelf = manifest ? organise(manifest, entities ?? []) : null
     const texts: [string, string][] = []
     for (const filename of files) {
@@ -96,7 +98,15 @@ export default defineEventHandler(async (event) => {
   }
 })
 
-// A sample with a manifest gets its medium (game unless the manifest names one): its folders, tags and wiki pages are written before the imports, and each imported
+function sampleMedium(medium: string) {
+  const db = useDb()
+  const p = db.prepare('select medium from projects where id = ?').get(pid()) as { medium: string }
+  if (p.medium === medium) return
+  db.prepare(`update projects set medium = ? where id = ?`).run(medium, pid())
+  retypeForMedium(pid()) // the project is empty after the reset, so its untouched default types become the sample's medium's
+}
+
+// A sample with a manifest: its folders, tags and wiki pages are written before the imports, and each imported
 // document then gets its folder (passed to the import), kind and tags. All editorial labels, never part of a text or its hash.
 function organise(manifest: Manifest, entities: SampleEntity[]) {
   const db = useDb()
@@ -104,12 +114,6 @@ function organise(manifest: Manifest, entities: SampleEntity[]) {
   const folders = new Map<string, string>()
   const tags = new Map<string, string>()
   tx(() => {
-    const p = db.prepare('select medium from projects where id = ?').get(pid()) as { medium: string }
-    const medium = manifest.medium ?? 'game'
-    if (p.medium !== medium) {
-      db.prepare(`update projects set medium = ? where id = ?`).run(medium, pid())
-      retypeForMedium(pid()) // the project is empty after the reset, so its untouched default types become the game ones
-    }
     const folder = db.prepare('insert into folders (id, name, parent_id, created_by, created_at, project_id) values (?, ?, ?, ?, ?, ?)')
     for (const path of new Set(Object.values(manifest.docs).map(d => d.folder))) {
       let parent: string | null = null

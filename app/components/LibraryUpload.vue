@@ -155,7 +155,7 @@ const clear = () => { items.value = items.value.filter(i => i.state === 'queued'
       <div class="drop-card">
         <UiIcon name="upload" :size="28" />
         <b>Drop to add {{ folder ? `to ${folder.label}` : 'to the Library' }}</b>
-        <span>Markdown, plain text or Word (.docx) up to 1 MB, or audio up to 30 minutes (transcribed into a read-only transcript). A file with the same name as one {{ folder ? `in ${folder.label}` : 'in the Library root' }} becomes its next version.</span>
+        <span>Markdown, plain text, Fountain, Yarn, ink, CSV, TSV, JSON or Word (.docx) up to 4 MB, or audio up to 30 minutes (transcribed into a read-only transcript). A file with the same name as one {{ folder ? `in ${folder.label}` : 'in the Library root' }} becomes its next version.</span>
       </div>
     </div>
   </Teleport>

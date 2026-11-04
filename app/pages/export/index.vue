@@ -35,7 +35,7 @@ const folders = computed(() => {
     const p = f.parent_id && all.find(x => x.id === f.parent_id)
     return p ? `${p.name} / ${f.name}` : f.name
   }
-  return all.map(f => ({ id: f.id, label: name(f) })).sort((a, b) => a.label.localeCompare(b.label))
+  return all.map(f => ({ id: f.id, label: name(f) })).sort((a, b) => a.label.localeCompare(b.label, 'en', { numeric: true }))
 })
 const missing = computed(() => (!manuscript.value && !sections.value.length ? 'Pick at least one section.'
   : scope.value === 'entities' && !picked.value.length ? 'Pick at least one entity.'
@@ -76,7 +76,7 @@ const entityFilter = ref('')
 const entityList = computed(() => {
   const s = entityFilter.value.trim().toLowerCase()
   return (entities.value ?? []).filter(e => !s || e.names.some(n => n.toLowerCase().includes(s)))
-    .sort((a, b) => b.facts - a.facts || a.name.localeCompare(b.name))
+    .sort((a, b) => b.facts - a.facts || a.name.localeCompare(b.name, 'en', { numeric: true }))
 })
 const togglePick = (id: string) => { picked.value = picked.value.includes(id) ? picked.value.filter(x => x !== id) : [...picked.value, id] }
 const toggleSection = (k: BibleSection) => { sections.value = sections.value.includes(k) ? sections.value.filter(x => x !== k) : [...sections.value, k] }

@@ -5,7 +5,7 @@
 // uploader; v2 with one changed sentence flags only the fact citing it; zip bombs, too many parts, encrypted, macro-enabled,
 // old .doc, wrong MIME and damaged files are refused with 415/422 and nothing is stored; so are invalid or undeclared XML
 // entities, a DOCTYPE, duplicate zip entries, a local header that disagrees with the central directory (for any entry, read or
-// not), a wrong checksum, more than 1,000 comment ranges open at once and more than 1 MB of converted text. Comment ranges
+// not), a wrong checksum, more than 1,000 comment ranges open at once and more than 4 MB of converted text. Comment ranges
 // cost linear time: 10,000 ranges import in under 200 ms, 1,000 comments (also across bold marks) in under 3 s.
 // The original is written before the import commits: with the project's originals folder read-only, the upload fails, stores
 // nothing, and the retry imports (needs the server's cwd to reach .data/originals).
@@ -264,7 +264,7 @@ const [folded, ms3] = await timed('folded.docx', withDoc(`<w:document ${NS}><w:b
 console.log(`    1,000 comments across bold marks: ${ms3} ms`)
 const foldedNote = (await a(`/api/documents/${folded.document_id}`)).data.notes[0]
 check('…import in < 3 s, pinned to the words with their marks', [folded.status, folded.word_notes, ms3 < 3000, foldedNote?.quote.startsWith('**y** z **y** z')], ['imported', 1000, true, true])
-await refused('more than 1 MB of converted text refused', 'long.docx', withDoc(one('a'.repeat(1_100_000))), 422)
+await refused('more than 4 MB of converted text refused', 'long.docx', withDoc(one('a'.repeat(4_100_000))), 422)
 const ok = await up('entities.docx', withDoc(one('Salt &amp; rope &#x2014; Mira&#8217;s &lt;lamp&gt; &quot;lit&quot;')))
 check('valid built-in and numeric references still import', [ok.status, (await a(`/api/documents/${ok.document_id}`)).data.content], ['imported', 'Salt & rope — Mira’s <lamp> "lit"\n'])
 

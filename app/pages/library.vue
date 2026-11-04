@@ -8,7 +8,10 @@ const { docKind, kinds: kindOptions } = useDocKinds()
 const keepWhole = useKeepWhole()
 const route = useRoute()
 const router = useRouter()
-const { data: docs, refresh: refreshDocs } = await useFetch('/api/documents', { key: 'library-docs', default: () => [] })
+// Archived documents come too (?archived=1): hidden from every count and list unless the Archived filter is on.
+const { data: allDocs, refresh: refreshDocs } = await useFetch('/api/documents', { key: 'library-docs', query: { archived: '1' }, default: () => [] })
+const docs = computed(() => allDocs.value.filter(d => !d.archived_at))
+const archivedDocs = computed(() => allDocs.value.filter(d => d.archived_at))
 const { data: lib, refresh: refreshLib } = await useFetch('/api/library', { default: () => ({ folders: [], tags: [], colors: [], kinds: [] }) })
 const { data: stats } = await useFetch('/api/stats', { key: 'stats' })
 const refreshAll = () => Promise.all([refreshDocs(), refreshLib(), refreshNuxtData('stats')])
@@ -24,6 +27,7 @@ const folderSel = param('folder') // '' all · 'none' unfiled · folder id (incl
 const tagSel = param('tag')
 const kindSel = param('kind')
 const staleOnly = computed({ get: () => route.query.stale === '1', set: v => router.replace({ query: { ...route.query, stale: v ? '1' : undefined } }) })
+const archivedOnly = computed({ get: () => route.query.archived === '1', set: v => router.replace({ query: { ...route.query, archived: v ? '1' : undefined } }) })
 const q = ref(typeof route.query.q === 'string' ? route.query.q : '')
 watch(q, v => router.replace({ query: { ...route.query, q: v.trim() || undefined } }))
 type SortKey = 'title' | 'updated' | 'citations' | 'stale'
@@ -56,7 +60,7 @@ const tagCount = (id: string) => docs.value.filter(d => d.tags.includes(id)).len
 type Doc = typeof docs.value[number]
 const shown = computed(() => {
   const s = q.value.trim().toLowerCase()
-  const list = docs.value.filter(d =>
+  const list = (archivedOnly.value ? archivedDocs : docs).value.filter(d =>
     (!folderSel.value || (folderSel.value === 'none' ? !d.folder_id : inFolder(d.folder_id, folderSel.value)))
     && (!tagSel.value || d.tags.includes(tagSel.value))
     && (!kindSel.value || d.kind === kindSel.value)
@@ -70,7 +74,7 @@ const shown = computed(() => {
   const byTitle = (a: Doc, b: Doc) => byReadingOrder({ folder: null, title: a.title, filename: a.filename }, { folder: null, title: b.title, filename: b.filename })
   return [...list].sort((a, b) => (sortKey.value === 'title' ? byTitle(a, b) : k(a) < k(b) ? -1 : k(a) > k(b) ? 1 : byTitle(a, b)) * (desc.value ? -1 : 1))
 })
-const filtered = computed(() => !!(folderSel.value || tagSel.value || kindSel.value || staleOnly.value || q.value.trim()))
+const filtered = computed(() => !!(folderSel.value || tagSel.value || kindSel.value || staleOnly.value || archivedOnly.value || q.value.trim()))
 function clearFilters() {
   q.value = ''
   router.replace({ query: { sort: route.query.sort, dir: route.query.dir } })
@@ -81,7 +85,7 @@ const viewTitle = computed(() => folderSel.value === 'none' ? 'Library root' : c
 
 // Selection and bulk actions.
 const selected = ref<Set<string>>(new Set())
-watch(docs, () => { selected.value = new Set([...selected.value].filter(id => docs.value.some(d => d.id === id))) })
+watch([docs, archivedOnly], () => { selected.value = new Set([...selected.value].filter(id => shown.value.some(d => d.id === id))) })
 const allShown = computed(() => shown.value.length > 0 && shown.value.every(d => selected.value.has(d.id)))
 function toggle(id: string) {
   const s = new Set(selected.value)
@@ -91,7 +95,7 @@ function toggle(id: string) {
 function toggleAll() {
   selected.value = allShown.value ? new Set() : new Set(shown.value.map(d => d.id))
 }
-const selDocs = computed(() => docs.value.filter(d => selected.value.has(d.id)))
+const selDocs = computed(() => allDocs.value.filter(d => selected.value.has(d.id)))
 const status = ref('')
 const actionError = ref('')
 const working = ref(false)
@@ -115,6 +119,9 @@ const tagState = (id: string) => {
   const n = selDocs.value.filter(d => d.tags.includes(id)).length
   return n === 0 ? 'none' : n === selDocs.value.length ? 'all' : 'some'
 }
+// Archive hides documents from the Library, reading order and book exports; nothing is deleted and canon citing them stays.
+const setArchived = (on: boolean, ids = [...selected.value]) => organise({ archived: on },
+  on ? `Archived ${nDocs(ids.length)}. Find ${ids.length === 1 ? 'it' : 'them'} under Archived.` : `Brought back ${nDocs(ids.length)}.`, ids)
 const toggleTag = (id: string) => tagState(id) === 'all'
   ? organise({ remove_tags: [id] }, `Removed “${tagById.value.get(id)?.name}” from ${nDocs()}.`)
   : organise({ add_tags: [id] }, `Tagged ${nDocs()} “${tagById.value.get(id)?.name}”.`)
@@ -326,6 +333,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
             <option v-for="t in tags" :key="t.id" :value="t.id">{{ t.name }}</option>
           </select>
           <label class="check"><input v-model="staleOnly" type="checkbox">To re-check only</label>
+          <label v-if="archivedDocs.length || archivedOnly" class="check" title="Archived documents are hidden from the Library, reading order and book exports. Canon citing them stays canon."><input v-model="archivedOnly" type="checkbox">Archived ({{ archivedDocs.length }})</label>
         </div>
 
         <div v-if="editor && selected.size" class="selbar" role="region" aria-label="Selected documents">
@@ -357,14 +365,16 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
               <button v-for="k in kindOptions" :key="k.value" type="button" class="menu-item" @click="close(); setKind(k.value)"><UiIcon :name="k.icon" :size="16" />{{ k.label }}</button>
             </template>
           </UiMenu>
+          <UiButton v-if="archivedOnly" size="sm" icon="archive" @click="setArchived(false)">Unarchive</UiButton>
+          <UiButton v-else size="sm" icon="archive" @click="setArchived(true)">Archive</UiButton>
           <UiButton size="sm" variant="ghost" @click="selected = new Set()">Clear</UiButton>
           <span v-if="working" class="spinner" aria-label="Saving" />
         </div>
         <p v-if="status && !actionError" class="small status-line" role="status"><UiIcon name="check" :size="14" />{{ status }}</p>
         <p v-if="actionError" class="field-error status-line" role="alert">{{ actionError }}</p>
 
-        <UiEmptyState v-if="!docs.length" icon="upload" :title="editor ? 'Drop your lore here' : 'No sources yet'">
-          <template v-if="editor">Drag Markdown, text or Word (.docx) files anywhere on this page, or pick them. A file with a name you already have becomes its next version.</template>
+        <UiEmptyState v-if="!allDocs.length" icon="upload" :title="editor ? 'Drop your lore here' : 'No sources yet'">
+          <template v-if="editor">Drag Markdown, text, screenplay (.fountain), dialogue (.yarn, .ink), CSV or Word (.docx) files anywhere on this page, or pick them. A file with a name you already have becomes its next version.</template>
           <template v-else>An editor on your team adds lore and scenes. They show up here as soon as they do.</template>
           <template v-if="editor" #actions>
             <label class="keep-whole small" title="A whole book in one file is split into one document per chapter unless this is ticked."><input v-model="keepWhole" type="checkbox"> Keep a book as one document</label>
@@ -403,6 +413,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                   </div>
                   <div class="sub-line">
                     <span class="mono faint">{{ d.name }}</span>
+                    <UiBadge v-if="d.archived_at" tone="pencil">Archived</UiBadge>
                     <span v-if="d.origin === 'written'" class="small faint">· latest saved here</span>
                     <span v-else-if="/\.docx$/i.test(d.name)" class="small faint">· converted from Word</span>
                     <NuxtLink v-if="d.pending_facts" :to="`/review?doc=${d.id}`" class="small" data-test="review-doc">· Review {{ d.pending_facts }} from this document</NuxtLink>
@@ -435,6 +446,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
                       <NuxtLink :to="`/documents/${d.id}/history`" class="menu-item"><UiIcon name="history" :size="16" />History{{ d.version > 1 ? ` (${d.version} versions)` : '' }}</NuxtLink>
                       <NuxtLink :to="`/write?doc=${d.id}`" class="menu-item"><UiIcon name="review" :size="16" />Edit text</NuxtLink>
                       <button type="button" class="menu-item" @click="close(); startRename(d)"><UiIcon name="review" :size="16" />Rename</button>
+                      <button type="button" class="menu-item" @click="close(); setArchived(!d.archived_at, [d.id])"><UiIcon name="archive" :size="16" />{{ d.archived_at ? 'Unarchive' : 'Archive' }}</button>
                       <p class="menu-label">Tags</p>
                       <button v-for="t in tags" :key="t.id" type="button" class="menu-item" :title="t.name" role="menuitemcheckbox" :aria-checked="d.tags.includes(t.id)" @click="organise(d.tags.includes(t.id) ? { remove_tags: [t.id] } : { add_tags: [t.id] }, `${d.tags.includes(t.id) ? 'Removed' : 'Added'} “${t.name}” ${d.tags.includes(t.id) ? 'from' : 'to'} “${d.title}”.`, [d.id])">
                         <UiIcon :name="d.tags.includes(t.id) ? 'checked' : 'square'" :size="16" /><span class="swatch" :class="t.color" />{{ t.name }}
@@ -447,7 +459,7 @@ const pickTag = (id: string) => { tagSel.value = tagSel.value === id ? '' : id }
             </tbody>
           </table>
         </div>
-        <p v-if="editor && docs.length" class="drop-hint small faint hide-sm"><UiIcon name="upload" :size="14" />Drop .md, .txt or .docx files anywhere on this page{{ currentFolder ? ` to add them to ${currentFolder.label}` : '' }}.</p>
+        <p v-if="editor && docs.length" class="drop-hint small faint hide-sm"><UiIcon name="upload" :size="14" />Drop text, Word or audio files anywhere on this page{{ currentFolder ? ` to add them to ${currentFolder.label}` : '' }}.</p>
       </section>
     </div>
   </div>

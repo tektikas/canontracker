@@ -20,6 +20,7 @@ const HINTS: Record<keyof typeof SAMPLES, string> = {
 }
 const startWith = ref<keyof typeof SAMPLES>('empty')
 watch(startWith, (v, old) => { if (!newName.value.trim() || newName.value === SAMPLES[old]) newName.value = SAMPLES[v] })
+const newMedium = ref('')
 const createBusy = ref(false)
 const createError = ref('')
 const createInput = ref<HTMLInputElement>()
@@ -35,10 +36,15 @@ async function create() {
     createError.value = 'Name the project.'
     return
   }
+  // A sample sets its own medium; an empty project is asked.
+  if (startWith.value === 'empty' && !newMedium.value) {
+    createError.value = 'Pick the medium: a novel or prose, a film or series, or a game.'
+    return
+  }
   createBusy.value = true
   try {
     // Creating opens the new project, like switching to it.
-    await $fetch('/api/projects', { method: 'POST', body: { name: newName.value, studio_id: data.value?.studio.id } })
+    await $fetch('/api/projects', { method: 'POST', body: { name: newName.value, studio_id: data.value?.studio.id, ...(startWith.value === 'empty' && { medium: newMedium.value }) } })
     if (startWith.value !== 'empty') await $fetch('/api/demo/load', { method: 'POST', body: { set: startWith.value } })
     reloadNuxtApp({ path: '/', force: true })
   } catch (e) {
@@ -84,6 +90,7 @@ const ago = (iso: string | null) => {
             <option value="alice">Alice, Carroll’s two books (24 sources)</option>
           </select>
         </UiField>
+        <MediumPicker v-if="startWith === 'empty'" v-model="newMedium" />
         <div class="row">
           <UiButton type="submit" variant="primary" :loading="createBusy">{{ createBusy && startWith !== 'empty' ? 'Loading sources…' : 'Create and open' }}</UiButton>
           <UiButton variant="ghost" @click="creating = false">Cancel</UiButton>

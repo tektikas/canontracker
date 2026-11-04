@@ -244,7 +244,7 @@ const next = computed(() => {
         </div>
         <div class="source-option">
           <h3>Your files</h3>
-          <p>Markdown, plain text or Word (.docx), up to 1 MB each. Files are stored as they are and never edited. The AI then proposes candidate facts into Review; nothing becomes canon until a person accepts it. An unchanged file is skipped; a changed one becomes a new version.</p>
+          <p>Markdown, plain text, Fountain, Yarn, ink, CSV, TSV, JSON or Word (.docx), up to 4 MB each. Files are stored as they are and never edited. The AI then proposes candidate facts into Review; nothing becomes canon until a person accepts it. An unchanged file is skipped; a changed one becomes a new version.</p>
           <UiButton icon="upload" :disabled="!!busy" @click="uploader?.pick()">Import files</UiButton>
           <p class="small faint">Or drop files anywhere on this page.</p>
         </div>

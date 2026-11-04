@@ -645,9 +645,16 @@ const tag = await yes(F, 'sb_library', { action: 'tag_create', name: `ferry-${ru
 await yes(F, 'sb_library', { action: 'tag_update', tag_id: tag.id, color: 'warn' })
 await yes(F, 'sb_library', { action: 'organise', documents: [imported.filename], folder_id: fld.id, add_tags: [tag.id], kind: 'scene' })
 await no(F, 'sb_library', { action: 'organise', documents: [imported.filename] }, 'BAD_INPUT', 'organise nothing')
+// Archive (full): hidden from the document list (flagged in sb_list_documents), then back.
+await levelRefusal('sb_library', { action: 'organise', documents: [imported.filename], archived: true })
+await yes(F, 'sb_library', { action: 'organise', documents: [imported.filename], archived: true })
+assert.equal((await ada('/api/documents')).data.some(d => d.id === imported.document_id), false, 'archived: not in the list')
+assert.equal((await yes(P, 'sb_list_documents', { query: imported.filename.replace(/\.md$/, '') })).documents.find(d => d.file === imported.filename)?.archived, true)
+await yes(F, 'sb_library', { action: 'organise', documents: [imported.filename], archived: false })
+assert.equal((await ada('/api/documents')).data.some(d => d.filename === imported.filename), true, 'unarchived: back in the list')
 await yes(F, 'sb_library', { action: 'tag_delete', tag_id: tag.id })
 await yes(F, 'sb_library', { action: 'folder_delete', folder_id: fld.id })
-ok('sb_library: folders, tags, organise (full)')
+ok('sb_library: folders, tags, organise, archive / unarchive (full)')
 
 // --- sb_images
 const odoId = odo.data.id

@@ -100,7 +100,7 @@ export const PILLARS: Pillar[] = [
     sections: [
       {
         title: 'Import Markdown, text and Word',
-        text: 'Drop .md, .txt or .docx files anywhere in the Library. Word files keep headings, lists, tables and footnotes; tracked changes are read as accepted, and Word comments become notes pinned to the words they were on. The original Word file is kept for download.',
+        text: 'Drop .md, .txt, .fountain, .yarn, .ink, .csv, .tsv, .json or .docx files anywhere in the Library. Word files keep headings, lists, tables and footnotes; tracked changes are read as accepted, and Word comments become notes pinned to the words they were on. The original Word file is kept for download.',
         points: ['Same filename is a new version, same text is skipped', 'Folders, tags and kinds to keep a large Library in order', 'A version diff shows which canon facts cite changed passages'],
         shot: { name: 'library', alt: 'The Library of The Ashbell Pass with folders, kinds and tags.' },
       },
