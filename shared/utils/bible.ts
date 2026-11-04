@@ -63,6 +63,9 @@ export const citeLine = (c: BibleCitation) => [`${c.document} (${[c.folder, c.fi
 
 // The manuscript: the project's source documents, latest versions only, in reading order (folder, then title with numbers in order).
 export type BibleBook = 'bible' | 'manuscript'
+// The manuscript's order, also the timeline's Reading order: folder path (root first), then title with numbers in order (S2 before S10).
+export const byReadingOrder = (a: { folder: string | null, title: string }, b: { folder: string | null, title: string }) =>
+  (a.folder ?? '').localeCompare(b.folder ?? '', 'en', { numeric: true }) || a.title.localeCompare(b.title, 'en', { numeric: true })
 export interface Manuscript {
   title: string, studio: string, generated_at: string, scope: { kind: BibleScope, label: string }, cover: string | null
   counts: { documents: number, words: number }
