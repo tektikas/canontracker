@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto'
 import { mkdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { Turn } from './audio'
+import type { SplitBook } from '../../shared/utils/manuscript'
 
 // A passage is a heading line or a run of non-empty lines. Line numbers are 1-based.
 export function splitPassages(content: string) {
@@ -27,14 +28,15 @@ export function splitPassages(content: string) {
 
 export const DOCUMENT_KINDS = ['scene', 'lore', 'character', 'location', 'quest', 'dialogue', 'recording', 'other'] as const
 
-// The kind a new upload gets when nobody chose one. Impact counts scenes, so the story's own text should be one: "S01…" in
-// any project, and in a novel or prose project also chapter-like names (chapterLike, shared/utils/upload.ts). Everything
-// else starts as lore; the Library changes a kind in one step.
-function sceneLike(filename: string, projectId: string) {
-  if (/^S\d+/i.test(filename)) return true
-  const medium = (useDb().prepare('select medium from projects where id = ?').get(projectId) as { medium: string } | undefined)?.medium
-  return medium === 'prose' && chapterLike(filename)
-}
+// A document's kind and who decided it (documents.kind_source): impact counts story text ('scene': a chapter in a prose project,
+// a scene elsewhere), so the story's own text should be one.
+// - person: chosen in the Library ("Set kind"), in /write, or by a sample's manifest. Nothing else changes it.
+// - manuscript: a chapter (scene) or the front matter (lore) of a manuscript split on upload (shared/utils/manuscript.ts).
+// - ai: extraction read the text and said story or reference (extract-v6 `document_kind`, applied by extractInto).
+// - name: guessed from the file name until the AI reads it: lore when the name says reference (referenceLike,
+//   shared/utils/upload.ts), else scene. Only 'name' and 'ai' kinds follow a later AI reading.
+// - null: a document from before kind_source; nobody knows who set it, so it is left as it is.
+const AI_MAY_SET = ['name', 'ai']
 
 // What an import would call a file on its own: its first heading, else the filename.
 const derivedTitle = (filename: string, content: string) => content.match(/^#\s+(.+)$/m)?.[1]?.trim() ?? filename
@@ -54,7 +56,9 @@ export interface RecordingImport { turns: Turn[], audio_sha256: string, bytes: n
 // import runs several documents at a time and keeps the order in which candidates are stored, so duplicates resolve the same way).
 // `background`: the version is stored and the result returned at once; extraction and the critic run after the response
 // (server/utils/extractions.ts) and the result carries `extraction` (status queued) instead of candidate counts.
-export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }, folderId?: string | null, recording?: RecordingImport, word?: { original: Buffer, comments: WordComment[] }, storeAfter?: Promise<unknown>, background = false) {
+// `part`: one chapter of a manuscript split on upload: its title and kind come from the split (a kind a person set on an earlier
+// version stays), and every re-upload renames it from the manuscript's heading.
+export async function importDocument(filename: string, content: string, written?: { title: string, kind: string }, folderId?: string | null, recording?: RecordingImport, word?: { original?: Buffer, comments: WordComment[] }, storeAfter?: Promise<unknown>, background = false, part?: { title: string, kind: string }) {
   const db = useDb()
   const projectId = pid()
   const sha256 = createHash('sha256').update(content).digest('hex')
@@ -79,8 +83,12 @@ export async function importDocument(filename: string, content: string, written?
   }
   const version = (prev?.version ?? 0) + 1
   const renamed = prev && prev.title !== derivedTitle(prev.name, prev.content)
-  const title = written?.title ?? (renamed ? prev.title : derivedTitle(filename, content))
-  const kind = written?.kind ?? prev?.kind ?? (recording ? 'recording' : sceneLike(filename, projectId) ? 'scene' : 'lore')
+  const title = written?.title ?? part?.title ?? (renamed ? prev.title : derivedTitle(filename, content))
+  const prevSource = prev?.kind_source ?? null
+  const [kind, kindSource] = written ? [written.kind, prev?.kind === written.kind ? prevSource : 'person']
+    : part && prevSource !== 'person' ? [part.kind, 'manuscript']
+    : prev ? [prev.kind, prevSource]
+    : recording ? ['recording', 'name'] : [referenceLike(filename) ? 'lore' : 'scene', 'name']
   const documentId = newId('doc')
   const passages = splitPassages(content).map(p => ({ ...p, id: newId('psg') }))
   if (!passages.length) throw createError({ statusCode: 422, statusMessage: 'EMPTY_DOCUMENT', message: recording ? `No speech was found in ${filename}.` : `${filename} has no text.` })
@@ -96,8 +104,8 @@ export async function importDocument(filename: string, content: string, written?
   let wordNotes = 0
   // The original .docx is written first (temp file, then rename), so a version is never committed without it. If the commit
   // then fails, the file goes too and a retry imports cleanly (its text is not yet a duplicate).
-  const original = word && originalPath(projectId, sha256)
-  if (word) {
+  const original = word?.original && originalPath(projectId, sha256)
+  if (word?.original) {
     const tmp = `${original}.${newId('tmp')}`
     try {
       mkdirSync(join(ORIGINALS_DIR, projectId), { recursive: true })
@@ -110,11 +118,11 @@ export async function importDocument(filename: string, content: string, written?
   }
   try {
     tx(() => {
-      db.prepare(`insert into documents (id, title, filename, name, kind, sha256, version, content, imported_at, project_id, origin, created_by, folder_id)
-        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, title, key, name, kind, sha256, version, content, now(), projectId, origin, access().user.id, folder)
-      // A written version may carry a new title or kind: the labels are per document, so earlier versions follow.
-      if (prev && (prev.title !== title || prev.kind !== kind))
-        db.prepare('update documents set title = ?, kind = ? where project_id = ? and filename = ?').run(title, kind, projectId, key)
+      db.prepare(`insert into documents (id, title, filename, name, kind, sha256, version, content, imported_at, project_id, origin, created_by, folder_id, kind_source)
+        values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(documentId, title, key, name, kind, sha256, version, content, now(), projectId, origin, access().user.id, folder, kindSource)
+      // A written version (or a manuscript chapter) may carry a new title or kind: the labels are per document, so earlier versions follow.
+      if (prev && (prev.title !== title || prev.kind !== kind || prevSource !== kindSource))
+        db.prepare('update documents set title = ?, kind = ?, kind_source = ? where project_id = ? and filename = ?').run(title, kind, kindSource, projectId, key)
       const ins = db.prepare('insert into passages (id, document_id, ordinal, start_line, end_line, text, project_id, start_ms, end_ms, speaker) values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
       passages.forEach((p, i) => {
         const t = recording?.turns[i]
@@ -167,6 +175,51 @@ export async function importDocument(filename: string, content: string, written?
   return {
     ...stored, candidates: extraction?.created ?? 0, unverified: extraction?.unverified ?? 0, skipped: extraction?.skipped ?? 0, extraction_error: extractionError,
   }
+}
+
+// A whole book in one upload (shared/utils/manuscript.ts): each chapter is imported as its own document through importDocument
+// (hash, versions, passages, stale citations), into a folder named after the book, under a file name keyed by its position
+// ("dracula-ch-007.md"). A re-upload of the book therefore finds every chapter again: the same text is skipped, a changed
+// chapter is its next version, a chapter added at the end is a new document. A chapter inserted in the middle shifts the ones
+// after it: each of those becomes a new version holding the next chapter's text (their old canon citations are flagged for
+// re-check as usual) and the last one is new. Extraction always runs in the background, three chapters at a time.
+// The folder: the one the uploader chose when it has the book's name; else the book's folder inside it (folders nest two
+// levels; inside a second-level folder the chapters land in the chosen folder itself); else a top-level folder with the book's
+// name, made when missing. Word comments go to the chapter they are in; the .docx itself is not kept for a split book.
+export async function importManuscript(filename: string, book: SplitBook, chosenFolderId: string | null, comments: WordComment[] = []) {
+  const folderId = bookFolder(book.book.slice(0, 60).trim(), chosenFolderId)
+  const parts: Record<string, unknown>[] = []
+  for (const p of book.parts) {
+    const lines = p.text.split('\n').length
+    const mine = comments.filter(c => c.line >= p.line && c.line < p.line + lines).map(c => ({ ...c, line: c.line - p.line + 1 }))
+    try {
+      parts.push(await importDocument(p.filename, p.text, undefined, folderId, undefined, mine.length ? { comments: mine } : undefined, undefined, true, { title: p.title, kind: p.kind }))
+    } catch (e) {
+      const code = (e as { statusCode?: number }).statusCode
+      parts.push({ filename: p.filename, title: p.title, status: 'error', error: (e as Error).message, ...(code && { code }) })
+    }
+  }
+  const count = (f: (r: Record<string, unknown>) => boolean) => parts.filter(f).length
+  const summary = {
+    added: count(r => r.status === 'imported' && r.version === 1), versions: count(r => r.status === 'imported' && (r.version as number) > 1),
+    unchanged: count(r => r.status === 'duplicate'), failed: count(r => r.status === 'error'),
+  }
+  const folder = folderPath(folderId)
+  audit('manuscript.split', 'folder', folderId, { filename, book: book.book, how: book.how, folder, parts: book.parts.length, chapters: book.parts.filter(p => p.kind === 'scene').length, dropped: book.dropped, ...summary })
+  return { filename, status: 'split' as const, book: book.book, how: book.how, folder, folder_id: folderId, dropped: book.dropped, chapters: book.parts.filter(p => p.kind === 'scene').length, ...summary, parts }
+}
+function bookFolder(name: string, chosenId: string | null) {
+  const db = useDb()
+  const chosen = chosenId ? getFolder(chosenId) : null
+  if (chosen && chosen.name.toLowerCase() === name.toLowerCase()) return chosen.id
+  if (chosen?.parent_id) return chosen.id
+  const parent = chosen?.id ?? null
+  const there = db.prepare('select id from folders where project_id = ? and parent_id is ? and lower(name) = lower(?)').get(pid(), parent, name) as { id: string } | undefined
+  if (there) return there.id
+  const id = newId('fld')
+  db.prepare('insert into folders (id, name, parent_id, created_by, created_at, project_id) values (?, ?, ?, ?, ?, ?)').run(id, name, parent, access().user.id, now(), pid())
+  audit('folder.created', 'folder', id, { name, parent: folderPath(parent), from: 'manuscript' })
+  return id
 }
 
 // The uploaded .docx, kept byte for byte per document version (keyed by the version's text hash), served only through
@@ -259,11 +312,12 @@ function knownNames(max = 150) {
 export async function extractInto(doc: { id: string, filename: string, title: string, content: string }, passages: { id: string, text: string }[], storeAfter?: Promise<unknown>, onCritic?: () => void) {
   const db = useDb()
   const projectId = pid()
-  const drafts = await extractCandidates({ id: doc.id, filename: doc.filename, title: doc.title, text: doc.content, names: knownNames() })
+  const { candidates: drafts, document_kind } = await extractCandidates({ id: doc.id, filename: doc.filename, title: doc.title, text: doc.content, names: knownNames() })
   await storeAfter?.catch(() => {})
   // The model call can take a minute: a project reset (demo load) in the meantime removes the document it read.
   if (!db.prepare('select 1 from documents where id = ? and project_id = ?').get(doc.id, projectId)) throw new Error('The document was removed while the AI was reading it.')
   const model = modelInfo()
+  if (document_kind) setKindFromAi(doc.id, document_kind === 'story' ? 'scene' : 'lore', model.id)
   const existing = db.prepare('select id, statement, kind, subject, predicate, object, value, t_from, t_to, precision, status from facts where project_id = ?').all(projectId) as { id: string, statement: string, kind: string, subject: string, predicate: string, object: string | null, value: string | null, t_from: number | null, t_to: number | null, precision: string | null, status: string }[]
   const seen = new Map<string, { id: string, status: string }>()
   const kept = keptNameOf()
@@ -318,4 +372,15 @@ export async function extractInto(doc: { id: string, filename: string, title: st
     audit('job.failed', 'document', doc.id, { step: 'critic', error: criticError })
   }
   return { proposed: drafts.length, created: created.length, critic, critic_error: criticError, unverified, skipped: Object.values(skipped).reduce((a, b) => a + b, 0), skipped_by_status: skipped, model }
+}
+
+// The AI said what the text is (story or reference): the document takes that kind unless a person or the manuscript split set
+// it (kind_source), and never for a recording. Every version of the document follows, as with a Library "Set kind".
+function setKindFromAi(documentId: string, kind: string, modelId: string) {
+  const db = useDb()
+  const d = db.prepare('select filename, name, title, kind, kind_source, origin from documents where id = ? and project_id = ?').get(documentId, pid()) as { filename: string, name: string, title: string, kind: string, kind_source: string | null, origin: string } | undefined
+  if (!d || d.origin === 'recording' || !AI_MAY_SET.includes(d.kind_source ?? '')) return
+  if (d.kind === kind && d.kind_source === 'ai') return
+  db.prepare(`update documents set kind = ?, kind_source = 'ai' where project_id = ? and filename = ?`).run(kind, pid(), d.filename)
+  if (d.kind !== kind) audit('document.kind_detected', 'document', documentId, { filename: d.name, title: d.title, from: d.kind, to: kind, model_id: modelId })
 }

@@ -16,7 +16,7 @@ export interface CandidateDraft {
 
 export interface RuleViolation { fact_id: string, rationale: string, confidence: number }
 
-export const PROMPT_VERSIONS = { extract: 'extract-v5', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', research: 'research-v1', continuity: 'continuity-v1', critic: 'critic-v2', transcribe: 'transcribe-v1' } as const
+export const PROMPT_VERSIONS = { extract: 'extract-v6', answer: 'answer-v2', rule_check: 'rule-check-v3', image: 'image-v1', research: 'research-v1', continuity: 'continuity-v1', critic: 'critic-v2', transcribe: 'transcribe-v1' } as const
 
 // A bundled sample's load replays its recording even on a live server (the request sets event.context.sampleReplay): the
 // recordings are what the samples are, loading them takes seconds instead of minutes of model calls, and the trace says
@@ -189,12 +189,17 @@ const dropNote = (d: { malformed: number, badTimes: string[] }) => [
   d.badTimes.length && `${d.badTimes.length} with unreadable time ${d.badTimes.slice(0, 3).join(', ')}${d.badTimes.length > 3 ? ', …' : ''}`,
 ].filter(Boolean).join('; ')
 
+// document_kind (extract-v6): what the model read the document as, "story" (a chapter, scene, episode or script) or "reference"
+// (lore, character notes, an outline, worldbuilding); the importer sets the document's kind from it unless a person chose one.
+// Absent in recorded output (the recordings predate it) and when the model gives anything else.
+export type DocumentKindReading = 'story' | 'reference'
 export function extractCandidates(doc: { id: string, filename: string, title: string, text: string, names?: string[] }) {
   let dropped = ''
-  return traced('extract', { type: 'document', id: doc.id }, [doc.id], null, async (): Promise<CandidateDraft[]> => {
-    if (modelInfo().mode === 'mock') return (await recordedCandidates(doc.text)) ?? []
+  return traced('extract', { type: 'document', id: doc.id }, [doc.id], null, async (): Promise<{ candidates: CandidateDraft[], document_kind?: DocumentKindReading }> => {
+    if (modelInfo().mode === 'mock') return { candidates: (await recordedCandidates(doc.text)) ?? [] }
     const out = await chatJson(
-      `You extract narrative canon candidates from story documents (a game's lore and scripts, a series' episodes, a novel's chapters) for a canon tracker that keeps a story world consistent. Return only JSON {"candidates":[...]}.
+      `You extract narrative canon candidates from story documents (a game's lore and scripts, a series' episodes, a novel's chapters) for a canon tracker that keeps a story world consistent. Return only JSON {"document_kind":"story|reference","candidates":[...]}.
+document_kind: "story" when the document is the story's own text (a chapter, a scene, an episode or a script: what happens, told or performed), "reference" when it is material about the story (lore or worldbuilding notes, character sheets, an outline or synopsis, a glossary, a series bible).
 Each candidate: {"kind":"character|location|relationship|event|rule|claim","subject":"short entity name","subject_type":"character|location|item|faction|event|other|none","predicate":"snake_case verb","object":"entity name or null","object_type":"character|location|item|faction|event|other|none, or null when object is null","value":"number for measurable rules (e.g. travel minutes), the answer of a single-valued detail, or null","statement":"one plain sentence","quote":"EXACT verbatim substring of the document that supports it","time":{"from":"D<day> HH:MM","to":"D<day> HH:MM","precision":"exact|approximate"} or omitted,"confidence":0-1}.
 kind is exactly one of those six words (a "located_at" fact is kind "event").
 What to extract: facts a writer must keep consistent — who someone is, where someone is and when, what they do in the plot, relationships, world rules, travel times, what items and places do. In scenes, include each plot action a character takes (what they do, say or refuse, and when), because actions are what world rules are checked against. Skip mood, looks, scenery and trivia. One candidate per fact; do not restate the same fact twice.
@@ -215,8 +220,8 @@ Do not invent facts. Figurative language ("my sister in all but blood") is NOT a
     )
     const { kept, ...bad } = cleanCandidates(out.candidates)
     dropped = dropNote(bad)
-    return kept
-  }, r => `${plural(r.length, 'candidate')}${dropped ? ` (dropped: ${dropped})` : ''}`)
+    return { candidates: kept, ...((out.document_kind === 'story' || out.document_kind === 'reference') && { document_kind: out.document_kind as DocumentKindReading }) }
+  }, r => `${plural(r.candidates.length, 'candidate')}${r.document_kind ? `, read as ${r.document_kind}` : ''}${dropped ? ` (dropped: ${dropped})` : ''}`)
 }
 
 // Returns a null answer when the model is offline; the caller then shows related sources only.

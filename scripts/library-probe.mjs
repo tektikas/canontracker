@@ -32,10 +32,11 @@ async function account(name) {
   assert.equal((await c('/api/auth/signup', { method: 'POST', body: { name, email: `${name.toLowerCase()}-${run}@probe.test`, password: 'correct horse' } })).status, 200)
   return c
 }
-const filesForm = (files, folder) => {
+const filesForm = (files, folder, keepWhole) => {
   const f = new FormData()
   for (const [name, text] of files) f.append('files', new Blob([text], { type: 'text/markdown' }), name)
   if (folder) f.append('folder_id', folder)
+  if (keepWhole) f.append('keep_whole', '1') // a long text without headings would otherwise be split into parts
   return f
 }
 
@@ -173,7 +174,7 @@ check('the list counts the stale fact on S04', row('S04.md').stale_facts, 1)
 // Large documents keep exact alignment (lead c18r #1): 2,002 passages, only the first and the last edited.
 const bigText = n => Array.from({ length: n }, (_, i) => `Passage ${i}: the keeper counts tide ${i} at the north wall.`)
 const bigV1 = bigText(2002)
-const big1 = (await a('/api/documents', { method: 'POST', form: filesForm([['big.md', bigV1.join('\n\n')]]) })).data.results[0]
+const big1 = (await a('/api/documents', { method: 'POST', form: filesForm([['big.md', bigV1.join('\n\n')]], null, true) })).data.results[0]
 check('a 2,002-passage document imports', big1.passages, 2002)
 const bigDoc = (await a(`/api/documents/${big1.document_id}`)).data
 const midPassage = bigDoc.passages[1000]
@@ -182,7 +183,7 @@ check('a canon fact cites an untouched middle passage', midFact.status, 'canon')
 const bigV2 = [...bigV1]
 bigV2[0] = 'Passage 0: the keeper counts tide 0 at the south wall.'
 bigV2[2001] = 'Passage 2001: the keeper counts tide 2001 at the south wall.'
-const big2 = (await a('/api/documents', { method: 'POST', form: filesForm([['big.md', bigV2.join('\n\n')]]) })).data.results[0]
+const big2 = (await a('/api/documents', { method: 'POST', form: filesForm([['big.md', bigV2.join('\n\n')]], null, true) })).data.results[0]
 const bigDiff = (await a(`/api/documents/${big2.document_id}/diff?from=${big1.document_id}`)).data
 check('large diff: exactly the two edited passages changed', [bigDiff.counts.changed, bigDiff.counts.removed, bigDiff.counts.added, bigDiff.counts.same], [2, 0, 0, 2000])
 check('large diff: the untouched citation is not flagged', [bigDiff.recheck, bigDiff.unchanged_citations], [0, 1])
@@ -190,7 +191,7 @@ const bigV3 = [...bigV2]
 bigV3.splice(1000, 1, 'Passage 1000: the keeper counts tide 1000 at the south wall.')
 bigV3.splice(500, 1)
 bigV3.splice(1500, 0, 'A new passage in the middle of the night.')
-const big3 = (await a('/api/documents', { method: 'POST', form: filesForm([['big.md', bigV3.join('\n\n')]]) })).data.results[0]
+const big3 = (await a('/api/documents', { method: 'POST', form: filesForm([['big.md', bigV3.join('\n\n')]], null, true) })).data.results[0]
 const bigDiff3 = (await a(`/api/documents/${big3.document_id}/diff?from=${big1.document_id}`)).data
 check('large diff v1→v3: three edits, a removal and an insertion', [bigDiff3.counts.changed, bigDiff3.counts.removed, bigDiff3.counts.added, bigDiff3.counts.same], [3, 1, 1, 1998])
 check('large diff: the edited cited passage is flagged', bigDiff3.rows.filter(r => r.facts.length).map(r => [r.op, r.facts[0].id]), [['changed', midFact.id]])
@@ -306,4 +307,29 @@ docs = (await a('/api/documents')).data
 check('the label is gone, the documents stay', [row('note-1.md').tags.length, docs.length], [0, 13 + 5 + 1 + 4])
 const ev2 = new Set((await a('/api/audit')).data.map(e => e.event_type))
 check('audit has folder.deleted and tag.deleted', ev2.has('folder.deleted') && ev2.has('tag.deleted'), true)
+
+// 10. A whole book in one upload (shared/utils/manuscript.ts): one document per chapter in a folder named after the book,
+// front matter as lore, chapters as scenes, in reading order; a re-upload skips unchanged chapters and versions only the edited one.
+const para = (n, w) => Array.from({ length: 6 }, (_, i) => `${w} ${n}.${i}: the keeper walked the north wall and counted the tides of the long grey harbour, one by one, until the lamp was lit and the bell rang over the water at dusk.`).join('\n\n')
+const chapter = (n, t, w = 'Line') => `CHAPTER ${['I', 'II', 'III', 'IV'][n - 1]}.\n${t}\n\n${Array.from({ length: 6 }, (_, k) => para(`${n}${k}`, w)).join('\n\n')}`
+const bookText = (edit = false) => `THE LAMP KEEPER\n\nA novel, for the probe.\n\nContents\n\nI. The Wall\nII. The Bell\nIII. The Dusk\n\n\n${[chapter(1, 'The Wall'), chapter(2, 'The Bell', edit ? 'Verse' : 'Line'), chapter(3, 'THE DUSK')].join('\n\n\n')}\n\nTHE END\n`
+const book1 = (await a('/api/documents', { method: 'POST', form: filesForm([['The Lamp Keeper.txt', bookText()]]) })).data.results[0]
+check('a book is split into chapters', [book1.status, book1.book, book1.chapters, book1.added, book1.folder], ['split', 'The Lamp Keeper', 3, 4, 'The Lamp Keeper'])
+check('front matter and chapters, titled from the headings', book1.parts.map(p => p.title), ['The Lamp Keeper — Front matter', 'The Lamp Keeper — Chapter 1: The Wall', 'The Lamp Keeper — Chapter 2: The Bell', 'The Lamp Keeper — Chapter 3: The Dusk'])
+check('every chapter is read in the background', book1.parts.every(p => p.extraction?.status === 'queued'), true)
+docs = (await a('/api/documents')).data
+const bookDocs = book1.parts.map(p => docs.find(d => d.id === p.document_id))
+check('chapters are scenes, the front matter is lore, all in the book folder', bookDocs.map(d => [d.kind, d.folder_id === book1.folder_id]), [['lore', true], ['scene', true], ['scene', true], ['scene', true]])
+check('file names keep the reading order', bookDocs.map(d => d.name), ['the-lamp-keeper-ch-000.md', 'the-lamp-keeper-ch-001.md', 'the-lamp-keeper-ch-002.md', 'the-lamp-keeper-ch-003.md'])
+const ch2 = (await a(`/api/documents/${book1.parts[2].document_id}`)).data
+check('a chapter holds its own words exactly', ch2.content.startsWith('CHAPTER II.\nThe Bell\n\nLine 20.0: the keeper'), true)
+const bookAgain = (await a("/api/documents", { method: "POST", form: filesForm([["The Lamp Keeper.txt", bookText()]]) })).data.results[0]
+check('the same book again: every chapter unchanged', [bookAgain.status, bookAgain.unchanged, bookAgain.added, bookAgain.versions], ['split', 4, 0, 0])
+const edited = (await a('/api/documents', { method: 'POST', form: filesForm([['The Lamp Keeper.txt', bookText(true)]]) })).data.results[0]
+check('one chapter edited: only it gets a new version', edited.parts.map(p => [p.status, p.version ?? p.same_as?.version]), [['duplicate', 1], ['duplicate', 1], ['imported', 2], ['duplicate', 1]])
+check('the new version stays in the book folder', [edited.parts[2].folder, edited.parts[2].document_id !== book1.parts[2].document_id], ['The Lamp Keeper', true])
+const whole = (await a('/api/documents', { method: 'POST', form: filesForm([['lamp-whole.txt', bookText(true).replace('THE LAMP KEEPER', 'THE LAMP KEEPER (whole)')]], null, true) })).data.results[0]
+check('keep_whole imports the book as one document', [whole.status, whole.version], ['imported', 1])
+check('a book upload is audited', (await a('/api/audit')).data.some(e => e.event_type === 'manuscript.split' && e.detail?.book === 'The Lamp Keeper'), true)
+check('a person can set a split chapter’s kind', (await a('/api/library/organise', { method: 'POST', body: { document_ids: [book1.parts[1].document_id], kind: 'lore' } })).status, 200)
 console.log('\nlibrary probe: all checks passed')

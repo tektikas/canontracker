@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { docKind } = useDocKinds()
 const route = useRoute()
 const me = useMe()
 const editor = computed(() => canEdit(me.value))

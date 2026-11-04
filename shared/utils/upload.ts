@@ -10,9 +10,9 @@ export function uploadNameProblem(name: string, other = 'Not a supported file: u
   return other
 }
 
-// A file name that reads as a chapter of a book: a leading number ("01 The Arrival"), a chapter word with a number ("Chapter 3",
-// "ch02", "Book 2", "Part II", "Chapter One"), or Prologue / Epilogue / Interlude as the first word. A chapter word without a
-// number is not enough ("book-notes", "Part of the plan"), and only whole words count ("notebook", "facebook").
-const WORDS = '(?:[ivx]{1,5}|one|two|three|four|five|six|seven|eight|nine|ten|eleven|twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen|twenty)'
-const CHAPTER = new RegExp(`^\\d|\\b(?:chapter|chap|ch|part|book)(?:\\s*\\d+|\\s+${WORDS})\\b|^(?:prologue|epilogue|interlude)\\b`, 'i')
-export const chapterLike = (filename: string) => CHAPTER.test(filename.replace(/\.[^.]+$/, '').replace(/[_\-.]+/g, ' ').trim())
+// Before the AI has read a file, its kind comes from its name: reference ('lore') only when the name clearly says so (a whole
+// word: lore, notes, characters, bible, outline, worldbuilding, glossary, wiki, readme; "CharacterNotes" counts as two
+// words), else story text ('scene'). "notebook", "S03-the-chord-stone" and "chapter-07" are story text.
+const REFERENCE = /\b(?:lore|notes?|characters?|bible|outlines?|world ?building|glossary|wiki|readme)\b/i
+export const referenceLike = (filename: string) =>
+  REFERENCE.test(filename.replace(/\.[^.]+$/, '').replace(/([a-z])([A-Z])/g, '$1 $2').replace(/[_\-.]+/g, ' '))

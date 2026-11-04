@@ -1,4 +1,5 @@
 <script setup lang="ts">
+const { docKind } = useDocKinds()
 const me = useMe()
 const left = useLeftNotice()
 const editor = computed(() => canEdit(me.value))

@@ -82,6 +82,7 @@ The model adapter is `server/utils/model.ts`; multi-step Responses calls run in 
 
 - **Human gate:** the model and connected agents only propose candidates. Canon decisions are explicit, made by a person in the app, and attributed to them; MCP refuses every decision for every token.
 - **Verbatim citations:** every canon fact has at least one evidence row whose quote appears word for word in a passage of an imported document. Hallucinated quotes are blocked.
+- **Whole books in one upload:** a manuscript (.txt, .md or .docx, up to 1 MB of text) is split at its chapter headings into one document per chapter in a folder named after the book; uploading it again adds versions only for the chapters that changed. The AI sorts each document into story text (a chapter or scene) or reference (lore, notes, outlines).
 - **Versions stay intact:** uploads and edits create new versions; earlier source text stays unchanged and affected citations need re-checking. Uploaded and written documents can be edited in the app as new versions. Recording transcripts cannot. Word `.docx` is converted on upload and the original file kept.
 - **No evidence, no answer:** the answer is `unknown`. Change proposals, conflict candidates and possible review impact are three separate things; impact stays inside accepted canon, at most 2 hops, with path, evidence and rationale.
 

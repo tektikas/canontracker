@@ -64,8 +64,16 @@ export const citeLine = (c: BibleCitation) => [`${c.document} (${[c.folder, c.fi
 // The manuscript: the project's source documents, latest versions only, in reading order (folder, then title with numbers in order).
 export type BibleBook = 'bible' | 'manuscript'
 // The manuscript's order, also the timeline's Reading order: folder path (root first), then title with numbers in order (S2 before S10).
-export const byReadingOrder = (a: { folder: string | null, title: string }, b: { folder: string | null, title: string }) =>
-  (a.folder ?? '').localeCompare(b.folder ?? '', 'en', { numeric: true }) || a.title.localeCompare(b.title, 'en', { numeric: true })
+// Two parts of one manuscript split on upload ("dracula-ch-007.md", "stream-part-002.md", shared/utils/manuscript.ts) go by their
+// position instead, so "Chapter Two" stays after "Chapter One" and the front matter (ch-000) first.
+const splitPart = (d: { filename?: string, key?: string }) => (d.filename ?? d.key)?.match(/(?:^|\/)([a-z0-9-]+)-(?:ch|part)-(\d{3})\.md$/)
+export const byReadingOrder = (a: { folder: string | null, title: string, filename?: string, key?: string }, b: { folder: string | null, title: string, filename?: string, key?: string }) => {
+  const byFolder = (a.folder ?? '').localeCompare(b.folder ?? '', 'en', { numeric: true })
+  if (byFolder) return byFolder
+  const pa = splitPart(a), pb = splitPart(b)
+  if (pa && pb && pa[1] === pb[1]) return Number(pa[2]) - Number(pb[2])
+  return a.title.localeCompare(b.title, 'en', { numeric: true })
+}
 // Books in order: a folder comes where its first document's file name sorts ("1900-the-wonderful-wizard…" before "1904-…",
 // "chapter-01" before "chapter-02"), not by the folder's own name; inside a folder, byReadingOrder. ranks: folder → first file name.
 type Ordered = { folder: string | null, title: string, key?: string, filename?: string }
