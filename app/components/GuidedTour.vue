@@ -204,9 +204,14 @@ let settling = ''
 function measure() {
   const s = current.value
   let el: HTMLElement | null = null
-  // A target that is in the DOM but not laid out (a column hidden on phones) doesn't count.
-  found.value = s?.targets?.find(t => (el = document.querySelector<HTMLElement>(phone() && t.phone ? t.phone : t.sel)) && el.getClientRects().length > 0)
-  if (!el) {
+  // A target that is in the DOM but not laid out (a column hidden on phones) doesn't count; then its other selector is tried
+  // (Ask hides the chat column up to 900px, the phone selector only takes over at 720px).
+  const laid = (q?: string) => {
+    const e = q ? document.querySelector<HTMLElement>(q) : null
+    return e && e.getClientRects().length > 0 ? e : null
+  }
+  found.value = s?.targets?.find(t => (el = phone() && t.phone ? laid(t.phone) ?? laid(t.sel) : laid(t.sel) ?? laid(t.phone)))
+  if (!found.value || !el) {
     rect.value = null
     return
   }
