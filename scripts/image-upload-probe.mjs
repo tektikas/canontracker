@@ -310,7 +310,7 @@ async function migrate(port) {
     const old = execFileSync('git', ['show', 'c7da54d:server/utils/db.ts'], { cwd: root, encoding: 'utf8' })
     const schema = old.slice(old.indexOf('const SCHEMA = `') + 16, old.indexOf('`\n\nlet db'))
     assert.ok(/SCHEMA_VERSION = 12/.test(old) && schema.includes('create table if not exists images'), 'v12 schema found')
-    const db = new DatabaseSync(join(data, 'storybible.db'))
+    const db = new DatabaseSync(join(data, 'storybible.db'), { timeout: 5000 })
     db.exec(schema)
     db.exec('pragma user_version = 12')
     const salt = randomBytes(16)

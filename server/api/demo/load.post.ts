@@ -87,6 +87,7 @@ export async function loadSample(set: SampleSet) {
         const r = await job
         shelf?.label(r.document_id, filename)
         results[i] = r
+        await nextTurn() // a replayed import never waits on I/O: let other requests run between documents
       }
     }))
     if (manifest?.cover) {

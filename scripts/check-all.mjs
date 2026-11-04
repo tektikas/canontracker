@@ -109,7 +109,7 @@ try {
   const scripts = (await readdir(join(root, 'scripts'))).sort()
   for (const script of scripts.filter(s => /-check\.(mjs|ts)$/.test(s))) await run(script, process.execPath, [`scripts/${script}`])
   const special = new Set(['image-fetch-probe.mjs', 'meta-contract-probe.mjs', 'severity-probe.mjs'])
-  const dbProbes = new Set(['ashbell-probe.mjs', 'sherlock-probe.mjs', 'recheck-probe.mjs', 'mcp-probe.mjs', 'share-probe.mjs'])
+  const dbProbes = new Set(['ashbell-probe.mjs', 'sherlock-probe.mjs', 'recheck-probe.mjs', 'mcp-probe.mjs', 'share-probe.mjs', 'guest-clone-probe.mjs'])
   for (const script of scripts.filter(s => s.endsWith('-probe.mjs') && !special.has(s))) {
     // Restart for each probe so per-process rate limits cannot leak between suites.
     const { child, cwd } = await start(script, port)

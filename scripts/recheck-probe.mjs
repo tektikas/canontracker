@@ -189,7 +189,7 @@ check('fact authored on the first scene', two.status, 'canon')
 // stores it (verified, the passage holding the quote verbatim) straight into the server's database.
 const passage2 = p2.full.passages.find(p => p.text.includes(p2.t))
 {
-  const db = new DatabaseSync(dbPath)
+  const db = new DatabaseSync(dbPath, { timeout: 5000 })
   db.prepare('insert into evidence (id, fact_id, document_id, passage_id, quote, verified, project_id) values (?, ?, ?, ?, ?, 1, (select project_id from facts where id = ?))')
     .run(`ev_probe${run}`, two.id, p2.full.id, passage2.id, p2.t, two.id)
   db.close()

@@ -138,7 +138,7 @@ assert.ok(!JSON.stringify(listed).includes(full.token) && !JSON.stringify(listed
 ok('create links, validation, list without secrets', listed.map(s => s.prefix).join(' '))
 
 // Stored hashed.
-const db = new DatabaseSync(dbPath)
+const db = new DatabaseSync(dbPath, { timeout: 5000 })
 const row = db.prepare('select * from share_links where id = ?').get(full.id)
 assert.equal(row.token_hash, createHash('sha256').update(full.token).digest('hex'))
 assert.ok(!JSON.stringify(db.prepare('select * from share_links').all()).includes(full.token), 'no column holds the token')

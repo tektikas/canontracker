@@ -34,7 +34,7 @@ type CanonRow = { id: string, statement: string, subject: string, predicate: str
 // (the same subject and object, either way round). An opinion read before that canon changed (a fact accepted, superseded or
 // merged in) no longer counts as a keep. Canon about other parties can't repeat it, so it doesn't count: accepting "Ves is
 // at Saltgate" or "Ves is a scout" leaves the keep on "Ves is at the Bell Gate" standing.
-function canonNear() {
+export function canonNear() {
   const kept = keptNameOf()
   const rows = useDb().prepare(`select id, statement, subject, predicate, object, time_label from facts where project_id = ? and status = 'canon' order by rowid`).all(pid()) as CanonRow[]
   const byName = new Map<string, CanonRow[]>()
