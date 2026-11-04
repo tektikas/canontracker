@@ -1,0 +1,494 @@
+{
+  "medium": "prose",
+  "tags": {},
+  "docs": {
+    "1900-the-wonderful-wizard-of-oz-01-the-cyclone.md": {
+      "title": "The Wonderful Wizard of Oz, 1: The Cyclone",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1152
+    },
+    "1900-the-wonderful-wizard-of-oz-02-the-council-with-the-munchkins.md": {
+      "title": "The Wonderful Wizard of Oz, 2: The Council with the Munchkins",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 2011
+    },
+    "1900-the-wonderful-wizard-of-oz-03-how-dorothy-saved-the-scarecrow.md": {
+      "title": "The Wonderful Wizard of Oz, 3: How Dorothy Saved the Scarecrow",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1969
+    },
+    "1900-the-wonderful-wizard-of-oz-04-the-road-through-the-forest.md": {
+      "title": "The Wonderful Wizard of Oz, 4: The Road Through the Forest",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1448
+    },
+    "1900-the-wonderful-wizard-of-oz-05-the-rescue-of-the-tin-woodman.md": {
+      "title": "The Wonderful Wizard of Oz, 5: The Rescue of the Tin Woodman",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 2068
+    },
+    "1900-the-wonderful-wizard-of-oz-06-the-cowardly-lion.md": {
+      "title": "The Wonderful Wizard of Oz, 6: The Cowardly Lion",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1507
+    },
+    "1900-the-wonderful-wizard-of-oz-07-the-journey-to-the-great-oz.md": {
+      "title": "The Wonderful Wizard of Oz, 7: The Journey to the Great Oz",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1813
+    },
+    "1900-the-wonderful-wizard-of-oz-08-the-deadly-poppy-field.md": {
+      "title": "The Wonderful Wizard of Oz, 8: The Deadly Poppy Field",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1937
+    },
+    "1900-the-wonderful-wizard-of-oz-09-the-queen-of-the-field-mice.md": {
+      "title": "The Wonderful Wizard of Oz, 9: The Queen of the Field Mice",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1397
+    },
+    "1900-the-wonderful-wizard-of-oz-10-the-guardian-of-the-gate.md": {
+      "title": "The Wonderful Wizard of Oz, 10: The Guardian of the Gate",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1964
+    },
+    "1900-the-wonderful-wizard-of-oz-11-the-wonderful-city-of-oz.md": {
+      "title": "The Wonderful Wizard of Oz, 11: The Wonderful City of Oz",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 3616
+    },
+    "1900-the-wonderful-wizard-of-oz-12-the-search-for-the-wicked-witch.md": {
+      "title": "The Wonderful Wizard of Oz, 12: The Search for the Wicked Witch",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 3681
+    },
+    "1900-the-wonderful-wizard-of-oz-13-the-rescue.md": {
+      "title": "The Wonderful Wizard of Oz, 13: The Rescue",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1199
+    },
+    "1900-the-wonderful-wizard-of-oz-14-the-winged-monkeys.md": {
+      "title": "The Wonderful Wizard of Oz, 14: The Winged Monkeys",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1894
+    },
+    "1900-the-wonderful-wizard-of-oz-15-the-discovery-of-oz-the-terrible.md": {
+      "title": "The Wonderful Wizard of Oz, 15: The Discovery of Oz, the Terrible",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 2768
+    },
+    "1900-the-wonderful-wizard-of-oz-16-the-magic-art-of-the-great-humbug.md": {
+      "title": "The Wonderful Wizard of Oz, 16: The Magic Art of the Great Humbug",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 937
+    },
+    "1900-the-wonderful-wizard-of-oz-17-how-the-balloon-was-launched.md": {
+      "title": "The Wonderful Wizard of Oz, 17: How the Balloon Was Launched",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1165
+    },
+    "1900-the-wonderful-wizard-of-oz-18-away-to-the-south.md": {
+      "title": "The Wonderful Wizard of Oz, 18: Away to the South",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1175
+    },
+    "1900-the-wonderful-wizard-of-oz-19-attacked-by-the-fighting-trees.md": {
+      "title": "The Wonderful Wizard of Oz, 19: Attacked by the Fighting Trees",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1025
+    },
+    "1900-the-wonderful-wizard-of-oz-20-the-dainty-china-country.md": {
+      "title": "The Wonderful Wizard of Oz, 20: The Dainty China Country",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1513
+    },
+    "1900-the-wonderful-wizard-of-oz-21-the-lion-becomes-the-king-of-beasts.md": {
+      "title": "The Wonderful Wizard of Oz, 21: The Lion Becomes the King of Beasts",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 907
+    },
+    "1900-the-wonderful-wizard-of-oz-22-the-country-of-the-quadlings.md": {
+      "title": "The Wonderful Wizard of Oz, 22: The Country of the Quadlings",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 945
+    },
+    "1900-the-wonderful-wizard-of-oz-23-glinda-the-good-witch-grants-dorothys-wish.md": {
+      "title": "The Wonderful Wizard of Oz, 23: Glinda The Good Witch Grants Dorothy’s Wish",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 1264
+    },
+    "1900-the-wonderful-wizard-of-oz-24-home-again.md": {
+      "title": "The Wonderful Wizard of Oz, 24: Home Again",
+      "kind": "scene",
+      "folder": "The Wonderful Wizard of Oz",
+      "tags": [],
+      "words": 85
+    },
+    "1904-the-marvelous-land-of-oz-01-tip-manufactures-a-pumpkinhead.md": {
+      "title": "The Marvelous Land of Oz, 1: Tip Manufactures a Pumpkinhead",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1252
+    },
+    "1904-the-marvelous-land-of-oz-02-the-marvelous-powder-of-life.md": {
+      "title": "The Marvelous Land of Oz, 2: The Marvelous Powder of Life",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 2050
+    },
+    "1904-the-marvelous-land-of-oz-03-the-flight-of-the-fugitives.md": {
+      "title": "The Marvelous Land of Oz, 3: The Flight of the Fugitives",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1390
+    },
+    "1904-the-marvelous-land-of-oz-04-tip-makes-an-experiment-in-magic.md": {
+      "title": "The Marvelous Land of Oz, 4: Tip Makes an Experiment in Magic",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 971
+    },
+    "1904-the-marvelous-land-of-oz-05-the-awakening-of-the-saw-horse.md": {
+      "title": "The Marvelous Land of Oz, 5: The Awakening of the Saw-horse",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1628
+    },
+    "1904-the-marvelous-land-of-oz-06-jack-pumpkinheads-ride-to-the-emerald-city.md": {
+      "title": "The Marvelous Land of Oz, 6: Jack Pumpkinhead’s Ride to the Emerald City",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 2066
+    },
+    "1904-the-marvelous-land-of-oz-07-his-majesty-the-scarecrow.md": {
+      "title": "The Marvelous Land of Oz, 7: His Majesty the Scarecrow",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1556
+    },
+    "1904-the-marvelous-land-of-oz-08-gen-jinjurs-army-of-revolt.md": {
+      "title": "The Marvelous Land of Oz, 8: Gen. Jinjur’s Army of Revolt",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1734
+    },
+    "1904-the-marvelous-land-of-oz-09-the-scarecrow-plans-an-escape.md": {
+      "title": "The Marvelous Land of Oz, 9: The Scarecrow Plans an escape",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1678
+    },
+    "1904-the-marvelous-land-of-oz-10-the-journey-to-the-tin-woodman.md": {
+      "title": "The Marvelous Land of Oz, 10: The Journey to the Tin Woodman",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1604
+    },
+    "1904-the-marvelous-land-of-oz-11-a-nickel-plated-emperor.md": {
+      "title": "The Marvelous Land of Oz, 11: A Nickel-Plated Emperor",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1935
+    },
+    "1904-the-marvelous-land-of-oz-12-mr-h-m-woggle-bug-t-e.md": {
+      "title": "The Marvelous Land of Oz, 12: Mr. H. M. Woggle-Bug, T. E.",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1884
+    },
+    "1904-the-marvelous-land-of-oz-13-a-highly-magnified-history.md": {
+      "title": "The Marvelous Land of Oz, 13: A Highly Magnified History",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1736
+    },
+    "1904-the-marvelous-land-of-oz-14-old-mombi-indulges-in-witchcraft.md": {
+      "title": "The Marvelous Land of Oz, 14: Old Mombi indulges in Witchcraft",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1633
+    },
+    "1904-the-marvelous-land-of-oz-15-the-prisoners-of-the-queen.md": {
+      "title": "The Marvelous Land of Oz, 15: The Prisoners of the Queen",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1671
+    },
+    "1904-the-marvelous-land-of-oz-16-the-scarecrow-takes-time-to-think.md": {
+      "title": "The Marvelous Land of Oz, 16: The Scarecrow Takes Time to Think",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1501
+    },
+    "1904-the-marvelous-land-of-oz-17-the-astonishing-flight-of-the-gump.md": {
+      "title": "The Marvelous Land of Oz, 17: The Astonishing Flight of the Gump",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1511
+    },
+    "1904-the-marvelous-land-of-oz-18-in-the-jackdaws-nest.md": {
+      "title": "The Marvelous Land of Oz, 18: In the Jackdaw’s Nest",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 2966
+    },
+    "1904-the-marvelous-land-of-oz-19-dr-nikidiks-famous-wishing-pills.md": {
+      "title": "The Marvelous Land of Oz, 19: Dr. Nikidik’s Famous Wishing Pills",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1900
+    },
+    "1904-the-marvelous-land-of-oz-20-the-scarecrow-appeals-to-glinda-the-good.md": {
+      "title": "The Marvelous Land of Oz, 20: The Scarecrow Appeals to Glinda the Good",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 2545
+    },
+    "1904-the-marvelous-land-of-oz-21-the-tin-woodman-plucks-a-rose.md": {
+      "title": "The Marvelous Land of Oz, 21: The Tin-Woodman Plucks a Rose",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1623
+    },
+    "1904-the-marvelous-land-of-oz-22-the-transformation-of-old-mombi.md": {
+      "title": "The Marvelous Land of Oz, 22: The Transformation of Old Mombi",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1156
+    },
+    "1904-the-marvelous-land-of-oz-23-princess-ozma-of-oz.md": {
+      "title": "The Marvelous Land of Oz, 23: Princess Ozma of Oz",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1982
+    },
+    "1904-the-marvelous-land-of-oz-24-the-riches-of-content.md": {
+      "title": "The Marvelous Land of Oz, 24: The Riches of Content",
+      "kind": "scene",
+      "folder": "The Marvelous Land of Oz",
+      "tags": [],
+      "words": 1504
+    },
+    "1907-ozma-of-oz-01-the-girl-in-the-chicken-coop.md": {
+      "title": "Ozma of Oz, 1: The Girl in the Chicken Coop",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 1793
+    },
+    "1907-ozma-of-oz-02-the-yellow-hen.md": {
+      "title": "Ozma of Oz, 2: The Yellow Hen",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 2158
+    },
+    "1907-ozma-of-oz-03-letters-in-the-sand.md": {
+      "title": "Ozma of Oz, 3: Letters in the Sand",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 1758
+    },
+    "1907-ozma-of-oz-04-tiktok-the-machine-man.md": {
+      "title": "Ozma of Oz, 4: Tiktok the Machine Man",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 2048
+    },
+    "1907-ozma-of-oz-05-dorothy-opens-the-dinner-pail.md": {
+      "title": "Ozma of Oz, 5: Dorothy Opens the Dinner Pail",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 1817
+    },
+    "1907-ozma-of-oz-06-the-heads-of-langwidere.md": {
+      "title": "Ozma of Oz, 6: The Heads of Langwidere",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 3759
+    },
+    "1907-ozma-of-oz-07-ozma-of-oz-to-the-rescue.md": {
+      "title": "Ozma of Oz, 7: Ozma of Oz to the Rescue",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 2215
+    },
+    "1907-ozma-of-oz-08-the-hungry-tiger.md": {
+      "title": "Ozma of Oz, 8: The Hungry Tiger",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 1535
+    },
+    "1907-ozma-of-oz-09-the-royal-family-of-ev.md": {
+      "title": "Ozma of Oz, 9: The Royal Family of Ev",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 2078
+    },
+    "1907-ozma-of-oz-10-the-giant-with-the-hammer.md": {
+      "title": "Ozma of Oz, 10: The Giant with the Hammer",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 2159
+    },
+    "1907-ozma-of-oz-11-the-nome-king.md": {
+      "title": "Ozma of Oz, 11: The Nome King",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 2900
+    },
+    "1907-ozma-of-oz-12-the-eleven-guesses.md": {
+      "title": "Ozma of Oz, 12: The Eleven Guesses",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 1000
+    },
+    "1907-ozma-of-oz-13-the-nome-king-laughs.md": {
+      "title": "Ozma of Oz, 13: The Nome King Laughs",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 1423
+    },
+    "1907-ozma-of-oz-14-dorothy-tries-to-be-brave.md": {
+      "title": "Ozma of Oz, 14: Dorothy Tries to be Brave",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 2026
+    },
+    "1907-ozma-of-oz-15-billina-frightens-the-nome-king.md": {
+      "title": "Ozma of Oz, 15: Billina Frightens the Nome King",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 1354
+    },
+    "1907-ozma-of-oz-16-purple-green-and-gold.md": {
+      "title": "Ozma of Oz, 16: Purple, Green, and Gold",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 1576
+    },
+    "1907-ozma-of-oz-17-the-scarecrow-wins-the-fight.md": {
+      "title": "Ozma of Oz, 17: The Scarecrow Wins the Fight",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 1561
+    },
+    "1907-ozma-of-oz-18-the-fate-of-the-tin-woodman.md": {
+      "title": "Ozma of Oz, 18: The Fate of the Tin Woodman",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 1642
+    },
+    "1907-ozma-of-oz-19-the-king-of-ev.md": {
+      "title": "Ozma of Oz, 19: The King of Ev",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 1175
+    },
+    "1907-ozma-of-oz-20-the-emerald-city.md": {
+      "title": "Ozma of Oz, 20: The Emerald City",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 1357
+    },
+    "1907-ozma-of-oz-21-dorothys-magic-belt.md": {
+      "title": "Ozma of Oz, 21: Dorothy's Magic Belt",
+      "kind": "scene",
+      "folder": "Ozma of Oz",
+      "tags": [],
+      "words": 1066
+    }
+  },
+  "cover": {
+    "file": "cover.jpg",
+    "doc": "1900-the-wonderful-wizard-of-oz-01-the-cyclone.md",
+    "caption": "W. W. Denslow, front cover of The Wonderful Wizard of Oz, George M. Hill Co., Chicago and New York, 1900. Public domain."
+  }
+}

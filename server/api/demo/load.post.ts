@@ -10,8 +10,10 @@
 //   by its manifest (medium prose), with wiki pages (entities.json: full titles, canon's names as analysis names, other names as
 //   aliases; "Watson's wife" is left to canon so the M1 merge beat stays) and a public-domain Paget cover on A Scandal in
 //   Bohemia. In recorded mode its candidates replay a recorded Muse run.
-const SETS = ['broken-tide', 'lantern-row', 'ashbell-pass', 'sherlock-holmes'] as const
-const NAMES = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample', 'ashbell-pass': 'the Ashbell Pass demo', 'sherlock-holmes': 'the Sherlock Holmes sample' }
+// - oz, alice: Baum's first three Oz books and Carroll's two Alice books, built the same way (scripts/gutenberg-corpus.mjs, one
+//   document per chapter, wiki pages for the cast), with recorded Muse runs and no gold set.
+const SETS = ['broken-tide', 'lantern-row', 'ashbell-pass', 'sherlock-holmes', 'oz', 'alice'] as const
+const NAMES = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample', 'ashbell-pass': 'the Ashbell Pass demo', 'sherlock-holmes': 'the Sherlock Holmes sample', 'oz': 'the Oz books sample', 'alice': 'the Alice sample' }
 // Documents imported at a time. Live extraction of a long sample is one model call per document; their candidates are still
 // stored in file order (importDocument's storeAfter), so a load gives the same review queue as a one-by-one import.
 const CONCURRENCY = 4

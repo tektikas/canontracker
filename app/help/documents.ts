@@ -31,6 +31,7 @@ export default [
           '**Try the Broken Tide demo**: press **Load demo and take the tour**. It adds Broken Tide, an island story with planted contradictions, and Lantern Row, a three-page sample with five preloaded canon facts, each in its own project. Your first project doesn’t change.',
           '**Load The Ashbell Pass**: a bigger mountain-town game story with NPC schedules, quests and items, in its own project.',
           '**Load Sherlock Holmes**: two novels and five stories by Arthur Conan Doyle (public domain), in its own project.',
+          '**Load the Oz books** and **Load Alice**: L. Frank Baum’s first three Oz books and Lewis Carroll’s two Alice books (public domain), one source per chapter, each in its own project.',
           '**Bring your own story**: opens your project’s Home, where you import Markdown, text or Word (.docx) files, or write a document in the app.',
           '**Skip for now**: you can load a sample, import files or write a document any time from Home.',
         ],
@@ -63,7 +64,7 @@ export default [
       { role: 'Admin, owner', can: 'Create projects, start them from a sample, load or replace a sample in a project, and invite teammates.' },
     ],
     related: ['home', 'library', 'candidates-and-canon', 'roles', 'projects', 'team'],
-    keywords: ['sign up', 'onboarding', 'studio', 'first project', 'demo', 'sample', 'tour', 'checklist', 'invite', 'Broken Tide', 'Lantern Row', 'Ashbell Pass', 'Sherlock Holmes'],
+    keywords: ['sign up', 'onboarding', 'studio', 'first project', 'demo', 'sample', 'tour', 'checklist', 'invite', 'Broken Tide', 'Lantern Row', 'Ashbell Pass', 'Sherlock Holmes', 'Oz', 'Alice'],
   },
   {
     slug: 'home',

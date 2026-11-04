@@ -15,7 +15,7 @@ const clip = (v: unknown, n = 90) => {
 const q = (v: unknown) => (v ? `“${clip(v)}”` : '')
 const TASK_LABEL: Record<string, string> = { open: 'open', in_progress: 'in progress', done: 'done', wont_fix: 'won’t fix', not_needed: 'not needed' }
 const identity = (d: Record<string, any>) => (d.identity ?? []).map((i: any) => `${i.from} saved as ${i.to} (merged page)`).join(', ')
-const SAMPLE_NAME: Record<string, string> = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample', 'ashbell-pass': 'the Ashbell Pass demo', 'sherlock-holmes': 'the Sherlock Holmes sample' }
+const SAMPLE_NAME: Record<string, string> = { 'broken-tide': 'the Broken Tide demo', 'lantern-row': 'the Lantern Row sample', 'ashbell-pass': 'the Ashbell Pass demo', 'sherlock-holmes': 'the Sherlock Holmes sample', 'oz': 'the Oz books sample', 'alice': 'the Alice sample' }
 // Audit details carry the file's own name and the folder it was in then (null: the Library root), never the internal key.
 const inFolder = (d: Record<string, any>) => (d.folder ? ` in ${d.folder}` : '')
 const because = (d: Record<string, any>) => (d.rationale ? `Reason: ${clip(d.rationale, 140)}` : '')

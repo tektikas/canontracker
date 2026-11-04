@@ -1,0 +1,179 @@
+{
+  "medium": "prose",
+  "tags": {},
+  "docs": {
+    "1865-alices-adventures-in-wonderland-01-down-the-rabbit-hole.md": {
+      "title": "Alice’s Adventures in Wonderland, 1: Down the Rabbit-Hole",
+      "kind": "scene",
+      "folder": "Alice’s Adventures in Wonderland",
+      "tags": [],
+      "words": 2192
+    },
+    "1865-alices-adventures-in-wonderland-02-the-pool-of-tears.md": {
+      "title": "Alice’s Adventures in Wonderland, 2: The Pool of Tears",
+      "kind": "scene",
+      "folder": "Alice’s Adventures in Wonderland",
+      "tags": [],
+      "words": 2105
+    },
+    "1865-alices-adventures-in-wonderland-03-a-caucus-race-and-a-long-tale.md": {
+      "title": "Alice’s Adventures in Wonderland, 3: A Caucus-Race and a Long Tale",
+      "kind": "scene",
+      "folder": "Alice’s Adventures in Wonderland",
+      "tags": [],
+      "words": 1708
+    },
+    "1865-alices-adventures-in-wonderland-04-the-rabbit-sends-in-a-little-bill.md": {
+      "title": "Alice’s Adventures in Wonderland, 4: The Rabbit Sends in a Little Bill",
+      "kind": "scene",
+      "folder": "Alice’s Adventures in Wonderland",
+      "tags": [],
+      "words": 2622
+    },
+    "1865-alices-adventures-in-wonderland-05-advice-from-a-caterpillar.md": {
+      "title": "Alice’s Adventures in Wonderland, 5: Advice from a Caterpillar",
+      "kind": "scene",
+      "folder": "Alice’s Adventures in Wonderland",
+      "tags": [],
+      "words": 2192
+    },
+    "1865-alices-adventures-in-wonderland-06-pig-and-pepper.md": {
+      "title": "Alice’s Adventures in Wonderland, 6: Pig and Pepper",
+      "kind": "scene",
+      "folder": "Alice’s Adventures in Wonderland",
+      "tags": [],
+      "words": 2599
+    },
+    "1865-alices-adventures-in-wonderland-07-a-mad-tea-party.md": {
+      "title": "Alice’s Adventures in Wonderland, 7: A Mad Tea-Party",
+      "kind": "scene",
+      "folder": "Alice’s Adventures in Wonderland",
+      "tags": [],
+      "words": 2293
+    },
+    "1865-alices-adventures-in-wonderland-08-the-queens-croquet-ground.md": {
+      "title": "Alice’s Adventures in Wonderland, 8: The Queen’s Croquet-Ground",
+      "kind": "scene",
+      "folder": "Alice’s Adventures in Wonderland",
+      "tags": [],
+      "words": 2493
+    },
+    "1865-alices-adventures-in-wonderland-09-the-mock-turtles-story.md": {
+      "title": "Alice’s Adventures in Wonderland, 9: The Mock Turtle’s Story",
+      "kind": "scene",
+      "folder": "Alice’s Adventures in Wonderland",
+      "tags": [],
+      "words": 2278
+    },
+    "1865-alices-adventures-in-wonderland-10-the-lobster-quadrille.md": {
+      "title": "Alice’s Adventures in Wonderland, 10: The Lobster Quadrille",
+      "kind": "scene",
+      "folder": "Alice’s Adventures in Wonderland",
+      "tags": [],
+      "words": 2036
+    },
+    "1865-alices-adventures-in-wonderland-11-who-stole-the-tarts.md": {
+      "title": "Alice’s Adventures in Wonderland, 11: Who Stole the Tarts?",
+      "kind": "scene",
+      "folder": "Alice’s Adventures in Wonderland",
+      "tags": [],
+      "words": 1884
+    },
+    "1865-alices-adventures-in-wonderland-12-alices-evidence.md": {
+      "title": "Alice’s Adventures in Wonderland, 12: Alice’s Evidence",
+      "kind": "scene",
+      "folder": "Alice’s Adventures in Wonderland",
+      "tags": [],
+      "words": 2109
+    },
+    "1871-through-the-looking-glass-01-looking-glass-house.md": {
+      "title": "Through the Looking-Glass, 1: Looking-Glass house",
+      "kind": "scene",
+      "folder": "Through the Looking-Glass",
+      "tags": [],
+      "words": 3224
+    },
+    "1871-through-the-looking-glass-02-the-garden-of-live-flowers.md": {
+      "title": "Through the Looking-Glass, 2: The Garden of Live Flowers",
+      "kind": "scene",
+      "folder": "Through the Looking-Glass",
+      "tags": [],
+      "words": 2826
+    },
+    "1871-through-the-looking-glass-03-looking-glass-insects.md": {
+      "title": "Through the Looking-Glass, 3: Looking-Glass Insects",
+      "kind": "scene",
+      "folder": "Through the Looking-Glass",
+      "tags": [],
+      "words": 2887
+    },
+    "1871-through-the-looking-glass-04-tweedledum-and-tweedledee.md": {
+      "title": "Through the Looking-Glass, 4: Tweedledum And Tweedledee",
+      "kind": "scene",
+      "folder": "Through the Looking-Glass",
+      "tags": [],
+      "words": 2869
+    },
+    "1871-through-the-looking-glass-05-wool-and-water.md": {
+      "title": "Through the Looking-Glass, 5: Wool and Water",
+      "kind": "scene",
+      "folder": "Through the Looking-Glass",
+      "tags": [],
+      "words": 3117
+    },
+    "1871-through-the-looking-glass-06-humpty-dumpty.md": {
+      "title": "Through the Looking-Glass, 6: Humpty Dumpty",
+      "kind": "scene",
+      "folder": "Through the Looking-Glass",
+      "tags": [],
+      "words": 2949
+    },
+    "1871-through-the-looking-glass-07-the-lion-and-the-unicorn.md": {
+      "title": "Through the Looking-Glass, 7: The Lion and the Unicorn",
+      "kind": "scene",
+      "folder": "Through the Looking-Glass",
+      "tags": [],
+      "words": 2600
+    },
+    "1871-through-the-looking-glass-08-its-my-own-invention.md": {
+      "title": "Through the Looking-Glass, 8: “It’s my own Invention”",
+      "kind": "scene",
+      "folder": "Through the Looking-Glass",
+      "tags": [],
+      "words": 4012
+    },
+    "1871-through-the-looking-glass-09-queen-alice.md": {
+      "title": "Through the Looking-Glass, 9: Queen Alice",
+      "kind": "scene",
+      "folder": "Through the Looking-Glass",
+      "tags": [],
+      "words": 4054
+    },
+    "1871-through-the-looking-glass-10-shaking.md": {
+      "title": "Through the Looking-Glass, 10: Shaking",
+      "kind": "scene",
+      "folder": "Through the Looking-Glass",
+      "tags": [],
+      "words": 63
+    },
+    "1871-through-the-looking-glass-11-waking.md": {
+      "title": "Through the Looking-Glass, 11: Waking",
+      "kind": "scene",
+      "folder": "Through the Looking-Glass",
+      "tags": [],
+      "words": 16
+    },
+    "1871-through-the-looking-glass-12-which-dreamed-it.md": {
+      "title": "Through the Looking-Glass, 12: Which Dreamed it?",
+      "kind": "scene",
+      "folder": "Through the Looking-Glass",
+      "tags": [],
+      "words": 697
+    }
+  },
+  "cover": {
+    "file": "cover.jpg",
+    "doc": "1865-alices-adventures-in-wonderland-01-down-the-rabbit-hole.md",
+    "caption": "John Tenniel, the White Rabbit, Alice’s Adventures in Wonderland, Macmillan, 1865. Public domain."
+  }
+}

@@ -179,7 +179,7 @@ export default [
         steps: [
           'Click **New project**.',
           'Type a **Story or project name**.',
-          'In **Start with**, keep **An empty project** or pick a sample: Broken Tide, Lantern Row, The Ashbell Pass or Sherlock Holmes.',
+          'In **Start with**, keep **An empty project** or pick a sample: Broken Tide, Lantern Row, The Ashbell Pass, Sherlock Holmes, the Oz books or Alice.',
           'Click **Create and open**; the new project opens on Home.',
         ],
       },

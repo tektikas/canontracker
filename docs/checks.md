@@ -19,7 +19,7 @@ The runner creates a temporary working directory for each production server, sup
 | --- | --- |
 | Types and production build | `pnpm exec nuxi typecheck`, `pnpm build` |
 | Offline self-checks | Every `scripts/*-check.*` (automatically discovered) |
-| HTTP probes on production | Every `scripts/*-probe.mjs` except the special cases below: API hardening, all four samples, authorship, canon/review, version re-check, roles/isolation, conversations, research, continuity, critic, entities/types, merge, library, search, tasks, profile, save drain, Word, voice, image uploads, sharing, EPUB and help |
+| HTTP probes on production | Every `scripts/*-probe.mjs` except the special cases below: API hardening, all six samples, authorship, canon/review, version re-check, roles/isolation, conversations, research, continuity, critic, entities/types, merge, library, search, tasks, profile, save drain, Word, voice, image uploads, sharing, EPUB and help |
 | Merge fuzzing | `merge-fuzz.mjs` with seed 74 and 100 operations, database invariants after operations |
 | Migration/explicit defaults | `severity-probe.mjs migrate` and `explicit`, `image-upload-probe.mjs migrate`, `entity-types-probe.mjs migrate`, using the second port serially |
 | Fetch safety | `image-fetch-probe.mjs`: local TLS/DNS/proxy interception, size/deadline and SSRF checks; its optional public connectivity smoke test is reported separately by the probe |
@@ -62,7 +62,7 @@ Common targeted regressions (HTTP probes take `<url>`):
 ## Other scripts (intentional manual tools)
 
 - `*-live.mjs`: credentialed recording/quality experiments for continuity, critic, research and voice. They are outside the offline gate; some write recordings when explicitly requested. `critic-gold.mjs` is the shared quality gate used by critic recording and its probe.
-- `sherlock-corpus.mjs`, `sherlock-record.mjs`: rebuild the public-domain corpus and record extraction; source/provenance is in the Sherlock assets. They are not startup steps.
+- `sherlock-corpus.mjs`, `gutenberg-corpus.mjs <oz|alice>`, `sample-record.mjs <set>`: rebuild the public-domain corpora and record a sample's extraction (credentialed, live); source/provenance is in each sample's `SOURCES.md` and `candidates.json` `_note`. They are not startup steps.
 - `canon-scale-seed.mjs`: opt-in large-canon development dataset; not part of a judge's quick start.
 - `recheck-timing.mjs`: opt-in citation re-check performance measurement; takes an instance URL, passage count and citation count, then creates a throwaway project.
 - `meta-fake.mjs`, `image-stub.mjs`: local provider stand-ins for contract/manual integration checks; never production defaults. The image stub supports manual image-flow experiments; it is not a gate dependency.

@@ -38,9 +38,12 @@ const allOf = (n: number) => `${n}/${n}`
 const sceneList = (files: string[]) => files.length > 3 ? `${files.length} other scenes` : files.map(f => f.match(/^S\d+/)?.[0] ?? f).join('/')
 
 // The gold set of the sample this project last loaded; a project that never loaded one with a gold set is scored as Broken Tide.
+// The Oz books and Alice have no gold set: a project that loaded one is refused, not scored as a story it doesn't hold.
+const NO_GOLD = ['oz', 'alice']
 async function goldFor() {
   const loaded = useDb().prepare(`select detail from audit_events where project_id = ? and event_type = 'sample.loaded' order by rowid desc limit 1`).get(pid()) as { detail: string } | undefined
   const set = loaded ? (JSON.parse(loaded.detail) as { set?: string }).set : undefined
+  if (set && NO_GOLD.includes(set)) throw createError({ statusCode: 409, statusMessage: 'NO_GOLD', message: 'This sample has no gold set, so there is nothing to measure. Broken Tide, The Ashbell Pass and Sherlock Holmes have one.' })
   const assets = useStorage('assets:server')
   return (set && await assets.getItem<Gold>(`${set}:gold.json`)) || await assets.getItem<Gold>('broken-tide:gold.json')
 }
