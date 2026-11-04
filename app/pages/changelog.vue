@@ -6,6 +6,12 @@ useMarketingSeo({ title: 'Changelog', description: 'What shipped in CanonTracker
 // One line per shipped change, newest first. 1 Nov had no commits.
 const DAYS: { date: string, label: string, entries: [string, string][] }[] = [
   { date: '2026-11-04', label: 'Day 9 · 4 Nov 2026', entries: [
+    ['Impact across every kind of document', 'A proposed change lists every document citing what it touches, grouped by kind: scenes, lore, quests, episodes, recordings. Exports and tasks follow.'],
+    ['Acts after death', 'A new hard conflict: a character does something at a story time after canon says they died. Burials, mourning and memories don’t count.'],
+    ['Review by document or folder', 'Narrow the Review queue to one document or one Library folder; the document page and Library link to it.'],
+    ['Open conflicts in exports', 'The story bible lists conflicts still open, marked as not canon, unless you leave them out.'],
+    ['Entity type in Add fact', 'Pick whether a name is a character, place, item or another type when adding a fact by hand.'],
+    ['Big wiki pages for agents', 'MCP reads a large entity page in parts, and the context pack says when it was shortened.'],
     ['Whole books split into chapters', 'Upload a manuscript as one file: it becomes one document per chapter, in reading order, in a folder named after the book. Uploading it again versions only the chapters that changed.'],
     ['Reading in the background', 'Uploads answer at once while the AI reads them, with live status in the Library, on the document and in Review.'],
     ['Story or reference', 'The AI says whether a document is story or reference notes as it reads it; labels say Chapter or Scene by medium.'],
