@@ -2,6 +2,7 @@
 definePageMeta({ layout: 'auth' })
 useHead({ title: 'Create your account · CanonTracker' })
 const route = useRoute()
+const me = useMe()
 const invite = computed(() => (typeof route.query.invite === 'string' ? route.query.invite : ''))
 const { data: inviteInfo } = await useFetch(() => `/api/invites/${invite.value}`, { immediate: !!invite.value, key: `invite-${invite.value}` })
 const form = reactive({ name: '', email: '', password: '' })
@@ -59,6 +60,10 @@ async function submit() {
     <p class="small muted switch">
       Already have an account? <NuxtLink :to="{ path: '/login', query: invite ? { redirect: `/invite/${invite}` } : {} }">Log in</NuxtLink>
     </p>
+    <div v-if="!invite && !me?.user" class="try">
+      <p class="small muted">No account needed:</p>
+      <TryDemoButton size="md" />
+    </div>
   </div>
 </template>
 
@@ -68,4 +73,6 @@ async function submit() {
 .form { gap: var(--s-4); padding: var(--s-5); }
 .form .btn { width: 100%; }
 .switch { text-align: center; margin-top: var(--s-4); }
+.try { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--s-2); margin-top: var(--s-3); }
+.try p { margin: 0; }
 </style>

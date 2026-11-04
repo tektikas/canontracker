@@ -8,6 +8,7 @@ export default defineNuxtRouteMiddleware(async (to) => {
   if (isMarketingPath(to.path)) return
   const open = to.path === '/' || to.path === '/login' || to.path === '/signup' || to.path.startsWith('/invite/')
   if (!me.value?.user) return open ? undefined : navigateTo({ path: '/login', query: { redirect: to.fullPath } })
-  if (to.path === '/login' || to.path === '/signup') return navigateTo(safeRedirect(to.query.redirect))
+  // A guest ("Try the demo") may still sign up or log in: that starts a real account's session in place of the guest's.
+  if ((to.path === '/login' || to.path === '/signup') && !me.value.user.guest) return navigateTo(safeRedirect(to.query.redirect))
   if (!me.value.current && to.path !== '/onboarding' && !to.path.startsWith('/invite/')) return navigateTo('/onboarding')
 })

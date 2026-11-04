@@ -46,8 +46,12 @@ export default [
         ],
       },
       {
+        title: 'Try the demo without an account',
+        text: 'On the home page, the log-in page or the sign-up page, press **Try the demo**. You get a demo account with three projects (Broken Tide, The Ashbell Pass and Sherlock Holmes), and Broken Tide opens with the guided tour. Most of each story’s canon is already in place, marked **Sample canon (preloaded)**: nobody decided it, so it never counts as a person’s decision. A short queue is left in Review for you, including the traps (a figure of speech, a made-up quote), the conflict scan has already run, and Broken Tide and The Ashbell Pass each have a rule change waiting for your decision. The demo account isn’t tied to an email: use **sign up** in the banner to make your own account.',
+      },
+      {
         title: 'The guided tour',
-        text: 'A short tour of the Broken Tide demo: a figurative candidate, a made-up quote, a caught conflict and a change’s impact. It opens after **Load demo and take the tour**, or from **Take the tour** in the Getting started checklist when Broken Tide is loaded. It only points at the screen and moves on when you act; it never clicks or decides for you.',
+        text: 'A short tour of the Broken Tide demo. The core comes first, five steps: a figurative candidate, a made-up quote, accepting what holds up, a caught conflict and a change’s impact. Then choose **Keep going: wiki, timeline, Ask, agents** for six more short stops (a character’s page, the timeline, Ask, the reader, export and agents), or **Explore on my own**. **Back**, **Next** and **Skip tour** are on every card, and `Esc` ends it. It opens after **Load demo and take the tour** or **Try the demo**; start it again from **Take the tour** in the Getting started checklist on Home. It only points at the screen and moves on when you act; it never clicks or decides for you.',
       },
       {
         title: 'The Getting started checklist',
@@ -64,7 +68,7 @@ export default [
       { role: 'Admin, owner', can: 'Create projects, start them from a sample, load or replace a sample in a project, and invite teammates.' },
     ],
     related: ['home', 'library', 'candidates-and-canon', 'roles', 'projects', 'team'],
-    keywords: ['sign up', 'onboarding', 'studio', 'first project', 'demo', 'sample', 'tour', 'checklist', 'invite', 'Broken Tide', 'Lantern Row', 'Ashbell Pass', 'Sherlock Holmes', 'Oz', 'Alice'],
+    keywords: ['sign up', 'onboarding', 'studio', 'first project', 'demo', 'try the demo', 'guest', 'sample', 'tour', 'checklist', 'invite', 'Broken Tide', 'Lantern Row', 'Ashbell Pass', 'Sherlock Holmes', 'Oz', 'Alice'],
   },
   {
     slug: 'home',

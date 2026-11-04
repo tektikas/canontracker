@@ -371,7 +371,7 @@ const ago = (iso: string) => {
           <p v-else class="muted none">No summary yet.<template v-if="editable"> Write one so mentions show it on hover.</template></p>
         </UiPanel>
 
-        <UiPanel title="What canon says" :description="facts.length ? `Accepted facts that name ${e.name}, each with the passage it came from.` : undefined">
+        <UiPanel data-tour="wiki-facts" title="What canon says" :description="facts.length ? `Accepted facts that name ${e.name}, each with the passage it came from.` : undefined">
           <p v-if="e.pending" class="notice info pending">
             <UiIcon name="review" :size="16" />
             <span>{{ counted(e.pending, 'candidate') }} about {{ e.name }} {{ e.pending === 1 ? 'is' : 'are' }} waiting for review. <NuxtLink to="/review">Review</NuxtLink></span>
@@ -432,7 +432,7 @@ const ago = (iso: string) => {
     </div>
 
     <!-- Timeline -->
-    <UiPanel v-else-if="tab === 'timeline'" :title="`${e.name} on the story timeline`" description="Canon facts that name this entity, by story time (Day 1 starts at 00:00; earlier days are D0, D-1, …) or in reading order.">
+    <UiPanel v-else-if="tab === 'timeline'" data-tour="timeline" :title="`${e.name} on the story timeline`" description="Canon facts that name this entity, by story time (Day 1 starts at 00:00; earlier days are D0, D-1, …) or in reading order.">
       <StoryTimeline v-if="facts.length" :facts="facts" />
       <UiEmptyState v-else title="No canon facts yet" icon="event">
         No accepted fact names {{ e.name }} yet.

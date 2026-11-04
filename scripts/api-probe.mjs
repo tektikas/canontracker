@@ -164,8 +164,9 @@ for (const [method, path, body] of foreign) {
 assert.deepEqual(crossed, [])
 ok("another studio's ids are 404", `${foreign.length} reads and writes`)
 
-// Routes whose side effects would end the walk: they get the bad bodies on a throwaway id or not at all.
-const SKIP = new Set(['POST /api/demo/load', `DELETE /api/team/${boId}`, `POST /api/projects/${project.id}/switch`, `POST /api/invites/${invite2.token}/accept`])
+// Routes whose side effects would end the walk: they get the bad bodies on a throwaway id or not at all. POST /api/auth/guest
+// signs the caller in as a new guest (it takes no body; scripts/guest-probe.mjs covers it).
+const SKIP = new Set(['POST /api/demo/load', 'POST /api/auth/guest', `DELETE /api/team/${boId}`, `POST /api/projects/${project.id}/switch`, `POST /api/invites/${invite2.token}/accept`])
 const WRONG = { name: {}, title: {}, body: {}, quote: {}, rationale: {}, decision: 'accept', question: {}, proposed_statement: {}, target_fact_id: {},
   aliases: 5, summary: 7, notes: [], fields: 'x', kind: {}, studio_id: {}, folder_id: {}, parent_id: {}, add_tags: 'x', remove_tags: 5, document_ids: 'x',
   style: ['ink'], corrected: null, into: {}, role: {}, color: {}, icon: {}, status: {}, comment: {}, assignee_id: {}, due_date: {}, items: 'x', fact_ids: 'x',

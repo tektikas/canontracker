@@ -2,6 +2,7 @@
 definePageMeta({ layout: 'auth' })
 useHead({ title: 'Log in · CanonTracker' })
 const route = useRoute()
+const me = useMe()
 const form = reactive({ email: '', password: '' })
 const error = ref('')
 const busy = ref(false)
@@ -49,6 +50,10 @@ async function submit() {
     <p class="small muted switch">
       New to CanonTracker? <NuxtLink :to="{ path: '/signup', query: inviting ? { invite: redirect.split('/').pop() } : {} }">Create an account</NuxtLink>
     </p>
+    <div v-if="!inviting && !me?.user" class="try">
+      <p class="small muted">No account needed:</p>
+      <TryDemoButton size="md" />
+    </div>
   </div>
 </template>
 
@@ -60,4 +65,6 @@ async function submit() {
 .link-btn { justify-self: center; border: 0; background: none; padding: 4px; color: var(--accent); font: inherit; cursor: pointer; text-decoration: underline; text-underline-offset: 2px; }
 .forgot { margin: 0; text-align: center; }
 .switch { text-align: center; margin-top: var(--s-4); }
+.try { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: var(--s-2); margin-top: var(--s-3); }
+.try p { margin: 0; }
 </style>

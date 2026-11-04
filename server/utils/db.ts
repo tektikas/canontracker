@@ -282,7 +282,9 @@ export function useDb() {
       // facts.subject_type/object_type: what extraction said each name is (NAME_TYPES in model.ts); null = not said (Add fact, MCP, older runs).
       ['facts', 'subject_type', 'text'], ['facts', 'object_type', 'text'],
       // documents.kind_source: who set the kind (person | manuscript | ai | name, see importer.ts); null on older rows = guessed from the name.
-      ['documents', 'kind_source', 'text']] as const) {
+      ['documents', 'kind_source', 'text'],
+      // users.guest: 1 = a "Try the demo" account (server/api/auth/guest.post.ts): no email of its own, no usable password.
+      ['users', 'guest', 'integer not null default 0']] as const) {
       if (!(conn.prepare(`pragma table_info(${table})`).all() as { name: string }[]).some(r => r.name === column))
         conn.exec(`alter table ${table} add column ${column} ${type}`)
     }

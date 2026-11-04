@@ -68,7 +68,7 @@ const nextKey = computed(() => items.value.find(i => !i.done && !('na' in i && i
       </li>
     </ol>
     <footer v-if="props.demo" class="guide-tour">
-      <span class="small muted"><b>New here?</b> A 2-minute guided tour of the Broken Tide demo: a figurative candidate, a made-up quote, a caught conflict and a change’s impact.</span>
+      <span class="small muted"><b>New here?</b> A 2-minute guided tour of the Broken Tide demo: a figurative candidate, a made-up quote, a caught conflict and a change’s impact, then more if you want.</span>
       <UiButton size="sm" variant="primary" icon="demo" @click="tour.start()">Take the tour</UiButton>
     </footer>
   </section>

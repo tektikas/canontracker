@@ -2,8 +2,10 @@
 export default defineEventHandler(async (event) => {
   const model = modelInfo()
   const session = await getUserSession(event)
-  const user = session.user && useDb().prepare('select id, name, email from users where id = ?').get(session.user.id) as { id: string, name: string, email: string } | undefined
-  if (!user) return { user: null, model, studios: [], projects: [], current: null }
+  const row = session.user && useDb().prepare('select id, name, email, guest from users where id = ?').get(session.user.id) as { id: string, name: string, email: string, guest: number } | undefined
+  if (!row) return { user: null, model, studios: [], projects: [], current: null }
+  // guest: a "Try the demo" account (POST /api/auth/guest); the shell shows a banner offering a real sign-up.
+  const user = { id: row.id, name: row.name, email: row.email, guest: !!row.guest }
 
   const studios = useDb().prepare(`select s.id, s.name, m.role from memberships m join studios s on s.id = m.studio_id
     where m.user_id = ? order by s.created_at`).all(user.id) as { id: string, name: string, role: Role }[]
