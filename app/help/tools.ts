@@ -72,10 +72,11 @@ export default [
     ],
     roles: [
       { role: 'Viewer', can: 'Read every conversation, start new ones and post in any of them, in Canon or Research mode, and check continuity.' },
-      { role: 'Editor, admin, owner', can: 'Everything a viewer can, plus **Rename** a conversation.' },
+      { role: 'Editor', can: 'Everything a viewer can, plus **Rename** a conversation, and **Delete** one they started (it goes for the whole team; canon, research notes and continuity reports stay).' },
+      { role: 'Admin, owner', can: 'Everything an editor can, and **Delete** any conversation.' },
     ],
     related: ['research', 'candidates-and-canon', 'evidence', 'agent-activity', 'reader', 'shortcuts'],
-    keywords: ['chat', 'question', 'answer', 'conversation', 'drawer', 'unknown', 'follow-up', 'continuity', 'voice', 'dictate'],
+    keywords: ['chat', 'question', 'answer', 'conversation', 'delete', 'drawer', 'unknown', 'follow-up', 'continuity', 'voice', 'dictate'],
   },
   {
     slug: 'research',

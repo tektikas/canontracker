@@ -152,6 +152,23 @@ for (const [body, code] of [[{}, 400], [{ text: '   ' }, 400], [{ text: 'x', mod
 assert.equal((await ada('/api/conversations/cnv_nope/messages', { method: 'POST', body: { text: 'x' } })).status, 404)
 ok('bad bodies are 400, unknown conversation 404')
 
+// --- Delete: the starter (editor+) or an admin/owner; viewers never; the messages go with it; audited.
+const mine = (await bo('/api/conversations', { method: 'POST', body: { text: 'Who keeps the Bell Gate key?' } })).data
+const theirs = (await ada('/api/conversations', { method: 'POST', body: { text: 'Who rings the Ashbell at dusk?' } })).data
+assert.equal((await bo(`/api/conversations/${mine.conversation.id}`)).data.conversation.can_delete, true, 'the starter may delete')
+assert.equal((await bo(`/api/conversations/${theirs.conversation.id}`)).data.conversation.can_delete, false, 'an editor may not delete another\'s')
+assert.equal((await vi(`/api/conversations/${theirs.conversation.id}`)).data.conversation.can_delete, false, 'a viewer never')
+assert.equal((await bo(`/api/conversations/${theirs.conversation.id}`, { method: 'DELETE' })).status, 403)
+assert.equal((await vi(`/api/conversations/${mine.conversation.id}`, { method: 'DELETE' })).status, 403)
+assert.equal((await cy(`/api/conversations/${mine.conversation.id}`, { method: 'DELETE' })).status, 404)
+assert.equal((await bo(`/api/conversations/${mine.conversation.id}`, { method: 'DELETE' })).status, 200)
+assert.equal((await ada(`/api/conversations/${mine.conversation.id}`)).status, 404)
+assert.equal((await ada(`/api/conversations/${theirs.conversation.id}`, { method: 'DELETE' })).status, 200, 'an owner deletes anyone\'s')
+assert.ok(!(await ada('/api/conversations')).data.some(x => x.id === mine.conversation.id || x.id === theirs.conversation.id))
+const deleted = (await ada('/api/audit')).data.filter(e => e.event_type === 'conversation.deleted')
+assert.ok(deleted.some(e => e.target_id === mine.conversation.id && e.detail?.messages >= 1), JSON.stringify(deleted).slice(0, 300))
+ok('delete: the starter or an admin/owner, never a viewer; messages go with it; audited')
+
 // --- A removed member's messages keep their name.
 assert.equal((await ada(`/api/team/${boId}`, { method: 'DELETE' })).status, 200)
 const after = (await ada(`/api/conversations/${conv.id}`)).data.messages

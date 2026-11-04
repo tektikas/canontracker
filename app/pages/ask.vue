@@ -26,7 +26,7 @@ function startNew() {
   router.push({ query: { c: 'new' } })
   chat.value.tick++
 }
-const thread = ref<{ conversation: { id: string, title: string, created_by_name: string, created_at: string } | null, reload: () => unknown, send: (t: string) => unknown }>()
+const thread = ref<{ conversation: { id: string, title: string, created_by_name: string, created_at: string, can_delete?: boolean } | null, reload: () => unknown, send: (t: string) => unknown }>()
 const conversation = computed(() => (current.value ? thread.value?.conversation ?? null : null))
 
 // Rename (editors and up).
@@ -49,6 +49,22 @@ async function rename() {
   }
 }
 watch(current, () => { renaming.value = false })
+
+// Delete (whoever started it, or a studio admin; the server decides and says can_delete).
+const deleteError = ref('')
+async function remove() {
+  const c = conversation.value
+  if (!c || !(await askConfirm({ title: `Delete “${c.title}”?`, body: 'The conversation and every message in it are removed for the whole team. Canon, research notes and continuity reports stay.', confirm: 'Delete conversation', danger: true }))) return
+  try {
+    await $fetch(`/api/conversations/${c.id}`, { method: 'DELETE' })
+    deleteError.value = ''
+    await router.replace({ query: {} })
+    await refresh()
+  } catch (e) {
+    deleteError.value = errorMessage(e)
+  }
+}
+watch(current, () => { deleteError.value = '' })
 
 // Starter questions: the demo's own, or ones about the project's most-cited pages.
 const DEMO_EXAMPLES = ['Why can\'t Leya remember an hour of Day 1?', 'Where is Arin at 22:00 on Day 1?', 'What did the harbor master eat on Day 3?']
@@ -111,6 +127,8 @@ function tryExample(ex: string) {
             </p>
           </div>
           <UiButton v-if="conversation && editor" size="sm" variant="ghost" icon="review" @click="startRename">Rename</UiButton>
+          <UiButton v-if="conversation?.can_delete" size="sm" variant="ghost" icon="trash" @click="remove">Delete</UiButton>
+          <p v-if="deleteError" class="field-error" role="alert">{{ deleteError }}</p>
         </template>
       </header>
 

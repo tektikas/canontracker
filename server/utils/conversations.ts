@@ -229,12 +229,19 @@ const continuityOrNull = (id: string) => {
   }
 }
 
+// Who may delete a conversation: whoever started it (editor and up) or a studio admin/owner.
+export function canDeleteConversation(conv: ConversationRow) {
+  const a = access()
+  return atLeast(a.role, 'editor') && (conv.created_by === a.user.id || atLeast(a.role, 'admin'))
+}
+
 export function conversationWithMessages(conv: ConversationRow) {
   const rows = useDb().prepare('select * from messages where conversation_id = ? order by rowid').all(conv.id) as unknown as MessageRow[]
   const people = authorNames([{ author_id: conv.created_by } as MessageRow, { author_id: conv.updated_by } as MessageRow])
   return {
     conversation: { id: conv.id, title: conv.title, mode: conv.mode, created_at: conv.created_at, updated_at: conv.updated_at,
-      created_by_name: people.get(conv.created_by) ?? 'Unknown user', updated_by_name: people.get(conv.updated_by) ?? 'Unknown user' },
+      created_by_name: people.get(conv.created_by) ?? 'Unknown user', updated_by_name: people.get(conv.updated_by) ?? 'Unknown user',
+      can_delete: canDeleteConversation(conv) },
     messages: present(rows),
   }
 }
