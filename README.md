@@ -4,6 +4,16 @@ CanonTracker helps writers and narrative teams keep a story world consistent. Im
 
 Meta AI Developer Hackathon · Startup track. **Demo video:** [youtu.be/tb1EZ1d2VSk](https://youtu.be/tb1EZ1d2VSk) · **Live app:** [canontracker.trythis.work](https://canontracker.trythis.work) (no account needed: press **Try the demo**).
 
+## For judges: two minutes, nothing to install
+
+1. Open [canontracker.trythis.work](https://canontracker.trythis.work) and press **Try the demo**. You get a guest studio with three projects and the guided tour starts.
+2. Follow the tour's five steps in **Broken Tide**: reject a figurative "sister" the AI took literally, see a made-up quote that can't get into canon, accept what holds up, catch a conflict, and see which scenes a rule change would affect before it ships.
+3. Switch project (top left) to **The Ashbell Pass**, a game with 28 documents, or **Sherlock Holmes**, 31 chapters and stories by Doyle.
+4. Try the AI on your own text: drop a `.md`, `.txt` or `.docx` on the Library, or ask a question in **Ask**. On the live site these run on Muse Spark.
+5. Open **Agent activity** to see every AI run: model, prompt version, steps and what people did with the result.
+
+The samples open with most canon in place, labelled "Sample canon (preloaded)"; their AI output was recorded from real Muse runs and replays, so the demo opens at once. Anything you upload is read live. Every canon fact still cites a passage, and nothing becomes canon without a person.
+
 ## What's in it
 
 - A multi-user SaaS: sign-up, studios, owner/admin/editor/viewer roles, invite links and separate projects.
